@@ -133,6 +133,8 @@ tr.cur td{background:var(--surface2)}
 .eqsel select{font-weight:700;color:var(--ink);border-color:var(--accent)}
 .elem{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;justify-content:space-between;background:var(--surface);border:1px solid var(--accent);border-radius:var(--r);padding:10px 12px;font-size:.9rem}
 .oc-link{color:var(--warn);font-weight:600}
+.aviso{margin-top:12px;border:1px solid var(--bad);background:var(--bad-bg);color:var(--ink);border-radius:var(--r);padding:12px;font-size:.88rem;line-height:1.45}
+.aviso b{color:var(--bad)}
 .eq-info{display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center;font-size:.85rem;color:var(--muted)}
 .eq-info b{color:var(--ink)}
 .chipbtn{border:1px solid var(--accent);background:var(--surface);color:var(--accent);border-radius:999px;padding:4px 12px;min-height:34px;font-weight:600;font-size:.8rem}
@@ -200,6 +202,10 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
 </header>
 
 <main class="wrap">
+  <div class="aviso" id="aviso" role="alert" hidden>
+    <b>O script do Google está numa versão antiga.</b> Equipes, fotos e ocorrências ficam guardadas no celular, mas não vão para a planilha até você atualizar.
+    No Apps Script: cole o <code>Code.gs</code> novo → Salvar → rodar <b>configurar</b> → <b>Implantar → Gerenciar implantações → lápis ✏️ → Versão: Nova versão → Implantar</b>.
+  </div>
   <section class="view" id="v-coleta">
     <div class="resumo" id="resumo-sem"></div>
     <label class="campo eqsel" for="f-eq">Lançando como<select id="f-eq"></select></label>
@@ -373,6 +379,7 @@ const S = { items:[], byCode:new Map(), meta:null, weeks:LS.get("weeks2")||{}, p
             regs:LS.get("regs")||[], pendReg:LS.get("pendReg")||[], pendDel:LS.get("pendDel")||[],
             cur:null, cfg:LS.get("cfg"), syncing:false, err:"", lastSync:LS.get("lastSync"), limit:60 };
 const K = (cod, eq) => cod+"|"+eq;
+const SCRIPT_MIN = 6; // versão do Code.gs que este app espera
 const eqList = () => { const m=new Map(S.eqs.map(e=>[e.nome,{...e}])); for(const [n,p] of Object.entries(S.pendEq)) m.set(n,{nome:n,arm:0,ativa:true,...m.get(n),...p}); return [...m.values()]; };
 const eqAtivas = () => { const a=eqList().filter(e=>e.ativa); return a.length ? a : [{nome:"Equipe 1",arm:0,ativa:true}]; };
 function eqAtual(){ const a=eqAtivas(); if(!a.some(e=>e.nome===S.eq)) S.eq=a[0].nome; return S.eq; }
@@ -422,8 +429,10 @@ async function post(body){
 }
 function applyServer(j){
   if(j.itens){ const meta={v:j.versao, fonte:"Google Drive", atualizado:j.agora}; setBase(meta, j.itens); LS.set("base",{meta,itens:j.itens}); }
+  S.scriptVelho = !(j.script >= SCRIPT_MIN);
   const w={};
-  for(const s of j.semanas) w[s.n]={...s, raw:{}};
+  // as datas vêm do texto do período ("21/09/26 a 27/09/26"), que não sofre com fuso horário
+  for(const s of j.semanas){ const d=periodoISO(s.periodo); w[s.n]={...s, ...(d||{}), raw:{}}; }
   for(const [n,c,q,eq] of j.lanc){ (w[n] ??= {n, raw:{}}).raw[K(c,eq)]=q; }
   S.weeks=w; LS.set("weeks2",w);
   if(j.equipes){ S.eqs=j.equipes; LS.set("equipes",S.eqs); }
@@ -452,11 +461,13 @@ async function enviarFotos(){
   }
 }
 let syncT;
-function scheduleSync(ms=800){ clearTimeout(syncT); syncT=setTimeout(sync, ms); setSync(); }
+// S.mut conta as edições; depois de sincronizar, só sincroniza de novo se houve edição nova no meio
+function scheduleSync(ms=800){ S.mut=(S.mut||0)+1; clearTimeout(syncT); syncT=setTimeout(sync, ms); setSync(); }
 async function sync(){
   clearTimeout(syncT);
   if(!S.cfg?.url || S.syncing) return setSync();
   S.syncing=true; setSync();
+  const m0=S.mut;
   const snap = JSON.parse(JSON.stringify(S.pend));
   const snapEq = JSON.parse(JSON.stringify(S.pendEq));
   const snapReg = S.pendReg.filter(r=>r.tipo!=="foto").map(r=>JSON.stringify(r));
@@ -477,16 +488,25 @@ async function sync(){
       if(p.novo) delete cur.novo;
       if(!Object.keys(cur).length) delete S.pend[n];
     }
-    for(const [n,p] of Object.entries(snapEq)) if(JSON.stringify(S.pendEq[n])===JSON.stringify(p)) delete S.pendEq[n];
-    S.pendReg = S.pendReg.filter(r=>r.tipo==="foto" || !snapReg.includes(JSON.stringify(r)));
-    S.pendDel = S.pendDel.filter(id=>!snapDel.includes(id));
-    savePend(); savePendExtra(); applyServer(j);
+    applyServer(j);
+    // equipes e registros só saem da fila quando o Google devolve o que foi gravado
+    const noServ=new Map((j.equipes||[]).map(e=>[e.nome,e]));
+    const igual=(a,b)=>JSON.stringify(a??null)===JSON.stringify(b??null);
+    for(const [n,p] of Object.entries(snapEq)){
+      const e=noServ.get(n);
+      const gravou = e && Object.entries(p).every(([k,v])=> k==="arm" ? +e.arm===+v : igual(e[k],v));
+      if(gravou && JSON.stringify(S.pendEq[n])===JSON.stringify(p)) delete S.pendEq[n];
+    }
+    const regIds=new Set((j.registros||[]).map(r=>r.id));
+    S.pendReg = S.pendReg.filter(r=>r.tipo==="foto" || !(snapReg.includes(JSON.stringify(r)) && regIds.has(r.id)));
+    S.pendDel = S.pendDel.filter(id=>!(snapDel.includes(id) && j.registros && !regIds.has(id)));
+    savePend(); savePendExtra();
     await enviarFotos();
     S.err=""; afterData(); renderData();
   }catch(e){
     S.err=e.message;
     syncT=setTimeout(sync, 30000); // tenta de novo sozinho
-  }finally{ S.syncing=false; setSync(); if(pendCount() && !S.err) scheduleSync(300); }
+  }finally{ S.syncing=false; setSync(); if(S.mut!==m0 && !S.err) scheduleSync(300); }
 }
 addEventListener("online", ()=>scheduleSync(200));
 document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="visible") scheduleSync(200); });
@@ -496,6 +516,7 @@ $("#sync").addEventListener("click", ()=>{ if(!S.cfg?.url) show("dados"); else s
 function pendCount(){ let c=Object.keys(S.pendEq).length+S.pendReg.length+S.pendDel.length; for(const p of Object.values(S.pend)){ c+=Object.keys(p.raw||{}).length + (p.arm!=null) + (p.dias!=null) + (p.novo?1:0); } return c; }
 function setSync(){
   const e=$("#sync"), c=pendCount();
+  $("#aviso").hidden = !(S.scriptVelho && S.cfg?.url);
   if(!S.cfg?.url){ e.className="pill warn"; e.textContent="Configurar banco"; return; }
   if(S.syncing){ e.className="pill"; e.textContent="Sincronizando…"; return; }
   if(c && S.err){ e.className="pill bad"; e.textContent=`${c} pendente${c>1?"s":""} · sem conexão`; e.title=S.err; return; }

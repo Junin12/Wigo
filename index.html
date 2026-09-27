@@ -54,8 +54,8 @@ select,input[type=search],input[type=number],input[type=text],input[type=url],in
 .pill.warn{background:var(--warn-bg);color:var(--warn)}
 .pill.bad{background:var(--bad-bg);color:var(--bad)}
 
-.tabs{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px);display:grid;grid-template-columns:repeat(4,1fr)}
-.tabs button{border:0;background:none;height:var(--tabs);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-weight:600;font-size:.82rem;color:var(--muted)}
+.tabs{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px);display:grid;grid-template-columns:repeat(5,1fr)}
+.tabs button{border:0;background:none;height:var(--tabs);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-weight:600;font-size:.78rem;color:var(--muted);padding:0}
 .tabs button svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .tabs button[aria-selected="true"]{color:var(--accent);box-shadow:inset 0 3px 0 var(--accent)}
 @media (min-width:760px){.tabs{max-width:980px;margin-inline:auto;border-inline:1px solid var(--line);border-radius:12px 12px 0 0}}
@@ -127,6 +127,26 @@ tr.cur td{background:var(--surface2)}
 .confirma{border:1px solid var(--warn);background:var(--warn-bg);border-radius:var(--r);padding:12px;display:grid;gap:8px}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--tabs) + 14px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:600;z-index:9;max-width:calc(100% - 32px);text-align:center}
 @media (prefers-reduced-motion:no-preference){.bar i{transition:width .25s}}
+
+/* projetos */
+.btn.prancha{padding-inline:10px;font-size:.85rem}
+.projs{display:grid;gap:8px}
+.proj{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px;display:grid;grid-template-columns:1fr auto;gap:4px 12px;align-items:center}
+.proj b{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-size:1.15rem;font-weight:600;line-height:1.15}
+.proj small{grid-column:1;color:var(--muted);font-size:.8rem}
+.proj .acoes{grid-column:2;grid-row:1/span 2;display:flex;gap:6px;align-items:center}
+.off{font-size:.7rem;font-weight:700;letter-spacing:.06em;color:var(--good)}
+
+/* visualizador de PDF */
+.viewer{position:fixed;inset:0;z-index:20;background:#2A3038;display:flex;flex-direction:column;color:#fff}
+.v-bar{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:8px 10px;padding-top:calc(8px + env(safe-area-inset-top,0px));background:#161B21}
+.v-bar .tit{flex:1 1 160px;min-width:0;font-weight:600;font-size:.9rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.v-bar button,.v-bar select{min-height:40px;min-width:40px;border:1px solid #3A434E;background:#232A33;color:#fff;border-radius:8px;font-weight:600;padding:0 10px}
+.v-bar select{padding:0 6px}
+.v-stage{position:relative;flex:1;overflow:hidden;touch-action:none;cursor:grab;background:#2A3038}
+.v-stage canvas{position:absolute;left:0;top:0;transform-origin:0 0;background:transparent}
+.v-msg{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:24px;color:#C9D2DC;font-weight:600}
+.v-dica{position:absolute;left:50%;bottom:calc(12px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:rgba(0,0,0,.6);color:#fff;font-size:.78rem;padding:6px 10px;border-radius:8px;pointer-events:none}
 </style>
 </head>
 <body>
@@ -170,6 +190,14 @@ tr.cur td{background:var(--surface2)}
     <div class="row"><button class="btn" id="add-sem" type="button">Adicionar próxima semana</button></div>
   </section>
 
+  <section class="view" id="v-projetos" hidden>
+    <div class="row"><h2 style="margin-right:auto">Projetos</h2><button class="btn" id="pj-atualizar" type="button">Atualizar lista</button></div>
+    <p class="info">PDFs da pasta <b>Projetos</b> no seu Google Drive. Os que você abrir ficam guardados no celular para ver sem internet.</p>
+    <input id="pj-busca" type="search" placeholder="Filtrar: floculador, decantador, armadura, DE-038…" aria-label="Filtrar projetos">
+    <div class="row"><button class="btn" id="pj-todos" type="button">Baixar todos para usar offline</button><span id="pj-uso" class="info"></span></div>
+    <div class="projs" id="pj-lista"></div>
+  </section>
+
   <section class="view" id="v-dados" hidden>
     <h2>Ajustes e planilha</h2>
     <div class="card">
@@ -202,10 +230,25 @@ tr.cur td{background:var(--surface2)}
 <nav class="tabs" role="tablist" aria-label="Seções">
   <button role="tab" type="button" data-v="coleta" aria-selected="true"><svg viewBox="0 0 24 24"><path d="M9 4h6v3H9z"/><path d="M8 5H6v16h12V5h-2"/><path d="M9 12l2 2 4-4"/></svg>Coleta</button>
   <button role="tab" type="button" data-v="painel" aria-selected="false"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Painel</button>
+  <button role="tab" type="button" data-v="projetos" aria-selected="false"><svg viewBox="0 0 24 24"><path d="M14 3H6v18h12V7z"/><path d="M14 3v4h4M9 13h6M9 17h6"/></svg>Projetos</button>
   <button role="tab" type="button" data-v="semanas" aria-selected="false"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Semanas</button>
   <button role="tab" type="button" data-v="dados" aria-selected="false"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg>Ajustes</button>
 </nav>
 <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<div class="viewer" id="viewer" role="dialog" aria-modal="true" aria-labelledby="v-tit" hidden>
+  <div class="v-bar">
+    <button id="v-fechar" type="button" aria-label="Fechar">✕</button>
+    <span class="tit" id="v-tit"></span>
+    <button id="v-ant" type="button" aria-label="Folha anterior">‹</button>
+    <select id="v-pag" aria-label="Folha"></select>
+    <button id="v-prox" type="button" aria-label="Próxima folha">›</button>
+    <button id="v-menos" type="button" aria-label="Diminuir zoom">−</button>
+    <button id="v-mais" type="button" aria-label="Aumentar zoom">+</button>
+    <button id="v-ajustar" type="button">Ajustar</button>
+  </div>
+  <div class="v-stage" id="v-stage"><div class="v-msg" id="v-msg"></div><div class="v-dica" id="v-dica" hidden>Pinça para zoom · arraste para mover · toque duplo aproxima</div></div>
+</div>
 
 <script>
 "use strict";
@@ -256,13 +299,14 @@ function recompute(){
 const curW = () => S.W.find(w=>w.n===S.cur);
 
 // ---------- conversa com a planilha do Google ----------
-async function api(ops){
+const api = ops => post({v:S.meta?.v||"", ops});
+async function post(body){
   if(!S.cfg?.url) throw new Error("Banco não configurado. Vá em Ajustes.");
   let r;
   try{
     // text/plain evita a checagem CORS extra que o Apps Script não responde
     r = await fetch(S.cfg.url, {method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"},
-      body: JSON.stringify({token:S.cfg.token, v:S.meta?.v||"", ops})});
+      body: JSON.stringify({token:S.cfg.token, ...body})});
   }catch{ throw new Error("Sem conexão com o Google."); }
   let j; try{ j = await r.json(); }catch{ throw new Error("Resposta inválida do Google. Confira o endereço /exec e se a implantação está como “Qualquer pessoa”."); }
   if(!j.ok) throw new Error(j.erro||"Erro no Google Apps Script.");
@@ -396,6 +440,7 @@ function buildRow(i){
     el("div",{class:"i-in"},
       el("div",{class:"step"}, el("button",{class:"menos",type:"button","aria-label":"Menos uma barra",text:"−"}), inp, el("button",{class:"mais",type:"button","aria-label":"Mais uma barra",text:"+"})),
       el("button",{class:"btn tudo",type:"button",text:"Completar"}),
+      el("button",{class:"btn prancha",type:"button",hidden:true}),
       el("span",{class:"kg"})),
     el("div",{class:"msg",hidden:true}));
   fillRow(card,i); return card;
@@ -411,6 +456,8 @@ function fillRow(card,i){
   inp.max=max; inp.placeholder="0";
   card.querySelector(".kg").textContent = `nesta semana: ${nf1.format(wq*i.ppb)} kg`;
   const tudo=card.querySelector(".tudo"); tudo.disabled = wq>=max; tudo.textContent = max-wq>0 ? `Completar (+${nf0.format(max-wq)})` : "Completo";
+  const pr=card.querySelector(".prancha"), m=pjFind(i.pr);
+  pr.hidden=!m; if(m){ pr.textContent = "Prancha FL"+m.pag; pr.setAttribute("aria-label",`Abrir prancha ${i.pr}`); }
 }
 function updateRow(code){ const card=document.querySelector(`.item[data-c="${CSS.escape(code)}"]`); if(card) fillRow(card,S.byCode.get(code)); }
 function refreshRows(){ document.querySelectorAll(".item").forEach(c=>{ const i=S.byCode.get(c.dataset.c); if(i) fillRow(c,i); }); }
@@ -446,6 +493,7 @@ LISTA.addEventListener("click", e=>{
   if(b.classList.contains("mais")) commit(card, cur+1, true);
   else if(b.classList.contains("menos")) commit(card, Math.max(0,cur-1), true);
   else if(b.classList.contains("tudo")) { commit(card, rowNums(S.byCode.get(card.dataset.c)).max, true); toast("Posição completada"); }
+  else if(b.classList.contains("prancha")) { const m=pjFind(S.byCode.get(card.dataset.c).pr); if(m) abrirPdf(m.f, m.pag); }
 });
 let inT;
 LISTA.addEventListener("input", e=>{ if(e.target.tagName!=="INPUT") return; const card=e.target.closest(".item"); clearTimeout(inT); inT=setTimeout(()=>commit(card,e.target.value,false),600); });
@@ -640,11 +688,195 @@ $("#backup").addEventListener("click", ()=>{
   toast("Backup gerado");
 });
 
+// ---------- projetos (PDFs da pasta Projetos no Drive) ----------
+const PJ = { lista:LS.get("projetos")||[], off:LS.get("pdfOff")||{} }; // off: id -> data da versão guardada no celular
+const PDFCACHE = "armacao-pdfs";
+const codigoDe = s => (String(s).match(/PR-\d{3}-\d{3}-E\d+-PE-EST-DE-\d{3}/i)||[""])[0].toUpperCase();
+const pjTitulo = n => n.replace(/\.pdf$/i,"").replace(/^PR-[\w-]*?DE-\d{3}(-\d{2})?[\s-]*/i,"").trim() || n;
+const pjRev = n => (n.match(/DE-(\d{3})(?:-(\d{2}))?/i)||[]);
+const mb = b => nf1.format(b/1e6)+" MB";
+function pjFind(prancha){
+  const cod=codigoDe(prancha); if(!cod) return null;
+  const fs=PJ.lista.filter(f=>codigoDe(f.nome)===cod).sort((a,b)=>b.nome.localeCompare(a.nome)); // revisão mais nova primeiro
+  if(!fs.length) return null;
+  return { f:fs[0], pag: +((String(prancha).match(/FL\s*(\d+)/i)||[])[1]||1) };
+}
+async function carregarProjetos(){
+  const j=await post({acao:"projetos"});
+  if(!Array.isArray(j.arquivos)) throw new Error("O script do Google ainda está na versão antiga. No Apps Script: Implantar → Gerenciar implantações → lápis → Versão: Nova versão → Implantar.");
+  PJ.lista=j.arquivos; LS.set("projetos",PJ.lista);
+  renderProjetos(); refreshRows();
+}
+$("#pj-atualizar").addEventListener("click", async ()=>{
+  try{ await carregarProjetos(); toast(`${PJ.lista.length} projetos na pasta`); }catch(e){ toast(e.message); }
+});
+$("#pj-busca").addEventListener("input", ()=>renderProjetos());
+
+async function pdfGuardado(id){ try{ const r=await (await caches.open(PDFCACHE)).match("pdf/"+id); return r ? await r.arrayBuffer() : null; }catch{ return null; } }
+async function pdfBaixar(f){
+  const j=await post({acao:"pdf", id:f.id});
+  const buf=await (await fetch("data:application/pdf;base64,"+j.b64)).arrayBuffer();
+  try{
+    await (await caches.open(PDFCACHE)).put("pdf/"+f.id, new Response(buf.slice(0),{headers:{"Content-Type":"application/pdf"}}));
+    PJ.off[f.id]=j.atualizado; LS.set("pdfOff",PJ.off);
+  }catch{ toast("Sem espaço para guardar o PDF no celular."); }
+  return buf;
+}
+async function obterPdf(f){
+  const local=await pdfGuardado(f.id);
+  if(local && PJ.off[f.id]===f.atualizado) return local;
+  try{ return await pdfBaixar(f); }
+  catch(e){ if(local){ toast("Sem conexão: mostrando a cópia guardada"); return local; } throw e; }
+}
+function renderProjetos(){
+  const L=$("#pj-lista"), q=$("#pj-busca").value.trim().toLowerCase();
+  if(!S.cfg?.url){ L.replaceChildren(el("div",{class:"vazio",text:"Conecte o app ao Google Drive em Ajustes."})); return; }
+  if(!PJ.lista.length){ L.replaceChildren(el("div",{class:"vazio",text:"Nenhum PDF na pasta Projetos do Drive. Coloque os arquivos lá e toque em Atualizar lista."})); return; }
+  const fs=PJ.lista.filter(f=>!q || f.nome.toLowerCase().includes(q));
+  L.replaceChildren(...fs.map(f=>{
+    const [,de,rev]=pjRev(f.nome), guardado=PJ.off[f.id]===f.atualizado;
+    const abrir=el("button",{class:"btn pri",type:"button",text:"Abrir"}); abrir.onclick=()=>abrirPdf(f,1);
+    return el("div",{class:"proj"},
+      el("b",{text:pjTitulo(f.nome)}),
+      el("small",{}, `DE-${de||"?"}${rev?" · rev "+rev:""} · ${mb(f.tamanho)} `, guardado?el("span",{class:"off",text:"· NO CELULAR"}):null),
+      el("div",{class:"acoes"},abrir));
+  }));
+  navigator.storage?.estimate?.().then(e=>{ $("#pj-uso").textContent=`Usando ${mb(e.usage||0)} no celular`; }).catch(()=>{});
+}
+$("#pj-todos").addEventListener("click", async ()=>{
+  const b=$("#pj-todos"), fs=PJ.lista.filter(f=>PJ.off[f.id]!==f.atualizado);
+  if(!fs.length){ toast("Todos os projetos já estão no celular"); return; }
+  b.disabled=true;
+  try{
+    for(const [k,f] of fs.entries()){ b.textContent=`Baixando ${k+1} de ${fs.length}…`; await pdfBaixar(f); }
+    toast("Projetos guardados no celular");
+  }catch(e){ toast(e.message); }
+  finally{ b.disabled=false; b.textContent="Baixar todos para usar offline"; renderProjetos(); }
+});
+
+// ---------- visualizador de PDF (pdf.js) ----------
+const PDFJS="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/";
+async function loadPdfjs(){
+  if(window.pdfjsLib?.GlobalWorkerOptions.workerSrc) return;
+  if(!window.pdfjsLib) await new Promise((res,rej)=>{ const s=document.createElement("script"); s.src=PDFJS+"pdf.min.js"; s.onload=res;
+    s.onerror=()=>rej(new Error("Não consegui carregar o leitor de PDF. Abra o app uma vez com internet.")); document.head.append(s); });
+  // o worker vem do mesmo cache do app (funciona offline) e roda a partir de um blob local
+  const js=await (await fetch(PDFJS+"pdf.worker.min.js")).blob();
+  pdfjsLib.GlobalWorkerOptions.workerSrc=URL.createObjectURL(js);
+}
+// V = vista desejada; R = vista que está desenhada no canvas atual. O CSS leva R até V enquanto redesenha.
+const V={doc:null,fid:null,page:null,n:1,z:1,tx:0,ty:0,fit:1,canvas:null,task:null,R:null,rT:null};
+const stage=$("#v-stage"), vmsg=t=>{ $("#v-msg").textContent=t; $("#v-msg").hidden=!t; };
+async function abrirPdf(f, pag){
+  $("#viewer").hidden=false; document.body.style.overflow="hidden";
+  if(!history.state?.viewer) history.pushState({viewer:1},"");
+  $("#v-tit").textContent=pjTitulo(f.nome);
+  try{
+    if(V.fid!==f.id){
+      vmsg("Carregando projeto…"); V.canvas?.remove(); V.canvas=null;
+      await loadPdfjs();
+      const buf=await obterPdf(f);
+      V.doc?.destroy(); V.doc=await pdfjsLib.getDocument({data:new Uint8Array(buf)}).promise; V.fid=f.id;
+      $("#v-pag").replaceChildren(...Array.from({length:V.doc.numPages},(_,k)=>el("option",{value:k+1,text:`Folha ${k+1}/${V.doc.numPages}`})));
+      renderProjetos();
+    }
+    await irPagina(Math.min(Math.max(1,pag||1), V.doc.numPages));
+    const d=$("#v-dica"); d.hidden=false; setTimeout(()=>d.hidden=true, 4000);
+  }catch(e){ V.fid=null; vmsg(e.message||"Não foi possível abrir o PDF."); }
+}
+function fecharViewer(){ $("#viewer").hidden=true; document.body.style.overflow=""; V.task?.cancel(); }
+$("#v-fechar").addEventListener("click", ()=> history.state?.viewer ? history.back() : fecharViewer());
+addEventListener("popstate", ()=>{ if(!$("#viewer").hidden) fecharViewer(); });
+
+async function irPagina(n){
+  vmsg("Desenhando folha…");
+  V.n=n; $("#v-pag").value=n; V.page=await V.doc.getPage(n);
+  ajustar();
+}
+function ajustar(){
+  if(!V.page) return;
+  const {width:w,height:h}=stage.getBoundingClientRect(), vp=V.page.getViewport({scale:1});
+  V.fit=V.z=Math.min(w/vp.width, h/vp.height)*0.97;
+  V.tx=(w-vp.width*V.z)/2; V.ty=(h-vp.height*V.z)/2;
+  mudou(0);
+}
+function aplicarCss(){
+  if(!V.canvas||!V.R) return;
+  const s=V.z/V.R.z;
+  V.canvas.style.transform=`translate(${V.tx-s*V.R.tx}px,${V.ty-s*V.R.ty}px) scale(${s})`;
+}
+function mudou(ms=200){ aplicarCss(); clearTimeout(V.rT); V.rT=setTimeout(desenhar, ms); }
+async function desenhar(){
+  if(!V.page) return;
+  V.task?.cancel();
+  const {width:w,height:h}=stage.getBoundingClientRect(), dpr=Math.min(devicePixelRatio||1,2.5);
+  const snap={z:V.z,tx:V.tx,ty:V.ty}, c=document.createElement("canvas");
+  c.width=Math.round(w*dpr); c.height=Math.round(h*dpr); c.style.width=w+"px"; c.style.height=h+"px";
+  const ctx=c.getContext("2d"), vp=V.page.getViewport({scale:snap.z*dpr});
+  ctx.fillStyle="#fff"; ctx.fillRect(snap.tx*dpr, snap.ty*dpr, vp.width, vp.height); // folha branca, fundo escuro em volta
+  V.task=V.page.render({canvasContext:ctx, viewport:vp, transform:[1,0,0,1,snap.tx*dpr,snap.ty*dpr], background:"rgba(0,0,0,0)"});
+  try{ await V.task.promise; }catch(e){ return; } // cancelado por um novo desenho
+  V.canvas?.remove(); stage.prepend(c); V.canvas=c; V.R=snap; aplicarCss(); vmsg("");
+}
+const ZMAX=8;
+function zoomEm(x,y,f){
+  const z=Math.min(ZMAX, Math.max(V.fit*0.5, V.z*f)); f=z/V.z;
+  V.tx=x-f*(x-V.tx); V.ty=y-f*(y-V.ty); V.z=z;
+}
+function centro(){ const r=stage.getBoundingClientRect(); return [r.width/2, r.height/2]; }
+$("#v-mais").onclick=()=>{ zoomEm(...centro(),1.6); mudou(); };
+$("#v-menos").onclick=()=>{ zoomEm(...centro(),1/1.6); mudou(); };
+$("#v-ajustar").onclick=ajustar;
+$("#v-pag").onchange=e=>irPagina(+e.target.value);
+$("#v-ant").onclick=()=>{ if(V.doc&&V.n>1) irPagina(V.n-1); };
+$("#v-prox").onclick=()=>{ if(V.doc&&V.n<V.doc.numPages) irPagina(V.n+1); };
+addEventListener("resize", ()=>{ if(!$("#viewer").hidden) mudou(); });
+addEventListener("keydown", e=>{
+  if($("#viewer").hidden) return;
+  if(e.key==="Escape") $("#v-fechar").click();
+  else if(e.key==="ArrowLeft"||e.key==="PageUp") $("#v-ant").click();
+  else if(e.key==="ArrowRight"||e.key==="PageDown") $("#v-prox").click();
+  else if(e.key==="+"||e.key==="=") $("#v-mais").click();
+  else if(e.key==="-") $("#v-menos").click();
+});
+// gestos: arrastar move, pinça dá zoom, toque duplo aproxima
+const ptr=new Map(); let ultimoToque=0, inicio=null, arrastou=false;
+const pos=e=>{ const r=stage.getBoundingClientRect(); return {x:e.clientX-r.left, y:e.clientY-r.top}; };
+stage.addEventListener("pointerdown", e=>{
+  stage.setPointerCapture(e.pointerId); ptr.set(e.pointerId,pos(e));
+  if(ptr.size===1){ inicio=pos(e); arrastou=false; } else arrastou=true;
+});
+stage.addEventListener("pointermove", e=>{
+  if(!ptr.has(e.pointerId)) return;
+  const antes=[...ptr.values()], p=pos(e); ptr.set(e.pointerId,p);
+  if(inicio && Math.hypot(p.x-inicio.x,p.y-inicio.y)>10) arrastou=true;
+  if(ptr.size===1){ const a=antes[0]; V.tx+=p.x-a.x; V.ty+=p.y-a.y; }
+  else if(ptr.size===2){
+    const [a1,a2]=antes, [b1,b2]=[...ptr.values()];
+    const d0=Math.hypot(a1.x-a2.x,a1.y-a2.y)||1, d1=Math.hypot(b1.x-b2.x,b1.y-b2.y);
+    const m0={x:(a1.x+a2.x)/2,y:(a1.y+a2.y)/2}, m1={x:(b1.x+b2.x)/2,y:(b1.y+b2.y)/2};
+    zoomEm(m0.x,m0.y,d1/d0); V.tx+=m1.x-m0.x; V.ty+=m1.y-m0.y;
+  }
+  mudou(300);
+});
+function soltar(e){
+  const p=ptr.get(e.pointerId); ptr.delete(e.pointerId);
+  if(e.type==="pointerup" && p && !ptr.size){
+    const agora=Date.now();
+    if(arrastou){ ultimoToque=0; return; }
+    if(agora-ultimoToque<300){ if(V.z>V.fit*1.5) ajustar(); else { zoomEm(p.x,p.y,3); mudou(); } ultimoToque=0; }
+    else ultimoToque=agora;
+  }
+}
+stage.addEventListener("pointerup", soltar);
+stage.addEventListener("pointercancel", soltar);
+stage.addEventListener("wheel", e=>{ e.preventDefault(); const p=pos(e); zoomEm(p.x,p.y,Math.exp(-e.deltaY*0.0015)); mudou(); }, {passive:false});
+
 // ---------- abas e início ----------
 function show(v){
   document.querySelectorAll(".tabs button").forEach(b=>b.setAttribute("aria-selected", b.dataset.v===v));
-  for(const s of ["coleta","painel","semanas","dados"]) $("#v-"+s).hidden = s!==v;
-  LS.set("aba",v); if(v==="painel") renderPainel(); scrollTo(0,0);
+  for(const s of ["coleta","painel","projetos","semanas","dados"]) $("#v-"+s).hidden = s!==v;
+  LS.set("aba",v); if(v==="painel") renderPainel(); if(v==="projetos") renderProjetos(); scrollTo(0,0);
 }
 document.querySelector(".tabs").addEventListener("click", e=>{ const b=e.target.closest("button"); if(b) show(b.dataset.v); });
 function afterData(){
@@ -664,8 +896,13 @@ function renderData(){
 (function boot(){
   const cached=LS.get("base"); if(cached?.itens) setBase(cached.meta, cached.itens);
   afterData(); renderData(); show(LS.get("aba")||"coleta");
-  if(S.cfg?.url) sync();
-  if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
+  if(S.cfg?.url){ sync(); carregarProjetos().catch(()=>{}); }
+  if("serviceWorker" in navigator){
+    // quando chega uma versão nova do app, recarrega uma vez para já usá-la
+    const tinhaVersao = !!navigator.serviceWorker.controller; let recarregou=false;
+    navigator.serviceWorker.addEventListener("controllerchange", ()=>{ if(tinhaVersao && !recarregou){ recarregou=true; location.reload(); } });
+    navigator.serviceWorker.register("sw.js").then(r=>r.update()).catch(()=>{});
+  }
   navigator.storage?.persist?.().catch(()=>{});
 })();
 </script>

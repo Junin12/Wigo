@@ -133,6 +133,22 @@ tr.cur td{background:var(--surface2)}
 .eqsel select{font-weight:700;color:var(--ink);border-color:var(--accent)}
 .elem{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;justify-content:space-between;background:var(--surface);border:1px solid var(--accent);border-radius:var(--r);padding:10px 12px;font-size:.9rem}
 .oc-link{color:var(--warn);font-weight:600}
+.eq-info{display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center;font-size:.85rem;color:var(--muted)}
+.eq-info b{color:var(--ink)}
+.chipbtn{border:1px solid var(--accent);background:var(--surface);color:var(--accent);border-radius:999px;padding:4px 12px;min-height:34px;font-weight:600;font-size:.8rem}
+.chipbtn.on{background:var(--accent);color:var(--on-accent)}
+.eqs{display:grid;gap:10px}
+.eqcard{border:1px solid var(--line);border-radius:var(--r);padding:12px;display:grid;gap:10px;background:var(--surface2)}
+.eqcard.inativa{opacity:.65}
+.eqcard .topo{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}
+.eqcard .topo b{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-size:1.25rem;margin-right:auto}
+.eqcard .dados{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
+.frentes{display:flex;flex-wrap:wrap;gap:6px}
+.frente{display:inline-flex;align-items:center;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:2px 4px 2px 12px;font-size:.82rem;font-weight:600}
+.frente button{border:0;background:none;color:var(--bad);font-size:1.1rem;width:30px;height:30px;border-radius:50%}
+.addfrente{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;align-items:end}
+.novaeq summary{cursor:pointer;font-weight:600;color:var(--accent);min-height:44px;display:flex;align-items:center}
+.novaeq[open]{display:grid;gap:10px}
 .regs{display:grid;gap:8px}
 .reg{border:1px solid var(--line);border-radius:8px;padding:8px 10px;display:grid;gap:6px;background:var(--surface2)}
 .reg .meta{font-size:.75rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center}
@@ -187,6 +203,7 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
   <section class="view" id="v-coleta">
     <div class="resumo" id="resumo-sem"></div>
     <label class="campo eqsel" for="f-eq">Lançando como<select id="f-eq"></select></label>
+    <div class="eq-info" id="eq-info"></div>
     <div class="filtros">
       <select id="f-emp" aria-label="Empreendimento"></select>
       <select id="f-est" aria-label="Estrutura"></select>
@@ -203,6 +220,7 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
 
   <section class="view" id="v-painel" hidden>
     <div class="row"><h2 style="margin-right:auto">Painel da armação</h2><select id="p-emp" aria-label="Empreendimento do painel"></select></div>
+    <p class="info" id="p-ate"></p>
     <div class="kpis" id="kpis"></div>
     <div class="card"><h3>Aço armado por semana (t)</h3><div class="chart" id="ch-kg"></div></div>
     <div class="card"><h3>Produtividade (kg por armador por dia)</h3><div class="chart" id="ch-prod"></div><p class="info" id="prod-nota"></p></div>
@@ -234,13 +252,19 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
     </div>
 
     <div class="card">
-      <h3>Equipes de armação</h3>
-      <div class="tbl" id="t-eqs"></div>
-      <div class="form-oc">
-        <label class="campo" for="eq-nome">Nova equipe<input type="text" id="eq-nome" maxlength="40" placeholder="Ex.: Equipe 2 – João"></label>
-        <label class="campo" for="eq-arm">Armadores<input type="number" id="eq-arm" min="1" step="1" inputmode="numeric" value="3"></label>
-      </div>
-      <div class="row"><button class="btn" id="eq-add" type="button">Adicionar equipe</button></div>
+      <h3>Equipes, encarregados e frentes</h3>
+      <p class="info" id="eq-resumo"></p>
+      <div class="eqs" id="t-eqs"></div>
+      <details class="novaeq">
+        <summary>Cadastrar nova equipe</summary>
+        <div class="form-oc">
+          <label class="campo" for="eq-nome">Nome da equipe<input type="text" id="eq-nome" maxlength="40" placeholder="Ex.: Equipe 2"></label>
+          <label class="campo" for="eq-enc">Encarregado<input type="text" id="eq-enc" maxlength="60" placeholder="Ex.: João"></label>
+          <label class="campo" for="eq-arm">Armadores<input type="number" id="eq-arm" min="1" step="1" inputmode="numeric" value="3"></label>
+        </div>
+        <div class="row"><button class="btn pri" id="eq-add" type="button">Adicionar equipe</button></div>
+        <p class="info">As frentes de cada equipe são definidas no cartão dela, depois de criada.</p>
+      </details>
     </div>
   </section>
 
@@ -337,6 +361,8 @@ function toast(msg){ const e=$("#toast"); e.textContent=msg; e.hidden=false; cle
 const bitLabel = b => typeof b==="number" ? "Ø "+String(b).replace(".",",") : b;
 const ddmm = iso => iso ? String(iso).slice(8,10)+"/"+String(iso).slice(5,7) : "";
 const hhmm = iso => { try{ return new Date(iso).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}); }catch{ return ""; } };
+// data de hoje no fuso do aparelho (toISOString sozinho usa Greenwich e vira o dia às 21h)
+const hojeISO = () => { const d=new Date(); return new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,10); };
 function baixar(nome, blob){ const a=el("a",{href:URL.createObjectURL(blob),download:nome}); document.body.append(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },1000); }
 
 // ---------- estado ----------
@@ -491,17 +517,22 @@ function setMany(lista){ // [[código, qtd]] na semana e equipe atuais
 function setWeekField(n, field, v){ (S.pend[n] ??= {})[field]=v; savePend(); recompute(); renderResumo(); scheduleSync(); }
 
 // ---------- semana ----------
+// só semanas que já começaram podem ser escolhidas
+const iniciadas = () => { const h=hojeISO(); return S.W.filter(w=>w.ini && w.ini<=h); };
+const semanaDeHoje = () => { const h=hojeISO(); return S.W.find(w=>w.ini<=h && h<=w.fim); };
 function pickDefaultWeek(){
-  const hoje = new Date().toISOString().slice(0,10);
-  const w = S.W.find(w=>w.ini<=hoje && hoje<=w.fim) || [...S.W].reverse().find(w=>w.q>0) || S.W[S.W.length-1];
+  const w = semanaDeHoje() || iniciadas().pop() || S.W[0];
   return w ? w.n : null;
 }
 function renderSemanaSel(){
-  const s=$("#semana");
-  s.replaceChildren(...S.W.map(w=>el("option",{value:w.n,text:`${w.n} · ${ddmm(w.ini)} a ${ddmm(w.fim)}`})));
+  const s=$("#semana"), hoje=semanaDeHoje()?.n;
+  s.replaceChildren(...iniciadas().reverse().map(w=>el("option",{value:w.n,text:`${w.n} · ${ddmm(w.ini)} a ${ddmm(w.fim)}${w.n===hoje?" (atual)":""}`})));
   if(S.cur!=null) s.value=S.cur;
 }
-$("#semana").addEventListener("change", e=>{ S.cur=+e.target.value; LS.set("cur",S.cur); refreshRows(); renderResumo(); renderSemanas(); });
+$("#semana").addEventListener("change", e=>{
+  S.cur=+e.target.value; LS.set("cur2",{n:S.cur, dia:hojeISO()});
+  refreshRows(); renderResumo(); renderInfo(); renderElem(); renderSemanas(); renderPainel();
+});
 function renderResumo(){
   const w=curW(), r=$("#resumo-sem");
   if(!w){ r.replaceChildren(); return; }
@@ -533,9 +564,10 @@ function renderFiltros(){
   F.loc = opts($("#f-loc"), uniq(c.map(i=>i.loc).filter(Boolean)), "Todos os locais / elementos", F.loc);
   $("#f-busca").value=F.q; $("#f-pend").checked=F.pend;
   const eqs=eqAtivas(), s=$("#f-eq");
-  s.replaceChildren(...eqs.map(e=>el("option",{value:e.nome,text:`${e.nome} (${e.arm} armadores)`}))); s.value=eqAtual();
+  s.replaceChildren(...eqs.map(e=>el("option",{value:e.nome,text:`${e.nome}${e.encarregado?" – "+e.encarregado:""} (${e.arm} armadores)`}))); s.value=eqAtual();
+  renderEqInfo();
 }
-$("#f-eq").addEventListener("change", e=>{ S.eq=e.target.value; LS.set("eq",S.eq); refreshRows(); renderResumo(); renderElem(); });
+$("#f-eq").addEventListener("change", e=>{ S.eq=e.target.value; LS.set("eq",S.eq); refreshRows(); renderResumo(); renderElem(); renderEqInfo(); });
 function filtered(){
   const q=F.q.trim().toLowerCase();
   return S.items.filter(i=> (!F.emp||i.emp===F.emp) && (!F.est||i.est===F.est) && (!F.pr||i.pr===F.pr) && (!F.loc||i.loc===F.loc)
@@ -682,34 +714,42 @@ function progTable(rows, first){
   return el("table",{}, el("thead",{},el("tr",{}, ...[first,"Previsto (t)","Executado (t)","Saldo (t)","Avanço"].map(h=>el("th",{text:h})))), tb);
 }
 function renderPainel(){
+  if(!S.items.length) return;
   PE = opts($("#p-emp"), uniq(S.items.map(i=>i.emp)), "Todos os empreendimentos", PE);
-  const its=S.items.filter(i=>!PE||i.emp===PE), exe=i=>Math.min(S.acum.get(i.c)||0,i.qp)*i.ppb;
+  // posição acumulada ATÉ a semana escolhida no topo (como o "corte" da planilha)
+  const ate=S.cur ?? pickDefaultWeek() ?? 0, wAte=S.W.find(w=>w.n===ate);
+  const Wate=S.W.filter(w=>w.n<=ate), acAte=new Map();
+  for(const w of Wate) for(const [c,q] of Object.entries(w.exec)) acAte.set(c,(acAte.get(c)||0)+q);
+  $("#p-ate").textContent = wAte ? `Posição acumulada até a semana ${ate} (${ddmm(wAte.ini)} a ${ddmm(wAte.fim)}). Troque a semana no topo para ver outra data.` : "";
+  const its=S.items.filter(i=>!PE||i.emp===PE), exe=i=>Math.min(acAte.get(i.c)||0,i.qp)*i.ppb;
   const P=its.reduce((s,i)=>s+i.kp,0), E=its.reduce((s,i)=>s+exe(i),0), set=new Set(its.map(i=>i.c));
-  const lastN=[...S.W].reverse().find(w=>w.q>0)?.n ?? S.cur ?? 0;
-  const ws=S.W.filter(w=>w.n<=Math.max(lastN,S.cur??0)).map(w=>{ let kg=0; for(const [c,q] of Object.entries(w.exec)) if(set.has(c)) kg+=q*S.byCode.get(c).ppb; return {w,kg}; });
-  const hd=S.W.filter(w=>w.kg>0 && w.arm*w.dias>0);
+  const ws=Wate.map(w=>{ let kg=0; for(const [c,q] of Object.entries(w.exec)) if(set.has(c)) kg+=q*S.byCode.get(c).ppb; return {w,kg}; });
+  const hd=Wate.filter(w=>w.kg>0 && w.arm*w.dias>0);
   const prodMed=hd.reduce((s,w)=>s+w.kg,0)/(hd.reduce((s,w)=>s+w.arm*w.dias,0)||1);
-  const concl=its.filter(i=>i.qp>0&&(S.acum.get(i.c)||0)>=i.qp).length;
+  const concl=its.filter(i=>i.qp>0&&(acAte.get(i.c)||0)>=i.qp).length;
+  const semKg=ws.find(x=>x.w.n===ate)?.kg||0;
   const kpi=(l,v,sm)=>el("div",{class:"kpi"},el("span",{text:l}),el("b",{text:v}),sm?el("small",{text:sm}):null);
-  $("#kpis").replaceChildren(kpi("Previsto",t(P)+" t"), kpi("Executado",t(E)+" t"), kpi("Saldo",t(P-E)+" t"),
+  $("#kpis").replaceChildren(kpi("Previsto",t(P)+" t"), kpi("Executado",t(E)+" t",`${t(semKg)} t na semana ${ate}`), kpi("Saldo",t(P-E)+" t"),
     kpi("Avanço",pct(P?E/P:0),`${nf0.format(concl)} de ${nf0.format(its.length)} posições concluídas`),
-    kpi("Produtividade média",nf0.format(prodMed),"kg por armador por dia"));
+    kpi("Produtividade média",nf0.format(prodMed),`kg/armador/dia até a semana ${ate}` + (wAte?.prod?` · semana ${ate}: ${nf0.format(wAte.prod)}`:"")));
   $("#ch-kg").replaceChildren(svgChart(ws.map(({w,kg})=>({label:"S"+w.n,v:kg/1000,hl:w.n===S.cur}))));
   $("#ch-prod").replaceChildren(svgChart(ws.filter(({w})=>w.arm*w.dias>0).map(({w})=>({label:"S"+w.n,v:w.prod,hl:w.n===S.cur})),{line:true,fmt:v=>nf0.format(v)}));
   $("#prod-nota").textContent = PE ? "A produtividade considera a equipe inteira, em todos os empreendimentos." : "Aço armado na semana ÷ (armadores × dias trabalhados).";
   const grp=key=>{ const m=new Map(); for(const i of its){ const k=key(i), r=m.get(k)||{k,p:0,e:0}; r.p+=i.kp; r.e+=exe(i); m.set(k,r); } return [...m.values()].sort((a,b)=>b.p-a.p); };
-  // por equipe: semana selecionada e acumulado
-  const w=curW(), tbE=el("tbody");
+  // por equipe: semana escolhida e acumulado até ela
+  const tbE=el("tbody");
   for(const e of eqList()){
-    const sem=w?.porEq[e.nome]||{kg:0}, acum=S.W.reduce((s,x)=>s+(x.porEq[e.nome]?.kg||0),0);
+    const sem=wAte?.porEq[e.nome]||{kg:0}, acum=Wate.reduce((s,x)=>s+(x.porEq[e.nome]?.kg||0),0);
     if(!e.ativa && !acum) continue;
-    const prod = e.arm && w?.dias ? sem.kg/(e.arm*w.dias) : 0;
-    tbE.append(el("tr",{}, el("td",{text:e.nome+(e.ativa?"":" (inativa)")}), el("td",{text:e.arm}), el("td",{text:nf0.format(sem.kg)}), el("td",{text:prod?nf0.format(prod):"–"}), el("td",{text:t(acum)})));
+    const prod = e.arm && wAte?.dias ? sem.kg/(e.arm*wAte.dias) : 0;
+    tbE.append(el("tr",{}, el("td",{}, el("b",{text:e.nome+(e.ativa?"":" (inativa)")}), e.encarregado?el("div",{class:"info",text:"Enc.: "+e.encarregado}):null),
+      el("td",{text:e.arm}), el("td",{style:"text-align:left;white-space:normal",text:(e.frentes||[]).map(frenteTxt).join(", ")||"–"}),
+      el("td",{text:nf0.format(sem.kg)}), el("td",{text:prod?nf0.format(prod):"–"}), el("td",{text:t(acum)})));
   }
-  $("#t-eq").replaceChildren(el("table",{}, el("thead",{},el("tr",{}, ...["Equipe","Armadores",`Semana ${S.cur??""} (kg)`,"kg/arm/dia","Acumulado (t)"].map(h=>el("th",{text:h})))), tbE));
+  $("#t-eq").replaceChildren(el("table",{}, el("thead",{},el("tr",{}, ...["Equipe","Armadores","Frentes",`Semana ${ate} (kg)`,"kg/arm/dia","Acumulado (t)"].map(h=>el("th",{text:h})))), tbE));
   // ocorrências por semana
   const oc=regsAll().filter(r=>r.tipo==="ocorrencia"), tbO=el("tbody");
-  for(const x of [...S.W].reverse()){
+  for(const x of [...Wate].reverse()){
     const os=oc.filter(r=>r.sem===x.n); if(!os.length) continue;
     const cats={}; for(const r of os) cats[r.cat||"Outro"]=(cats[r.cat||"Outro"]||0)+1;
     tbO.append(el("tr",{}, el("td",{text:`${x.n} · ${ddmm(x.ini)}`}), el("td",{text:os.length}), el("td",{text:nf1.format(os.reduce((s,r)=>s+(+r.horas||0),0))}),
@@ -723,7 +763,7 @@ function renderPainel(){
 // ---------- semanas ----------
 function renderSemanas(){
   const tb=el("tbody");
-  for(const w of S.W){
+  for(const w of iniciadas().reverse()){
     const a=el("input",{type:"number",inputMode:"numeric",min:"0",value:w.arm,id:"arm-"+w.n,"aria-label":`Armadores na semana ${w.n}`});
     const d=el("input",{type:"number",inputMode:"numeric",min:"0",max:"7",value:w.dias,id:"dias-"+w.n,"aria-label":`Dias trabalhados na semana ${w.n}`});
     a.addEventListener("change",()=>{ const v=Math.max(0,Math.round(num(a.value))); setWeekField(w.n,"arm",v); renderSemanas(); });
@@ -732,13 +772,23 @@ function renderSemanas(){
       el("td",{text:nf0.format(w.q)}), el("td",{text:nf0.format(w.kg)}), el("td",{text:w.prod?nf0.format(w.prod):"–"})));
   }
   $("#t-sem").replaceChildren(el("table",{}, el("thead",{},el("tr",{}, ...["Semana","Armadores","Dias","Barras","Aço (kg)","kg/arm/dia"].map(h=>el("th",{text:h})))), tb));
+  // "Adicionar próxima semana" só quando ela já começou
+  const {ini}=proximaSemana(), b=$("#add-sem"), cedo=ini>hojeISO();
+  b.disabled=cedo; b.textContent = cedo ? `Próxima semana começa em ${ddmm(ini)}` : `Adicionar semana que começou em ${ddmm(ini)}`;
+  b.hidden = cedo && S.W.some(w=>w.ini>hojeISO()); // semanas futuras já cadastradas aparecem sozinhas quando começarem
   renderOcorrencias(); renderEquipes();
 }
-$("#add-sem").addEventListener("click",()=>{
+function proximaSemana(){
   const last=S.W[S.W.length-1], iso=d=>d.toISOString().slice(0,10);
-  const ini = last ? new Date(last.fim+"T12:00:00Z") : new Date();
+  const ini = last ? new Date(last.fim+"T12:00:00Z") : new Date(hojeISO()+"T12:00:00Z");
   if(last) ini.setUTCDate(ini.getUTCDate()+1); else ini.setUTCDate(ini.getUTCDate()-((ini.getUTCDay()+6)%7));
   const fim=new Date(ini); fim.setUTCDate(fim.getUTCDate()+6);
+  return {last, ini:iso(ini), fim:iso(fim)};
+}
+$("#add-sem").addEventListener("click",()=>{
+  const {last, ini:i0, fim:f0}=proximaSemana();
+  if(i0>hojeISO()){ toast("Essa semana ainda não começou."); return; }
+  const ini=new Date(i0+"T12:00:00Z"), fim=new Date(f0+"T12:00:00Z"), iso=d=>d.toISOString().slice(0,10);
   const n=last?last.n+1:1, br=d=>iso(d).slice(8,10)+"/"+iso(d).slice(5,7)+"/"+iso(d).slice(2,4);
   S.pend[n]={ novo:{n,ini:iso(ini),fim:iso(fim),periodo:`${br(ini)} a ${br(fim)}`}, arm:last?.arm??0, dias:last?.dias??6 };
   savePend(); recompute(); renderData(); scheduleSync(100); toast(`Semana ${n} adicionada`);
@@ -843,6 +893,8 @@ $("#exportar").addEventListener("click", async ()=>{
       ...[...m.values()].map(r=>[r[0],r[1],r[2],Math.round(r[3]*100)/100,Math.round(r[4]*100)/100,Math.round((r[3]-r[4])*100)/100,r[3]?r[4]/r[3]:0])]),"Resumo Estruturas");
     XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([["SEMANA","EQUIPE","CODIGO","ESTRUTURA","POSICAO","QTD","PESO_KG"],
       ...S.W.flatMap(w=>Object.entries(w.raw).filter(([,q])=>q>0).map(([k,q])=>{ const [c,eq]=k.split("|"), i=S.byCode.get(c); return [w.n,eq,c,i?.est||"",i?.pos||"",q,Math.round(q*(i?.ppb||0)*100)/100]; }))]),"Lancamentos por equipe");
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([["EQUIPE","ENCARREGADO","ARMADORES","ATIVA","FRENTES"],
+      ...eqList().map(e=>[e.nome,e.encarregado||"",e.arm,e.ativa?"SIM":"NÃO",(e.frentes||[]).map(frenteTxt).join("; ")])]),"Equipes");
     const rg=regsAll();
     XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([["DATA","SEMANA","EQUIPE","TIPO","HORAS_PERDIDAS","DESCRICAO"],
       ...rg.filter(r=>r.tipo==="ocorrencia").map(r=>[r.data,r.sem,r.equipe,r.cat,+r.horas||0,r.texto])]),"Ocorrencias");
@@ -866,7 +918,6 @@ $("#backup").addEventListener("click", ()=>{
 
 // ---------- registros: observações e fotos por posição, ocorrências da semana ----------
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36)+Math.random().toString(36).slice(2)).replace(/-/g,"");
-const hojeISO = () => { const d=new Date(); return new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,10); };
 function addReg(r){ S.pendReg.push(r); savePendExtra(); scheduleSync(); }
 async function delReg(id){
   if(S.pendReg.some(r=>r.id===id)){ S.pendReg=S.pendReg.filter(r=>r.id!==id); try{ await (await caches.open(FOTOS)).delete("foto/"+id); }catch{} }
@@ -939,36 +990,84 @@ function semanaDaData(iso){ return S.W.find(w=>w.ini<=iso && iso<=w.fim)?.n ?? S
 function renderOcorrencias(){
   const w=curW(); $("#oc-tit").textContent = w ? `Ocorrências da semana ${w.n} (${ddmm(w.ini)} a ${ddmm(w.fim)})` : "Ocorrências";
   const s=$("#oc-eq"), v=s.value; s.replaceChildren(...eqAtivas().map(e=>el("option",{value:e.nome,text:e.nome}))); s.value=v||eqAtual(); if(!s.value) s.value=eqAtual();
-  if(!$("#oc-data").value) $("#oc-data").value=hojeISO();
+  // data da ocorrência: dentro da semana escolhida e nunca no futuro
+  const d=$("#oc-data"), hoje=hojeISO();
+  if(w){ d.min=w.ini; d.max=w.fim<hoje?w.fim:hoje; if(!d.value || d.value<d.min || d.value>d.max) d.value=d.max; }
   const oc=regsAll().filter(r=>r.tipo==="ocorrencia" && r.sem===S.cur).sort((a,b)=>String(b.data).localeCompare(String(a.data)));
   $("#oc-lista").replaceChildren(...(oc.length ? oc.map(r=>regItem(r,false)) : [el("p",{class:"info",text:"Nenhuma ocorrência nesta semana."})]));
 }
 $("#oc-add").addEventListener("click", ()=>{
   const data=$("#oc-data").value, horas=Math.max(0,num($("#oc-horas").value));
   if(!data){ toast("Informe a data."); return; }
+  if(data>hojeISO()){ toast("A data não pode ser no futuro."); return; }
   addReg({id:uid(), data, sem:semanaDaData(data), equipe:$("#oc-eq").value, tipo:"ocorrencia", cat:$("#oc-cat").value, horas, texto:$("#oc-txt").value.trim(), cod:""});
   $("#oc-horas").value=""; $("#oc-txt").value=""; renderOcorrencias(); renderResumo(); toast("Ocorrência registrada");
 });
 
-// equipes (aba Semanas)
-function setEquipe(nome, campos){ S.pendEq[nome]={...(S.pendEq[nome]||{}), ...campos}; savePendExtra(); scheduleSync(); renderEquipes(); renderFiltros(); refreshRows(); }
+// equipes, encarregados e frentes (aba Semanas)
+function frenteTxt(f){ return f.det ? `${f.est} (${f.det})` : f.est; }
+const totalArmadores = () => eqList().filter(e=>e.ativa).reduce((s,e)=>s+(+e.arm||0),0);
+function setEquipe(nome, campos){
+  S.pendEq[nome]={...(S.pendEq[nome]||{}), ...campos}; savePendExtra();
+  // o total de armadores da semana atual acompanha as equipes ativas
+  if("arm" in campos || "ativa" in campos){ const w=semanaDeHoje(), tot=totalArmadores(); if(w && tot && w.arm!==tot) setWeekField(w.n,"arm",tot); }
+  scheduleSync(); renderEquipes(); renderFiltros(); refreshRows(); if(!$("#v-semanas").hidden) renderSemanas();
+}
 function renderEquipes(){
-  const tb=el("tbody");
-  for(const e of eqList()){
-    const a=el("input",{type:"number",inputMode:"numeric",min:"0",value:e.arm,id:"eqa-"+e.nome.replace(/\W/g,"_"),"aria-label":`Armadores da ${e.nome}`});
-    a.addEventListener("change",()=>setEquipe(e.nome,{arm:Math.max(0,Math.round(num(a.value)))}));
-    const at=el("input",{type:"checkbox",checked:e.ativa,"aria-label":`${e.nome} ativa`});
-    at.addEventListener("change",()=>{ if(!at.checked && eqAtivas().length<=1){ at.checked=true; toast("Mantenha pelo menos uma equipe ativa."); return; } setEquipe(e.nome,{ativa:at.checked}); });
-    tb.append(el("tr",{}, el("td",{text:e.nome}), el("td",{},a), el("td",{},el("label",{class:"chk"},at," ativa"))));
-  }
-  $("#t-eqs").replaceChildren(el("table",{}, el("thead",{},el("tr",{}, ...["Equipe","Armadores",""].map(h=>el("th",{text:h})))), tb));
+  const eqs=eqList(), at=eqs.filter(e=>e.ativa), fr=at.reduce((s,e)=>s+(e.frentes||[]).length,0), w=semanaDeHoje();
+  $("#eq-resumo").textContent = `${at.length} equipe${at.length!==1?"s":""} ativa${at.length!==1?"s":""} · ${totalArmadores()} armadores · ${fr} frente${fr!==1?"s":""}.`
+    + (w ? ` O total de armadores da semana atual (${w.n}) acompanha as equipes.` : "");
+  const estruturas=uniq(S.items.map(i=>i.est));
+  $("#t-eqs").replaceChildren(...eqs.map(e=>{
+    const id=e.nome.replace(/\W/g,"_");
+    const ativa=el("input",{type:"checkbox",checked:e.ativa,id:"eqat-"+id});
+    ativa.addEventListener("change",()=>{ if(!ativa.checked && eqAtivas().length<=1){ ativa.checked=true; toast("Mantenha pelo menos uma equipe ativa."); return; } setEquipe(e.nome,{ativa:ativa.checked}); });
+    const enc=el("input",{type:"text",value:e.encarregado||"",id:"eqenc-"+id,maxLength:60,placeholder:"Nome do encarregado"});
+    enc.addEventListener("change",()=>setEquipe(e.nome,{encarregado:enc.value.trim()}));
+    const arm=el("input",{type:"number",inputMode:"numeric",min:"0",value:e.arm,id:"eqarm-"+id});
+    arm.addEventListener("change",()=>setEquipe(e.nome,{arm:Math.max(0,Math.round(num(arm.value)))}));
+    const frentes=e.frentes||[];
+    const chips=el("div",{class:"frentes"}, ...(frentes.length ? frentes.map((f,k)=>{
+      const x=el("button",{type:"button",text:"×","aria-label":`Remover frente ${frenteTxt(f)}`});
+      x.onclick=()=>setEquipe(e.nome,{frentes:frentes.filter((_,j)=>j!==k)});
+      return el("span",{class:"frente"}, frenteTxt(f), x);
+    }) : [el("span",{class:"info",text:"Nenhuma frente definida."})]));
+    const selEst=el("select",{id:"eqfe-"+id,"aria-label":"Estrutura da frente"}, ...estruturas.map(s=>el("option",{value:s,text:s})));
+    const det=el("input",{type:"text",id:"eqfd-"+id,maxLength:60,placeholder:"Detalhe (opcional): laje de fundo, eixo 3…","aria-label":"Detalhe da frente"});
+    const add=el("button",{class:"btn",type:"button",text:"Adicionar frente"});
+    add.onclick=()=>{ const f={est:selEst.value, det:det.value.trim().replace(/[;—]/g,"-")}; if(!f.est) return;
+      if(frentes.some(x=>x.est===f.est && x.det===f.det)){ toast("Essa frente já está na equipe."); return; }
+      setEquipe(e.nome,{frentes:[...frentes,f]}); toast(`Frente adicionada à ${e.nome}`); };
+    return el("div",{class:"eqcard"+(e.ativa?"":" inativa")},
+      el("div",{class:"topo"}, el("b",{text:e.nome}), el("label",{class:"chk",htmlFor:"eqat-"+id}, ativa, " ativa")),
+      el("div",{class:"dados"},
+        el("label",{class:"campo",htmlFor:"eqenc-"+id},"Encarregado",enc),
+        el("label",{class:"campo",htmlFor:"eqarm-"+id},"Armadores",arm)),
+      el("div",{class:"campo"},"Frentes", chips),
+      el("div",{class:"addfrente"}, selEst, det, add));
+  }));
+  const prox=eqs.length+1; if(!$("#eq-nome").value) $("#eq-nome").placeholder=`Ex.: Equipe ${prox}`;
 }
 $("#eq-add").addEventListener("click", ()=>{
-  const nome=$("#eq-nome").value.trim().replace(/\|/g,"-"), arm=Math.max(1,Math.round(num($("#eq-arm").value)));
+  const nome=$("#eq-nome").value.trim().replace(/\|/g,"-"), enc=$("#eq-enc").value.trim(), arm=Math.max(1,Math.round(num($("#eq-arm").value)));
   if(!nome){ toast("Dê um nome para a equipe."); return; }
   if(eqList().some(e=>e.nome.toLowerCase()===nome.toLowerCase())){ toast("Já existe uma equipe com esse nome."); return; }
-  setEquipe(nome,{arm,ativa:true}); $("#eq-nome").value=""; toast(`${nome} adicionada`);
+  setEquipe(nome,{arm,ativa:true,encarregado:enc,frentes:[]}); $("#eq-nome").value=""; $("#eq-enc").value="";
+  document.querySelector(".novaeq").open=false; toast(`${nome} adicionada`);
 });
+// Coleta: encarregado e frentes da equipe escolhida; tocar numa frente filtra a estrutura
+function renderEqInfo(){
+  const e=eqList().find(x=>x.nome===eqAtual()), box=$("#eq-info");
+  if(!e){ box.replaceChildren(); return; }
+  const fr=(e.frentes||[]);
+  box.replaceChildren(
+    e.encarregado ? el("span",{}, "Encarregado: ", el("b",{text:e.encarregado})) : null,
+    fr.length ? el("span",{text:"Frentes:"}) : el("span",{text:"Sem frentes definidas (aba Semanas)."}),
+    ...fr.map(f=>{ const b=el("button",{class:"chipbtn"+(F.est===f.est?" on":""),type:"button",text:frenteTxt(f)});
+      b.onclick=()=>{ const i=S.items.find(x=>x.est===f.est); F.emp=i?.emp||""; F.est=f.est; F.pr=""; F.loc=""; F.q="";
+        $("#f-emp").value=F.emp; LS.set("filtros",F); S.limit=60; renderFiltros(); renderLista(); };
+      return b; }));
+}
 
 // ---------- projetos (PDFs da pasta Projetos no Drive) ----------
 const PJ = { lista:LS.get("projetos")||[], off:LS.get("pdfOff")||{} }; // off: id -> data da versão guardada no celular
@@ -1161,10 +1260,12 @@ function show(v){
   LS.set("aba",v); if(v==="painel") renderPainel(); if(v==="projetos") renderProjetos(); scrollTo(0,0);
 }
 document.querySelector(".tabs").addEventListener("click", e=>{ const b=e.target.closest("button"); if(b) show(b.dataset.v); });
+// A semana escolhida só é lembrada no mesmo dia; ao abrir em outro dia o app volta para a semana atual.
 function afterData(){
   recompute();
-  if(S.cur==null || !S.W.some(w=>w.n===S.cur)) S.cur = LS.get("cur");
-  if(!S.W.some(w=>w.n===S.cur)) S.cur = pickDefaultWeek();
+  const ok = n => iniciadas().some(w=>w.n===n), hoje=hojeISO();
+  if(S.dia!==hoje){ S.dia=hoje; S.cur=null; }
+  if(!ok(S.cur)){ const s=LS.get("cur2"); S.cur = (s && s.dia===hoje && ok(s.n)) ? s.n : pickDefaultWeek(); }
 }
 function renderData(){
   const typing = document.activeElement?.closest?.(".item");

@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Painel da Armação — SAA Rio Grande</title>
+<meta name="theme-color" content="#23527E">
+<link rel="icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap">
+<style>
+:root{
+  color-scheme:light;
+  --bg:#EDF0F3; --surface:#FFFFFF; --surface2:#F6F8FA; --ink:#141B23; --muted:#5A6674; --line:#D3DAE2;
+  --accent:#23527E; --bar:#3C5E80; --bar-hl:#23527E;
+  --good:#1D7A48; --good-bg:#E2F3E9; --warn:#9A5B00; --warn-bg:#FDF0D8; --bad:#B42318; --bad-bg:#FBE6E4; --idle:#5A6674; --idle-bg:#E9EDF1;
+  --r:10px; font-family:"Barlow",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root{
+  color-scheme:dark;
+  --bg:#0E1318; --surface:#172029; --surface2:#1C2631; --ink:#E7ECF1; --muted:#98A4B2; --line:#2A3542;
+  --accent:#8BB8E3; --bar:#6F95BA; --bar-hl:#A9CCEE;
+  --good:#5BC98B; --good-bg:#16301F; --warn:#F0B35A; --warn-bg:#35270F; --bad:#F2877C; --bad-bg:#3A1A17; --idle:#98A4B2; --idle-bg:#222C37;
+}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-size:15px;line-height:1.4;font-variant-numeric:tabular-nums;padding:0 16px calc(24px + env(safe-area-inset-bottom,0px))}
+[hidden]{display:none!important}
+h1,h2,h3{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-weight:600;margin:0;text-wrap:balance}
+h3{font-size:1.05rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.wrap{max-width:1100px;margin-inline:auto;display:grid;gap:14px;padding-block:14px}
+.top{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;padding-top:env(safe-area-inset-top,0px)}
+.brand{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-weight:700;font-size:1.5rem;margin-right:auto;line-height:1.1}
+.brand small{display:block;font-family:"Barlow",sans-serif;font-weight:500;font-size:.75rem;color:var(--muted);letter-spacing:.08em;text-transform:uppercase}
+select,button{font:inherit;color:inherit;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 10px;min-height:42px}
+button{cursor:pointer;font-weight:600}
+.info{font-size:.85rem;color:var(--muted);margin:0}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px}
+.kpi span{display:block;font-size:.72rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600}
+.kpi b{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-size:1.9rem;font-weight:600;line-height:1.1}
+.kpi small{color:var(--muted)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,460px),1fr));gap:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:grid;gap:10px;align-content:start}
+.chart svg{width:100%;height:auto;display:block}
+.chart text{fill:var(--muted);font-size:11px;font-family:"Barlow",sans-serif}
+.chart .val{fill:var(--ink);font-weight:600}
+.chart .grid{stroke:var(--line);stroke-width:1}
+.chart .b{fill:var(--bar)} .chart .b.hl{fill:var(--bar-hl)}
+.chart .meta{stroke:var(--warn);stroke-width:3;stroke-linecap:round}
+.chart .ln{fill:none;stroke:var(--accent);stroke-width:2.5}
+.chart .ln2{fill:none;stroke:var(--muted);stroke-width:2;stroke-dasharray:7 5}
+.chart .ln3{fill:none;stroke:var(--warn);stroke-width:2.5;stroke-dasharray:2 5;stroke-linecap:round}
+.chart .pt{stroke:none} .chart .ln.pt{fill:var(--accent)} .chart .ln2.pt{fill:var(--muted)} .chart .ln3.pt{fill:var(--warn)}
+.chart .prazo{stroke:var(--bad);stroke-width:1.5;stroke-dasharray:4 4}
+.tbl{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.88rem}
+th,td{padding:7px 6px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600}
+th:first-child,td:first-child{text-align:left;white-space:normal}
+td.txt{text-align:left;white-space:normal}
+.bar{height:8px;border-radius:4px;background:var(--idle-bg);overflow:hidden;display:inline-block;width:80px;vertical-align:middle;margin-left:6px}
+.bar i{display:block;height:100%;background:var(--bar)}
+.chip{font-size:.7rem;font-weight:700;letter-spacing:.05em;padding:3px 8px;border-radius:999px;background:var(--idle-bg);color:var(--idle);white-space:nowrap}
+.chip.ok{background:var(--good-bg);color:var(--good)} .chip.and{background:var(--warn-bg);color:var(--warn)} .chip.ruim{background:var(--bad-bg);color:var(--bad)}
+.aviso{border:1px solid var(--bad);background:var(--bad-bg);border-radius:var(--r);padding:14px}
+.carregando{padding:40px 16px;text-align:center;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">Armação · SAA Rio Grande<small>Painel de acompanhamento · somente leitura</small></div>
+    <select id="emp" aria-label="Empreendimento"></select>
+    <select id="sem" aria-label="Posição até a semana"></select>
+    <button id="atualizar" type="button">Atualizar</button>
+  </header>
+  <p class="info" id="status">Carregando dados…</p>
+  <div id="erro" class="aviso" hidden></div>
+  <main id="conteudo" class="wrap" style="padding:0" hidden>
+    <div class="kpis" id="kpis"></div>
+    <div class="grid2">
+      <div class="card"><h3>Meta × realizado por semana</h3><div class="chart" id="ch-meta"></div><p class="info" id="meta-nota"></p></div>
+      <div class="card"><h3>Curva S (obra inteira, t)</h3><div class="chart" id="ch-s"></div><p class="info" id="s-nota"></p></div>
+    </div>
+    <div class="kpis" id="k-prev"></div>
+    <div class="grid2">
+      <div class="card"><h3>Avanço por estrutura</h3><div class="tbl" id="t-est"></div></div>
+      <div class="card"><h3>Equipes</h3><div class="tbl" id="t-eq"></div></div>
+    </div>
+    <div class="grid2">
+      <div class="card"><h3>Frentes de serviço</h3><div class="tbl" id="t-fr"></div></div>
+      <div class="card"><h3>Ocorrências recentes</h3><div class="tbl" id="t-oc"></div></div>
+    </div>
+  </main>
+</div>
+<script>
+"use strict";
+const $=s=>document.querySelector(s);
+const nf0=new Intl.NumberFormat("pt-BR",{maximumFractionDigits:0}), nf1=new Intl.NumberFormat("pt-BR",{minimumFractionDigits:1,maximumFractionDigits:1});
+const pct=v=>nf1.format(v*100)+"%", t=kg=>nf1.format(kg/1000), num=v=>{ const n=typeof v==="number"?v:parseFloat(String(v??"").replace(",",".")); return isFinite(n)?n:0; };
+const el=(tag,props={},...kids)=>{ const e=document.createElement(tag); for(const [k,v] of Object.entries(props)){ if(k==="class") e.className=v; else if(k==="text") e.textContent=v; else if(k.startsWith("aria-")) e.setAttribute(k,v); else e[k]=v; } e.append(...kids.filter(x=>x!=null)); return e; };
+const ddmm=iso=>iso?String(iso).slice(8,10)+"/"+String(iso).slice(5,7):"";
+const hojeISO=()=>{ const d=new Date(); return new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,10); };
+const addDias=(d,n)=>{ const x=new Date(d); x.setDate(x.getDate()+n); return x; };
+const fmtData=d=>d?d.toLocaleDateString("pt-BR"):"–";
+const periodoISO=p=>{ const m=String(p).match(/(\d{2})\/(\d{2})\/(\d{2,4})\s*a\s*(\d{2})\/(\d{2})\/(\d{2,4})/); if(!m) return null; const y=v=>v.length===2?"20"+v:v; return {ini:`${y(m[3])}-${m[2]}-${m[1]}`,fim:`${y(m[6])}-${m[5]}-${m[4]}`}; };
+const MESES=["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
+function consertaCod(c){ const s=String(c??""); let m,mes,ano;
+  if((m=s.match(/^(\d{4})-(\d{2})-\d{2}$/))){ ano=+m[1]; mes=MESES[+m[2]-1]; } else if((m=s.match(/^[A-Z][a-z]{2} ([A-Z][a-z]{2}) \d{2} (\d{4}) /))){ ano=+m[2]; mes=m[1].toUpperCase(); } else return s;
+  const n=ano>=2000&&ano<2030?ano-2000:ano>=1930&&ano<2000?ano-1900:ano; return mes+"-"+String(n).padStart(4,"0"); }
+
+// endereço e chave de leitura vêm no link: painel.html#u=...&k=...
+const H=new URLSearchParams(location.hash.slice(1)), URLD=H.get("u"), CHAVE=H.get("k");
+let D=null, EMP="", SEM=null;
+
+async function carregar(){
+  if(!URLD||!CHAVE){ erro("Este link está incompleto. Peça o link do painel para quem usa o app (Ajustes → Acompanhamento sem o app)."); return; }
+  $("#status").textContent="Atualizando…";
+  try{
+    const r=await fetch(`${URLD}?k=${encodeURIComponent(CHAVE)}`); const j=await r.json();
+    if(!j.ok) throw new Error(j.erro||"Erro ao ler os dados.");
+    preparar(j); $("#erro").hidden=true; $("#conteudo").hidden=false; render();
+    $("#status").textContent=`Dados de ${new Date(j.agora).toLocaleString("pt-BR")} · atualiza sozinho a cada 10 minutos`;
+  }catch(e){ erro(e.message==="Failed to fetch"?"Sem conexão com o Google. Tente de novo em instantes.":e.message); }
+}
+function erro(m){ const b=$("#erro"); b.hidden=false; b.textContent=m; $("#status").textContent=""; }
+
+function preparar(j){
+  const itens=j.itens.map(r=>{ const qp=num(r[9]),kp=num(r[11]); return {c:consertaCod(r[0]),emp:String(r[1]),est:String(r[2]),loc:String(r[8]||""),qp,kp,ppb:qp?kp/qp:0}; });
+  const by=new Map(itens.map(i=>[i.c,i]));
+  const sem=j.semanas.map(s=>({...s,...(periodoISO(s.periodo)||{}),exec:{},porEq:{},kg:0})).sort((a,b)=>a.n-b.n), bn=new Map(sem.map(s=>[s.n,s]));
+  for(const [n,c0,q,eq] of j.lanc){ const s=bn.get(n), c=consertaCod(c0), i=by.get(c); if(!s||!i) continue;
+    s.exec[c]=(s.exec[c]||0)+q; s.kg+=q*i.ppb; const e=(s.porEq[eq]??={kg:0}); e.kg+=q*i.ppb; }
+  const meta=num(j.config?.META_KG_ARM_DIA)||200, dias=num(j.config?.DIAS_SEMANA)||6;
+  D={itens,by,sem,eqs:j.equipes||[],ocs:(j.registros||[]).filter(r=>r.tipo==="ocorrencia"),els:j.elementos||[],meta,dias,prazo:j.config?.PRAZO||""};
+  const ini=sem.filter(s=>s.ini<=hojeISO());
+  if(SEM==null||!ini.some(s=>s.n===SEM)) SEM=(ini.find(s=>s.ini<=hojeISO()&&hojeISO()<=s.fim)||ini[ini.length-1]||sem[0])?.n;
+  const emps=[...new Set(itens.map(i=>i.emp))].sort();
+  $("#emp").replaceChildren(el("option",{value:"",text:"Todos os empreendimentos"}),...emps.map(e=>el("option",{value:e,text:e}))); $("#emp").value=EMP;
+  $("#sem").replaceChildren(...[...ini].reverse().map(s=>el("option",{value:s.n,text:`Até a semana ${s.n} (${ddmm(s.ini)} a ${ddmm(s.fim)})`}))); $("#sem").value=SEM;
+}
+$("#emp").onchange=e=>{ EMP=e.target.value; render(); };
+$("#sem").onchange=e=>{ SEM=+e.target.value; render(); };
+$("#atualizar").onclick=carregar;
+
+function svgMeta(data){
+  const W=640,H=230,pl=10,pr=10,pt=26,pb=26,ns="http://www.w3.org/2000/svg", s=document.createElementNS(ns,"svg"); s.setAttribute("viewBox",`0 0 ${W} ${H}`);
+  const mk=(tag,a,txt)=>{ const e=document.createElementNS(ns,tag); for(const k in a) e.setAttribute(k,a[k]); if(txt!=null) e.textContent=txt; s.append(e); return e; };
+  if(!data.length) return s;
+  const top=Math.max(...data.map(d=>Math.max(d.real,d.meta)),0.001), max=top*1.15, ih=H-pt-pb, bw=(W-pl-pr)/data.length, y=v=>pt+ih-(v/max)*ih;
+  mk("line",{x1:pl,x2:W-pr,y1:pt+ih,y2:pt+ih,class:"grid"}); mk("line",{x1:W-150,x2:W-128,y1:12,y2:12,class:"meta"}); mk("text",{x:W-122,y:16},"meta da semana");
+  data.forEach((d,k)=>{ const cx=pl+bw*k+bw/2, w=bw*0.56;
+    mk("rect",{x:cx-w/2,y:y(d.real),width:w,height:Math.max(0,pt+ih-y(d.real)),rx:3,class:"b"+(d.hl?" hl":"")});
+    if(d.meta>0) mk("line",{x1:cx-w/2-4,x2:cx+w/2+4,y1:y(d.meta),y2:y(d.meta),class:"meta"});
+    mk("text",{x:cx,y:Math.min(y(d.real),d.meta>0?y(d.meta):H)-6,"text-anchor":"middle",class:"val"},d.meta>0?Math.round(d.real/d.meta*100)+"%":nf1.format(d.real));
+    mk("text",{x:cx,y:H-8,"text-anchor":"middle"},d.label); });
+  return s;
+}
+function svgCurva(series,labels,maxY,prazoIdx){
+  const W=640,H=260,pl=44,pr=12,pt=16,pb=30,ns="http://www.w3.org/2000/svg", s=document.createElementNS(ns,"svg"); s.setAttribute("viewBox",`0 0 ${W} ${H}`);
+  const mk=(tag,a,txt)=>{ const e=document.createElementNS(ns,tag); for(const k in a) e.setAttribute(k,a[k]); if(txt!=null) e.textContent=txt; s.append(e); return e; };
+  const n=labels.length, iw=W-pl-pr, ih=H-pt-pb, x=i=>pl+(n>1?i/(n-1):0)*iw, y=v=>pt+ih-(v/maxY)*ih;
+  for(const g of [0,.25,.5,.75,1]){ mk("line",{x1:pl,x2:W-pr,y1:y(maxY*g),y2:y(maxY*g),class:"grid"}); mk("text",{x:pl-6,y:y(maxY*g)+4,"text-anchor":"end"},nf0.format(maxY*g)); }
+  const passo=Math.max(1,Math.ceil(n/8)); labels.forEach((l,i)=>{ if(i%passo===0||i===n-1) mk("text",{x:x(i),y:H-10,"text-anchor":"middle"},l); });
+  if(prazoIdx!=null&&prazoIdx<n){ mk("line",{x1:x(prazoIdx),x2:x(prazoIdx),y1:pt,y2:pt+ih,class:"prazo"}); mk("text",{x:x(prazoIdx)+4,y:pt+12},"prazo"); }
+  for(const se of series){ if(!se.pts.length) continue; mk("polyline",{points:se.pts.map(([i,v])=>x(i)+","+y(v)).join(" "),class:se.cls});
+    const [li,lv]=se.pts[se.pts.length-1]; mk("circle",{cx:x(li),cy:y(lv),r:3.5,class:se.cls+" pt"}); }
+  return s;
+}
+const kpi=(l,v,sm)=>el("div",{class:"kpi"},el("span",{text:l}),el("b",{text:v}),sm?el("small",{text:sm}):null);
+const tabela=(head,rows)=>el("table",{},el("thead",{},el("tr",{},...head.map(h=>el("th",{text:h})))),el("tbody",{},...rows));
+const metaSem=s=>D.meta*(+s.arm||0)*(+s.dias||0);
+
+function render(){
+  if(!D) return;
+  const ini=D.sem.filter(s=>s.ini<=hojeISO()), ate=ini.filter(s=>s.n<=SEM), w=ate[ate.length-1];
+  const its=D.itens.filter(i=>!EMP||i.emp===EMP), set=new Set(its.map(i=>i.c)), ac=new Map();
+  for(const s of ate) for(const [c,q] of Object.entries(s.exec)) ac.set(c,(ac.get(c)||0)+q);
+  const exe=i=>Math.min(ac.get(i.c)||0,i.qp)*i.ppb, P=its.reduce((s,i)=>s+i.kp,0), E=its.reduce((s,i)=>s+exe(i),0);
+  const kgSem=s=>{ let k=0; for(const [c,q] of Object.entries(s.exec)) if(set.has(c)) k+=q*D.by.get(c).ppb; return k; };
+  const hd=ate.filter(s=>s.kg>0&&s.arm*s.dias>0), prodMed=hd.reduce((a,s)=>a+s.kg,0)/(hd.reduce((a,s)=>a+s.arm*s.dias,0)||1);
+  $("#kpis").replaceChildren(kpi("Previsto",t(P)+" t",EMP||"obra inteira"), kpi("Executado",t(E)+" t",w?`${t(kgSem(w))} t na semana ${w.n}`:""), kpi("Saldo",t(P-E)+" t"),
+    kpi("Avanço",pct(P?E/P:0)), kpi("Produtividade média",nf0.format(prodMed),`kg/armador/dia · meta ${nf0.format(D.meta)}`));
+  // meta × realizado (equipe inteira)
+  $("#ch-meta").replaceChildren(svgMeta(ate.slice(-12).map(s=>({label:"S"+s.n,real:s.kg/1000,meta:metaSem(s)/1000,hl:s.n===SEM}))));
+  $("#meta-nota").textContent=`Meta de ${nf0.format(D.meta)} kg por armador por dia × armadores × dias trabalhados. Percentual = realizado ÷ meta.`;
+  // curva S e previsão (obra inteira, posição atual)
+  const Pt=D.itens.reduce((s,i)=>s+i.kp,0), acT=new Map(); for(const s of ini) for(const [c,q] of Object.entries(s.exec)) acT.set(c,(acT.get(c)||0)+q);
+  const Et=D.itens.reduce((s,i)=>s+Math.min(acT.get(i.c)||0,i.qp)*i.ppb,0), saldo=Math.max(0,Pt-Et);
+  const rec=ini.filter(s=>s.kg>0).slice(-4), ritmo=rec.length?rec.reduce((a,s)=>a+s.kg,0)/rec.length:0;
+  const arm=D.eqs.filter(e=>e.ativa).reduce((a,e)=>a+(+e.arm||0),0)||(+ini[ini.length-1]?.arm||0), metaFut=D.meta*arm*D.dias;
+  const atual=ini[ini.length-1], fimRef=atual?new Date(atual.fim+"T12:00:00"):new Date();
+  const nS=r=>r>0?Math.ceil(saldo/r):Infinity, sR=nS(ritmo), sM=nS(metaFut);
+  const prazo=D.prazo?new Date(D.prazo+"T12:00:00"):null, sP=prazo?Math.max(0,Math.floor((prazo-fimRef)/(7*864e5))):0;
+  const k=[kpi("Término no ritmo real",isFinite(sR)?fmtData(addDias(fimRef,7*sR)):"–",`${t(ritmo)} t/semana (média das últimas 4)`),
+    kpi("Término na meta",isFinite(sM)?fmtData(addDias(fimRef,7*sM)):"–",`${nf0.format(D.meta)} kg/arm/dia × ${arm} armadores × ${D.dias} dias`)];
+  if(prazo) k.push(kpi("Para o prazo "+fmtData(prazo),sP?`${Math.ceil(saldo/(D.meta*D.dias*sP))} armadores`:"prazo vencido","na meta de produtividade"));
+  $("#k-prev").replaceChildren(...k);
+  const fut=Math.min(156,Math.max(isFinite(sM)?sM:0,isFinite(sR)?sR:0,sP)+1);
+  const datas=[...ini.map(s=>new Date(s.ini+"T12:00:00")),...Array.from({length:fut},(_,i)=>addDias(fimRef,1+7*i))];
+  const labels=datas.map(d=>datas.length>30?d.toLocaleDateString("pt-BR",{month:"short",year:"2-digit"}).replace(". de ","/").replace(".",""):d.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"}));
+  let aR=0,aM=0; const real=[],plan=[]; ini.forEach((s,i)=>{ aR+=s.kg; aM+=metaSem(s); real.push([i,aR/1000]); plan.push([i,Math.min(aM,Pt)/1000]); });
+  const base=ini.length-1, proj=[[base,Et/1000]]; for(let i=1;i<=fut;i++){ aM+=metaFut; plan.push([base+i,Math.min(aM,Pt)/1000]); if(ritmo>0) proj.push([base+i,Math.min(Et+ritmo*i,Pt)/1000]); }
+  $("#ch-s").replaceChildren(svgCurva([{pts:plan,cls:"ln2"},{pts:proj,cls:"ln3"},{pts:real,cls:"ln"}],labels,Pt/1000,prazo?base+sP:null));
+  $("#s-nota").textContent="Linha cheia: realizado · tracejada: planejado pela meta · pontilhada: projeção no ritmo real.";
+  // estruturas
+  const g=new Map(); for(const i of its){ const kk=i.emp+"|"+i.est, r=g.get(kk)||{est:i.est,emp:i.emp,p:0,e:0}; r.p+=i.kp; r.e+=exe(i); g.set(kk,r); }
+  $("#t-est").replaceChildren(tabela(["Estrutura","Previsto (t)","Executado (t)","Avanço"],[...g.values()].sort((a,b)=>b.e-a.e||b.p-a.p).map(r=>el("tr",{},
+    el("td",{},el("b",{text:r.est}),EMP?null:el("div",{class:"info",text:r.emp})),el("td",{text:t(r.p)}),el("td",{text:t(r.e)}),
+    el("td",{},pct(r.p?r.e/r.p:0),el("span",{class:"bar"},el("i",{style:`width:${r.p?Math.min(100,r.e/r.p*100):0}%`})))))));
+  // equipes
+  $("#t-eq").replaceChildren(tabela(["Equipe","Arm.","Frentes",`Sem. ${w?.n??""} (kg)`,"kg/arm/dia"],D.eqs.filter(e=>e.ativa).map(e=>{ const kg=w?.porEq[e.nome]?.kg||0;
+    return el("tr",{},el("td",{},el("b",{text:e.nome}),e.encarregado?el("div",{class:"info",text:"Enc.: "+e.encarregado}):null),el("td",{text:e.arm}),
+      el("td",{class:"txt",text:(e.frentes||[]).map(f=>f.det?`${f.est} (${f.det})`:f.est).join(", ")||"–"}),el("td",{text:nf0.format(kg)}),el("td",{text:e.arm&&w?.dias?nf0.format(kg/(e.arm*w.dias)):"–"})); })));
+  // frentes
+  const elem=new Map(); for(const i of its){ const kk=`${i.emp}|${i.est}|${i.loc||"(sem local)"}`, r=elem.get(kk)||{kp:0,ke:0}; r.kp+=i.kp; r.ke+=Math.min(acT.get(i.c)||0,i.qp)*i.ppb; elem.set(kk,r); }
+  const st=new Map(D.els.map(e=>[e.chave,e])); const cont={AGUARDANDO:0,"LIBERADO P/ ARMAR":0,ARMADO:0,"CONCRETAGEM LIBERADA":0}, lib=[];
+  for(const [kk,r] of elem){ const s=st.get(kk)||{}, p=r.kp?r.ke/r.kp:0;
+    const sit=s.lib?"CONCRETAGEM LIBERADA":p>=0.999?"ARMADO":(s.magro&&s.aco)?"LIBERADO P/ ARMAR":"AGUARDANDO"; cont[sit]++;
+    if(sit!=="AGUARDANDO"&&sit!=="ARMADO") lib.push([kk.split("|"),sit,p,s]); }
+  $("#t-fr").replaceChildren(el("p",{class:"info",text:Object.entries(cont).map(([k2,v])=>`${k2.toLowerCase()}: ${v}`).join(" · ")}),
+    tabela(["Elemento","Situação","Armado"],lib.slice(0,25).map(([[,est,loc],sit,p,s])=>el("tr",{},el("td",{},el("b",{text:loc}),el("div",{class:"info",text:est})),
+      el("td",{},el("span",{class:"chip "+(sit==="CONCRETAGEM LIBERADA"?"ok":"and"),text:sit+(s.lib?" "+ddmm(s.lib):"")})),el("td",{text:pct(p)})))));
+  // ocorrências
+  const oc=[...D.ocs].sort((a,b)=>String(b.data).localeCompare(String(a.data))).slice(0,15);
+  $("#t-oc").replaceChildren(oc.length?tabela(["Data","Tipo","Horas","Descrição"],oc.map(r=>el("tr",{},el("td",{text:ddmm(r.data)}),el("td",{class:"txt",text:r.cat}),
+    el("td",{text:nf1.format(+r.horas||0)}),el("td",{class:"txt",text:r.texto||""})))):el("p",{class:"info",text:"Nenhuma ocorrência registrada."}));
+}
+carregar(); setInterval(carregar,10*60*1000);
+</script>
+</body>
+</html>

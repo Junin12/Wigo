@@ -232,6 +232,7 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
 
   <section class="view" id="v-painel" hidden>
     <div class="row"><h2 style="margin-right:auto">Painel da armação</h2><select id="p-emp" aria-label="Empreendimento do painel"></select></div>
+    <div class="row"><button class="btn pri" id="rel-pdf" type="button">Relatório da semana (PDF)</button><span class="info" id="rel-msg"></span></div>
     <p class="info" id="p-ate"></p>
     <div class="kpis" id="kpis"></div>
     <div class="card"><h3>Aço armado por semana (t)</h3><div class="chart" id="ch-kg"></div></div>
@@ -328,6 +329,11 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
       <label class="campo" for="cfg-tok">Senha do app<input type="password" id="cfg-tok" autocomplete="off"></label>
       <div class="row"><button class="btn pri" id="cfg-ok" type="button">Conectar e sincronizar</button></div>
       <p id="cfg-msg" class="info"></p>
+    </div>
+    <div class="card">
+      <h3>Acompanhamento sem o app</h3>
+      <p class="info">Quem tiver estes links <b>só consegue ver</b> os dados; para lançar é preciso o app com a senha. Envie o link do painel para quem precisa acompanhar.</p>
+      <div id="acomp"></div>
     </div>
     <div class="card">
       <h3>Base carregada</h3>
@@ -435,7 +441,7 @@ const S = { items:[], byCode:new Map(), meta:null, weeks:LS.get("weeks2")||{}, p
             els:LS.get("elementos")||[], pendEl:LS.get("pendEl")||{}, cfgObra:LS.get("cfgObra")||{}, pendCfg:LS.get("pendCfg")||{},
             cur:null, cfg:LS.get("cfg"), syncing:false, err:"", lastSync:LS.get("lastSync"), limit:60 };
 const K = (cod, eq) => cod+"|"+eq;
-const SCRIPT_MIN = 8; // versão do Code.gs que este app espera
+const SCRIPT_MIN = 9; // versão do Code.gs que este app espera
 // O Planilhas converte "DEC-0001" em data (dez/2001). Reconstrói o código se ele chegar como data.
 const MESES=["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
 function consertaCod(c){
@@ -508,6 +514,7 @@ function applyServer(j){
   if(j.registros){ S.regs=j.registros; LS.set("regs",S.regs); }
   if(j.elementos){ S.els=j.elementos; LS.set("elementos",S.els); }
   if(j.config){ S.cfgObra=j.config; LS.set("cfgObra",S.cfgObra); }
+  if(j.leitura){ S.leitura=j.leitura; LS.set("leitura",j.leitura); }
   S.lastSync=j.agora; LS.set("lastSync",j.agora);
 }
 
@@ -925,12 +932,154 @@ $("#cfg-ok").addEventListener("click", async ()=>{
   if(S.err){ m.className="msg"; m.textContent=S.err; }
   else { m.className="okmsg"; m.textContent=`Conectado. ${nf0.format(S.items.length)} posições e ${S.W.length} semanas carregadas.`; }
 });
+// links de leitura: painel HTML e tabelas do Power BI
+function renderAcomp(){
+  const box=$("#acomp"), k=S.leitura||LS.get("leitura");
+  if(!S.cfg?.url || !k){ box.replaceChildren(el("p",{class:"info",text:"Disponível depois de atualizar o script do Google (versão 9) e sincronizar."})); return; }
+  const base=location.href.replace(/[#?].*$/,"").replace(/index\.html$/,"");
+  const painel=`${base}painel.html#u=${encodeURIComponent(S.cfg.url)}&k=${k}`;
+  const linha=(rot,url)=>{ const i=el("input",{type:"text",readOnly:true,value:url,"aria-label":rot});
+    const b=el("button",{class:"btn",type:"button",text:"Copiar"});
+    b.onclick=async()=>{ try{ await navigator.clipboard.writeText(url); toast("Link copiado"); }catch{ i.select(); toast("Selecione e copie o link"); } };
+    return el("label",{class:"campo"}, rot, el("div",{class:"row",style:"flex-wrap:nowrap"}, i, b)); };
+  const bi=["posicoes","lancamentos","semanas","equipes","ocorrencias","elementos"];
+  const env=el("button",{class:"btn pri",type:"button",text:"Enviar link do painel"});
+  env.onclick=async()=>{ try{ await navigator.share({title:"Painel da armação — SAA Rio Grande",url:painel}); }catch{ try{ await navigator.clipboard.writeText(painel); toast("Link copiado"); }catch{} } };
+  box.replaceChildren(linha("Painel (abre em qualquer navegador)",painel), el("div",{class:"row"},env),
+    el("details",{}, el("summary",{text:"Endereços para o Power BI"}), el("p",{class:"info",text:"No Power BI: Obter dados → Web → cole o endereço. Veja o passo a passo no LEIA-ME."}),
+      ...bi.map(tb=>linha(tb,`${S.cfg.url}?k=${k}&tabela=${tb}`))));
+}
 function renderDados(){
+  renderAcomp();
   const m=S.meta;
   $("#base-info").textContent = m ? `${nf0.format(S.items.length)} posições · ${S.W.length} semanas · última sincronização ${S.lastSync?new Date(S.lastSync).toLocaleString("pt-BR"):"–"}.` : "Nenhuma base carregada.";
 }
 
 // ---------- importar / exportar ----------
+// ---------- relatório semanal em PDF ----------
+const carregarScript = src => new Promise((res,rej)=>{ if(document.querySelector(`script[src="${src}"]`)) return res();
+  const s=document.createElement("script"); s.src=src; s.onload=res; s.onerror=()=>rej(new Error("Não consegui carregar o gerador de PDF. Abra o app uma vez com internet.")); document.head.append(s); });
+const blobDataURL = b => new Promise((res,rej)=>{ const fr=new FileReader(); fr.onload=()=>res(fr.result); fr.onerror=rej; fr.readAsDataURL(b); });
+const imgDims = src => new Promise(res=>{ const im=new Image(); im.onload=()=>res([im.naturalWidth,im.naturalHeight]); im.onerror=()=>res([4,3]); im.src=src; });
+async function fotoParaRelatorio(r){
+  const b=await fotoLocal(r.id); if(b) return await blobDataURL(b);
+  if(!r.url || !navigator.onLine) return null;
+  try{ const j=await post({acao:"miniatura",url:r.url}); return `data:${j.tipo||"image/jpeg"};base64,${j.b64}`; }catch{ return null; }
+}
+$("#rel-pdf").addEventListener("click", async ()=>{
+  const btn=$("#rel-pdf"), msg=$("#rel-msg"); btn.disabled=true; msg.textContent="Montando o relatório…";
+  try{
+    await carregarScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js");
+    await carregarScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js");
+    const blob=await montarRelatorio(m=>msg.textContent=m);
+    const w=curW(), nome=`Relatorio_Armacao_Semana_${w.n}_${w.ini}.pdf`, file=new File([blob],nome,{type:"application/pdf"});
+    if(navigator.canShare?.({files:[file]})){ try{ await navigator.share({files:[file],title:`Relatório da armação — semana ${w.n}`}); }catch(e){ if(e.name!=="AbortError") baixar(nome,blob); } }
+    else baixar(nome,blob);
+    msg.textContent="Relatório gerado.";
+  }catch(e){ msg.textContent=e.message||"Não foi possível gerar o relatório."; }
+  finally{ btn.disabled=false; }
+});
+async function montarRelatorio(aviso){
+  const {jsPDF}=window.jspdf, doc=new jsPDF({unit:"mm",format:"a4"}), W=210, M=12;
+  const w=curW(); if(!w) throw new Error("Escolha uma semana.");
+  const AZ=[35,82,126], CINZA=[90,102,116], LINHA=[211,218,226], AMAR=[242,176,40];
+  const ate=w.n, Wate=S.W.filter(x=>x.n<=ate), ac=new Map();
+  for(const x of Wate) for(const [c,q] of Object.entries(x.exec)) ac.set(c,(ac.get(c)||0)+q);
+  const exe=i=>Math.min(ac.get(i.c)||0,i.qp)*i.ppb, P=S.items.reduce((s,i)=>s+i.kp,0), E=S.items.reduce((s,i)=>s+exe(i),0);
+  const meta=metaSemana(w), prev=previsao();
+  let y=0;
+  const novaPagina=h=>{ if(y+h>285){ doc.addPage(); y=16; } };
+  const titulo=txt=>{ novaPagina(14); doc.setFont("helvetica","bold"); doc.setFontSize(12); doc.setTextColor(...AZ); doc.text(txt,M,y); y+=5; doc.setTextColor(20); };
+  // cabeçalho
+  doc.setFillColor(...AZ); doc.rect(0,0,W,26,"F"); doc.setTextColor(255); doc.setFont("helvetica","bold"); doc.setFontSize(16);
+  doc.text("Relatório semanal de armação — SAA Rio Grande",M,11); doc.setFont("helvetica","normal"); doc.setFontSize(10.5);
+  doc.text(`Semana ${w.n}: ${fmtData(new Date(w.ini+"T12:00:00"))} a ${fmtData(new Date(w.fim+"T12:00:00"))}   ·   ${w.arm} armadores × ${w.dias} dias   ·   gerado em ${new Date().toLocaleString("pt-BR")}`,M,19);
+  y=34; doc.setTextColor(20);
+  // indicadores
+  const kpis=[["Aço armado na semana",`${t(w.kg)} t`, meta?`meta ${t(meta)} t · ${pct(w.kg/meta)}`:""],["Produtividade",`${nf0.format(w.prod)} kg`,`por armador/dia · meta ${nf0.format(META())}`],
+    ["Acumulado",`${t(E)} t`,`${pct(P?E/P:0)} de ${t(P)} t`],["Término previsto",prev.fimReal?fmtData(prev.fimReal):"–",`ritmo real · na meta: ${prev.fimMeta?fmtData(prev.fimMeta):"–"}`]];
+  const bw=(W-2*M-9)/4;
+  kpis.forEach(([l,v,s],k)=>{ const x=M+k*(bw+3); doc.setDrawColor(...LINHA); doc.roundedRect(x,y,bw,22,2,2);
+    doc.setFontSize(7.5); doc.setTextColor(...CINZA); doc.text(l.toUpperCase(),x+3,y+5); doc.setFontSize(14); doc.setTextColor(20); doc.setFont("helvetica","bold"); doc.text(v,x+3,y+12.5);
+    doc.setFont("helvetica","normal"); doc.setFontSize(7); doc.setTextColor(...CINZA); doc.text(doc.splitTextToSize(s,bw-5),x+3,y+17); });
+  y+=30;
+  // gráfico meta × realizado
+  titulo("Meta × realizado por semana (t)");
+  const ws=Wate.filter(x=>x.ini<=hojeISO()).slice(-10), gh=42, gx=M, gw=W-2*M, top=Math.max(...ws.map(x=>Math.max(x.kg,metaSemana(x))),1)*1.15;
+  doc.setDrawColor(...LINHA); doc.line(gx,y+gh,gx+gw,y+gh);
+  ws.forEach((x,k)=>{ const cw=gw/ws.length, cx=gx+cw*k+cw/2, bh=x.kg/top*gh, mh=metaSemana(x)/top*gh;
+    doc.setFillColor(...(x.n===w.n?AZ:[111,149,186])); doc.rect(cx-cw*0.28,y+gh-bh,cw*0.56,bh,"F");
+    if(mh){ doc.setDrawColor(...AMAR); doc.setLineWidth(0.9); doc.line(cx-cw*0.34,y+gh-mh,cx+cw*0.34,y+gh-mh); doc.setLineWidth(0.2); }
+    doc.setFontSize(7); doc.setTextColor(20); doc.text(metaSemana(x)?`${Math.round(x.kg/metaSemana(x)*100)}%`:t(x.kg),cx,y+gh-Math.max(bh,mh)-1.5,{align:"center"});
+    doc.setTextColor(...CINZA); doc.text(`S${x.n}`,cx,y+gh+4,{align:"center"}); });
+  doc.setFontSize(7); doc.setTextColor(...CINZA); doc.text("barra = realizado · traço amarelo = meta da semana",gx,y+gh+8.5);
+  y+=gh+13;
+  // curva S
+  titulo("Curva S — acumulado (t)");
+  const hist=prev.ini, fut=Math.min(80,Math.max(isFinite(prev.semMeta)?prev.semMeta:0,isFinite(prev.semReal)?prev.semReal:0)+1), n=hist.length+fut, ch=48;
+  const px=i=>gx+10+(n>1?i/(n-1):0)*(gw-12), py=v=>y+ch-(v/P)*ch;
+  doc.setDrawColor(...LINHA); [0,0.5,1].forEach(g=>{ doc.line(gx+10,py(P*g),gx+gw,py(P*g)); doc.setFontSize(6.5); doc.setTextColor(...CINZA); doc.text(nf0.format(P*g/1000),gx+8,py(P*g)+1,{align:"right"}); });
+  const serie=(pts,cor,trac)=>{ doc.setDrawColor(...cor); doc.setLineWidth(0.7); if(trac) doc.setLineDashPattern(trac,0);
+    for(let i=1;i<pts.length;i++) doc.line(px(pts[i-1][0]),py(pts[i-1][1]),px(pts[i][0]),py(pts[i][1])); doc.setLineDashPattern([],0); doc.setLineWidth(0.2); };
+  let aR=0,aM=0; const real=[],plan=[],proj=[];
+  hist.forEach((x,i)=>{ aR+=x.kg; aM+=metaSemana(x); real.push([i,aR]); plan.push([i,Math.min(aM,P)]); });
+  proj.push([hist.length-1,prev.E]); for(let i=1;i<=fut;i++){ aM+=prev.metaFut; plan.push([hist.length-1+i,Math.min(aM,P)]); if(prev.ritmo>0) proj.push([hist.length-1+i,Math.min(prev.E+prev.ritmo*i,P)]); }
+  serie(plan,CINZA,[1.5,1.2]); serie(proj,AMAR,[0.6,1]); serie(real,AZ);
+  doc.setFontSize(7); doc.setTextColor(...CINZA);
+  doc.text(`azul = realizado · cinza = planejado pela meta (${nf0.format(META())} kg/arm/dia, ${prev.arm} armadores) · amarelo = projeção no ritmo real (${t(prev.ritmo)} t/sem)`,gx,y+ch+5);
+  y+=ch+11;
+  const tabela=(head,body,opts={})=>{ novaPagina(20); doc.autoTable({startY:y,head:[head],body,margin:{left:M,right:M},styles:{fontSize:7.5,cellPadding:1.4,textColor:20},
+    headStyles:{fillColor:AZ,textColor:255,fontStyle:"bold"},alternateRowStyles:{fillColor:[244,246,249]},...opts}); y=doc.lastAutoTable.finalY+8; };
+  // produção da semana por estrutura
+  aviso("Tabelas…");
+  const semEst=new Map();
+  for(const [c,q] of Object.entries(w.exec)){ const i=S.byCode.get(c); if(!i||!q) continue; const k=i.emp+"|"+i.est, r=semEst.get(k)||{emp:i.emp,est:i.est,q:0,kg:0}; r.q+=q; r.kg+=q*i.ppb; semEst.set(k,r); }
+  titulo(`Produção da semana ${w.n} por estrutura`);
+  const pe=[...semEst.values()].sort((a,b)=>b.kg-a.kg);
+  tabela(["Estrutura","Empreendimento","Barras","Aço (kg)"], pe.length?pe.map(r=>[r.est,r.emp,nf0.format(r.q),nf0.format(r.kg)]):[["Sem lançamentos nesta semana","","",""]],{columnStyles:{2:{halign:"right"},3:{halign:"right"}}});
+  // avanço acumulado
+  titulo(`Avanço acumulado até a semana ${w.n}`);
+  const av=new Map(); for(const i of S.items){ const k=i.emp+"|"+i.est, r=av.get(k)||{emp:i.emp,est:i.est,p:0,e:0}; r.p+=i.kp; r.e+=exe(i); av.set(k,r); }
+  tabela(["Estrutura","Empreendimento","Previsto (t)","Executado (t)","Avanço"], [...av.values()].filter(r=>r.e>0).sort((a,b)=>b.e-a.e).map(r=>[r.est,r.emp,t(r.p),t(r.e),pct(r.e/r.p)])
+    .concat([["TOTAL DA OBRA","",t(P),t(E),pct(P?E/P:0)]]),{columnStyles:{2:{halign:"right"},3:{halign:"right"},4:{halign:"right"}}});
+  // equipes
+  titulo("Equipes");
+  tabela(["Equipe","Encarregado","Arm.","Frentes","Semana (kg)","kg/arm/dia"], eqList().filter(e=>e.ativa||w.porEq[e.nome]).map(e=>{ const kg=w.porEq[e.nome]?.kg||0;
+    return [e.nome,e.encarregado||"–",e.arm,(e.frentes||[]).map(frenteTxt).join(", ")||"–",nf0.format(kg),e.arm&&w.dias?nf0.format(kg/(e.arm*w.dias)):"–"]; }));
+  // ocorrências
+  const oc=regsAll().filter(r=>r.tipo==="ocorrencia"&&r.sem===w.n);
+  titulo("Ocorrências da semana");
+  tabela(["Data","Tipo","Equipe","Horas perdidas","Descrição"], oc.length?oc.map(r=>[ddmm(r.data),r.cat,r.equipe,nf1.format(+r.horas||0),r.texto||""]):[["–","Nenhuma ocorrência registrada","","",""]],{columnStyles:{4:{cellWidth:80}}});
+  // frentes
+  const els=elementos(), libArm=els.filter(e=>e.sit==="lib"), concSem=els.filter(e=>e.st.lib && e.st.lib>=w.ini && e.st.lib<=w.fim);
+  titulo("Frentes de serviço");
+  tabela(["Situação","Elemento","Estrutura","Armado","Data / responsável"], [
+    ...concSem.map(e=>["Concretagem liberada",e.loc,e.est,pct(e.pct),`${ddmm(e.st.lib)} · ${e.st.resp||""}`]),
+    ...libArm.map(e=>["Liberado p/ armar",e.loc,e.est,pct(e.pct),`magro ${ddmm(e.st.magro)} · aço ${ddmm(e.st.aco)}`])].slice(0,40).concat(concSem.length||libArm.length?[]:[["–","Nenhum elemento liberado","","",""]]));
+  // fotos
+  const fotos=regsAll().filter(r=>r.tipo==="foto"&&r.sem===w.n).slice(0,12);
+  if(fotos.length){
+    titulo(`Fotos da semana (${fotos.length})`);
+    const cw=(W-2*M-8)/3; let col=0;
+    for(const [k,r] of fotos.entries()){
+      aviso(`Fotos ${k+1} de ${fotos.length}…`);
+      const src=await fotoParaRelatorio(r); if(!src) continue;
+      const [iw,ih]=await imgDims(src), h=Math.min(cw*ih/iw,cw*1.1);
+      if(col===0) novaPagina(h+12);
+      const x=M+col*(cw+4);
+      try{ doc.addImage(src,"JPEG",x,y,cw,h,undefined,"FAST"); }catch{ continue; }
+      const i=S.byCode.get(r.cod), leg=`${ddmm(r.data)} · ${i?`${i.pos} ${i.est}`:(r.cod||"").replace(/^EL:/,"").split("|").slice(1).join(" · ")}${r.texto?" — "+r.texto:""}`;
+      doc.setFontSize(6.5); doc.setTextColor(...CINZA); doc.text(doc.splitTextToSize(leg,cw),x,y+h+3);
+      col=(col+1)%3; if(col===0) y+=h+12;
+    }
+    if(col) y+=cw+12;
+  }
+  // rodapé com páginas
+  const np=doc.getNumberOfPages();
+  for(let p=1;p<=np;p++){ doc.setPage(p); doc.setFontSize(7); doc.setTextColor(...CINZA); doc.text(`Armação SAA Rio Grande · semana ${w.n} · página ${p} de ${np}`,W/2,292,{align:"center"}); }
+  return doc.output("blob");
+}
+
 function loadXLSX(){
   if(window.XLSX) return Promise.resolve();
   return new Promise((res,rej)=>{ const s=document.createElement("script"); s.src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";

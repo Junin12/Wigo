@@ -1,12 +1,14 @@
 // Guarda o app no aparelho para abrir sem internet.
 // Ao alterar index.html, suba o número da versão para os celulares receberem a atualização.
 // Os PDFs dos projetos ficam num cache à parte ("armacao-pdfs"), que não é apagado nas atualizações.
-const VERSAO = "armacao-v9";
-const APP = ["./", "index.html", "manifest.webmanifest", "icon-192.png", "icon-512.png"];
+const VERSAO = "armacao-v10";
+const APP = ["./", "index.html", "painel.html", "manifest.webmanifest", "icon-192.png", "icon-512.png"];
 const LIBS = [
   "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js",
   "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js",
   "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js",
+  "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js",
+  "https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js",
 ];
 
 self.addEventListener("install", e => {

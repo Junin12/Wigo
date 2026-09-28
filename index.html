@@ -379,7 +379,17 @@ const S = { items:[], byCode:new Map(), meta:null, weeks:LS.get("weeks2")||{}, p
             regs:LS.get("regs")||[], pendReg:LS.get("pendReg")||[], pendDel:LS.get("pendDel")||[],
             cur:null, cfg:LS.get("cfg"), syncing:false, err:"", lastSync:LS.get("lastSync"), limit:60 };
 const K = (cod, eq) => cod+"|"+eq;
-const SCRIPT_MIN = 6; // versão do Code.gs que este app espera
+const SCRIPT_MIN = 7; // versão do Code.gs que este app espera
+// O Planilhas converte "DEC-0001" em data (dez/2001). Reconstrói o código se ele chegar como data.
+const MESES=["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
+function consertaCod(c){
+  const s=String(c??""); let m, mes, ano;
+  if((m=s.match(/^(\d{4})-(\d{2})-\d{2}$/))){ ano=+m[1]; mes=MESES[+m[2]-1]; }
+  else if((m=s.match(/^[A-Z][a-z]{2} ([A-Z][a-z]{2}) \d{2} (\d{4}) /))){ ano=+m[2]; mes=m[1].toUpperCase(); }
+  else return s;
+  const n = ano>=2000&&ano<2030 ? ano-2000 : ano>=1930&&ano<2000 ? ano-1900 : ano;
+  return mes+"-"+String(n).padStart(4,"0");
+}
 const eqList = () => { const m=new Map(S.eqs.map(e=>[e.nome,{...e}])); for(const [n,p] of Object.entries(S.pendEq)) m.set(n,{nome:n,arm:0,ativa:true,...m.get(n),...p}); return [...m.values()]; };
 const eqAtivas = () => { const a=eqList().filter(e=>e.ativa); return a.length ? a : [{nome:"Equipe 1",arm:0,ativa:true}]; };
 function eqAtual(){ const a=eqAtivas(); if(!a.some(e=>e.nome===S.eq)) S.eq=a[0].nome; return S.eq; }
@@ -428,6 +438,9 @@ async function post(body){
   return j;
 }
 function applyServer(j){
+  if(j.itens) for(const r of j.itens) r[0]=consertaCod(r[0]);
+  for(const l of j.lanc||[]) l[1]=consertaCod(l[1]);
+  for(const r of j.registros||[]) if(r.cod) r.cod=consertaCod(r.cod);
   if(j.itens){ const meta={v:j.versao, fonte:"Google Drive", atualizado:j.agora}; setBase(meta, j.itens); LS.set("base",{meta,itens:j.itens}); }
   S.scriptVelho = !(j.script >= SCRIPT_MIN);
   const w={};
@@ -479,11 +492,14 @@ async function sync(){
     ...snapDel.map(id=>({t:"regDel", id})) ];
   try{
     const j = await api(ops);
+    // lançamento só sai da fila quando o Google devolve a mesma quantidade (ou nada, se era zero)
+    const noBanco=new Map((j.lanc||[]).map(([n,c,q,eq])=>[n+"|"+consertaCod(c)+"|"+eq, q]));
+    const gravou=(n,k,q)=>{ const v=noBanco.get(n+"|"+k); return q ? v===q : !v; };
     // tira da fila só o que não foi alterado enquanto gravava
     for(const [n,p] of Object.entries(snap)){
       const cur=S.pend[n]; if(!cur) continue;
       for(const k of ["arm","dias"]) if(cur[k]===p[k]) delete cur[k];
-      if(cur.raw && p.raw) for(const c of Object.keys(p.raw)) if(cur.raw[c]===p.raw[c]) delete cur.raw[c];
+      if(cur.raw && p.raw) for(const c of Object.keys(p.raw)) if(cur.raw[c]===p.raw[c] && gravou(n,c,p.raw[c])) delete cur.raw[c];
       if(cur.raw && !Object.keys(cur.raw).length) delete cur.raw;
       if(p.novo) delete cur.novo;
       if(!Object.keys(cur).length) delete S.pend[n];

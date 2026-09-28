@@ -294,7 +294,7 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
 
   <section class="view" id="v-frentes" hidden>
     <h2>Frentes de serviço</h2>
-    <p class="info">Cada elemento é a estrutura + o local do levantamento. Marque <b>aço entregue</b> (e <b>concreto magro pronto</b>, nos elementos de fundo) para liberar a armação. Depois de armado, faça o <b>checklist</b> para liberar a concretagem: paredes em <b>lances 1, 2 e 3</b>; lajes de cobertura e passarelas só no <b>lance 3</b>; fundos, lajes de piso e demais, concretagem única. Errou? Use <b>Voltar</b>.</p>
+    <p class="info">Cada elemento é a estrutura + o local do levantamento. Marque <b>aço entregue</b> (e <b>concreto magro pronto</b>, nos elementos de fundo) para liberar a armação. Depois de armado, faça o <b>checklist</b> para liberar a concretagem: paredes em <b>arranque → lance 1 → lance 2 → lance 3</b> (cada etapa só libera com a anterior concretada); lajes de cobertura e passarelas só no <b>lance 3</b>; fundos, lajes de piso e demais, concretagem única. Errou? Use <b>Voltar</b>.</p>
     <button class="btn" id="fr-voltar" type="button" hidden>↩ Voltar</button>
     <div class="card" id="fr-amanha"></div>
     <div class="filtros">
@@ -305,7 +305,8 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
         <option value="bloq">Aguardando aço (ou concreto magro, nos fundos)</option>
         <option value="lib">Liberados para armar</option>
         <option value="arm">Armados, falta liberar concretagem</option>
-        <option value="parc">Concretando em lances (paredes)</option>
+        <option value="parc">Concretando em etapas (paredes)</option>
+        <option value="feito">Concretados</option>
         <option value="conc">Liberados para concretagem</option>
       </select>
     </div>
@@ -393,6 +394,7 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
       <button class="btn" id="ck-salvar" type="button">Salvar checklist</button>
       <label class="btn fotobtn" for="ck-foto">Tirar foto<input type="file" id="ck-foto" accept="image/*" capture="environment"></label>
       <button class="btn pri" id="ck-liberar" type="button">Liberar para concretagem</button>
+      <button class="btn pri" id="ck-concretado" type="button" hidden>Marcar como concretado</button>
     </div>
     <p class="msg" id="ck-msg" hidden></p>
     <div class="regs" id="ck-fotos"></div>
@@ -1075,7 +1077,9 @@ async function montarRelatorio(aviso){
   tabela(["Data","Tipo","Equipe","Horas perdidas","Descrição"], oc.length?oc.map(r=>[ddmm(r.data),r.cat,r.equipe,nf1.format(+r.horas||0),r.texto||""]):[["–","Nenhuma ocorrência registrada","","",""]],{columnStyles:{4:{cellWidth:80}}});
   // frentes
   const els=elementos(), libArm=els.filter(e=>e.sit==="lib"), concSem=[];
-  for(const e of els) for(const L of e.tipo.lances){ const d=e.lances[L]; if(d?.data && d.data>=w.ini && d.data<=w.fim) concSem.push([L==="U"?"Concretagem liberada":`Lance ${L} liberado`,e.loc,e.est,pct(e.pct),`${ddmm(d.data)} · ${d.resp||""}`]); }
+  for(const e of els) for(const L of e.tipo.lances){ const d=e.lances[L]||{};
+    if(d.data && d.data>=w.ini && d.data<=w.fim) concSem.push([`${rotLance(L)} liberado`,e.loc,e.est,pct(e.pct),`${ddmm(d.data)} · ${d.resp||""}`]);
+    if(d.conc && d.conc>=w.ini && d.conc<=w.fim) concSem.push([`${rotLance(L)} concretado`,e.loc,e.est,pct(e.pct),ddmm(d.conc)]); }
   titulo("Frentes de serviço");
   tabela(["Situação","Elemento","Estrutura","Armado","Data / responsável"], [
     ...concSem,
@@ -1465,17 +1469,20 @@ const elChave = i => `${i.emp}|${i.est}|${i.loc||"(sem local)"}`;
 const FR = Object.assign({emp:"",est:"",sit:""}, LS.get("frf")||{}); let frLimite=40;
 // Tipo do elemento pelo local:
 //  FUNDO → pede concreto magro + aço; concretagem única
-//  PAREDE → só aço; concretagem em lances 1, 2 e 3
+//  PAREDE → só aço; concretagem em arranque, lance 1, lance 2 e lance 3 (nessa ordem)
 //  LAJE DE COBERTURA / PASSARELA → só aço; libera apenas o lance 3
 //  demais (lajes de piso, pilares…) → só aço; concretagem única
 function tipoEl(loc){
   const u=String(loc).toUpperCase();
   if(/FUNDO/.test(u)) return {magro:true, lances:["U"]};
-  if(/PAREDE/.test(u)) return {magro:false, lances:["1","2","3"]};
+  if(/PAREDE/.test(u)) return {magro:false, lances:["A","1","2","3"]};
   if(/COBERTURA|PASSARELA/.test(u)) return {magro:false, lances:["3"]};
   return {magro:false, lances:["U"]};
 }
-const nomeLance = L => L==="U" ? "concretagem" : `lance ${L}`;
+// cada etapa: liberar (checklist) → concretar; a seguinte só libera com a anterior concretada
+const nomeLance = L => L==="U" ? "concretagem" : L==="A" ? "arranque" : `lance ${L}`;
+const rotLance = L => { const n=nomeLance(L); return n[0].toUpperCase()+n.slice(1); };
+const curtoLance = L => L==="U" ? "" : L==="A" ? "Arr" : "L"+L;
 function elementos(){
   const serv=new Map(S.els.map(e=>[e.chave,e])), m=new Map();
   for(const i of S.items){
@@ -1487,13 +1494,16 @@ function elementos(){
     e.st={...(serv.get(e.chave)||{}), ...(S.pendEl[e.chave]||{})}; e.pct=e.kp?e.ke/e.kp:0; e.tipo=tipoEl(e.loc);
     e.lances={...(e.st.lances||{})};
     e.feitos=e.tipo.lances.filter(L=>e.lances[L]?.data);
+    e.concs=e.tipo.lances.filter(L=>e.lances[L]?.conc);
     e.libArmar = !!e.st.aco && (!e.tipo.magro || !!e.st.magro);
-    e.sit = e.feitos.length===e.tipo.lances.length ? "conc" : e.feitos.length ? "parc" : e.pct>=0.999 ? "arm" : e.libArmar ? "lib" : "bloq";
+    const n=e.tipo.lances.length;
+    e.sit = e.concs.length===n ? "feito" : e.feitos.length===n ? "conc" : e.feitos.length ? "parc" : e.pct>=0.999 ? "arm" : e.libArmar ? "lib" : "bloq";
   }
   return [...m.values()];
 }
-const SIT={bloq:["AGUARDANDO",""],lib:["LIBERADO P/ ARMAR","and"],arm:["ARMADO","ok"],parc:["CONCRETANDO EM LANCES","and"],conc:["CONCRETAGEM LIBERADA","ok"]};
-const rotSit = e => e.sit==="parc" ? `LANCE ${e.feitos.join(", ")} LIBERADO` : SIT[e.sit][0];
+const SIT={bloq:["AGUARDANDO",""],lib:["LIBERADO P/ ARMAR","and"],arm:["ARMADO","ok"],parc:["CONCRETANDO EM ETAPAS","and"],conc:["CONCRETAGEM LIBERADA","ok"],feito:["CONCRETADO","ok"]};
+const rotSit = e => { if(e.sit!=="parc") return SIT[e.sit][0];
+  const L=e.feitos[e.feitos.length-1]; return `${rotLance(L).toUpperCase()} ${e.lances[L].conc?"CONCRETADO":"LIBERADO"}`; };
 
 // "Voltar": desfaz as últimas alterações feitas nas frentes (marcações e liberações)
 const DESF=[];
@@ -1520,9 +1530,13 @@ function elCard(e){
       else if(b.dataset.ok){ setEl(e,{[campo]:""},`desmarcar ${rot.toLowerCase()} — ${e.loc}`); } else { b.dataset.ok=1; b.textContent="Desmarcar?"; } };
     return b; };
   const n=e.tipo.lances.length, feito=e.feitos.length;
-  const txtCk = n>1 ? `Concretagem · lances ${e.tipo.lances.map(L=>e.lances[L]?.data?L+"✓":L).join(" ")}`
-    : feito ? `${e.tipo.lances[0]==="3"?"Lance 3":"Concretagem"} liberada ${ddmm(e.lances[e.tipo.lances[0]].data)}`
-    : (e.tipo.lances[0]==="3" ? "Checklist lance 3" : "Checklist concretagem");
+  // ✓ = liberado · ● = concretado
+  const marca = L => e.lances[L]?.conc ? "●" : e.lances[L]?.data ? "✓" : "";
+  const L0=e.tipo.lances[0];
+  const txtCk = n>1 ? `Concretagem · ${e.tipo.lances.map(L=>curtoLance(L)+marca(L)).join(" ")}`
+    : e.lances[L0]?.conc ? `${rotLance(L0)} concretado ${ddmm(e.lances[L0].conc)}`
+    : feito ? `${rotLance(L0)} liberado ${ddmm(e.lances[L0].data)}`
+    : `Checklist ${nomeLance(L0)}`;
   const ck=el("button",{class:"btn",type:"button",text:txtCk}); ck.onclick=()=>abrirChecklist(e);
   const lz=el("button",{class:"btn",type:"button",text:"Lançar"}); lz.onclick=()=>lancarElemento(e);
   return el("article",{class:"item"},
@@ -1554,7 +1568,7 @@ function renderFrentes(){
   $("#fr-sit").value=FR.sit;
   const f=els.filter(e=>(!FR.emp||e.emp===FR.emp)&&(!FR.est||e.est===FR.est)&&(!FR.sit||e.sit===FR.sit));
   const c=s=>els.filter(e=>(!FR.emp||e.emp===FR.emp)&&(!FR.est||e.est===FR.est)&&e.sit===s).length;
-  $("#fr-info").textContent=`${f.length} elementos · aguardando ${c("bloq")} · liberados p/ armar ${c("lib")} · armados ${c("arm")} · em lances ${c("parc")} · concretagem liberada ${c("conc")}`;
+  $("#fr-info").textContent=`${f.length} elementos · aguardando ${c("bloq")} · liberados p/ armar ${c("lib")} · armados ${c("arm")} · em etapas ${c("parc")} · concretagem liberada ${c("conc")} · concretados ${c("feito")}  (✓ liberado · ● concretado)`;
   $("#fr-lista").replaceChildren(...(f.length ? f.slice(0,frLimite).map(elCard) : [el("div",{class:"vazio",text:"Nenhum elemento com esses filtros."})]));
   $("#fr-mais").hidden=f.length<=frLimite; $("#fr-mais").textContent=`Mostrar mais (${f.length-frLimite} restantes)`;
 }
@@ -1567,20 +1581,23 @@ $("#fr-voltar").addEventListener("click", voltar);
 const CK={e:null,L:null,forcar:false};
 function abrirChecklist(e, L){
   CK.e=e; CK.forcar=false;
-  CK.L = L || e.tipo.lances.find(x=>!e.lances[x]?.data) || e.tipo.lances[e.tipo.lances.length-1];
+  CK.L = L || e.tipo.lances.find(x=>!e.lances[x]?.conc) || e.tipo.lances[e.tipo.lances.length-1];
   if($("#ck").hidden){ $("#ck").hidden=false; document.body.style.overflow="hidden"; if(!history.state?.modal) history.pushState({modal:1},""); }
   const d=e.lances[CK.L]||{}, nome=nomeLance(CK.L);
   $("#ck-tit").textContent=`Concretagem · ${e.loc}`;
   $("#ck-sub").textContent=`${e.emp} · ${e.est} · armação ${pct(e.pct)} (${t(e.ke)} de ${t(e.kp)} t)`;
   // seletor de lances (paredes: 1, 2 e 3; coberturas e passarelas: só o 3)
   $("#ck-lances").replaceChildren(...(CK.L==="U" ? [] : e.tipo.lances.map(x=>{
-    const b=el("button",{class:"chipbtn"+(x===CK.L?" on":""),type:"button",text:`Lance ${x}${e.lances[x]?.data?" ✓ "+ddmm(e.lances[x].data):""}`});
+    const d2=e.lances[x]||{};
+    const b=el("button",{class:"chipbtn"+(x===CK.L?" on":""),type:"button",text:`${rotLance(x)}${d2.conc?" ● "+ddmm(d2.conc):d2.data?" ✓ "+ddmm(d2.data):""}`});
     b.onclick=()=>abrirChecklist(CK.e,x); return b; })));
-  $("#ck-estado").textContent = d.data ? `${nome[0].toUpperCase()+nome.slice(1)} liberado em ${fmtData(new Date(d.data+"T12:00:00"))} por ${d.resp||"–"}.` : "";
+  $("#ck-estado").textContent = d.data ? `${rotLance(CK.L)} liberado em ${fmtData(new Date(d.data+"T12:00:00"))} por ${d.resp||"–"}.` + (d.conc?` Concretado em ${fmtData(new Date(d.conc+"T12:00:00"))}.`:" Falta marcar como concretado.") : "";
+  const bc=$("#ck-concretado"); bc.hidden=!d.data; bc.textContent = d.conc ? "Desmarcar concretado" : `Marcar ${nome} como concretado`;
   const ch=d.check||{};
   $("#ck-itens").replaceChildren(...CHECK.map(([k,txt])=>el("label",{class:"chk reg",style:"grid-template-columns:auto 1fr;display:grid"}, el("input",{type:"checkbox",id:"ck-"+k,checked:!!ch[k]}), txt)));
   $("#ck-resp").value=d.resp||""; $("#ck-obs").value=d.obs||""; $("#ck-msg").hidden=true;
   $("#ck-liberar").textContent = d.data ? `Cancelar liberação do ${nome}` : (CK.L==="U" ? "Liberar para concretagem" : `Liberar ${nome}`);
+  $("#ck-liberar").hidden = !!d.conc;
   renderCkFotos();
 }
 function renderCkFotos(){
@@ -1600,6 +1617,7 @@ $("#ck-liberar").addEventListener("click", ()=>{
   const e=atualEl(), L=CK.L, nome=nomeLance(L), msg=$("#ck-msg"), resp=$("#ck-resp").value.trim(), obs=$("#ck-obs").value.trim(), check=lerCk();
   const hoje=hojeISO();
   if(e.lances[L]?.data){
+    if(e.lances[L].conc){ msg.hidden=false; msg.textContent="Esta etapa já está concretada. Desmarque o concretado antes de cancelar a liberação."; return; }
     const lances={...e.lances, [L]:{...e.lances[L], data:""}};
     setEl(e,{lances, lib:""},`cancelar liberação do ${nome} — ${e.loc}`);
     addReg({id:uid(),data:hoje,sem:S.cur,equipe:eqAtual(),tipo:"obs",cod:"EL:"+e.chave,texto:`Liberação do ${nome} cancelada${resp?" por "+resp:""}`});
@@ -1607,7 +1625,7 @@ $("#ck-liberar").addEventListener("click", ()=>{
   }
   const idx=e.tipo.lances.indexOf(L), anterior=idx>0?e.tipo.lances[idx-1]:null;
   msg.hidden=false;
-  if(anterior && !e.lances[anterior]?.data){ msg.textContent=`Libere primeiro o lance ${anterior}.`; return; }
+  if(anterior && !e.lances[anterior]?.conc){ msg.textContent=`O ${nomeLance(anterior)} precisa estar concretado antes de liberar o ${nome}.`; return; }
   const falta=CHECK.filter(([k])=>!check[k]).map(([,txt])=>txt);
   if(falta.length){ msg.textContent=`Falta conferir: ${falta.join("; ")}.`; return; }
   if(!resp){ msg.textContent="Informe o responsável pela conferência."; return; }
@@ -1615,9 +1633,22 @@ $("#ck-liberar").addEventListener("click", ()=>{
   const lances={...e.lances, [L]:{check, resp, obs, data:hoje}};
   const todos=e.tipo.lances.every(x=>lances[x]?.data);
   setEl(e,{lances, lib: todos?hoje:"", resp},`liberação do ${nome} — ${e.loc}`);
-  addReg({id:uid(),data:hoje,sem:S.cur,equipe:eqAtual(),tipo:"obs",cod:"EL:"+e.chave,texto:`${L==="U"?"Concretagem":"Lance "+L} liberado para concretagem por ${resp}`+(obs?` — ${obs}`:"")});
-  toast(L==="U"?"Concretagem liberada":`Lance ${L} liberado`);
-  const prox=e.tipo.lances[idx+1]; if(prox) abrirChecklist(atualEl(),prox); else fecharChecklist();
+  addReg({id:uid(),data:hoje,sem:S.cur,equipe:eqAtual(),tipo:"obs",cod:"EL:"+e.chave,texto:`${rotLance(L)} liberado para concretagem por ${resp}`+(obs?` — ${obs}`:"")});
+  toast(`${rotLance(L)} liberado`); abrirChecklist(atualEl(),L);
+});
+// depois de concretar: marca a etapa como concretada (libera a próxima)
+$("#ck-concretado").addEventListener("click", ()=>{
+  const e=atualEl(), L=CK.L, d=e.lances[L]||{}, nome=nomeLance(L), hoje=hojeISO();
+  if(!d.data) return;
+  const idx=e.tipo.lances.indexOf(L), prox=e.tipo.lances[idx+1];
+  if(d.conc){
+    if(prox && e.lances[prox]?.data){ const m=$("#ck-msg"); m.hidden=false; m.textContent=`O ${nomeLance(prox)} já foi liberado. Cancele a liberação dele antes.`; return; }
+    setEl(e,{lances:{...e.lances,[L]:{...d,conc:""}}},`desmarcar ${nome} concretado — ${e.loc}`); toast(`${rotLance(L)}: concretado desmarcado`); abrirChecklist(atualEl(),L); return;
+  }
+  setEl(e,{lances:{...e.lances,[L]:{...d,conc:hoje}}},`${nome} concretado — ${e.loc}`);
+  addReg({id:uid(),data:hoje,sem:S.cur,equipe:eqAtual(),tipo:"obs",cod:"EL:"+e.chave,texto:`${rotLance(L)} concretado`});
+  toast(`${rotLance(L)} concretado`);
+  if(prox) abrirChecklist(atualEl(),prox); else fecharChecklist();
 });
 $("#ck-foto").addEventListener("change", async ev=>{
   const f=ev.target.files[0]; ev.target.value=""; if(!f||!CK.e) return;

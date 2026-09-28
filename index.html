@@ -654,7 +654,17 @@ function renderLista(){
 }
 function renderInfo(f=filtered()){
   const kp=f.reduce((s,i)=>s+i.kp,0), ke=f.reduce((s,i)=>s+Math.min(S.acum.get(i.c)||0,i.qp)*i.ppb,0);
-  $("#lista-info").textContent = `${nf0.format(f.length)} posições · previsto ${t(kp)} t · executado ${t(ke)} t (${pct(kp?ke/kp:0)})`;
+  // deixa claro quando os números são só de uma parte da obra
+  const filtro=[F.emp, F.est, F.pr, F.loc, F.q.trim()&&`"${F.q.trim()}"`, F.pend&&"sem concluídas"].filter(Boolean);
+  const box=$("#lista-info");
+  box.replaceChildren(
+    el("b",{text: filtro.length ? `Filtro: ${filtro.join(" · ")}` : "Obra inteira"}), " — ",
+    `${nf0.format(f.length)} posições · previsto ${t(kp)} t · executado ${t(ke)} t (${pct(kp?ke/kp:0)})`);
+  if(filtro.length){
+    const b=el("button",{class:"linkbtn",type:"button",text:"Limpar filtros"});
+    b.onclick=()=>{ Object.assign(F,{emp:"",est:"",pr:"",loc:"",q:"",pend:false}); LS.set("filtros",F); S.limit=60; renderFiltros(); renderLista(); };
+    box.append(" ", b);
+  }
 }
 // "Concluir elemento": lança o saldo de todas as posições filtradas, na semana e equipe atuais
 let elemConfirma=false;

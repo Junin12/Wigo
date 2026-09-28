@@ -17,6 +17,7 @@
   --fill:#FFE35A; --fill-ink:#1C1700; --accent:#23527E; --on-accent:#FFFFFF; --bar:#3C5E80; --bar-hl:#23527E;
   --good:#1D7A48; --good-bg:#E2F3E9; --warn:#9A5B00; --warn-bg:#FDF0D8; --bad:#B42318; --bad-bg:#FBE6E4;
   --idle:#5A6674; --idle-bg:#E9EDF1;
+  --in-bg:#F6F8FA; --in-ink:#3A4552; /* campos de armadores e dias (aba Semanas) */
   --r:10px; --tabs:64px;
   font-family:"Barlow",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
 }
@@ -26,6 +27,7 @@
   --fill:#E9C930; --fill-ink:#171300; --accent:#8BB8E3; --on-accent:#0E1318; --bar:#6F95BA; --bar-hl:#A9CCEE;
   --good:#5BC98B; --good-bg:#16301F; --warn:#F0B35A; --warn-bg:#35270F; --bad:#F2877C; --bad-bg:#3A1A17;
   --idle:#98A4B2; --idle-bg:#222C37;
+  --in-bg:#1C2631; --in-ink:#D9DEE4; /* cinza claro sobre fundo escuro */
 }}
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
@@ -119,7 +121,7 @@ th,td{padding:8px 6px;border-bottom:1px solid var(--line);text-align:right;white
 th{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600}
 th:first-child,td:first-child{text-align:left;white-space:normal}
 td .bar{width:80px;display:inline-block;vertical-align:middle;margin-left:6px}
-table input{width:70px;min-height:40px;text-align:center;background:var(--fill);color:var(--fill-ink);border:1px solid var(--line);border-radius:6px;font-weight:700}
+table input{width:70px;min-height:40px;text-align:center;background:var(--in-bg);color:var(--in-ink);border:1px solid var(--accent);border-radius:6px;font-weight:700;font-size:1rem}
 tr.cur td{background:var(--surface2)}
 .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .campo{display:grid;gap:4px;font-weight:500}

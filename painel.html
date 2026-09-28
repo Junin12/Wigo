@@ -214,10 +214,13 @@ function render(){
       el("td",{class:"txt",text:(e.frentes||[]).map(f=>f.det?`${f.est} (${f.det})`:f.est).join(", ")||"–"}),el("td",{text:nf0.format(kg)}),el("td",{text:e.arm&&w?.dias?nf0.format(kg/(e.arm*w.dias)):"–"})); })));
   // frentes
   const elem=new Map(); for(const i of its){ const kk=`${i.emp}|${i.est}|${i.loc||"(sem local)"}`, r=elem.get(kk)||{kp:0,ke:0}; r.kp+=i.kp; r.ke+=Math.min(acT.get(i.c)||0,i.qp)*i.ppb; elem.set(kk,r); }
-  const st=new Map(D.els.map(e=>[e.chave,e])); const cont={AGUARDANDO:0,"LIBERADO P/ ARMAR":0,ARMADO:0,"CONCRETAGEM LIBERADA":0}, lib=[];
-  for(const [kk,r] of elem){ const s=st.get(kk)||{}, p=r.kp?r.ke/r.kp:0;
-    const sit=s.lib?"CONCRETAGEM LIBERADA":p>=0.999?"ARMADO":(s.magro&&s.aco)?"LIBERADO P/ ARMAR":"AGUARDANDO"; cont[sit]++;
-    if(sit!=="AGUARDANDO"&&sit!=="ARMADO") lib.push([kk.split("|"),sit,p,s]); }
+  // mesmas regras do app: concreto magro só no FUNDO; paredes em lances 1-2-3; cobertura/passarela só lance 3
+  const tipoEl=loc=>{ const u=String(loc).toUpperCase(); if(/FUNDO/.test(u)) return {magro:true,lances:["U"]}; if(/PAREDE/.test(u)) return {magro:false,lances:["1","2","3"]};
+    if(/COBERTURA|PASSARELA/.test(u)) return {magro:false,lances:["3"]}; return {magro:false,lances:["U"]}; };
+  const st=new Map(D.els.map(e=>[e.chave,e])); const cont={AGUARDANDO:0,"LIBERADO P/ ARMAR":0,ARMADO:0,"EM LANCES":0,"CONCRETAGEM LIBERADA":0}, lib=[];
+  for(const [kk,r] of elem){ const s=st.get(kk)||{}, p=r.kp?r.ke/r.kp:0, tp=tipoEl(kk.split("|")[2]), ls=s.lances||{}, feitos=tp.lances.filter(L=>ls[L]?.data);
+    const sit=feitos.length===tp.lances.length?"CONCRETAGEM LIBERADA":feitos.length?"EM LANCES":p>=0.999?"ARMADO":(s.aco&&(!tp.magro||s.magro))?"LIBERADO P/ ARMAR":"AGUARDANDO"; cont[sit]++;
+    if(sit!=="AGUARDANDO"&&sit!=="ARMADO") lib.push([kk.split("|"),sit==="EM LANCES"?`LANCE ${feitos.join(", ")} LIBERADO`:sit,p,{lib:feitos.length?ls[feitos[feitos.length-1]].data:""}]); }
   $("#t-fr").replaceChildren(el("p",{class:"info",text:Object.entries(cont).map(([k2,v])=>`${k2.toLowerCase()}: ${v}`).join(" · ")}),
     tabela(["Elemento","Situação","Armado"],lib.slice(0,25).map(([[,est,loc],sit,p,s])=>el("tr",{},el("td",{},el("b",{text:loc}),el("div",{class:"info",text:est})),
       el("td",{},el("span",{class:"chip "+(sit==="CONCRETAGEM LIBERADA"?"ok":"and"),text:sit+(s.lib?" "+ddmm(s.lib):"")})),el("td",{text:pct(p)})))));

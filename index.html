@@ -294,16 +294,18 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
 
   <section class="view" id="v-frentes" hidden>
     <h2>Frentes de serviço</h2>
-    <p class="info">Cada elemento é a estrutura + o local do levantamento. Marque <b>concreto magro pronto</b> e <b>aço entregue</b> para liberar a armação; depois de armado, faça o <b>checklist</b> para liberar a concretagem.</p>
+    <p class="info">Cada elemento é a estrutura + o local do levantamento. Marque <b>aço entregue</b> (e <b>concreto magro pronto</b>, nos elementos de fundo) para liberar a armação. Depois de armado, faça o <b>checklist</b> para liberar a concretagem: paredes em <b>lances 1, 2 e 3</b>; lajes de cobertura e passarelas só no <b>lance 3</b>; fundos, lajes de piso e demais, concretagem única. Errou? Use <b>Voltar</b>.</p>
+    <button class="btn" id="fr-voltar" type="button" hidden>↩ Voltar</button>
     <div class="card" id="fr-amanha"></div>
     <div class="filtros">
       <select id="fr-emp" aria-label="Empreendimento"></select>
       <select id="fr-est" aria-label="Estrutura"></select>
       <select id="fr-sit" aria-label="Situação">
         <option value="">Todas as situações</option>
-        <option value="bloq">Aguardando concreto magro ou aço</option>
+        <option value="bloq">Aguardando aço (ou concreto magro, nos fundos)</option>
         <option value="lib">Liberados para armar</option>
         <option value="arm">Armados, falta liberar concretagem</option>
+        <option value="parc">Concretando em lances (paredes)</option>
         <option value="conc">Liberados para concretagem</option>
       </select>
     </div>
@@ -382,6 +384,8 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
   <div class="modal-box">
     <div class="modal-top"><h2 id="ck-tit">Liberação para concretagem</h2><button class="btn" id="ck-fechar" type="button">Fechar</button></div>
     <p class="info" id="ck-sub"></p>
+    <div class="row" id="ck-lances"></div>
+    <p class="okmsg" id="ck-estado"></p>
     <div class="regs" id="ck-itens"></div>
     <label class="campo" for="ck-resp">Responsável pela conferência<input type="text" id="ck-resp" maxlength="60" placeholder="Nome de quem conferiu"></label>
     <label class="campo" for="ck-obs">Observações<textarea id="ck-obs" maxlength="600" placeholder="Pendências, ajustes feitos, quem acompanhou…"></textarea></label>
@@ -441,7 +445,7 @@ const S = { items:[], byCode:new Map(), meta:null, weeks:LS.get("weeks2")||{}, p
             els:LS.get("elementos")||[], pendEl:LS.get("pendEl")||{}, cfgObra:LS.get("cfgObra")||{}, pendCfg:LS.get("pendCfg")||{},
             cur:null, cfg:LS.get("cfg"), syncing:false, err:"", lastSync:LS.get("lastSync"), limit:60 };
 const K = (cod, eq) => cod+"|"+eq;
-const SCRIPT_MIN = 9; // versão do Code.gs que este app espera
+const SCRIPT_MIN = 10; // versão do Code.gs que este app espera
 // O Planilhas converte "DEC-0001" em data (dez/2001). Reconstrói o código se ele chegar como data.
 const MESES=["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
 function consertaCod(c){
@@ -979,10 +983,25 @@ $("#rel-pdf").addEventListener("click", async ()=>{
   }catch(e){ msg.textContent=e.message||"Não foi possível gerar o relatório."; }
   finally{ btn.disabled=false; }
 });
+// logo da Heca para o cabeçalho do relatório: converte o webp em PNG e corta as margens transparentes
+let LOGO=null;
+async function logoRelatorio(){
+  if(LOGO) return LOGO;
+  try{
+    const b=await (await fetch("logo-heca.webp")).blob(), url=URL.createObjectURL(b);
+    const img=await new Promise((res,rej)=>{ const i=new Image(); i.onload=()=>res(i); i.onerror=rej; i.src=url; });
+    const c=document.createElement("canvas"); c.width=img.naturalWidth; c.height=img.naturalHeight; const g=c.getContext("2d"); g.drawImage(img,0,0);
+    const d=g.getImageData(0,0,c.width,c.height).data; let x0=c.width,y0=c.height,x1=0,y1=0;
+    for(let y=0;y<c.height;y+=2) for(let x=0;x<c.width;x+=2) if(d[(y*c.width+x)*4+3]>20){ if(x<x0)x0=x; if(x>x1)x1=x; if(y<y0)y0=y; if(y>y1)y1=y; }
+    const w=Math.max(1,x1-x0+2), h=Math.max(1,y1-y0+2), o=document.createElement("canvas"); o.width=w; o.height=h;
+    o.getContext("2d").drawImage(c,x0,y0,w,h,0,0,w,h); URL.revokeObjectURL(url);
+    LOGO={src:o.toDataURL("image/png"), w, h}; return LOGO;
+  }catch{ return null; }
+}
 async function montarRelatorio(aviso){
   const {jsPDF}=window.jspdf, doc=new jsPDF({unit:"mm",format:"a4"}), W=210, M=12;
   const w=curW(); if(!w) throw new Error("Escolha uma semana.");
-  const AZ=[35,82,126], CINZA=[90,102,116], LINHA=[211,218,226], AMAR=[242,176,40];
+  const AZ=[0,103,166], /* #0067A6, azul da Heca (fundo da logo) */ CINZA=[90,102,116], LINHA=[211,218,226], AMAR=[242,176,40];
   const ate=w.n, Wate=S.W.filter(x=>x.n<=ate), ac=new Map();
   for(const x of Wate) for(const [c,q] of Object.entries(x.exec)) ac.set(c,(ac.get(c)||0)+q);
   const exe=i=>Math.min(ac.get(i.c)||0,i.qp)*i.ppb, P=S.items.reduce((s,i)=>s+i.kp,0), E=S.items.reduce((s,i)=>s+exe(i),0);
@@ -990,11 +1009,15 @@ async function montarRelatorio(aviso){
   let y=0;
   const novaPagina=h=>{ if(y+h>285){ doc.addPage(); y=16; } };
   const titulo=txt=>{ novaPagina(14); doc.setFont("helvetica","bold"); doc.setFontSize(12); doc.setTextColor(...AZ); doc.text(txt,M,y); y+=5; doc.setTextColor(20); };
-  // cabeçalho
-  doc.setFillColor(...AZ); doc.rect(0,0,W,26,"F"); doc.setTextColor(255); doc.setFont("helvetica","bold"); doc.setFontSize(16);
-  doc.text("Relatório semanal de armação — SAA Rio Grande",M,11); doc.setFont("helvetica","normal"); doc.setFontSize(10.5);
-  doc.text(`Semana ${w.n}: ${fmtData(new Date(w.ini+"T12:00:00"))} a ${fmtData(new Date(w.fim+"T12:00:00"))}   ·   ${w.arm} armadores × ${w.dias} dias   ·   gerado em ${new Date().toLocaleString("pt-BR")}`,M,19);
-  y=34; doc.setTextColor(20);
+  // cabeçalho (faixa azul-escura com a logo)
+  const HB=30; doc.setFillColor(...AZ); doc.rect(0,0,W,HB,"F");
+  const logo=await logoRelatorio();
+  if(logo){ const lw=Math.min(52,14*logo.w/logo.h), lh=lw*logo.h/logo.w; doc.addImage(logo.src,"PNG",W-M-lw,(HB-lh)/2,lw,lh); }
+  doc.setTextColor(255); doc.setFont("helvetica","bold"); doc.setFontSize(15);
+  doc.text("Relatório semanal de armação — SAA Rio Grande",M,11); doc.setFont("helvetica","normal"); doc.setFontSize(10);
+  doc.text(`Semana ${w.n}: ${fmtData(new Date(w.ini+"T12:00:00"))} a ${fmtData(new Date(w.fim+"T12:00:00"))}  ·  ${w.arm} armadores × ${w.dias} dias`,M,18.5);
+  doc.setFontSize(8); doc.text(`Gerado em ${new Date().toLocaleString("pt-BR")}`,M,24.5);
+  y=38; doc.setTextColor(20);
   // indicadores
   const kpis=[["Aço armado na semana",`${t(w.kg)} t`, meta?`meta ${t(meta)} t · ${pct(w.kg/meta)}`:""],["Produtividade",`${nf0.format(w.prod)} kg`,`por armador/dia · meta ${nf0.format(META())}`],
     ["Acumulado",`${t(E)} t`,`${pct(P?E/P:0)} de ${t(P)} t`],["Término previsto",prev.fimReal?fmtData(prev.fimReal):"–",`ritmo real · na meta: ${prev.fimMeta?fmtData(prev.fimMeta):"–"}`]];
@@ -1051,11 +1074,12 @@ async function montarRelatorio(aviso){
   titulo("Ocorrências da semana");
   tabela(["Data","Tipo","Equipe","Horas perdidas","Descrição"], oc.length?oc.map(r=>[ddmm(r.data),r.cat,r.equipe,nf1.format(+r.horas||0),r.texto||""]):[["–","Nenhuma ocorrência registrada","","",""]],{columnStyles:{4:{cellWidth:80}}});
   // frentes
-  const els=elementos(), libArm=els.filter(e=>e.sit==="lib"), concSem=els.filter(e=>e.st.lib && e.st.lib>=w.ini && e.st.lib<=w.fim);
+  const els=elementos(), libArm=els.filter(e=>e.sit==="lib"), concSem=[];
+  for(const e of els) for(const L of e.tipo.lances){ const d=e.lances[L]; if(d?.data && d.data>=w.ini && d.data<=w.fim) concSem.push([L==="U"?"Concretagem liberada":`Lance ${L} liberado`,e.loc,e.est,pct(e.pct),`${ddmm(d.data)} · ${d.resp||""}`]); }
   titulo("Frentes de serviço");
   tabela(["Situação","Elemento","Estrutura","Armado","Data / responsável"], [
-    ...concSem.map(e=>["Concretagem liberada",e.loc,e.est,pct(e.pct),`${ddmm(e.st.lib)} · ${e.st.resp||""}`]),
-    ...libArm.map(e=>["Liberado p/ armar",e.loc,e.est,pct(e.pct),`magro ${ddmm(e.st.magro)} · aço ${ddmm(e.st.aco)}`])].slice(0,40).concat(concSem.length||libArm.length?[]:[["–","Nenhum elemento liberado","","",""]]));
+    ...concSem,
+    ...libArm.map(e=>["Liberado p/ armar",e.loc,e.est,pct(e.pct),`aço ${ddmm(e.st.aco)}`+(e.tipo.magro?` · magro ${ddmm(e.st.magro)}`:"")])].slice(0,40).concat(concSem.length||libArm.length?[]:[["–","Nenhum elemento liberado","","",""]]));
   // fotos
   const fotos=regsAll().filter(r=>r.tipo==="foto"&&r.sem===w.n).slice(0,12);
   if(fotos.length){
@@ -1439,6 +1463,19 @@ const CHECK=[["armadura","Armadura conforme projeto (posições e quantidades)"]
   ["arranques","Arranques e esperas posicionados"],["amarracao","Amarração firme, sem barras soltas"],["limpeza","Forma limpa e estanque, sem sobras de arame"],["embutidos","Embutidos, passagens e insertos conferidos"]];
 const elChave = i => `${i.emp}|${i.est}|${i.loc||"(sem local)"}`;
 const FR = Object.assign({emp:"",est:"",sit:""}, LS.get("frf")||{}); let frLimite=40;
+// Tipo do elemento pelo local:
+//  FUNDO → pede concreto magro + aço; concretagem única
+//  PAREDE → só aço; concretagem em lances 1, 2 e 3
+//  LAJE DE COBERTURA / PASSARELA → só aço; libera apenas o lance 3
+//  demais (lajes de piso, pilares…) → só aço; concretagem única
+function tipoEl(loc){
+  const u=String(loc).toUpperCase();
+  if(/FUNDO/.test(u)) return {magro:true, lances:["U"]};
+  if(/PAREDE/.test(u)) return {magro:false, lances:["1","2","3"]};
+  if(/COBERTURA|PASSARELA/.test(u)) return {magro:false, lances:["3"]};
+  return {magro:false, lances:["U"]};
+}
+const nomeLance = L => L==="U" ? "concretagem" : `lance ${L}`;
 function elementos(){
   const serv=new Map(S.els.map(e=>[e.chave,e])), m=new Map();
   for(const i of S.items){
@@ -1447,13 +1484,31 @@ function elementos(){
     e.pr.add(i.pr); e.n++; e.kp+=i.kp; e.ke+=Math.min(S.acum.get(i.c)||0,i.qp)*i.ppb;
   }
   for(const e of m.values()){
-    e.st={...(serv.get(e.chave)||{}), ...(S.pendEl[e.chave]||{})}; e.pct=e.kp?e.ke/e.kp:0;
-    e.sit = e.st.lib ? "conc" : e.pct>=0.999 ? "arm" : (e.st.magro && e.st.aco) ? "lib" : "bloq";
+    e.st={...(serv.get(e.chave)||{}), ...(S.pendEl[e.chave]||{})}; e.pct=e.kp?e.ke/e.kp:0; e.tipo=tipoEl(e.loc);
+    e.lances={...(e.st.lances||{})};
+    e.feitos=e.tipo.lances.filter(L=>e.lances[L]?.data);
+    e.libArmar = !!e.st.aco && (!e.tipo.magro || !!e.st.magro);
+    e.sit = e.feitos.length===e.tipo.lances.length ? "conc" : e.feitos.length ? "parc" : e.pct>=0.999 ? "arm" : e.libArmar ? "lib" : "bloq";
   }
   return [...m.values()];
 }
-const SIT={bloq:["AGUARDANDO",""],lib:["LIBERADO P/ ARMAR","and"],arm:["ARMADO","ok"],conc:["CONCRETAGEM LIBERADA","ok"]};
-function setEl(e, campos){ S.pendEl[e.chave]={emp:e.emp,est:e.est,loc:e.loc,...(S.pendEl[e.chave]||{}),...campos}; savePendExtra(); scheduleSync(); renderFrentes(); }
+const SIT={bloq:["AGUARDANDO",""],lib:["LIBERADO P/ ARMAR","and"],arm:["ARMADO","ok"],parc:["CONCRETANDO EM LANCES","and"],conc:["CONCRETAGEM LIBERADA","ok"]};
+const rotSit = e => e.sit==="parc" ? `LANCE ${e.feitos.join(", ")} LIBERADO` : SIT[e.sit][0];
+
+// "Voltar": desfaz as últimas alterações feitas nas frentes (marcações e liberações)
+const DESF=[];
+function setEl(e, campos, rot){
+  if(rot){
+    const antes={}; for(const k of Object.keys(campos)) antes[k]= k==="lances" ? JSON.parse(JSON.stringify(e.st.lances||{})) : (e.st[k] ?? "");
+    DESF.push({e:{chave:e.chave,emp:e.emp,est:e.est,loc:e.loc}, antes, rot}); if(DESF.length>15) DESF.shift();
+  }
+  S.pendEl[e.chave]={emp:e.emp,est:e.est,loc:e.loc,...(S.pendEl[e.chave]||{}),...campos}; savePendExtra(); scheduleSync(); renderFrentes();
+}
+function voltar(){
+  const u=DESF.pop(); if(!u) return;
+  const atual=elementos().find(x=>x.chave===u.e.chave)||u.e;
+  setEl(atual, u.antes); toast(`Desfeito: ${u.rot}`);
+}
 function lancarElemento(e){
   Object.assign(F,{emp:e.emp,est:e.est,pr:"",loc:e.loc==="(sem local)"?"":e.loc,q:"",pend:false}); LS.set("filtros",F); S.limit=60;
   renderFiltros(); renderLista(); show("coleta");
@@ -1461,18 +1516,25 @@ function lancarElemento(e){
 function elCard(e){
   const toggle=(campo,rot)=>{ const v=e.st[campo];
     const b=el("button",{class:"chipbtn"+(v?" on":""),type:"button",text:v?`${rot} ✓ ${ddmm(v)}`:`${rot}?`});
-    b.onclick=()=>{ if(!v){ setEl(e,{[campo]:hojeISO()}); toast(`${rot}: ${e.loc}`); } else if(b.dataset.ok){ setEl(e,{[campo]:""}); } else { b.dataset.ok=1; b.textContent="Desmarcar?"; } };
+    b.onclick=()=>{ if(!v){ setEl(e,{[campo]:hojeISO()},`${rot} — ${e.loc}`); toast(`${rot}: ${e.loc}`); }
+      else if(b.dataset.ok){ setEl(e,{[campo]:""},`desmarcar ${rot.toLowerCase()} — ${e.loc}`); } else { b.dataset.ok=1; b.textContent="Desmarcar?"; } };
     return b; };
-  const ck=el("button",{class:"btn",type:"button",text:e.st.lib?`Concretagem liberada ${ddmm(e.st.lib)}`:"Checklist concretagem"}); ck.onclick=()=>abrirChecklist(e);
+  const n=e.tipo.lances.length, feito=e.feitos.length;
+  const txtCk = n>1 ? `Concretagem · lances ${e.tipo.lances.map(L=>e.lances[L]?.data?L+"✓":L).join(" ")}`
+    : feito ? `${e.tipo.lances[0]==="3"?"Lance 3":"Concretagem"} liberada ${ddmm(e.lances[e.tipo.lances[0]].data)}`
+    : (e.tipo.lances[0]==="3" ? "Checklist lance 3" : "Checklist concretagem");
+  const ck=el("button",{class:"btn",type:"button",text:txtCk}); ck.onclick=()=>abrirChecklist(e);
   const lz=el("button",{class:"btn",type:"button",text:"Lançar"}); lz.onclick=()=>lancarElemento(e);
-  const [st,cls]=SIT[e.sit];
   return el("article",{class:"item"},
-    el("div",{class:"i-top"}, el("span",{class:"pos",style:"font-size:1.15rem",text:e.loc}), el("span",{class:"chip "+cls,text:st})),
+    el("div",{class:"i-top"}, el("span",{class:"pos",style:"font-size:1.15rem",text:e.loc}), el("span",{class:"chip "+SIT[e.sit][1],text:rotSit(e)})),
     el("div",{class:"i-sub",text:`${e.emp} · ${e.est} · ${[...e.pr].join(", ")}`}),
     el("div",{class:"i-prog"}, el("div",{class:"bar"},el("i",{style:`width:${Math.min(100,e.pct*100)}%`})), el("span",{text:`${t(e.ke)} / ${t(e.kp)} t · ${pct(e.pct)}`})),
-    el("div",{class:"i-in"}, toggle("magro","Concreto magro pronto"), toggle("aco","Aço entregue"), ck, lz));
+    el("div",{class:"i-in"}, e.tipo.magro ? toggle("magro","Concreto magro pronto") : null, toggle("aco","Aço entregue"), ck, lz));
 }
 function renderFrentes(){
+  // botão Voltar (desfazer)
+  const u=DESF[DESF.length-1], bv=$("#fr-voltar");
+  bv.hidden=!u; if(u) bv.textContent=`↩ Voltar: ${u.rot}`;
   if(!S.items.length){ $("#fr-lista").replaceChildren(el("div",{class:"vazio",text:"Base ainda não carregada."})); return; }
   const els=elementos();
   // o que a equipe pode pegar na próxima jornada
@@ -1484,7 +1546,7 @@ function renderFrentes(){
     el("h3",{text:`Para a próxima jornada — ${eqAtual()}${eq?.encarregado?" ("+eq.encarregado+")":""}`}),
     lista.length ? el("div",{class:"regs"}, ...lista.map(e=>{ const b=el("button",{class:"btn",type:"button",text:"Lançar"}); b.onclick=()=>lancarElemento(e);
         return el("div",{class:"reg",style:"grid-template-columns:1fr auto;align-items:center"}, el("div",{}, el("b",{text:e.loc}), el("div",{class:"info",text:`${e.est} · ${pct(e.pct)} armado · saldo ${t(e.kp-e.ke)} t`})), b); }))
-      : el("p",{class:"info",text:"Nenhum elemento liberado para armar. Marque concreto magro pronto e aço entregue nos elementos abaixo."}),
+      : el("p",{class:"info",text:"Nenhum elemento liberado para armar. Marque aço entregue (e concreto magro pronto, nos fundos) nos elementos abaixo."}),
     el("p",{class:"info",text: daEquipe.length ? (outros?`+ ${outros} elemento(s) liberado(s) fora das frentes desta equipe.`:"") : (prontos.length?"Nenhum liberado nas frentes desta equipe; mostrando os liberados de toda a obra.":"")}));
   // filtros e lista
   FR.emp=opts($("#fr-emp"), uniq(els.map(e=>e.emp)), "Todos os empreendimentos", FR.emp);
@@ -1492,25 +1554,33 @@ function renderFrentes(){
   $("#fr-sit").value=FR.sit;
   const f=els.filter(e=>(!FR.emp||e.emp===FR.emp)&&(!FR.est||e.est===FR.est)&&(!FR.sit||e.sit===FR.sit));
   const c=s=>els.filter(e=>(!FR.emp||e.emp===FR.emp)&&(!FR.est||e.est===FR.est)&&e.sit===s).length;
-  $("#fr-info").textContent=`${f.length} elementos · aguardando ${c("bloq")} · liberados p/ armar ${c("lib")} · armados ${c("arm")} · concretagem liberada ${c("conc")}`;
+  $("#fr-info").textContent=`${f.length} elementos · aguardando ${c("bloq")} · liberados p/ armar ${c("lib")} · armados ${c("arm")} · em lances ${c("parc")} · concretagem liberada ${c("conc")}`;
   $("#fr-lista").replaceChildren(...(f.length ? f.slice(0,frLimite).map(elCard) : [el("div",{class:"vazio",text:"Nenhum elemento com esses filtros."})]));
   $("#fr-mais").hidden=f.length<=frLimite; $("#fr-mais").textContent=`Mostrar mais (${f.length-frLimite} restantes)`;
 }
 const onFr=()=>{ FR.emp=$("#fr-emp").value; FR.est=$("#fr-est").value; FR.sit=$("#fr-sit").value; LS.set("frf",FR); frLimite=40; renderFrentes(); };
 ["#fr-emp","#fr-est","#fr-sit"].forEach(s=>$(s).addEventListener("change",onFr));
 $("#fr-mais").addEventListener("click",()=>{ frLimite+=40; renderFrentes(); });
+$("#fr-voltar").addEventListener("click", voltar);
 
-// checklist de liberação para concretagem
-const CK={e:null,forcar:false};
-function abrirChecklist(e){
-  CK.e=e; CK.forcar=false; $("#ck").hidden=false; document.body.style.overflow="hidden";
-  if(!history.state?.modal) history.pushState({modal:1},"");
+// checklist de liberação para concretagem (por lance)
+const CK={e:null,L:null,forcar:false};
+function abrirChecklist(e, L){
+  CK.e=e; CK.forcar=false;
+  CK.L = L || e.tipo.lances.find(x=>!e.lances[x]?.data) || e.tipo.lances[e.tipo.lances.length-1];
+  if($("#ck").hidden){ $("#ck").hidden=false; document.body.style.overflow="hidden"; if(!history.state?.modal) history.pushState({modal:1},""); }
+  const d=e.lances[CK.L]||{}, nome=nomeLance(CK.L);
   $("#ck-tit").textContent=`Concretagem · ${e.loc}`;
-  $("#ck-sub").textContent=`${e.emp} · ${e.est} · armação ${pct(e.pct)} (${t(e.ke)} de ${t(e.kp)} t)` + (e.st.lib?` · liberado em ${fmtData(new Date(e.st.lib+"T12:00:00"))} por ${e.st.resp||"–"}`:"");
-  const ch=e.st.check||{};
+  $("#ck-sub").textContent=`${e.emp} · ${e.est} · armação ${pct(e.pct)} (${t(e.ke)} de ${t(e.kp)} t)`;
+  // seletor de lances (paredes: 1, 2 e 3; coberturas e passarelas: só o 3)
+  $("#ck-lances").replaceChildren(...(CK.L==="U" ? [] : e.tipo.lances.map(x=>{
+    const b=el("button",{class:"chipbtn"+(x===CK.L?" on":""),type:"button",text:`Lance ${x}${e.lances[x]?.data?" ✓ "+ddmm(e.lances[x].data):""}`});
+    b.onclick=()=>abrirChecklist(CK.e,x); return b; })));
+  $("#ck-estado").textContent = d.data ? `${nome[0].toUpperCase()+nome.slice(1)} liberado em ${fmtData(new Date(d.data+"T12:00:00"))} por ${d.resp||"–"}.` : "";
+  const ch=d.check||{};
   $("#ck-itens").replaceChildren(...CHECK.map(([k,txt])=>el("label",{class:"chk reg",style:"grid-template-columns:auto 1fr;display:grid"}, el("input",{type:"checkbox",id:"ck-"+k,checked:!!ch[k]}), txt)));
-  $("#ck-resp").value=e.st.resp||""; $("#ck-obs").value=e.st.obs||""; $("#ck-msg").hidden=true;
-  $("#ck-liberar").textContent = e.st.lib ? "Cancelar liberação" : "Liberar para concretagem";
+  $("#ck-resp").value=d.resp||""; $("#ck-obs").value=d.obs||""; $("#ck-msg").hidden=true;
+  $("#ck-liberar").textContent = d.data ? `Cancelar liberação do ${nome}` : (CK.L==="U" ? "Liberar para concretagem" : `Liberar ${nome}`);
   renderCkFotos();
 }
 function renderCkFotos(){
@@ -1521,23 +1591,38 @@ function fecharChecklist(){ $("#ck").hidden=true; document.body.style.overflow="
 $("#ck-fechar").addEventListener("click", ()=> history.state?.modal ? history.back() : fecharChecklist());
 addEventListener("popstate", ()=>{ if(!$("#ck").hidden) fecharChecklist(); });
 const lerCk = () => Object.fromEntries(CHECK.map(([k])=>[k, $("#ck-"+k).checked]));
-$("#ck-salvar").addEventListener("click", ()=>{ setEl(CK.e,{check:lerCk(), resp:$("#ck-resp").value.trim(), obs:$("#ck-obs").value.trim()}); toast("Checklist salvo"); });
+const atualEl = () => elementos().find(x=>x.chave===CK.e.chave) || CK.e;
+$("#ck-salvar").addEventListener("click", ()=>{
+  const e=atualEl(), L=CK.L, lances={...e.lances, [L]:{...(e.lances[L]||{}), check:lerCk(), resp:$("#ck-resp").value.trim(), obs:$("#ck-obs").value.trim()}};
+  setEl(e,{lances},`checklist do ${nomeLance(L)} — ${e.loc}`); toast("Checklist salvo"); abrirChecklist(atualEl(),L);
+});
 $("#ck-liberar").addEventListener("click", ()=>{
-  const e=CK.e, msg=$("#ck-msg"), resp=$("#ck-resp").value.trim(), check=lerCk();
-  if(e.st.lib){ setEl(e,{lib:""}); addReg({id:uid(),data:hojeISO(),sem:S.cur,equipe:eqAtual(),tipo:"obs",cod:"EL:"+e.chave,texto:`Liberação para concretagem cancelada${resp?" por "+resp:""}`}); toast("Liberação cancelada"); fecharChecklist(); return; }
-  const falta=CHECK.filter(([k])=>!check[k]).map(([,txt])=>txt);
+  const e=atualEl(), L=CK.L, nome=nomeLance(L), msg=$("#ck-msg"), resp=$("#ck-resp").value.trim(), obs=$("#ck-obs").value.trim(), check=lerCk();
+  const hoje=hojeISO();
+  if(e.lances[L]?.data){
+    const lances={...e.lances, [L]:{...e.lances[L], data:""}};
+    setEl(e,{lances, lib:""},`cancelar liberação do ${nome} — ${e.loc}`);
+    addReg({id:uid(),data:hoje,sem:S.cur,equipe:eqAtual(),tipo:"obs",cod:"EL:"+e.chave,texto:`Liberação do ${nome} cancelada${resp?" por "+resp:""}`});
+    toast(`Liberação do ${nome} cancelada`); abrirChecklist(atualEl(),L); return;
+  }
+  const idx=e.tipo.lances.indexOf(L), anterior=idx>0?e.tipo.lances[idx-1]:null;
   msg.hidden=false;
+  if(anterior && !e.lances[anterior]?.data){ msg.textContent=`Libere primeiro o lance ${anterior}.`; return; }
+  const falta=CHECK.filter(([k])=>!check[k]).map(([,txt])=>txt);
   if(falta.length){ msg.textContent=`Falta conferir: ${falta.join("; ")}.`; return; }
   if(!resp){ msg.textContent="Informe o responsável pela conferência."; return; }
-  if(e.pct<0.999 && !CK.forcar){ CK.forcar=true; msg.textContent=`A armação deste elemento está em ${pct(e.pct)} no app. Toque de novo em "Liberar" para liberar mesmo assim.`; return; }
-  setEl(e,{check, resp, obs:$("#ck-obs").value.trim(), lib:hojeISO()});
-  addReg({id:uid(),data:hojeISO(),sem:S.cur,equipe:eqAtual(),tipo:"obs",cod:"EL:"+e.chave,texto:`Liberado para concretagem por ${resp}`+($("#ck-obs").value.trim()?` — ${$("#ck-obs").value.trim()}`:"")});
-  toast("Concretagem liberada"); fecharChecklist();
+  if(e.pct<0.999 && !CK.forcar){ CK.forcar=true; msg.textContent=`A armação deste elemento está em ${pct(e.pct)} no app. Toque de novo para liberar mesmo assim.`; return; }
+  const lances={...e.lances, [L]:{check, resp, obs, data:hoje}};
+  const todos=e.tipo.lances.every(x=>lances[x]?.data);
+  setEl(e,{lances, lib: todos?hoje:"", resp},`liberação do ${nome} — ${e.loc}`);
+  addReg({id:uid(),data:hoje,sem:S.cur,equipe:eqAtual(),tipo:"obs",cod:"EL:"+e.chave,texto:`${L==="U"?"Concretagem":"Lance "+L} liberado para concretagem por ${resp}`+(obs?` — ${obs}`:"")});
+  toast(L==="U"?"Concretagem liberada":`Lance ${L} liberado`);
+  const prox=e.tipo.lances[idx+1]; if(prox) abrirChecklist(atualEl(),prox); else fecharChecklist();
 });
 $("#ck-foto").addEventListener("change", async ev=>{
   const f=ev.target.files[0]; ev.target.value=""; if(!f||!CK.e) return;
   try{
-    const blob=await comprimir(f), r={id:uid(),data:hojeISO(),sem:S.cur,equipe:eqAtual(),tipo:"foto",cod:"EL:"+CK.e.chave,texto:`Checklist concretagem · ${CK.e.loc}`};
+    const blob=await comprimir(f), r={id:uid(),data:hojeISO(),sem:S.cur,equipe:eqAtual(),tipo:"foto",cod:"EL:"+CK.e.chave,texto:`Checklist do ${nomeLance(CK.L)} · ${CK.e.loc}`};
     await (await caches.open(FOTOS)).put("foto/"+r.id, new Response(blob,{headers:{"Content-Type":"image/jpeg"}}));
     addReg(r); renderCkFotos(); toast("Foto salva");
   }catch{ toast("Não foi possível salvar a foto."); }

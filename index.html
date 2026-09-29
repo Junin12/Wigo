@@ -332,6 +332,11 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
   <section class="view" id="v-dados" hidden>
     <h2>Ajustes e planilha</h2>
     <div class="card">
+      <h3>Versão do app</h3>
+      <p class="info">Esta tela está na versão <b id="versao-app"></b>. Depois de subir arquivos novos no GitHub, espere 1 a 2 minutos e toque abaixo (com internet).</p>
+      <div class="row"><button class="btn" id="buscar-versao" type="button">Buscar atualização agora</button><span class="info" id="versao-msg"></span></div>
+    </div>
+    <div class="card">
       <h3>Banco no Google Drive</h3>
       <p class="info">Cole o endereço do App da Web (termina em <code>/exec</code>) e a senha que apareceu ao rodar <code>configurar()</code> na planilha.</p>
       <label class="campo" for="cfg-url">Endereço do App da Web<input type="url" id="cfg-url" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="off" spellcheck="false"></label>
@@ -985,6 +990,21 @@ function renderDados(){
 }
 
 // ---------- importar / exportar ----------
+// ---------- versão do app e atualização manual ----------
+const VERSAO_APP = "v16"; // igual ao número em sw.js (armacao-v16)
+$("#versao-app").textContent = VERSAO_APP;
+$("#buscar-versao").addEventListener("click", async ()=>{
+  const m=$("#versao-msg");
+  if(!navigator.onLine){ m.textContent="Sem internet agora. Tente de novo com sinal."; return; }
+  m.textContent="Buscando…";
+  try{
+    const reg=await navigator.serviceWorker?.getRegistration(); await reg?.update();
+    // apaga só a cópia dos arquivos do app (lançamentos, fotos e PDFs guardados não são tocados)
+    for(const k of await caches.keys()) if(k.startsWith("armacao-v")) await caches.delete(k);
+    location.reload();
+  }catch{ m.textContent="Não foi possível buscar agora. Feche e abra o app com internet."; }
+});
+
 // ---------- relatório semanal em PDF ----------
 const carregarScript = src => new Promise((res,rej)=>{ if(document.querySelector(`script[src="${src}"]`)) return res();
   const s=document.createElement("script"); s.src=src; s.onload=res; s.onerror=()=>rej(new Error("Não consegui carregar o gerador de PDF. Abra o app uma vez com internet.")); document.head.append(s); });
@@ -1901,6 +1921,7 @@ function renderData(){
     const tinhaVersao = !!navigator.serviceWorker.controller; let recarregou=false;
     navigator.serviceWorker.addEventListener("controllerchange", ()=>{ if(tinhaVersao && !recarregou){ recarregou=true; location.reload(); } });
     navigator.serviceWorker.register("sw.js").then(r=>r.update()).catch(()=>{});
+    document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="visible") navigator.serviceWorker.getRegistration().then(r=>r?.update()).catch(()=>{}); });
   }
   navigator.storage?.persist?.().catch(()=>{});
 })();

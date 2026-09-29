@@ -90,6 +90,8 @@ section.view{padding-block:14px;display:grid;gap:14px}
 .step{display:flex;align-items:stretch;border:1px solid var(--line);border-radius:10px;overflow:hidden}
 .step button{width:48px;min-height:48px;border:0;background:var(--surface2);font-size:1.4rem;font-weight:600}
 .step button:active{background:var(--line)}
+.modo{display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center}
+.step .unid{display:flex;align-items:center;padding:0 8px 0 0;background:var(--fill);color:var(--fill-ink);font-weight:700;font-size:.85rem}
 .step input{width:84px;border:0;border-inline:1px solid var(--line);border-radius:0;text-align:center;font-weight:700;font-size:1.15rem;background:var(--fill);color:var(--fill-ink);min-height:48px;-moz-appearance:textfield}
 .step input::-webkit-inner-spin-button,.step input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
 .btn{border:1px solid var(--line);background:var(--surface);border-radius:10px;min-height:44px;padding:8px 14px;font-weight:600}
@@ -217,6 +219,8 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
   <section class="view" id="v-coleta">
     <div class="resumo" id="resumo-sem"></div>
     <label class="campo eqsel" for="f-eq">Lançando como<select id="f-eq"></select></label>
+    <div class="modo" role="group" aria-label="Unidade do lançamento"><span class="info">Lançar em</span>
+      <button class="chipbtn" type="button" data-m="pct">% do total da posição</button><button class="chipbtn" type="button" data-m="bar">barras</button></div>
     <div class="eq-info" id="eq-info"></div>
     <div class="filtros">
       <select id="f-emp" aria-label="Empreendimento"></select>
@@ -707,14 +711,23 @@ $("#mais").addEventListener("click",()=>{ S.limit+=60; renderLista(); });
 // wq = o que a equipe atual lançou nesta semana; o máximo desconta o que as outras equipes e semanas já fizeram
 function rowNums(i){ const w=curW(), wq=w?(w.raw[K(i.c,eqAtual())]||0):0, ac=S.acum.get(i.c)||0; return {wq, ac, max:Math.max(0,i.qp-(ac-wq))}; }
 function statusOf(ac,qp){ return ac<=0 ? ["NÃO INICIADO",""] : ac>=qp ? ["CONCLUÍDO","ok"] : ["EM ANDAMENTO","and"]; }
+// Lançamento em % do total da posição (ex.: 10% de 500 barras = 50 barras) ou em barras.
+// O que fica gravado é sempre a quantidade de barras.
+S.modo = LS.get("modo") || "pct";
+const nfp = new Intl.NumberFormat("pt-BR",{maximumFractionDigits:1});
+const emPct = i => S.modo==="pct" && i.qp>0;
+function renderModo(){ document.querySelectorAll(".modo button").forEach(b=>b.classList.toggle("on", b.dataset.m===S.modo)); }
+document.querySelector(".modo").addEventListener("click", e=>{ const b=e.target.closest("button[data-m]"); if(!b) return;
+  S.modo=b.dataset.m; LS.set("modo",S.modo); renderModo(); refreshRows(); toast(S.modo==="pct"?"Lançando em % do total de cada posição":"Lançando em barras"); });
+renderModo();
 function buildRow(i){
-  const inp = el("input",{type:"number",inputMode:"numeric",min:"0",step:"1",id:"q-"+i.c,"aria-label":`Barras de ${i.pos} executadas na semana`});
+  const inp = el("input",{type:"text",inputMode:"decimal",autocomplete:"off",id:"q-"+i.c});
   const card = el("article",{class:"item","data-c":i.c},
     el("div",{class:"i-top"}, el("span",{class:"pos",text:i.pos}), el("span",{class:"bit",text:bitLabel(i.bit)}), el("span",{class:"loc",text:i.loc}), el("span",{class:"chip"})),
     el("div",{class:"i-sub",text:`${i.est} · ${i.pr} · item ${i.it} · ${i.tp} · ${i.c}`}),
     el("div",{class:"i-prog"}, el("div",{class:"bar"},el("i")), el("span",{class:"acc"})),
     el("div",{class:"i-in"},
-      el("div",{class:"step"}, el("button",{class:"menos",type:"button","aria-label":"Menos uma barra",text:"−"}), inp, el("button",{class:"mais",type:"button","aria-label":"Mais uma barra",text:"+"})),
+      el("div",{class:"step"}, el("button",{class:"menos",type:"button",text:"−"}), inp, el("span",{class:"unid"}), el("button",{class:"mais",type:"button",text:"+"})),
       el("button",{class:"btn tudo",type:"button",text:"Completar"}),
       el("button",{class:"btn prancha",type:"button",hidden:true}),
       el("button",{class:"btn regbtn",type:"button"}),
@@ -727,14 +740,18 @@ function fillRow(card,i){
   card.classList.toggle("done", ac>=i.qp && i.qp>0);
   const chip=card.querySelector(".chip"); chip.textContent=st; chip.className="chip "+cls;
   card.querySelector(".bar i").style.width = (i.qp? Math.min(100,ac/i.qp*100):0)+"%";
-  card.querySelector(".acc").textContent = `${nf0.format(ac)} / ${nf0.format(i.qp)} barras · ${nf0.format(i.kp)} kg`;
+  const P=emPct(i), emU = q => P ? nfp.format(q/i.qp*100) : nf0.format(q);
+  card.querySelector(".acc").textContent = `${nf0.format(ac)} / ${nf0.format(i.qp)} barras (${i.qp?nfp.format(ac/i.qp*100):0}%) · ${nf0.format(i.kp)} kg`;
   const inp=card.querySelector("input");
-  if(document.activeElement!==inp) inp.value = wq || "";
-  inp.max=max; inp.placeholder="0";
-  card.querySelector(".kg").textContent = `${eqAtual()} nesta semana: ${nf1.format(wq*i.ppb)} kg`;
+  if(document.activeElement!==inp) inp.value = wq ? (P ? nfp.format(wq/i.qp*100) : wq) : "";
+  inp.placeholder="0"; inp.setAttribute("aria-label", P ? `Porcentagem do total de ${i.pos} armada na semana` : `Barras de ${i.pos} executadas na semana`);
+  card.querySelector(".unid").textContent = P ? "%" : "br";
+  card.querySelector(".menos").setAttribute("aria-label", P ? "Menos 5%" : "Menos uma barra");
+  card.querySelector(".mais").setAttribute("aria-label", P ? "Mais 5%" : "Mais uma barra");
+  card.querySelector(".kg").textContent = `${eqAtual()} nesta semana: ` + (P && wq ? `${nfp.format(wq/i.qp*100)}% = ${nf0.format(wq)} barras · ` : `${nf0.format(wq)} barras · `) + `${nf1.format(wq*i.ppb)} kg`;
   const nr=regsAll().filter(r=>r.cod===i.c).length, rb=card.querySelector(".regbtn");
   rb.textContent = nr ? `Fotos/obs (${nr})` : "Foto/obs"; rb.setAttribute("aria-label",`Fotos e observações da posição ${i.pos}`);
-  const tudo=card.querySelector(".tudo"); tudo.disabled = wq>=max; tudo.textContent = max-wq>0 ? `Completar (+${nf0.format(max-wq)})` : "Completo";
+  const tudo=card.querySelector(".tudo"); tudo.disabled = wq>=max; tudo.textContent = max-wq>0 ? `Completar (+${emU(max-wq)}${P?"%":""})` : "Completo";
   const pr=card.querySelector(".prancha"), m=pjFind(i.pr);
   pr.hidden=!m; if(m){ pr.textContent = "Prancha FL"+m.pag; pr.setAttribute("aria-label",`Abrir prancha ${i.pr}`); }
 }
@@ -787,12 +804,15 @@ function renderElem(f=filtered()){
       ` de ${nome} na semana ${S.cur} para a ${eqAtual()}?`), el("div",{class:"row"},ok,no));
   }
 }
+// raw vem na unidade da tela (% ou barras); converte para barras antes de gravar
 function commit(card, raw, clamp){
-  const i=S.byCode.get(card.dataset.c), {max}=rowNums(i), msg=card.querySelector(".msg");
-  let v=Math.round(num(raw)); if(v<0) v=0;
+  const i=S.byCode.get(card.dataset.c), {max}=rowNums(i), msg=card.querySelector(".msg"), P=emPct(i);
+  const val=num(raw);
+  let v=Math.round(P ? val/100*i.qp : val); if(v<0) v=0;
+  const maxTxt = P ? `${nfp.format(max/i.qp*100)}% (${nf0.format(max)} barras)` : `${nf0.format(max)} barras`;
   if(v>max){
-    if(!clamp){ card.classList.add("over"); msg.hidden=false; msg.textContent=`Máximo nesta semana: ${nf0.format(max)} barras (saldo da posição).`; return; }
-    toast(`Ajustado para o saldo: ${nf0.format(max)} barras`); v=max;
+    if(!clamp){ card.classList.add("over"); msg.hidden=false; msg.textContent=`Máximo nesta semana: ${maxTxt} — é o saldo da posição.`; return; }
+    toast(`Ajustado para o saldo: ${maxTxt}`); v=max;
   }
   card.classList.remove("over"); msg.hidden=true;
   if(!curW() || rowNums(i).wq===v){ fillRow(card,i); return; }
@@ -801,10 +821,11 @@ function commit(card, raw, clamp){
 const LISTA=$("#lista");
 LISTA.addEventListener("click", e=>{
   const b=e.target.closest("button"); if(!b || !b.closest(".item")) return;
-  const card=b.closest(".item"), cur=Math.round(num(card.querySelector("input").value));
-  if(b.classList.contains("mais")) commit(card, cur+1, true);
-  else if(b.classList.contains("menos")) commit(card, Math.max(0,cur-1), true);
-  else if(b.classList.contains("tudo")) { commit(card, rowNums(S.byCode.get(card.dataset.c)).max, true); toast("Posição completada"); }
+  const card=b.closest(".item"), it=S.byCode.get(card.dataset.c), P=emPct(it), {wq,max}=rowNums(it);
+  const cur = P ? wq/it.qp*100 : wq, passo = P ? 5 : 1;   // em % anda de 5 em 5
+  if(b.classList.contains("mais")) commit(card, cur+passo, true);
+  else if(b.classList.contains("menos")) commit(card, Math.max(0,cur-passo), true);
+  else if(b.classList.contains("tudo")) { commit(card, P ? max/it.qp*100 : max, true); toast("Posição completada"); }
   else if(b.classList.contains("prancha")) { const m=pjFind(S.byCode.get(card.dataset.c).pr); if(m) abrirPdf(m.f, m.pag); }
   else if(b.classList.contains("regbtn")) abrirRegistro(card.dataset.c);
 });

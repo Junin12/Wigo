@@ -408,6 +408,20 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
 .pr-opcoes{display:grid;gap:8px}
 .pr-opcao{display:grid;text-align:left;gap:2px} .pr-opcao small{color:var(--muted);font-weight:400}
 .pr-sum{cursor:pointer;font-weight:600;min-height:40px;display:flex;align-items:center}
+/* RDO */
+#rdo{grid-template-columns:minmax(0,1fr)}
+#rdo .card{grid-template-columns:minmax(0,1fr)}
+#rdo input[type=time]{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 10px;min-height:44px}
+.rd-clima{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.rd-per{min-width:56px;font-weight:600;font-size:.88rem}
+.rd-clima .chipbtn{min-height:40px}
+.rd-at{border-top:1px solid var(--line);padding-top:8px;display:grid;gap:4px}
+.rd-at input{width:100%}
+.rd-eq td input{width:64px}
+.rd-fora img{opacity:.35;filter:grayscale(1)}
+.ft-selo.rd-dentro{background:var(--good-bg);color:var(--good)}
+.rd-acoes{position:sticky;bottom:0;background:var(--bg);padding:8px 0 calc(8px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--line)}
+.chipbtn:disabled{opacity:.6;cursor:default}
 /* Fotos da obra */
 #fotos{grid-template-columns:minmax(0,1fr)}
 .ft-tirar{border:0;border-radius:18px;min-height:96px;display:flex;align-items:center;justify-content:center;gap:14px;font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-size:1.6rem;font-weight:600;color:#fff;background:linear-gradient(145deg,#E25C8A,#A8305C);box-shadow:0 10px 22px -12px #A8305C}
@@ -512,6 +526,15 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
     <img class="tela-logo" src="logo-heca.webp" alt="Heca Construtora">
   </div></header>
   <div class="tela-corpo" id="producao"></div>
+</section>
+
+<!-- ================= RDO (diário de obra) ================= -->
+<section id="tela-rdo" class="tela" aria-label="Diário de obra" hidden>
+  <header class="tela-topo compacto"><div class="in">
+    <button class="tela-voltar" type="button" data-voltar><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>Início</button>
+    <img class="tela-logo" src="logo-heca.webp" alt="Heca Construtora">
+  </div></header>
+  <div class="tela-corpo" id="rdo"></div>
 </section>
 
 <!-- ================= Fotos da obra ================= -->
@@ -850,27 +873,31 @@ Object.assign(S, { ef:LS.get("ef")||[], efDia:LS.get("efDia")||{}, pes:LS.get("p
   pendEf:{fun:{}, funDel:[], dia:{}, pes:{}, pesDel:[], pres:{}, ...(LS.get("pendEf")||{})} });
 // produção: atividades do mestre de obras (servidor + fila offline) e quem marcou a presença
 Object.assign(S, { ativ:LS.get("ativ")||[], pendAt:LS.get("pendAt")||{}, pendAtDel:LS.get("pendAtDel")||[], presPor:LS.get("presPor")||{} });
+// RDO: diários por data (servidor + fila offline)
+Object.assign(S, { rdo:LS.get("rdo")||{}, pendRdo:LS.get("pendRdo")||{} });
 
 // ---------- login por cargo (sem senha) ----------
 // Cada cargo vê só os módulos da sua função. O nome vai junto em toda alteração (aba Historico da planilha).
-// m = módulos que aparecem no início; x = permissões extras (producao-edit: mexer nas atividades; ponto-ger: Gerenciar do efetivo)
+// m = módulos que aparecem no início; x = permissões extras (producao-edit: mexer nas atividades; ponto-ger: Gerenciar do efetivo;
+// rdo-edit: preencher o RDO; rdo-fechar: fechar e reabrir o RDO)
 const TODOS_MODULOS="producao ponto fotos rdo prod obras rel sup qual seg med equip";
+const TUDO="producao-edit ponto-ger rdo-edit rdo-fechar";
 const CARGOS={
-  "Gerente de obra":          {m:TODOS_MODULOS, x:"producao-edit ponto-ger"},
-  "Engenheiro de produção":   {m:TODOS_MODULOS, x:"producao-edit ponto-ger"},
+  "Gerente de obra":          {m:TODOS_MODULOS, x:TUDO},
+  "Engenheiro de produção":   {m:TODOS_MODULOS, x:TUDO},
   "Engenheiro de qualidade":  {m:"producao qual fotos rdo obras rel prod", x:""},
-  "Técnico de planejamento":  {m:"producao prod ponto med rel obras fotos rdo sup", x:"producao-edit ponto-ger"},
+  "Técnico de planejamento":  {m:"producao prod ponto med rel obras fotos rdo sup", x:TUDO},
   "Engenheiro ambiental":     {m:"fotos rdo rel obras qual seg", x:""},
   "Técnico de segurança":     {m:"seg ponto producao fotos rdo rel", x:""},
-  "Assistente técnico":       {m:"producao prod ponto med rel obras fotos rdo sup", x:"producao-edit ponto-ger"},
-  "Mestre de obras":          {m:"producao ponto fotos rdo prod", x:"producao-edit"},
-  "Apontador":                {m:"ponto producao fotos rdo prod", x:"producao-edit"},
+  "Assistente técnico":       {m:"producao prod ponto med rel obras fotos rdo sup", x:TUDO},
+  "Mestre de obras":          {m:"producao ponto fotos rdo prod", x:"producao-edit rdo-edit"},
+  "Apontador":                {m:"ponto producao fotos rdo prod", x:"producao-edit rdo-edit"},
   "Almoxarife":               {m:"sup equip fotos", x:""},
   "Suprimentos":              {m:"sup med rel fotos", x:""},
   "Recursos humanos":         {m:"ponto rel fotos", x:"ponto-ger"},
   "Assistente social":        {m:"ponto rel fotos rdo", x:""},
   // perfil do desenvolvedor do app: acesso a tudo. Só aparece no login quando o nome digitado é a palavra combinada.
-  "Desenvolvedor":            {m:TODOS_MODULOS, x:"producao-edit ponto-ger", dev:true},
+  "Desenvolvedor":            {m:TODOS_MODULOS, x:TUDO, dev:true},
 };
 // A palavra não fica escrita no código (que é público no GitHub): guarda só o resumo dela (cyrb53, maiúsculas, sem espaços).
 // Não é senha de verdade, só tira a palavra da vista. Para trocar, calcule cyrb53("NOVAPALAVRA") e cole em DEV_RESUMO.
@@ -888,7 +915,7 @@ const quemSou = () => U ? `${U.nome} (${U.cargo})` : "sem login";
 const pode = k => { const c=CARGOS[U?.cargo]; return !!c && (c.m.split(" ").includes(k) || c.x.split(" ").includes(k)); };
 
 const K = (cod, eq) => cod+"|"+eq;
-const SCRIPT_MIN = 12; // versão do Code.gs que este app espera
+const SCRIPT_MIN = 13; // versão do Code.gs que este app espera
 // O Planilhas converte "DEC-0001" em data (dez/2001). Reconstrói o código se ele chegar como data.
 const MESES=["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
 function consertaCod(c){
@@ -965,6 +992,7 @@ function applyServer(j){
     LS.set("ef",S.ef); LS.set("efDia",S.efDia); LS.set("pes",S.pes); LS.set("presEf",S.presEf); }
   if(j.presPor){ S.presPor=j.presPor; LS.set("presPor",S.presPor); }
   if(j.atividades){ S.ativ=j.atividades; LS.set("ativ",S.ativ); }
+  if(j.rdo){ S.rdo=j.rdo; LS.set("rdo",S.rdo); }
   if(j.leitura){ S.leitura=j.leitura; LS.set("leitura",j.leitura); }
   S.lastSync=j.agora; LS.set("lastSync",j.agora);
 }
@@ -1005,7 +1033,9 @@ async function sync(){
   const snapCfg = {...S.pendCfg};
   const snapEf = JSON.parse(JSON.stringify(S.pendEf));
   const snapAt = JSON.parse(JSON.stringify(S.pendAt)), snapAtDel = [...S.pendAtDel];
+  const snapRdo = JSON.parse(JSON.stringify(S.pendRdo));
   const ops = [
+    ...Object.entries(snapRdo).map(([data,x])=>({t:"rdo", data, ...x})),
     ...opsEf(snapEf),
     ...Object.entries(snapAt).map(([id,x])=>({t:"ativ", id, ...x})), ...snapAtDel.map(id=>({t:"ativDel", id})),
     ...Object.entries(snapEq).map(([nome,p])=>({t:"equipe", nome, ...p})),
@@ -1047,7 +1077,7 @@ async function sync(){
       if(ok && JSON.stringify(S.pendEl[ch])===JSON.stringify(p)) delete S.pendEl[ch];
     }
     for(const [k,v] of Object.entries(snapCfg)) if(j.config && String(j.config[k])===String(v) && S.pendCfg[k]===v) delete S.pendCfg[k];
-    limparPendEf(snapEf, j); limparPendAt(snapAt, snapAtDel, j);
+    limparPendEf(snapEf, j); limparPendAt(snapAt, snapAtDel, j); limparPendRdo(snapRdo, j);
     savePend(); savePendExtra();
     await enviarFotos();
     S.err=""; afterData(); renderData();
@@ -1063,7 +1093,7 @@ $("#sync").addEventListener("click", ()=>{ if(!S.cfg?.url) show("dados"); else s
 
 function pendCount(){ let c=Object.keys(S.pendEq).length+S.pendReg.length+S.pendDel.length+Object.keys(S.pendEl).length+Object.keys(S.pendCfg).length
     +Object.values(S.pendEf).reduce((s,x)=>s+(Array.isArray(x)?x.length:Object.keys(x).length),0)
-    +Object.keys(S.pendAt).length+S.pendAtDel.length; for(const p of Object.values(S.pend)){ c+=Object.keys(p.raw||{}).length + (p.arm!=null) + (p.dias!=null) + (p.novo?1:0); } return c; }
+    +Object.keys(S.pendAt).length+S.pendAtDel.length+Object.keys(S.pendRdo).length; for(const p of Object.values(S.pend)){ c+=Object.keys(p.raw||{}).length + (p.arm!=null) + (p.dias!=null) + (p.novo?1:0); } return c; }
 function setSync(){
   const e=$("#sync"), c=pendCount();
   $("#aviso").hidden = !(S.scriptVelho && S.cfg?.url);
@@ -2891,6 +2921,7 @@ function renderData(){
   if(!$("#tela-ponto").hidden && !document.activeElement?.closest?.("#ponto,#ef-modal")) renderPonto();
   if(!$("#tela-fotos").hidden && $("#ef-modal").hidden && !document.activeElement?.closest?.("#fotos")) renderFotos();
   if(!$("#tela-producao").hidden && $("#ef-modal").hidden) renderProducao();
+  if(!$("#tela-rdo").hidden && !document.activeElement?.closest?.("#rdo")) renderRdo();
   setSync();
 }
 
@@ -2925,7 +2956,7 @@ const MODULOS=[
   {id:"producao", nome:"Produção",      desc:"Quem está na obra e o que cada um faz", c:["#F28C28","#C2570C"], ativo:true},
   {id:"ponto", nome:"Ponto e efetivo",  desc:"Quem veio hoje",                 c:["#18B5A6","#0B7C74"], ativo:true},
   {id:"fotos", nome:"Fotos",            desc:"Tirar e guardar fotos da obra",  c:["#E25C8A","#A8305C"], ativo:true},
-  {id:"rdo",   nome:"RDO",              desc:"Diário de obra",                 c:["#3C8DD8","#1F5FA8"]},
+  {id:"rdo",   nome:"RDO",              desc:"Diário de obra",                 c:["#3C8DD8","#1F5FA8"], ativo:true},
   {id:"prod",  nome:"Produtividade",    desc:"Aço · forma · concreto · escavação", c:["#1A9BDC","#0067A6"], ativo:true},
   {id:"obras", nome:"Obras e projetos", desc:"Estruturas, etapas e pranchas",  c:["#4F7CE8","#2747B0"]},
   {id:"rel",   nome:"Relatórios",       desc:"PDF semanal e painéis",          c:["#8A6BE0","#5A3FB0"]},
@@ -2944,9 +2975,9 @@ const SERVICOS=[
 
 // --- navegação entre telas: início → produtividade → aço (o app de armação) ---
 const TELAS={inicio:"#inicio", prod:"#tela-prod", sup:"#tela-sup", supaco:"#tela-sup-aco", supped:"#tela-sup-pedido", ponto:"#tela-ponto", fotos:"#tela-fotos",
-  producao:"#tela-producao", login:"#tela-login"};
+  producao:"#tela-producao", login:"#tela-login", rdo:"#tela-rdo"};
 // módulo exigido por cada tela (o cargo precisa ter acesso)
-const TELA_MOD={prod:"prod", aco:"prod", sup:"sup", supaco:"sup", supped:"sup", ponto:"ponto", fotos:"fotos", producao:"producao"};
+const TELA_MOD={prod:"prod", aco:"prod", sup:"sup", supaco:"sup", supped:"sup", ponto:"ponto", fotos:"fotos", producao:"producao", rdo:"rdo"};
 function abrirTela(t, empilhar=true, forcar=false){
   if(!U && t!=="login") t="login";
   if(!forcar && TELA_MOD[t] && !pode(TELA_MOD[t])){ toast("Seu cargo não tem acesso a esta parte do app."); t="inicio"; }
@@ -2955,7 +2986,7 @@ function abrirTela(t, empilhar=true, forcar=false){
   if(t==="inicio") renderInicio(); if(t==="prod") renderProdMenu();
   if(t==="sup") renderSupMenu(); if(t==="supaco") renderSupAco(); if(t==="supped") renderSupPedido();
   if(t==="ponto") renderPonto(); if(t!=="ponto") $("#ef-modal").hidden=true;
-  if(t==="fotos") renderFotos(); if(t==="producao") renderProducao(); if(t==="login") renderLogin();
+  if(t==="fotos") renderFotos(); if(t==="producao") renderProducao(); if(t==="login") renderLogin(); if(t==="rdo") renderRdo();
   if(empilhar) history.pushState({tela:t},"");
 }
 addEventListener("popstate", e=>{ if(e.state?.tela) abrirTela(e.state.tela,false); });
@@ -3029,11 +3060,12 @@ function renderInicio(){
   repor($("#usuario-ini"), U ? el("div",{class:"lg-chip"},
     el("span",{}, "👤 ", el("b",{text:U.nome}), ` · ${U.cargo}`),
     el("button",{class:"linkbtn",type:"button",text:"Trocar usuário",onclick:()=>abrirTela("login")})) : null);
-  const mods=MODULOS.filter(m=>pode(m.id)).map(m=>({...m, acao: ["prod","sup","ponto","fotos","producao"].includes(m.id) ? ()=>abrirTela(m.id) : null}));
+  const mods=MODULOS.filter(m=>pode(m.id)).map(m=>({...m, acao: ["prod","sup","ponto","fotos","producao","rdo"].includes(m.id) ? ()=>abrirTela(m.id) : null}));
   const hoje=resumoEfDia(hojeISO());
   $("#mods").replaceChildren(...mods.map((m,k)=>moduloBtn(m,k, m.id==="prod" ? (b)=>{ b.append(el("span",{class:"num",id:"num-prod"})); }
     : m.id==="ponto" && hoje ? (b)=>{ b.append(el("span",{class:"num",text:`${hoje.tot} na obra hoje`})); }
-    : m.id==="fotos" ? (b)=>{ const n=fotosGaleria().filter(r=>r.data===hojeISO()).length; if(n) b.append(el("span",{class:"num",text:`${n} foto${n>1?"s":""} hoje`})); } : null)));
+    : m.id==="fotos" ? (b)=>{ const n=fotosGaleria().filter(r=>r.data===hojeISO()).length; if(n) b.append(el("span",{class:"num",text:`${n} foto${n>1?"s":""} hoje`})); }
+    : m.id==="rdo" ? (b)=>{ const r=rdoDe(hojeISO()); b.append(el("span",{class:"num",text: !r ? "Hoje: não iniciado" : r.status==="Fechado" ? "Hoje: fechado ✓" : "Hoje: em preenchimento"})); } : null)));
   numProd();
   // atalhos que já funcionam
   const at=[
@@ -4501,6 +4533,247 @@ function renderProducao(){
       : el("p",{class:"info",text: pres.length ? "Todo mundo que está na obra já tem atividade." : "—"}),
     concl.length ? el("details",{class:"card"}, el("summary",{class:"pr-sum",text:`Concluídas recentemente · ${concl.length}`}),
       ...concl.map(a=>cardAtividade(a,ed,presIds))) : null);
+}
+
+// ================= RDO (relatório diário de obra) =================
+// Efetivo (Ponto), atividades (Produção) e fotos (Fotos) entram sozinhos; clima, horário, equipamentos, ocorrências e visitas
+// são preenchidos aqui. Ao fechar, o efetivo e as atividades ficam congelados no RDO (dados.snap) e só mudam reabrindo.
+const RD={data:hojeISO(), t:null};
+const CLIMAS=[["Bom","☀️"],["Nublado","⛅"],["Chuva","🌧️"],["Impraticável","⛈️"]];
+const PERIODOS=[["manha","Manhã"],["tarde","Tarde"],["noite","Noite"]];
+const EQUIP_PADRAO=["Retroescavadeira","Escavadeira hidráulica","Pá carregadeira","Caminhão basculante","Caminhão munck","Rolo compactador",
+  "Betoneira","Vibrador de concreto","Bomba de concreto","Gerador","Compressor","Guindaste"];
+const RDO_DIAS_EDICAO=30;
+const savePendRdo = () => LS.set("pendRdo", S.pendRdo);
+function limparPendRdo(snap, j){
+  if(!j.rdo) return; // Code.gs antigo
+  const igual=(a,b)=>JSON.stringify(a??null)===JSON.stringify(b??null);
+  for(const [d,x] of Object.entries(snap)){
+    const s=j.rdo[d]; if(!s) continue;
+    const gravou=(x.dados==null || igual(s.dados,x.dados)) && (!x.status || s.status===x.status);
+    const recusado=s.status==="Fechado" && !x.status && !gravou; // alguém fechou o RDO antes desta edição chegar
+    if((gravou || recusado) && igual(S.pendRdo[d],x)){ delete S.pendRdo[d]; if(recusado) toast(`O RDO de ${ddmm(d)} já tinha sido fechado; a última edição não entrou.`); }
+  }
+  savePendRdo();
+}
+function rdoDe(d){
+  const s=S.rdo[d], p=S.pendRdo[d]; if(!s && !p) return null;
+  const st=p?.status||s?.status||"Rascunho";
+  return {numero:numeroRdo(d), status:st, dados:p?.dados||s?.dados||{}, criadoPor:s?.criadoPor||quemSou(),
+    atualizadoPor:p?quemSou():s?.atualizadoPor, atualizadoEm:p?null:s?.atualizadoEm,
+    fechadoPor: st!=="Fechado" ? "" : p?.status==="Fechado" ? quemSou() : s?.fechadoPor, fechadoEm: st!=="Fechado" ? "" : p?.status==="Fechado" ? "" : s?.fechadoEm, pend:!!p};
+}
+// número do RDO: o do servidor; para um dia novo, o último conhecido antes dele + 1
+function numeroRdo(d){
+  if(S.rdo[d]?.numero) return S.rdo[d].numero;
+  const ant=Object.entries(S.rdo).filter(([x])=>x<d), base=ant.length?Math.max(...ant.map(([,r])=>r.numero||0)):0;
+  return base + Object.keys(S.pendRdo).filter(x=>x<d && !S.rdo[x]).length + 1;
+}
+function setRdo(d, fn, log, status){
+  const dados=JSON.parse(JSON.stringify(rdoDe(d)?.dados||{}));
+  fn(dados);
+  const p=(S.pendRdo[d] ??= {}); p.dados=dados; if(status) p.status=status; if(log) p.log=log;
+  savePendRdo(); scheduleSync(1500);
+}
+const isoLocal = em => { const x=new Date(em); return new Date(x.getTime()-x.getTimezoneOffset()*6e4).toISOString().slice(0,10); };
+// atividades do dia: com equipe naquele dia ou alteradas naquele dia
+const atividadesDoDia = d => ativs().filter(a=>(a.equipes?.[d]||[]).length || (a.hist||[]).some(h=>isoLocal(h.em)===d));
+const fotosDoDia = d => regsAll().filter(r=>r.tipo==="foto" && r.data===d);
+// retrato do dia (o que vem de outros módulos); no RDO fechado usa o que foi congelado
+function retratoDia(d){
+  const vals=diaVals(d), fs=funcoes();
+  const emp=empresas(fs.filter(f=>vals[f.id])).map(E=>({nome:E.nome, vinculo:E.vinculo,
+    turma:E.fs.reduce((s,f)=>s+vals[f.id][0],0), tot:E.fs.reduce((s,f)=>s+totalEf(vals[f.id]),0),
+    funcoes:E.fs.map(f=>({funcao:f.funcao, turma:vals[f.id][0], tot:totalEf(vals[f.id])}))}));
+  return {ef:{r:resumoEfDia(d), emp}, ativs:atividadesDoDia(d).map(a=>({id:a.id, atividade:a.atividade, onde:ondeTxt(a), status:a.status, progresso:a.progresso, n:(a.equipes?.[d]||[]).length}))};
+}
+function renderRdo(){
+  const box=$("#rdo"); if(!box) return;
+  const h=hojeISO(), min=somaDias(h,-RDO_DIAS_EDICAO); if(RD.data<min || RD.data>h) RD.data=h;
+  const d=RD.data, r=rdoDe(d), dados=r?.dados||{}, fechado=r?.status==="Fechado";
+  const ed=pode("rdo-edit") && !fechado, ret=fechado && dados.snap ? dados.snap : retratoDia(d);
+  const ir=x=>{ if(x>=min && x<=h){ RD.data=x; renderRdo(); } };
+  const salvarTexto=(campo,rot)=>e=>{ const v=e.target.value; clearTimeout(RD.t); RD.t=setTimeout(()=>{ setRdo(d,x=>{ x[campo]=v; }, `${rot} editado`); }, 700); };
+  const area=(campo,rot,ph)=>{ const t=el("textarea",{maxLength:3000,placeholder:ph,value:dados[campo]||"",disabled:!ed,"aria-label":rot}); t.oninput=salvarTexto(campo,rot); t.onblur=()=>renderRdoDepois(); return t; };
+  const sec=(tit,...kids)=>el("div",{class:"card rd-sec"}, el("h3",{text:tit}), ...kids);
+
+  // cabeçalho
+  const topo=el("div",{class:"ps-dia"},
+    el("button",{class:"btn",type:"button",text:"‹","aria-label":"Dia anterior",disabled:d<=min,onclick:()=>ir(somaDias(d,-1))}),
+    el("div",{}, el("b",{text:`RDO nº ${r?.numero||numeroRdo(d)}`}), el("small",{text:dataLonga(d)})),
+    el("button",{class:"btn",type:"button",text:"›","aria-label":"Próximo dia",disabled:d>=h,onclick:()=>ir(somaDias(d,1))}),
+    d!==h ? el("button",{class:"btn",type:"button",text:"Hoje",onclick:()=>ir(h)}) : null);
+  const estado = !r ? el("p",{class:"info",text: ed ? "Ainda não iniciado. Comece pelo clima: o RDO é salvo sozinho a cada alteração." : "RDO deste dia ainda não iniciado."})
+    : el("p",{class: fechado?"okmsg":"info", text: fechado ? `✔ Fechado por ${r.fechadoPor||"—"}${r.fechadoEm?" em "+quandoTxt(r.fechadoEm):""}. Para corrigir, é preciso reabrir.`
+      : `Em preenchimento · última alteração: ${r.atualizadoPor||"—"}${r.atualizadoEm?" · "+quandoTxt(r.atualizadoEm):""}${r.pend?" · a enviar":""}`});
+
+  // 1. horário e clima
+  const hora=(campo,pad)=>{ const i=el("input",{type:"time",value:dados[campo]||pad,disabled:!ed,"aria-label":campo==="ini"?"Início do expediente":"Fim do expediente"});
+    i.onchange=()=>setRdo(d,x=>{ x[campo]=i.value; }, `Horário ${campo==="ini"?"de início":"de fim"}: ${i.value}`); return i; };
+  const climaLinha=([k,rot])=>el("div",{class:"rd-clima"}, el("span",{class:"rd-per",text:rot}),
+    ...CLIMAS.map(([c,ic])=>el("button",{class:"chipbtn"+(dados.clima?.[k]===c?" on":""),type:"button",disabled:!ed,"aria-pressed":String(dados.clima?.[k]===c),
+      text:`${ic} ${c}`,onclick:()=>{ setRdo(d,x=>{ (x.clima ??= {})[k] = x.clima[k]===c ? "" : c; if(c==="Impraticável" && !x.cond) x.cond="Impraticável"; }, `Clima ${rot.toLowerCase()}: ${c}`); renderRdo(); }})));
+  const cond=["Praticável","Impraticável"].map(c=>el("button",{class:"chipbtn"+(dados.cond===c?" on":""),type:"button",disabled:!ed,text:c,"aria-pressed":String(dados.cond===c),
+    onclick:()=>{ setRdo(d,x=>{ x.cond = x.cond===c ? "" : c; }, `Condição: ${c}`); renderRdo(); }}));
+
+  // 2. efetivo (Ponto)
+  const ef=ret.ef, rr=ef.r;
+  const efetivo = rr ? [el("div",{class:"kpis"}, kpi("Na obra",nf0.format(rr.tot),`próprio ${rr.prop} · terceiros ${rr.terc}`), kpi("1ª turma",nf0.format(rr.turma),`faltas ${rr.f} · atest./folga ${rr.at+rr.fo}`)),
+      el("div",{class:"tbl"}, el("table",{}, el("thead",{}, el("tr",{}, el("th",{text:"Empresa"}), el("th",{text:"Turma"}), el("th",{text:"Na obra"}))),
+        el("tbody",{}, ...ef.emp.map(E=>el("tr",{}, el("td",{}, E.nome, el("small",{class:"i-sub",text:` · ${E.vinculo}`})), el("td",{text:E.turma}), el("td",{}, el("b",{text:E.tot})))))))]
+    : [el("p",{class:"info",text:"A presença deste dia ainda não foi lançada no Ponto e efetivo."}),
+       pode("ponto") && !fechado ? el("button",{class:"btn",type:"button",text:"Abrir Ponto e efetivo",onclick:()=>{ EF.data=d; abrirTela("ponto"); }}) : null];
+
+  // 3. atividades (Produção)
+  const obsAt=a=>{ const i=el("input",{type:"text",maxLength:300,placeholder:"Observação no RDO (opcional)",value:dados.obsAtiv?.[a.id]||"",disabled:!ed,"aria-label":`Observação: ${a.atividade}`});
+    i.oninput=e=>{ const v=e.target.value; clearTimeout(RD.t); RD.t=setTimeout(()=>setRdo(d,x=>{ (x.obsAtiv ??= {})[a.id]=v; }, `Obs. da atividade ${a.atividade}`),700); }; return i; };
+  const atividades = ret.ativs.length ? ret.ativs.map(a=>el("div",{class:"rd-at"},
+      el("div",{class:"i-top"}, el("b",{text:a.atividade}), el("span",{class:"chip "+(AT_COR[a.status]||""),text:`${a.status} · ${a.progresso}%`})),
+      el("small",{class:"i-sub",text:`📍 ${a.onde} · ${a.n} pessoa${a.n===1?"":"s"}`}),
+      ed || dados.obsAtiv?.[a.id] ? obsAt(a) : null))
+    : [el("p",{class:"info",text:"Nenhuma atividade da Produção neste dia."})];
+
+  // 4. equipamentos
+  const eqs=dados.equip||[];
+  const mudaEq=(k,campo,v)=>setRdo(d,x=>{ x.equip[k][campo]=v; }, `Equipamento ${eqs[k].nome}: ${campo} ${v}`);
+  const linhasEq=eqs.map((q,k)=>el("tr",{}, el("td",{text:q.nome}),
+    el("td",{}, (()=>{ const i=el("input",{type:"number",min:0,step:1,inputMode:"numeric",value:q.qtd,disabled:!ed,"aria-label":`Quantidade de ${q.nome}`}); i.onchange=()=>mudaEq(k,"qtd",Math.max(0,Math.round(num(i.value)))); return i; })()),
+    el("td",{}, (()=>{ const i=el("input",{type:"number",min:0,step:0.5,inputMode:"decimal",value:q.horas??"",placeholder:"–",disabled:!ed,"aria-label":`Horas trabalhadas de ${q.nome}`}); i.onchange=()=>mudaEq(k,"horas",Math.max(0,num(i.value))); return i; })()),
+    ed ? el("td",{}, el("button",{class:"linkbtn del",type:"button",text:"✕","aria-label":`Tirar ${q.nome}`,onclick:()=>{ setRdo(d,x=>{ x.equip.splice(k,1); }, `Equipamento retirado: ${q.nome}`); renderRdo(); }})) : null));
+  const addEq=nome=>{ nome=nome.trim(); if(!nome) return; if(eqs.some(q=>normTxt(q.nome)===normTxt(nome))) return toast("Este equipamento já está na lista.");
+    setRdo(d,x=>{ (x.equip ??= []).push({nome, qtd:1, horas:null}); }, `Equipamento: ${nome}`); renderRdo(); };
+  const outroEq=el("input",{type:"text",maxLength:80,placeholder:"Outro equipamento","aria-label":"Outro equipamento"});
+  const equipamentos=[
+    eqs.length ? el("div",{class:"tbl rd-eq"}, el("table",{}, el("thead",{}, el("tr",{}, el("th",{text:"Equipamento"}), el("th",{text:"Qtd."}), el("th",{text:"Horas"}), ed?el("th",{}):null)), el("tbody",{}, ...linhasEq)))
+      : el("p",{class:"info",text:"Nenhum equipamento informado."}),
+    ed ? el("div",{class:"pr-chips"}, ...EQUIP_PADRAO.filter(n=>!eqs.some(q=>q.nome===n)).map(n=>el("button",{class:"chipbtn",type:"button",text:"+ "+n,onclick:()=>addEq(n)}))) : null,
+    ed ? el("div",{class:"row"}, outroEq, el("button",{class:"btn",type:"button",text:"Adicionar",onclick:()=>addEq(outroEq.value)})) : null];
+
+  // 6. fotos do dia (módulo Fotos e fotos da armação); toque tira ou põe no RDO
+  const fts=fotosDoDia(d), sem=new Set(dados.semFoto||[]);
+  const cam=el("input",{type:"file",accept:"image/*",hidden:true}); cam.setAttribute("capture","environment");
+  cam.onchange=async()=>{ const f=cam.files[0]; cam.value=""; if(!f) return; const leg=FT.legenda; FT.legenda="RDO"; try{ if(await guardarFoto(f)) toast("Foto guardada no RDO"); }catch{ toast("Não foi possível salvar a foto."); } FT.legenda=leg; renderRdo(); };
+  const fotos=[
+    fts.length ? el("div",{class:"ft-grade"}, ...fts.map(f=>{ const fora=sem.has(f.id);
+      const b=el("button",{class:"ft-mini"+(fora?" rd-fora":""),type:"button",disabled:!ed,"aria-pressed":String(!fora),"aria-label":`${fora?"Pôr":"Tirar"} a foto no RDO${f.texto?": "+f.texto:""}`,
+        onclick:()=>{ setRdo(d,x=>{ const s=new Set(x.semFoto||[]); s.has(f.id)?s.delete(f.id):s.add(f.id); x.semFoto=[...s]; }, fora?"Foto incluída":"Foto retirada"); renderRdo(); }});
+      fotoLocal(f.id).then(bl=>{ if(bl){ const u=URL.createObjectURL(bl); FT.urls.push(u); b.prepend(el("img",{src:u,alt:"",loading:"lazy"})); } else b.prepend(el("span",{class:"ft-nuvem",text:"No Drive"})); });
+      b.append(el("span",{class:"ft-selo"+(fora?"":" rd-dentro"),text:fora?"fora":"✓ no RDO"})); if(f.texto) b.append(el("span",{class:"ft-leg",text:f.texto}));
+      return b; })) : el("p",{class:"info",text:"Nenhuma foto neste dia."}),
+    ed && d===h ? el("div",{class:"row"}, el("button",{class:"btn",type:"button",text:"📷 Tirar foto para o RDO",onclick:()=>cam.click()}), cam) : null];
+
+  // ocorrências registradas na armação no mesmo dia
+  const ocAco=regsAll().filter(x=>x.tipo==="ocorrencia" && x.data===d);
+
+  // rodapé
+  const acoes=el("div",{class:"row rd-acoes"},
+    el("button",{class:"btn pri",type:"button",text:"📄 Gerar PDF do RDO",onclick:e=>pdfRdo(d,e.currentTarget)}),
+    pode("rdo-fechar") && r && !fechado ? el("button",{class:"btn",type:"button",text:"✔ Fechar o RDO",onclick:()=>{
+      const falta=[!dados.clima?.manha&&"clima da manhã", !dados.clima?.tarde&&"clima da tarde", !dados.cond&&"condição da obra"].filter(Boolean);
+      if(!confirm((falta.length?`Falta preencher: ${falta.join(", ")}.\n\n`:"")+`Fechar o RDO nº ${r.numero} de ${dataBR(d)}? O efetivo e as atividades ficam congelados e só dá para mudar reabrindo.`)) return;
+      setRdo(d,x=>{ x.snap=retratoDia(d); }, "RDO fechado", "Fechado"); toast("RDO fechado."); renderRdo(); }}) : null,
+    pode("rdo-fechar") && fechado ? el("button",{class:"btn",type:"button",text:"Reabrir o RDO",onclick:()=>{
+      if(!confirm(`Reabrir o RDO de ${dataBR(d)}? A reabertura fica registrada com o seu nome.`)) return;
+      setRdo(d,x=>{ delete x.snap; }, "RDO reaberto", "Rascunho"); toast("RDO reaberto."); renderRdo(); }}) : null);
+
+  repor(box,
+    el("p",{class:"saud"}, "Diário de obra", el("small",{text:"SAA Rio Grande · Uberaba/MG"})),
+    !pode("rdo-edit") ? el("p",{class:"info",text:`Seu cargo (${U?.cargo}) consulta o RDO e gera o PDF; quem preenche é o mestre, o apontador, o planejamento ou a engenharia.`}) : null,
+    topo, estado,
+    sec("1. Horário e clima",
+      el("div",{class:"row"}, el("span",{class:"info",text:"Expediente:"}), hora("ini","07:00"), el("span",{text:"às"}), hora("fim","17:00")),
+      ...PERIODOS.map(climaLinha),
+      el("div",{class:"rd-clima"}, el("span",{class:"rd-per",text:"Obra"}), ...cond)),
+    sec("2. Efetivo do dia", ...efetivo),
+    sec("3. Atividades executadas", ...atividades, el("label",{class:"campo"},"Outros serviços executados", area("servicos","Outros serviços","Serviços que não estão na Produção (opcional)"))),
+    sec("4. Equipamentos na obra", ...equipamentos),
+    sec("5. Ocorrências e observações",
+      ...ocAco.map(o=>el("div",{class:"reg"}, el("div",{class:"meta"}, el("span",{class:"cat",text:o.cat||"Ocorrência"}), o.horas?el("span",{text:`${nf1.format(o.horas)} h perdidas`}):null, el("span",{text:"(registrada na armação)"})), o.texto?el("div",{text:o.texto}):null)),
+      area("ocorr","Ocorrências","Paralisações, acidentes, falta de material, problemas de projeto…")),
+    sec("Visitas e fiscalização", area("visitas","Visitas","Visitas da fiscalização, do cliente, de fornecedores…")),
+    sec(`6. Fotos do dia (${fts.filter(f=>!sem.has(f.id)).length} no RDO)`, ...fotos),
+    acoes);
+}
+// depois de digitar, redesenha só quando o campo perde o foco (para não atrapalhar quem está escrevendo)
+function renderRdoDepois(){ setTimeout(()=>{ if(!document.activeElement?.closest?.("#rdo")) renderRdo(); }, 800); }
+
+async function pdfRdo(d, btn){
+  const r=rdoDe(d), dados=r?.dados||{}, fechado=r?.status==="Fechado", ret=fechado && dados.snap ? dados.snap : retratoDia(d);
+  const txt=btn.textContent; btn.disabled=true; btn.textContent="Gerando PDF…";
+  try{
+    await carregarScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js");
+    await carregarScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js");
+    const {jsPDF}=window.jspdf, doc=new jsPDF({unit:"mm",format:"a4"}), W=210, M=12, AZ=[0,103,166];
+    doc.setFillColor(...AZ); doc.rect(0,0,W,30,"F");
+    const logo=await logoRelatorio();
+    if(logo){ const lw=Math.min(52,14*logo.w/logo.h), lh=lw*logo.h/logo.w; doc.addImage(logo.src,"PNG",W-M-lw,(30-lh)/2,lw,lh,undefined,"FAST"); }
+    doc.setTextColor(255); doc.setFont("helvetica","bold"); doc.setFontSize(15); doc.text(`Relatório Diário de Obra — RDO nº ${r?.numero||numeroRdo(d)}`,M,11);
+    doc.setFont("helvetica","normal"); doc.setFontSize(10); doc.text(`SAA Rio Grande · Uberaba/MG · ${dataLonga(d)} · ${dataBR(d)}`,M,18.5);
+    doc.setFontSize(8); doc.text(fechado ? `Fechado por ${r.fechadoPor||"—"}${r.fechadoEm?" em "+new Date(r.fechadoEm).toLocaleString("pt-BR"):""}` : "RASCUNHO — RDO ainda não fechado", M, 24.5);
+    let y=38; doc.setTextColor(20);
+    const tit=s=>{ if(y>262){ doc.addPage(); y=16; } doc.setFont("helvetica","bold"); doc.setFontSize(11); doc.setTextColor(...AZ); doc.text(s,M,y); y+=4; doc.setTextColor(20); doc.setFont("helvetica","normal"); };
+    const tab=(head,body,opts={})=>{ doc.autoTable({startY:y,head:[head],body,margin:{left:M,right:M},styles:{fontSize:8.5,cellPadding:1.6,textColor:20},
+      headStyles:{fillColor:AZ,textColor:255,fontStyle:"bold"},alternateRowStyles:{fillColor:[244,246,249]},...opts}); y=doc.lastAutoTable.finalY+7; };
+    const paragrafo=(s)=>{ doc.setFontSize(9); for(const l of doc.splitTextToSize(s, W-2*M)){ if(y>282){ doc.addPage(); y=16; } doc.text(l,M,y); y+=4.4; } y+=3; };
+    const dir={halign:"right"};
+    tit("1. Horário e clima");
+    tab(["Expediente","Manhã","Tarde","Noite","Condição da obra"], [[`${dados.ini||"07:00"} às ${dados.fim||"17:00"}`, dados.clima?.manha||"—", dados.clima?.tarde||"—", dados.clima?.noite||"—", dados.cond||"—"]]);
+    tit("2. Efetivo do dia");
+    if(ret.ef.r){
+      const rr=ret.ef.r, body=[];
+      // só as funções que tiveram gente no dia, para o RDO não ficar comprido
+      for(const E of ret.ef.emp.filter(E=>E.turma||E.tot)){ body.push([{content:`${E.nome} (${E.vinculo}) — ${E.tot} na obra`,colSpan:3,styles:{fontStyle:"bold",fillColor:[230,236,242]}}]);
+        for(const f of (E.funcoes||[]).filter(f=>f.turma||f.tot)) body.push([f.funcao,f.turma,f.tot]); }
+      tab(["Empresa / função","1ª turma","Na obra"], body, {styles:{fontSize:7.8,cellPadding:1.1,textColor:20}, columnStyles:{1:dir,2:{halign:"right",fontStyle:"bold"}},
+        foot:[[`TOTAL · próprio ${rr.prop} · terceiros ${rr.terc} · faltas ${rr.f} · atest./folga ${rr.at+rr.fo}`, rr.turma, rr.tot]],footStyles:{fillColor:[230,236,242],textColor:20,fontStyle:"bold",halign:"right"}});
+    } else paragrafo("Presença do dia não lançada.");
+    tit("3. Atividades executadas");
+    if(ret.ativs.length) tab(["Atividade","Local","Pessoas","Situação","Feito","Observação"], ret.ativs.map(a=>[a.atividade,a.onde,a.n,a.status,`${a.progresso}%`,dados.obsAtiv?.[a.id]||""]),
+      {columnStyles:{2:dir,4:dir}});
+    else paragrafo("Nenhuma atividade registrada na Produção.");
+    if(dados.servicos?.trim()){ doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.text("Outros serviços:",M,y); y+=4.4; doc.setFont("helvetica","normal"); paragrafo(dados.servicos.trim()); }
+    tit("4. Equipamentos");
+    if((dados.equip||[]).length) tab(["Equipamento","Quantidade","Horas"], dados.equip.map(q=>[q.nome,q.qtd,q.horas!=null&&q.horas!==""?nf1.format(q.horas):"—"]), {columnStyles:{1:dir,2:dir}});
+    else paragrafo("Nenhum equipamento informado.");
+    tit("5. Ocorrências e observações");
+    const ocAco=regsAll().filter(x=>x.tipo==="ocorrencia" && x.data===d);
+    for(const o of ocAco) paragrafo(`• ${o.cat||"Ocorrência"}${o.horas?` (${nf1.format(o.horas)} h perdidas)`:""}: ${o.texto||""}`);
+    paragrafo(dados.ocorr?.trim() || (ocAco.length ? "" : "Sem ocorrências."));
+    tit("Visitas e fiscalização"); paragrafo(dados.visitas?.trim() || "Sem visitas registradas.");
+    // fotos: 2 por linha, até 12
+    const sem=new Set(dados.semFoto||[]), fts=fotosDoDia(d).filter(f=>!sem.has(f.id)).slice(0,12);
+    if(fts.length){
+      if(y>190){ doc.addPage(); y=16; } // título junto com a primeira linha de fotos
+      tit(`6. Fotos do dia (${fts.length})`);
+      const cw=(W-2*M-6)/2; let col=0, alt=0;
+      for(const [k,f] of fts.entries()){
+        btn.textContent=`Fotos ${k+1} de ${fts.length}…`;
+        const src=await fotoParaRelatorio(f); if(!src) continue;
+        const [iw,ih]=await imgDims(src), hh=Math.min(cw*ih/iw, 95);
+        if(col===0 && y+hh+8>285){ doc.addPage(); y=16; }
+        const x=M+col*(cw+6), w=hh*iw/ih>cw?cw:hh*iw/ih;
+        doc.addImage(src,"JPEG",x,y,w,hh,undefined,"FAST");
+        doc.setFontSize(7.5); doc.setTextColor(80); doc.text(doc.splitTextToSize(f.texto||"",cw)[0]||"",x,y+hh+3.5); doc.setTextColor(20);
+        alt=Math.max(alt,hh); col++; if(col===2){ col=0; y+=alt+8; alt=0; }
+      }
+      if(col) y+=alt+8;
+    }
+    // assinaturas
+    if(y>255){ doc.addPage(); y=30; } else y+=14;
+    const cwA=(W-2*M-16)/2;
+    [[`Responsável pelo preenchimento`, fechado ? (r.fechadoPor||"") : quemSou()],["Fiscalização / contratante",""]].forEach(([rot,nome],k)=>{
+      const x=M+k*(cwA+16); doc.setDrawColor(120); doc.setLineWidth(0.3); doc.line(x,y,x+cwA,y);
+      doc.setFontSize(8); doc.setTextColor(60); doc.text(rot,x,y+4); if(nome) doc.text(nome,x,y+8); });
+    // marca d'água e numeração
+    const n=doc.getNumberOfPages();
+    for(let p=1;p<=n;p++){ doc.setPage(p);
+      if(!fechado){ doc.saveGraphicsState(); doc.setGState(new doc.GState({opacity:0.12})); doc.setFontSize(64); doc.setTextColor(180,35,24); doc.text("RASCUNHO",W/2,170,{align:"center",angle:35}); doc.restoreGraphicsState(); }
+      doc.setFontSize(7); doc.setTextColor(120); doc.text(`RDO nº ${r?.numero||numeroRdo(d)} · ${dataBR(d)} · página ${p} de ${n}`,W-M,292,{align:"right"}); }
+    const nome=`RDO_${String(r?.numero||numeroRdo(d)).padStart(3,"0")}_${d}.pdf`, blob=doc.output("blob"), file=new File([blob],nome,{type:"application/pdf"});
+    if(navigator.canShare?.({files:[file]})){ try{ await navigator.share({files:[file],title:`RDO ${dataBR(d)}`}); }catch(e){ if(e.name!=="AbortError") baixar(nome,blob); } }
+    else baixar(nome,blob);
+  }catch(e){ toast(e.message||"Não foi possível gerar o PDF."); }
+  finally{ btn.disabled=false; btn.textContent=txt; }
 }
 
 // botão "início" no topo do módulo de aço

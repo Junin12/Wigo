@@ -386,6 +386,7 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
 .lg-cargos{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-top:4px}
 .lg-cargo{border:2px solid var(--line);background:var(--surface);color:var(--ink);border-radius:12px;min-height:52px;padding:8px 10px;font-weight:600;text-align:left}
 .lg-cargo.on{border-color:var(--accent);background:var(--accent);color:var(--on-accent)}
+.lg-cargo.dev{border-style:dashed}
 .lg-chip{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:4px 10px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:6px 12px;font-size:.88rem}
 .ps-por{font-size:.7rem!important;font-weight:400!important;opacity:.85}
 /* Produção */
@@ -867,8 +868,22 @@ const CARGOS={
   "Almoxarife":               {m:"sup equip fotos", x:""},
   "Suprimentos":              {m:"sup med rel fotos", x:""},
   "Recursos humanos":         {m:"ponto rel fotos", x:"ponto-ger"},
+  "Assistente social":        {m:"ponto rel fotos rdo", x:""},
+  // perfil do desenvolvedor do app: acesso a tudo. Só aparece no login quando o nome digitado é a palavra combinada.
+  "Desenvolvedor":            {m:TODOS_MODULOS, x:"producao-edit ponto-ger", dev:true},
 };
-let U=LS.get("usuario"); if(U && !CARGOS[U.cargo]) U=null;
+// A palavra não fica escrita no código (que é público no GitHub): guarda só o resumo dela (cyrb53, maiúsculas, sem espaços).
+// Não é senha de verdade, só tira a palavra da vista. Para trocar, calcule cyrb53("NOVAPALAVRA") e cole em DEV_RESUMO.
+const DEV_RESUMO="2f3unuqcn56";
+function cyrb53(s, seed=7){
+  let h1=0xdeadbeef^seed, h2=0x41c6ce57^seed;
+  for(let i=0;i<s.length;i++){ const c=s.charCodeAt(i); h1=Math.imul(h1^c,2654435761); h2=Math.imul(h2^c,1597334677); }
+  h1=Math.imul(h1^(h1>>>16),2246822507)^Math.imul(h2^(h2>>>13),3266489909);
+  h2=Math.imul(h2^(h2>>>16),2246822507)^Math.imul(h1^(h1>>>13),3266489909);
+  return (4294967296*(2097151&h2)+(h1>>>0)).toString(36);
+}
+const ehDev = nome => cyrb53(String(nome||"").toUpperCase().replace(/\s+/g,""))===DEV_RESUMO;
+let U=LS.get("usuario"); if(U && (!CARGOS[U.cargo] || (CARGOS[U.cargo].dev && !ehDev(U.nome)))) U=null;
 const quemSou = () => U ? `${U.nome} (${U.cargo})` : "sem login";
 const pode = k => { const c=CARGOS[U?.cargo]; return !!c && (c.m.split(" ").includes(k) || c.x.split(" ").includes(k)); };
 
@@ -4276,12 +4291,16 @@ function renderLogin(){
   const box=$("#login"); if(!box) return;
   const iNome=el("input",{type:"text",maxLength:80,autocomplete:"name",placeholder:"Seu nome",value:U?.nome||""}); iNome.setAttribute("list","dl-login");
   let cargo=U?.cargo||"";
-  const bts=el("div",{class:"lg-cargos",role:"group","aria-label":"Cargo"}, ...Object.keys(CARGOS).map(c=>el("button",{type:"button",class:"lg-cargo"+(c===cargo?" on":""),text:c,"aria-pressed":String(c===cargo),
+  const bts=el("div",{class:"lg-cargos",role:"group","aria-label":"Cargo"}, ...Object.keys(CARGOS).map(c=>el("button",{type:"button",class:"lg-cargo"+(c===cargo?" on":"")+(CARGOS[c].dev?" dev":""),text:c,"aria-pressed":String(c===cargo),
     onclick:e=>{ cargo=c; bts.querySelectorAll("button").forEach(x=>{ const on=x===e.currentTarget; x.classList.toggle("on",on); x.setAttribute("aria-pressed",String(on)); }); }})));
+  // o cargo Desenvolvedor só aparece quando o nome digitado é o do desenvolvedor
+  const verDev=()=>{ const ok=ehDev(iNome.value); bts.querySelectorAll(".dev").forEach(b=>b.hidden=!ok); if(!ok && CARGOS[cargo]?.dev){ cargo=""; bts.querySelectorAll(".dev").forEach(b=>b.classList.remove("on")); } };
+  iNome.addEventListener("input", verDev); verDev();
   const entrar=()=>{
     const nome=iNome.value.trim().replace(/\s+/g," ");
     if(nome.length<3) return toast("Escreva seu nome.");
     if(!cargo) return toast("Toque no seu cargo.");
+    if(CARGOS[cargo].dev && !ehDev(nome)) return toast("Cargo não disponível para este nome.");
     U={nome, cargo}; LS.set("usuario",U); EF.gerenciar=false;
     abrirTela("inicio"); toast(`Bem-vindo, ${nome.split(" ")[0]}!`);
   };

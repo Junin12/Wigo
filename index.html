@@ -546,6 +546,18 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
       <div class="row"><button class="btn pri" id="exportar" type="button">Exportar Excel</button><button class="btn" id="backup" type="button">Baixar backup .json</button></div>
     </div>
     <div class="card">
+      <h3>Planilha de medição</h3>
+      <p class="info">Gera o Excel da medição com as abas Resumo e Barras Armadas. As medições já fechadas são descontadas em ordem cronológica desde o início da obra (semana e ordem de lançamento); o que sobra é a medição atual.</p>
+      <label class="campo" for="med-fechadas">Medições já fechadas, em kg e em ordem (separe com ;)<input type="text" id="med-fechadas" inputmode="decimal" autocomplete="off" placeholder="Ex.: 27061; 27589,34"></label>
+      <div class="form-oc">
+        <label class="campo" for="med-mes">Mês do resumo<input type="month" id="med-mes" style="min-width:0"></label>
+        <label class="campo" for="med-de">Da semana<select id="med-de"></select></label>
+        <label class="campo" for="med-ate">Até a semana<select id="med-ate"></select></label>
+      </div>
+      <p class="info" id="med-info"></p>
+      <div class="row"><button class="btn pri" id="med-gerar" type="button">Gerar planilha de medição</button></div>
+    </div>
+    <div class="card">
       <h3>Atualizar base pela planilha</h3>
       <p class="info">Escolha o arquivo PRODUTIVIDADE_ARMADORES.xlsx. O app lê as abas “Prod. Semanal” e “D_Semanas” e grava no Google Drive. Precisa de internet.</p>
       <input type="file" id="arq" accept=".xlsx,.xlsm" aria-label="Arquivo da planilha">
@@ -1159,7 +1171,7 @@ function renderSemanas(){
       el("td",{text:nf0.format(metaSemana(w))}), el("td",{text:metaSemana(w)?pct(w.kg/metaSemana(w)):"–"})));
   }
   $("#t-sem").replaceChildren(el("table",{}, el("thead",{},el("tr",{}, ...["Semana","Armadores","Dias","Barras","Aço (kg)","kg/arm/dia","Meta (kg)","% meta"].map(h=>el("th",{text:h})))), tb));
-  renderCfg();
+  renderCfg(); renderMedicao();
   // "Adicionar próxima semana" só quando ela já começou
   const {ini}=proximaSemana(), b=$("#add-sem"), cedo=ini>hojeISO();
   b.disabled=cedo; b.textContent = cedo ? `Próxima semana começa em ${ddmm(ini)}` : `Adicionar semana que começou em ${ddmm(ini)}`;
@@ -1228,7 +1240,7 @@ $("#tema").addEventListener("click", e=>{ const b=e.target.closest("button[data-
   renderTema(); });
 renderTema();
 
-const VERSAO_APP = "v26"; // igual ao número em sw.js (armacao-v26)
+const VERSAO_APP = "v27"; // igual ao número em sw.js (armacao-v27)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -1493,6 +1505,233 @@ $("#backup").addEventListener("click", ()=>{
   baixar(`Armacao_backup_${new Date().toISOString().slice(0,10)}.json`, new Blob([JSON.stringify(dados,null,1)],{type:"application/json"}));
   toast("Backup gerado");
 });
+
+// ---------- planilha de medição ----------
+// Medições fechadas ficam na aba Config do Google (chave MEDICOES, lista em kg).
+const MESES_PT=["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+const r2 = v => Math.round(v*100)/100;
+const medFechadas = () => { try{ const a=JSON.parse(cfgv("MEDICOES","[]")); return Array.isArray(a) ? a.map(num).filter(v=>v>0) : []; }catch{ return []; } };
+const ordinal = m => `${m+1}ª`;
+const kgFmt = new Intl.NumberFormat("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
+
+// Lançamentos em ordem cronológica (semana e, dentro dela, ordem de lançamento), divididos entre as medições.
+function linhasMedicao(fechadas, W=S.W, byCode=S.byCode, pend=S.pend){
+  const lim=[]; fechadas.reduce((s,v)=>(lim.push(s+v), s+v), 0);
+  const out=[]; let m=0, acum=0;
+  for(const w of W) for(const [k,q0] of Object.entries(w.raw)){
+    const [c,eq]=k.split("|"), it=byCode.get(c); if(!it || !(q0>0)) continue;
+    const novo = pend[w.n]?.raw?.[k]!=null;
+    let q=q0, kg=r2(q0*it.ppb), parte=0;
+    while(m<lim.length && acum+kg > lim[m]+0.001){
+      const falta=r2(lim[m]-acum);
+      if(falta>0){ const q1=Math.round(q*falta/kg); out.push({w,c,eq,it,novo,med:m,q:q1,kg:falta,parte:++parte}); q-=q1; kg=r2(kg-falta); acum=lim[m]; }
+      m++;
+    }
+    if(kg>0){ out.push({w,c,eq,it,novo,med:m,q,kg,parte:parte?parte+1:0}); acum=r2(acum+kg); }
+  }
+  return out;
+}
+console.assert((()=>{ // a divisão fecha exatamente no valor informado
+  const r=linhasMedicao([35], [{n:1,raw:{"T|E":10}}], new Map([["T",{ppb:10}]]), {});
+  return r.length===2 && r[0].kg===35 && r[0].q===4 && r[1].kg===65 && r[1].q===6 && r[1].med===1;
+})(), "linhasMedicao: divisão errada");
+
+// semanas que têm pelo menos um dia no mês (a semana da virada entra nos dois meses)
+function semanasDoMes(ym){
+  const [y,mm]=ym.split("-").map(Number), ini=`${ym}-01`, fim=new Date(Date.UTC(y,mm,0)).toISOString().slice(0,10);
+  return S.W.filter(w=>w.ini && w.fim && w.ini<=fim && w.fim>=ini).map(w=>w.n);
+}
+function mesPadrao(){ const d=new Date(); d.setDate(1); d.setMonth(d.getMonth()-1); return d.toISOString().slice(0,7); } // medição costuma sair no mês seguinte
+function aplicarMes(silencioso){
+  const ym=$("#med-mes").value; if(!ym) return;
+  const ns=semanasDoMes(ym); if(!ns.length){ if(silencioso!==true) toast("Nenhuma semana cadastrada nesse mês."); return; }
+  $("#med-de").value=ns[0]; $("#med-ate").value=ns[ns.length-1]; renderMedicaoInfo();
+}
+function renderMedicao(){
+  const ops=S.W.map(w=>el("option",{value:w.n,text:`${w.n} · ${ddmm(w.ini)} a ${ddmm(w.fim)}`}));
+  const de=$("#med-de"), ate=$("#med-ate"), vDe=de.value, vAte=ate.value;
+  de.replaceChildren(...ops); ate.replaceChildren(...ops.map(o=>o.cloneNode(true)));
+  if(!$("#med-mes").value && S.W.length){ $("#med-mes").value=mesPadrao(); aplicarMes(true); }
+  else { if(vDe) de.value=vDe; if(vAte) ate.value=vAte; }
+  if(document.activeElement?.id!=="med-fechadas") $("#med-fechadas").value=medFechadas().map(v=>kgFmt.format(v)).join("; ");
+  renderMedicaoInfo();
+}
+function renderMedicaoInfo(){
+  const f=medFechadas(), L=linhasMedicao(f), tot=new Map();
+  for(const r of L) tot.set(r.med,(tot.get(r.med)||0)+r.kg);
+  const partes=[...Array(f.length+1).keys()].map(m=>`${ordinal(m)}${m===f.length?" (atual)":""}: ${kgFmt.format(tot.get(m)||0)} kg`);
+  const soma=f.reduce((s,v)=>s+v,0), armado=L.reduce((s,r)=>s+r.kg,0);
+  $("#med-info").textContent = partes.join(" · ") + (soma>armado+0.01 ? " — atenção: as medições fechadas somam mais do que o armado." : "");
+}
+$("#med-fechadas").addEventListener("change", e=>{
+  const vals=e.target.value.split(/[;\n]/).map(s=>s.trim()).filter(Boolean).map(num);
+  if(vals.some(v=>!(v>0))) return toast("Use números em kg separados por ; (ex.: 27061; 27589,34).");
+  if(vals.some(v=>v<100)) return toast("Informe em kg, não em toneladas (ex.: 27061).");
+  S.pendCfg.MEDICOES=JSON.stringify(vals.map(r2)); savePendExtra(); scheduleSync(); renderMedicao();
+});
+$("#med-mes").addEventListener("change", aplicarMes);
+$("#med-de").addEventListener("change", renderMedicaoInfo);
+$("#med-ate").addEventListener("change", renderMedicaoInfo);
+
+$("#med-gerar").addEventListener("click", async ()=>{
+  const btn=$("#med-gerar"); btn.disabled=true;
+  try{
+    const de=+$("#med-de").value, ate=+$("#med-ate").value;
+    if(!S.W.length) throw new Error("Nenhuma semana carregada.");
+    if(!(de<=ate)) throw new Error("A semana inicial precisa ser antes da final.");
+    await carregarScript("https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js").catch(()=>{ throw new Error("Não consegui carregar o gerador de Excel. Abra o app uma vez com internet."); });
+    const ym=$("#med-mes").value, [y,mm]=(ym||"-").split("-");
+    const ns=ym?semanasDoMes(ym):[], nomeMes = ym && ns[0]===de && ns[ns.length-1]===ate ? `${MESES_PT[+mm-1]}/${y}` : "";
+    const blob=await planilhaMedicao(medFechadas(), de, ate, nomeMes);
+    baixar(`Medicao_Armacao_${(nomeMes||`sem${de}-${ate}`).replace("/","_")}_${hojeISO()}.xlsx`, blob);
+    toast("Planilha de medição gerada");
+  }catch(err){ toast(err.message||"Não foi possível gerar a planilha"); }
+  finally{ btn.disabled=false; }
+});
+
+async function planilhaMedicao(fechadas, de, ate, nomeMes){
+  const L=linhasMedicao(fechadas), nMed=fechadas.length+1;
+  const pn=p=>+(String(p).match(/\d+/)||[0])[0];
+  L.sort((a,b)=>a.med-b.med || a.it.est.localeCompare(b.it.est) || a.it.loc.localeCompare(b.it.loc) || a.it.pr.localeCompare(b.it.pr) || pn(a.it.pos)-pn(b.it.pos) || a.w.n-b.w.n);
+  const soma=(pred,campo="kg")=>r2(L.filter(pred).reduce((s,r)=>s+r[campo],0));
+  const estruturas=[...new Set(L.map(r=>r.it.est))].sort();
+  const bitolas=[...new Set(L.map(r=>r.it.bit))].sort((a,b)=>(typeof a==="string")-(typeof b==="string") || (typeof a==="number"?a-b:String(a).localeCompare(String(b))));
+  const semanas=[...new Set(L.map(r=>r.w.n))].sort((a,b)=>a-b);
+  const per=new Map(S.W.map(w=>[w.n,w.periodo||`${ddmm(w.ini)} a ${ddmm(w.fim)}`]));
+  const noPer=r=>r.w.n>=de && r.w.n<=ate, nomePer=nomeMes||`Semanas ${de} a ${ate}`;
+  const DIV="Posição dividida entre medições", CONT=DIV+" (continuação)", NOVO="Ainda não sincronizado com o Google";
+
+  const wb=new ExcelJS.Workbook(); wb.creator="App Armação"; wb.calcProperties.fullCalcOnLoad=true;
+  const A=(o={})=>({name:"Arial",size:10,...o});
+  const thin={style:"thin",color:{argb:"FFBFBFBF"}}, BD={top:thin,left:thin,bottom:thin,right:thin};
+  const fill=c=>({type:"pattern",pattern:"solid",fgColor:{argb:"FF"+c}});
+  const KG="#,##0.00;-#,##0.00;-", INT="#,##0", CL=n=>{ let s=""; for(n++;n>0;n=Math.floor((n-1)/26)) s=String.fromCharCode(65+(n-1)%26)+s; return s; };
+  // valor já calculado junto da fórmula: visualizadores de celular mostram o valor guardado; NaN corromperia o arquivo
+  const F=(formula,result)=>({formula, result: Number.isFinite(result) ? result : undefined});
+  const titulo=(ws,t,sub)=>{ ws.getCell("A1").value=t; ws.getCell("A1").font=A({bold:true,size:14,color:{argb:"FF1F4E78"}});
+    ws.getCell("A2").value=sub; ws.getCell("A2").font=A({italic:true,size:9,color:{argb:"FF595959"}}); };
+  const cab=(ws,row,cols)=>{ cols.forEach((h,k)=>{ const c=ws.getCell(row,k+1); c.value=h; c.font=A({bold:true,color:{argb:"FFFFFFFF"}}); c.fill=fill("1F4E78"); c.border=BD;
+    c.alignment={horizontal:"center",vertical:"middle",wrapText:true}; }); ws.getRow(row).height=32; };
+  const linha=(ws,row,n,{total=false,de:ini=2,fmt=KG}={})=>{ for(let c=1;c<=n;c++){ const x=ws.getCell(row,c); x.border=BD; x.font=A({bold:total}); if(total) x.fill=fill("D9E1F2"); if(c>=ini) x.numFmt=fmt; } };
+  const secao=(ws,row,t)=>{ ws.getCell(row,1).value=t; ws.getCell(row,1).font=A({bold:true,size:12}); };
+
+  const rs=wb.addWorksheet("Resumo"); // primeira aba ao abrir
+  // ===== Barras Armadas =====
+  const ws=wb.addWorksheet("Barras Armadas",{views:[{state:"frozen",ySplit:4}]});
+  titulo(ws,"Barras armadas por medição — desde o início da obra",
+    `Gerada pelo app em ${new Date().toLocaleString("pt-BR")}. Medições fechadas descontadas em ordem cronológica (semana e ordem de lançamento); o restante é a ${ordinal(nMed-1)} medição.`);
+  const cols=["Medição","Semana","Período","Estrutura","Local","Prancha","Tipo","Posição","Bitola (mm)","Comp. unit. (m)","Qtd armada","Peso armado (kg)","Qtd prevista (projeto)","Peso previsto (kg)","Código","Equipe","Obs."];
+  cab(ws,4,cols);
+  const first=5; let r=4;
+  for(const x of L){
+    r++; const i=x.it, obs=x.parte===1?DIV:x.parte>1?CONT:x.novo?NOVO:"";
+    ws.getRow(r).values=[ordinal(x.med),x.w.n,per.get(x.w.n),i.est,i.loc,i.pr,i.tp,i.pos,i.bit,i.cu,x.q,x.kg,i.qp,i.kp,x.c,x.eq,obs];
+    for(let c=1;c<=cols.length;c++){ const k=ws.getCell(r,c); k.font=A(); k.border=BD; if(x.parte) k.fill=fill("FCE4D6"); else if(x.novo) k.fill=fill("E2EFDA"); }
+    for(const c of [1,2,8,9]) ws.getCell(r,c).alignment={horizontal:"center"};
+    ws.getCell(r,10).numFmt="0.00"; ws.getCell(r,11).numFmt=ws.getCell(r,13).numFmt=INT; ws.getCell(r,12).numFmt=ws.getCell(r,14).numFmt="#,##0.00";
+  }
+  const last=Math.max(r,first), tr=last+1;
+  ws.getCell(tr,1).value="TOTAL (filtrado)";
+  ws.getCell(tr,11).value=F(`SUBTOTAL(9,K${first}:K${last})`,soma(()=>true,"q"));
+  ws.getCell(tr,12).value=F(`SUBTOTAL(9,L${first}:L${last})`,soma(()=>true));
+  linha(ws,tr,cols.length,{total:true,de:99}); ws.getCell(tr,11).numFmt=INT; ws.getCell(tr,12).numFmt="#,##0.00";
+  [9,8,20,18,34,34,7,9,9,10,10,13,12,13,11,10,34].forEach((w,k)=>ws.getColumn(k+1).width=w);
+  ws.autoFilter={from:{row:4,column:1},to:{row:last,column:cols.length}};
+
+  const rg=c=>`'Barras Armadas'!$${c}$${first}:$${c}$${last}`;
+  const MED=rg("A"), SEM=rg("B"), EST=rg("D"), BIT=rg("I"), QTD=rg("K"), PESO=rg("L"), OBS=rg("Q");
+  const PER=`${SEM},">=${de}",${SEM},"<=${ate}"`;
+  const crit=b=>typeof b==="string"?`"${b}"`:String(b);
+
+  // ===== Resumo =====
+  titulo(rs,`Resumo de armação — medições e ${nomePer}`,"Valores calculados por fórmula a partir da aba 'Barras Armadas'.");
+  let row=4; secao(rs,row,"Medições"); row++;
+  cab(rs,row,["Medição","Semanas","Qtd barras","Peso (kg)","Peso (t)","Informado (kg)","Diferença (kg)"]);
+  const m0=row+1;
+  for(let m=0;m<nMed;m++){
+    row++; const Lm=L.filter(x=>x.med===m), s0=Lm.length?Math.min(...Lm.map(x=>x.w.n)):null, s1=Lm.length?Math.max(...Lm.map(x=>x.w.n)):null, kg=soma(x=>x.med===m);
+    rs.getRow(row).values=[`${ordinal(m)} medição${m===nMed-1?" (atual)":""}`, s0==null?"–":`${(per.get(s0)||"").slice(0,8)} a ${(per.get(s1)||"").slice(-8)} (sem. ${s0} a ${s1})`];
+    rs.getCell(row,3).value=F(`SUMIFS(${QTD},${MED},"${ordinal(m)}")`,soma(x=>x.med===m,"q"));
+    rs.getCell(row,4).value=F(`SUMIFS(${PESO},${MED},"${ordinal(m)}")`,kg);
+    rs.getCell(row,5).value=F(`D${row}/1000`,kg/1000);
+    linha(rs,row,7,{de:3});
+    if(m<fechadas.length){
+      const c=rs.getCell(row,6); c.value=fechadas[m]; c.font=A({bold:true,color:{argb:"FF0000FF"}}); c.fill=fill("FFFF00");
+      c.note="Valor informado no app (Ajustes → Planilha de medição). Mudou? Corrija no app e gere de novo.";
+      rs.getCell(row,7).value=F(`D${row}-F${row}`,r2(kg-fechadas[m]));
+    }
+    rs.getCell(row,3).numFmt=INT; rs.getCell(row,5).numFmt="#,##0.000";
+  }
+  row++; rs.getCell(row,1).value="TOTAL ARMADO";
+  rs.getCell(row,3).value=F(`SUM(C${m0}:C${row-1})`,soma(()=>true,"q"));
+  rs.getCell(row,4).value=F(`SUM(D${m0}:D${row-1})`,soma(()=>true));
+  rs.getCell(row,5).value=F(`D${row}/1000`,soma(()=>true)/1000);
+  linha(rs,row,7,{total:true,de:3}); rs.getCell(row,3).numFmt=INT; rs.getCell(row,5).numFmt="#,##0.000";
+
+  // medição x estrutura x bitola
+  row+=3; secao(rs,row,"Peso (kg) por medição, estrutura e bitola"); row++;
+  const nb=bitolas.length+3;
+  cab(rs,row,["Medição","Estrutura",...bitolas.map(bitLabel),"Total"]);
+  for(let m=0;m<nMed;m++){
+    const g0=row+1;
+    for(const e of [...estruturas,"Subtotal"]){
+      row++; const sub=e==="Subtotal";
+      rs.getCell(row,1).value=`${ordinal(m)} medição`; rs.getCell(row,2).value=e;
+      bitolas.forEach((b,j)=>{ const c=j+3, v=soma(x=>x.med===m && x.it.bit===b && (sub||x.it.est===e));
+        rs.getCell(row,c).value = sub ? F(`SUM(${CL(c-1)}${g0}:${CL(c-1)}${row-1})`,v) : F(`SUMIFS(${PESO},${MED},"${ordinal(m)}",${EST},$B${row},${BIT},${crit(b)})`,v); });
+      rs.getCell(row,nb).value=F(`SUM(C${row}:${CL(nb-2)}${row})`,soma(x=>x.med===m && (sub||x.it.est===e)));
+      linha(rs,row,nb,{total:sub,de:3});
+    }
+  }
+
+  // por semana
+  row+=3; secao(rs,row,"Peso (kg) por semana"); row++;
+  const ns=estruturas.length+4;
+  cab(rs,row,["Semana","Período",...estruturas,"Total","Medição"]);
+  const w0=row+1;
+  for(const n of semanas){
+    row++; rs.getCell(row,1).value=n; rs.getCell(row,1).alignment={horizontal:"center"}; rs.getCell(row,2).value=per.get(n);
+    estruturas.forEach((e,j)=>rs.getCell(row,j+3).value=F(`SUMIFS(${PESO},${SEM},$A${row},${EST},"${e}")`,soma(x=>x.w.n===n && x.it.est===e)));
+    rs.getCell(row,ns-1).value=F(`SUM(C${row}:${CL(ns-3)}${row})`,soma(x=>x.w.n===n));
+    const ms=[...new Set(L.filter(x=>x.w.n===n).map(x=>x.med))].sort();
+    rs.getCell(row,ns).value=ms.map(ordinal).join(" / ")+(ms.length>1?" (dividida)":"");
+    linha(rs,row,ns,{de:3}); rs.getCell(row,ns).numFmt="General";
+  }
+  row++; rs.getCell(row,1).value="TOTAL";
+  for(let c=3;c<ns;c++) rs.getCell(row,c).value=F(`SUM(${CL(c-1)}${w0}:${CL(c-1)}${row-1})`, c===ns-1?soma(()=>true):soma(x=>x.it.est===estruturas[c-3]));
+  linha(rs,row,ns,{total:true,de:3}); rs.getCell(row,ns).numFmt="General";
+
+  // período escolhido
+  row+=3; secao(rs,row,`${nomePer} (semanas ${de} a ${ate}) por estrutura`); row++;
+  const medsPer=[...new Set(L.filter(noPer).map(x=>x.med))].sort(), np=4+medsPer.length;
+  cab(rs,row,["Estrutura","Posições lançadas","Qtd barras","Peso (kg)",...medsPer.map(m=>`Na ${ordinal(m)} medição (kg)`)]);
+  const p0=row+1;
+  for(const e of estruturas){
+    row++; const ok=x=>noPer(x) && x.it.est===e;
+    rs.getCell(row,1).value=e;
+    rs.getCell(row,2).value=F(`COUNTIFS(${EST},A${row},${PER})-COUNTIFS(${EST},A${row},${PER},${OBS},"*continuação*")`,L.filter(x=>ok(x) && x.parte<=1).length);
+    rs.getCell(row,3).value=F(`SUMIFS(${QTD},${EST},A${row},${PER})`,soma(ok,"q"));
+    rs.getCell(row,4).value=F(`SUMIFS(${PESO},${EST},A${row},${PER})`,soma(ok));
+    medsPer.forEach((m,j)=>rs.getCell(row,5+j).value=F(`SUMIFS(${PESO},${EST},A${row},${PER},${MED},"${ordinal(m)}")`,soma(x=>ok(x) && x.med===m)));
+    linha(rs,row,np); rs.getCell(row,2).numFmt=rs.getCell(row,3).numFmt=INT;
+  }
+  row++; rs.getCell(row,1).value=`TOTAL ${nomePer.toUpperCase()}`;
+  const totPer=[L.filter(x=>noPer(x) && x.parte<=1).length, soma(noPer,"q"), soma(noPer), ...medsPer.map(m=>soma(x=>noPer(x) && x.med===m))];
+  for(let c=2;c<=np;c++) rs.getCell(row,c).value=F(`SUM(${CL(c-1)}${p0}:${CL(c-1)}${row-1})`,totPer[c-2]);
+  linha(rs,row,np,{total:true}); rs.getCell(row,2).numFmt=rs.getCell(row,3).numFmt=INT;
+
+  row+=2;
+  for(const t of ["Notas:",
+    `• Medições fechadas (${fechadas.length?fechadas.map(v=>kgFmt.format(v)+" kg").join("; "):"nenhuma"}) descontadas em ordem cronológica desde a primeira semana: semana e, dentro dela, ordem de lançamento.`,
+    "• A posição que passa do limite de uma medição é dividida (linhas em laranja na aba 'Barras Armadas'): peso exato para fechar o valor informado e quantidade de barras proporcional, arredondada.",
+    `• ${nomePer}: semanas ${de} a ${ate}. Semana que vira o mês entra inteira.`,
+    "• Linhas em verde: lançamentos feitos no aparelho que ainda não foram gravados no Google."]){
+    rs.getCell(row,1).value=t; rs.getCell(row,1).font=A({italic:true,size:9,color:{argb:"FF595959"}}); row++;
+  }
+  rs.getColumn(1).width=22; rs.getColumn(2).width=34;
+  for(let c=3;c<=Math.max(nb,ns,np,7);c++) rs.getColumn(c).width=15;
+  return new Blob([await wb.xlsx.writeBuffer()],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+}
 
 // ---------- registros: observações e fotos por posição, ocorrências da semana ----------
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36)+Math.random().toString(36).slice(2)).replace(/-/g,"");

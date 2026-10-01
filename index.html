@@ -323,6 +323,35 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
 .cb-opcoes{display:grid;gap:10px;transition:opacity .2s}
 .cb-opcoes.desligado{opacity:.4;pointer-events:none}
 #cb-opac{width:100%;accent-color:var(--accent)}
+/* Ponto e efetivo */
+.modal.ef{z-index:30}
+#ponto{grid-template-columns:minmax(0,1fr)}
+#ponto .kpi b{display:block}
+#ponto input[type=date]{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 10px;min-height:44px;max-width:100%}
+.ef-abas .chipbtn{min-height:40px;font-size:.85rem}
+.ef-tab th,.ef-tab td{padding:6px 3px}
+.ef-tab td:first-child{min-width:104px}
+.ef-tab td input{width:46px;min-height:40px}
+.ef-tab td.tot{font-size:1.05rem;padding-inline:8px}
+.ef-tab td.lido{color:var(--muted)}
+.ef-tab td b{color:var(--ink)}
+.ef-tab .nomes{display:block;font-size:.72rem;color:var(--good);font-weight:600}
+.ef-pess{display:grid;gap:6px}
+.ef-pes{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 10px;border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--surface2)}
+.ef-pes.ok{border-color:var(--good);background:var(--good-bg)}
+.ef-pes small{display:block;color:var(--muted);font-size:.78rem}
+.ef-pes.ok small{color:var(--good);font-weight:600}
+.ef-bts{display:flex;gap:6px}
+.ef-bts .chipbtn{min-width:44px;min-height:40px}
+.ef-bts .chipbtn.ef-chegou{min-width:84px;border-color:var(--good);color:var(--good)}
+.ef-bts .chipbtn.ef-chegou.on{background:var(--good);color:var(--surface)}
+.ef-fun{display:grid;gap:8px}
+.ef-fun summary{cursor:pointer;font-weight:600;min-height:40px;display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px}
+.ef-lin{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;border-bottom:1px solid var(--line);padding:6px 0;min-height:44px}
+.ef-lin:last-child{border-bottom:0}
+.ef-lin .nm{margin-right:auto;font-weight:600}
+.ef-lin.inativa .nm{color:var(--muted);text-decoration:line-through}
+.ef-hist tr{cursor:pointer}
 </style>
 </head>
 <body>
@@ -382,6 +411,23 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
   </div></header>
   <div class="tela-corpo" id="sup-ped"></div>
 </section>
+
+<!-- ================= Ponto e efetivo ================= -->
+<section id="tela-ponto" class="tela" aria-label="Ponto e efetivo" hidden>
+  <header class="tela-topo compacto"><div class="in">
+    <button class="tela-voltar" type="button" data-voltar><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>Início</button>
+    <img class="tela-logo" src="logo-heca.webp" alt="Heca Construtora">
+  </div></header>
+  <div class="tela-corpo" id="ponto"></div>
+</section>
+
+<div class="modal ef" id="ef-modal" role="dialog" aria-modal="true" aria-labelledby="ef-m-tit" hidden>
+  <div class="modal-box">
+    <div class="modal-top"><h2 id="ef-m-tit"></h2><button class="btn" id="ef-m-fechar" type="button">Fechar</button></div>
+    <div class="form-oc" id="ef-m-corpo"></div>
+    <div class="row" id="ef-m-acoes"></div>
+  </div>
+</div>
 
 
 <header class="top">
@@ -696,8 +742,11 @@ const S = { items:[], byCode:new Map(), meta:null, weeks:LS.get("weeks2")||{}, p
             regs:LS.get("regs")||[], pendReg:LS.get("pendReg")||[], pendDel:LS.get("pendDel")||[],
             els:LS.get("elementos")||[], pendEl:LS.get("pendEl")||{}, cfgObra:LS.get("cfgObra")||{}, pendCfg:LS.get("pendCfg")||{},
             cur:null, cfg:LS.get("cfg"), syncing:false, err:"", lastSync:LS.get("lastSync"), limit:60 };
+// efetivo: quadro (empresa + função), dias, nomes e chegadas; pendEf = fila offline do efetivo
+Object.assign(S, { ef:LS.get("ef")||[], efDia:LS.get("efDia")||{}, pes:LS.get("pes")||[], presEf:LS.get("presEf")||{},
+  pendEf:{fun:{}, funDel:[], dia:{}, pes:{}, pesDel:[], pres:{}, ...(LS.get("pendEf")||{})} });
 const K = (cod, eq) => cod+"|"+eq;
-const SCRIPT_MIN = 10; // versão do Code.gs que este app espera
+const SCRIPT_MIN = 11; // versão do Code.gs que este app espera
 // O Planilhas converte "DEC-0001" em data (dez/2001). Reconstrói o código se ele chegar como data.
 const MESES=["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
 function consertaCod(c){
@@ -770,6 +819,8 @@ function applyServer(j){
   if(j.registros){ S.regs=j.registros; LS.set("regs",S.regs); }
   if(j.elementos){ S.els=j.elementos; LS.set("elementos",S.els); }
   if(j.config){ S.cfgObra=j.config; LS.set("cfgObra",S.cfgObra); }
+  if(j.efetivo){ S.ef=j.efetivo; S.efDia=j.efDia||{}; S.pes=j.pessoas||[]; S.presEf=j.presencas||{};
+    LS.set("ef",S.ef); LS.set("efDia",S.efDia); LS.set("pes",S.pes); LS.set("presEf",S.presEf); }
   if(j.leitura){ S.leitura=j.leitura; LS.set("leitura",j.leitura); }
   S.lastSync=j.agora; LS.set("lastSync",j.agora);
 }
@@ -808,7 +859,9 @@ async function sync(){
   const snapDel = [...S.pendDel];
   const snapEl = JSON.parse(JSON.stringify(S.pendEl));
   const snapCfg = {...S.pendCfg};
+  const snapEf = JSON.parse(JSON.stringify(S.pendEf));
   const ops = [
+    ...opsEf(snapEf),
     ...Object.entries(snapEq).map(([nome,p])=>({t:"equipe", nome, ...p})),
     ...Object.entries(snap).flatMap(([n,p])=>pendOps(p,n)),
     ...snapReg.map(r=>({t:"reg", ...JSON.parse(r)})),
@@ -848,6 +901,7 @@ async function sync(){
       if(ok && JSON.stringify(S.pendEl[ch])===JSON.stringify(p)) delete S.pendEl[ch];
     }
     for(const [k,v] of Object.entries(snapCfg)) if(j.config && String(j.config[k])===String(v) && S.pendCfg[k]===v) delete S.pendCfg[k];
+    limparPendEf(snapEf, j);
     savePend(); savePendExtra();
     await enviarFotos();
     S.err=""; afterData(); renderData();
@@ -861,7 +915,8 @@ document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState=
 setInterval(()=>{ if(document.visibilityState==="visible" && !pendCount()) sync(); }, 120000);
 $("#sync").addEventListener("click", ()=>{ if(!S.cfg?.url) show("dados"); else sync(); });
 
-function pendCount(){ let c=Object.keys(S.pendEq).length+S.pendReg.length+S.pendDel.length+Object.keys(S.pendEl).length+Object.keys(S.pendCfg).length; for(const p of Object.values(S.pend)){ c+=Object.keys(p.raw||{}).length + (p.arm!=null) + (p.dias!=null) + (p.novo?1:0); } return c; }
+function pendCount(){ let c=Object.keys(S.pendEq).length+S.pendReg.length+S.pendDel.length+Object.keys(S.pendEl).length+Object.keys(S.pendCfg).length
+    +Object.values(S.pendEf).reduce((s,x)=>s+(Array.isArray(x)?x.length:Object.keys(x).length),0); for(const p of Object.values(S.pend)){ c+=Object.keys(p.raw||{}).length + (p.arm!=null) + (p.dias!=null) + (p.novo?1:0); } return c; }
 function setSync(){
   const e=$("#sync"), c=pendCount();
   $("#aviso").hidden = !(S.scriptVelho && S.cfg?.url);
@@ -2611,6 +2666,7 @@ function renderData(){
   if(!$("#inicio").hidden) renderIndicadores();
   if(!$("#v-frentes").hidden && !document.activeElement?.closest?.("#v-frentes")) renderFrentes();
   if(CK.e) renderCkFotos();
+  if(!$("#tela-ponto").hidden && !document.activeElement?.closest?.("#ponto,#ef-modal")) renderPonto();
   setSync();
 }
 
@@ -2641,7 +2697,7 @@ const ICO={
 const svgIco = k => `<svg viewBox="0 0 24 24" aria-hidden="true">${ICO[k]}</svg>`;
 const MODULOS=[
   {id:"rdo",   nome:"RDO",              desc:"Diário de obra",                 c:["#3C8DD8","#1F5FA8"]},
-  {id:"ponto", nome:"Ponto e efetivo",  desc:"Presença diária por equipe",     c:["#18B5A6","#0B7C74"]},
+  {id:"ponto", nome:"Ponto e efetivo",  desc:"Quem está na obra hoje",         c:["#18B5A6","#0B7C74"], ativo:true},
   {id:"prod",  nome:"Produtividade",    desc:"Aço · forma · concreto · escavação", c:["#1A9BDC","#0067A6"], ativo:true},
   {id:"obras", nome:"Obras e projetos", desc:"Estruturas, etapas e pranchas",  c:["#4F7CE8","#2747B0"]},
   {id:"rel",   nome:"Relatórios",       desc:"PDF semanal e painéis",          c:["#8A6BE0","#5A3FB0"]},
@@ -2659,12 +2715,13 @@ const SERVICOS=[
 ];
 
 // --- navegação entre telas: início → produtividade → aço (o app de armação) ---
-const TELAS={inicio:"#inicio", prod:"#tela-prod", sup:"#tela-sup", supaco:"#tela-sup-aco", supped:"#tela-sup-pedido"};
+const TELAS={inicio:"#inicio", prod:"#tela-prod", sup:"#tela-sup", supaco:"#tela-sup-aco", supped:"#tela-sup-pedido", ponto:"#tela-ponto"};
 function abrirTela(t, empilhar=true){
   for(const [k,s] of Object.entries(TELAS)) $(s).hidden = t!==k;
   document.body.style.overflow = t==="aco" ? "" : "hidden";
   if(t==="inicio") renderInicio(); if(t==="prod") renderProdMenu();
   if(t==="sup") renderSupMenu(); if(t==="supaco") renderSupAco(); if(t==="supped") renderSupPedido();
+  if(t==="ponto") renderPonto(); if(t!=="ponto") $("#ef-modal").hidden=true;
   if(empilhar) history.pushState({tela:t},"");
 }
 addEventListener("popstate", e=>{ if(e.state?.tela) abrirTela(e.state.tela,false); });
@@ -2734,8 +2791,10 @@ function anelProgresso(ic, frac){
 }
 function renderInicio(){
   saudacao(); renderIndicadores();
-  const mods=MODULOS.map(m=>({...m, acao: m.id==="prod" ? ()=>abrirTela("prod") : m.id==="sup" ? ()=>abrirTela("sup") : null}));
-  $("#mods").replaceChildren(...mods.map((m,k)=>moduloBtn(m,k, m.id==="prod" ? (b)=>{ b.append(el("span",{class:"num",id:"num-prod"})); } : null)));
+  const mods=MODULOS.map(m=>({...m, acao: m.id==="prod" ? ()=>abrirTela("prod") : m.id==="sup" ? ()=>abrirTela("sup") : m.id==="ponto" ? ()=>abrirTela("ponto") : null}));
+  const hoje=resumoEfDia(hojeISO());
+  $("#mods").replaceChildren(...mods.map((m,k)=>moduloBtn(m,k, m.id==="prod" ? (b)=>{ b.append(el("span",{class:"num",id:"num-prod"})); }
+    : m.id==="ponto" && hoje ? (b)=>{ b.append(el("span",{class:"num",text:`${hoje.tot} na obra hoje`})); } : null)));
   numProd();
   // atalhos que já funcionam
   const at=[
@@ -3213,6 +3272,466 @@ async function gerarArquivoPedido(tipo, btn){
     }
   }catch(e){ toast(e.message||"Não foi possível gerar o arquivo."); }
   finally{ btn.disabled=false; }
+}
+
+// ================= Ponto e efetivo =================
+// Quadro por empresa + função, como a planilha "Efetivo diário de obra": 1ª turma, faltas, atestado, folga, empreiteiros e total.
+// Nomes são opcionais. Função com nomes ativos: a contagem do dia sai das marcações de chegada
+// (quem não chegou conta como falta). Função sem nomes: as quantidades são digitadas.
+const EF_SIT={P:"Chegou",F:"Falta",AT:"Atestado",FO:"Folga"};
+const EF_COLS=["1ª TURMA","FALTAS","ATESTADO","FOLGA","EMPREITEIROS"];
+const EF={aba:LS.get("efAba")||"dia", data:hojeISO(), busca:"", imp:null, abertos:new Set()};
+const EF_DIAS_EDICAO=30; // dias para trás que podem ser lançados ou corrigidos no app
+const savePendEf = () => LS.set("pendEf", S.pendEf);
+const efId = () => uid().slice(0,10);
+const normTxt = s => String(s??"").normalize("NFD").replace(/[̀-ͯ]/g,"").toUpperCase().replace(/\s+/g," ").trim();
+const somaDias = (iso,n) => { const x=new Date(iso+"T12:00"); x.setDate(x.getDate()+n); return new Date(x.getTime()-x.getTimezoneOffset()*6e4).toISOString().slice(0,10); };
+const dataBR = iso => `${iso.slice(8,10)}/${iso.slice(5,7)}/${iso.slice(0,4)}`;
+const dataLonga = iso => { const s=new Date(iso+"T12:00").toLocaleDateString("pt-BR",{weekday:"long",day:"numeric",month:"long"}); return s[0].toUpperCase()+s.slice(1); };
+const totalEf = v => Math.max(0, v[0]-v[1]-v[2]-v[3]+v[4]);
+const vinculoPadrao = emp => /CONSORCIO|HECA/.test(normTxt(emp)) ? "Próprio" : "Terceirizado";
+
+// --- dados: o que veio do Google + a fila do aparelho ---
+function mesclar(lista, pend, del){
+  const m=new Map(lista.map(x=>[x.id,{...x}]));
+  for(const [id,p] of Object.entries(pend)) m.set(id,{id,ativo:true,...m.get(id),...p});
+  for(const id of del) m.delete(id);
+  return [...m.values()];
+}
+const funcoes = () => mesclar(S.ef, S.pendEf.fun, S.pendEf.funDel).sort((a,b)=>(a.ordem||0)-(b.ordem||0));
+const pessoas = () => mesclar(S.pes, S.pendEf.pes, S.pendEf.pesDel).sort((a,b)=>a.nome.localeCompare(b.nome,"pt-BR"));
+// valores de um dia (servidor + fila); chave da fila = "data|id", valor vazio apaga
+function doDia(base, pend, d){
+  const o={...(base[d]||{})};
+  for(const [k,v] of Object.entries(pend)){ const i=k.indexOf("|"); if(k.slice(0,i)!==d) continue; if(v) o[k.slice(i+1)]=v; else delete o[k.slice(i+1)]; }
+  return o;
+}
+const diaVals = d => doDia(S.efDia, S.pendEf.dia, d);
+const presDia = d => doDia(S.presEf, S.pendEf.pres, d);
+const diaAberto = d => Object.keys(diaVals(d)).length>0;
+const datasEf = () => [...new Set([...Object.keys(S.efDia), ...Object.keys(S.pendEf.dia).map(k=>k.split("|")[0])])].filter(diaAberto).sort();
+const nomesDa = fid => pessoas().filter(p=>p.fid===fid && p.ativo);
+function empresas(lista){
+  const m=new Map();
+  for(const f of lista){ const k=normTxt(f.empresa); if(!m.has(k)) m.set(k,{nome:f.empresa, vinculo:f.vinculo, fs:[]}); m.get(k).fs.push(f); }
+  return [...m.values()];
+}
+// [turma, faltas, atestado, folga, empreiteiros] de uma função com nomes
+function contaNomes(d, fid, empr=0){
+  const ps=nomesDa(fid), pr=presDia(d), c={P:0,F:0,AT:0,FO:0};
+  for(const p of ps){ const st=(pr[p.id]||"").split(" ")[0]; if(st in c) c[st]++; }
+  return [ps.length, ps.length-c.P-c.AT-c.FO, c.AT, c.FO, empr];
+}
+function resumoEfDia(d){
+  const vals=diaVals(d); if(!Object.keys(vals).length) return null;
+  const fs=new Map(funcoes().map(f=>[f.id,f])), r={turma:0,f:0,at:0,fo:0,tot:0,prop:0,terc:0};
+  for(const [id,v] of Object.entries(vals)){
+    const t=totalEf(v); r.turma+=v[0]; r.f+=v[1]; r.at+=v[2]; r.fo+=v[3]; r.tot+=t;
+    if(fs.get(id)?.vinculo==="Próprio") r.prop+=t; else r.terc+=t;
+  }
+  return r;
+}
+
+// --- edição (fila offline; sincroniza quando houver sinal) ---
+function setDia(d, id, v){ S.pendEf.dia[d+"|"+id]=v; savePendEf(); scheduleSync(); }
+function setFun(id, campos){ S.pendEf.fun[id]={...(S.pendEf.fun[id]||{}), ...campos}; savePendEf(); scheduleSync(); }
+function setPes(id, campos){ S.pendEf.pes[id]={...(S.pendEf.pes[id]||{}), ...campos}; savePendEf(); scheduleSync(); }
+const noServidor = (lista,id) => lista.some(x=>x.id===id);
+// recalcula o dia para as funções com nomes (depois de marcar chegada ou mexer no cadastro de nomes)
+function recontar(d, fids){
+  if(!diaAberto(d)) return;
+  const vals=diaVals(d);
+  for(const fid of new Set(fids)) if(fid && nomesDa(fid).length) setDia(d, fid, contaNomes(d, fid, vals[fid]?.[4]||0));
+}
+// abre o dia: 1ª turma do último dia lançado (ou o quadro padrão); funções com nomes começam com todos "não chegou"
+function abrirDia(d){
+  const ant=datasEf().filter(x=>x<d).pop(), vAnt=ant?diaVals(ant):{};
+  for(const f of funcoes().filter(f=>f.ativo))
+    S.pendEf.dia[d+"|"+f.id] = nomesDa(f.id).length ? contaNomes(d, f.id) : [vAnt[f.id]?.[0] ?? (f.quadro||0), 0, 0, 0, 0];
+  savePendEf(); scheduleSync();
+}
+function marcar(p, d, st){
+  if(!diaAberto(d)) abrirDia(d);
+  const hora = st==="P" && d===hojeISO() ? new Date().toTimeString().slice(0,5) : "";
+  S.pendEf.pres[d+"|"+p.id] = st ? (st+" "+hora).trim() : "";
+  savePendEf(); recontar(d, [p.fid]); scheduleSync(); renderPonto();
+}
+function excluirFuncao(f){
+  if(pessoas().some(p=>p.fid===f.id)) return toast("Esta função tem nomes ligados. Exclua os nomes ou mude a função deles antes.");
+  if(!confirm(`Excluir "${f.funcao}" (${f.empresa})?\n\nApaga também o histórico desta função na planilha. Para só tirar do dia a dia, desmarque "Ativa".`)) return false;
+  delete S.pendEf.fun[f.id];
+  for(const k of Object.keys(S.pendEf.dia)) if(k.endsWith("|"+f.id)) delete S.pendEf.dia[k];
+  if(noServidor(S.ef,f.id)) S.pendEf.funDel.push(f.id);
+  savePendEf(); scheduleSync(); return true;
+}
+function excluirPessoa(p){
+  if(!confirm(`Excluir ${p.nome}?\n\nApaga também as marcações de chegada. Para quem saiu da obra, desmarque "Ativo".`)) return false;
+  delete S.pendEf.pes[p.id];
+  for(const k of Object.keys(S.pendEf.pres)) if(k.endsWith("|"+p.id)) delete S.pendEf.pres[k];
+  if(noServidor(S.pes,p.id)) S.pendEf.pesDel.push(p.id);
+  savePendEf(); recontar(hojeISO(), [p.fid]); scheduleSync(); return true;
+}
+
+// --- sincronização ---
+function opsEf(p){
+  const par = k => { const i=k.indexOf("|"); return [k.slice(0,i), k.slice(i+1)]; };
+  return [
+    ...Object.entries(p.fun).map(([id,x])=>({t:"funcao", id, ...x})),
+    ...Object.entries(p.pes).map(([id,x])=>({t:"pessoa", id, ...x})),
+    ...Object.entries(p.dia).map(([k,v])=>{ const [data,id]=par(k); return {t:"dia", data, id, v}; }),
+    ...Object.entries(p.pres).map(([k,s])=>{ const [data,id]=par(k), [st,hora]=String(s||"").split(" "); return {t:"pres", data, id, st:st||"", hora:hora||""}; }),
+    ...p.pesDel.map(id=>({t:"pessoaDel", id})), ...p.funDel.map(id=>({t:"funcaoDel", id})) ];
+}
+// tira da fila só o que o Google devolveu igual (e que não mudou enquanto gravava)
+function limparPendEf(snap, j){
+  if(!j.efetivo) return; // Code.gs antigo: fica na fila até atualizar
+  const P=S.pendEf, igual=(a,b)=>JSON.stringify(a??null)===JSON.stringify(b??null);
+  const sf=new Map(j.efetivo.map(x=>[x.id,x])), sp=new Map((j.pessoas||[]).map(x=>[x.id,x]));
+  const confere=(srv,x)=>srv && Object.entries(x).every(([k,v])=> k==="quadro"||k==="ordem" ? +srv[k]===+v : igual(srv[k],v));
+  for(const [id,x] of Object.entries(snap.fun)) if(confere(sf.get(id),x) && igual(P.fun[id],x)) delete P.fun[id];
+  for(const [id,x] of Object.entries(snap.pes)) if(confere(sp.get(id),x) && igual(P.pes[id],x)) delete P.pes[id];
+  for(const [k,v] of Object.entries(snap.dia)){ const [d,id]=k.split("|"); if(igual(j.efDia?.[d]?.[id]||null, v||null) && igual(P.dia[k],v)) delete P.dia[k]; }
+  for(const [k,s] of Object.entries(snap.pres)){ const [d,id]=k.split("|"); if((j.presencas?.[d]?.[id]||"")===(s||"") && P.pres[k]===s) delete P.pres[k]; }
+  P.funDel=P.funDel.filter(id=>!(snap.funDel.includes(id) && !sf.has(id)));
+  P.pesDel=P.pesDel.filter(id=>!(snap.pesDel.includes(id) && !sp.has(id)));
+  savePendEf();
+}
+
+// --- formulário no modal ---
+const campoEf = (rot, inp, full) => el("label",{class:"campo"+(full?" full":"")}, rot, inp);
+function efModal(tit, campos, acoes){
+  $("#ef-m-tit").textContent=tit; repor($("#ef-m-corpo"), ...campos); repor($("#ef-m-acoes"), ...acoes);
+  $("#ef-modal").hidden=false; setTimeout(()=>$("#ef-m-corpo").querySelector("input,select,textarea")?.focus(),50);
+}
+const fecharEf = () => { $("#ef-modal").hidden=true; renderPonto(); };
+$("#ef-m-fechar").onclick=fecharEf;
+$("#ef-modal").addEventListener("click", e=>{ if(e.target.id==="ef-modal") fecharEf(); });
+const listaDatalist = (id, valores) => el("datalist",{id}, ...[...new Set(valores)].sort().map(v=>el("option",{value:v})));
+
+function editarFuncao(f, empresaFixa){
+  const nova=!f, fs=funcoes();
+  const iEmp=el("input",{type:"text",maxLength:120,value:f?.empresa||empresaFixa||""}); iEmp.setAttribute("list","ef-dl-emp");
+  const iFun=el("input",{type:"text",maxLength:120,value:f?.funcao||"",placeholder:"Ex.: Pedreiro"});
+  const iVin=el("select",{}, el("option",{value:"Próprio",text:"Próprio (consórcio)"}), el("option",{value:"Terceirizado",text:"Terceirizado"}));
+  iVin.value=f?.vinculo || vinculoPadrao(iEmp.value); iEmp.oninput=()=>{ if(nova){ const e=fs.find(x=>normTxt(x.empresa)===normTxt(iEmp.value)); iVin.value=e?.vinculo||vinculoPadrao(iEmp.value); } };
+  const iQ=el("input",{type:"number",min:0,step:1,inputMode:"numeric",value:f?.quadro??0});
+  const iAt=el("input",{type:"checkbox",checked:f?f.ativo:true});
+  const salvar=()=>{
+    const emp=iEmp.value.trim(), fun=iFun.value.trim(), q=Math.max(0,Math.round(num(iQ.value)));
+    if(!emp||!fun) return toast("Informe a empresa e a função.");
+    if(fs.some(x=>x.id!==f?.id && normTxt(x.empresa)===normTxt(emp) && normTxt(x.funcao)===normTxt(fun))) return toast("Esta função já existe nesta empresa.");
+    if(nova){
+      const daEmp=fs.filter(x=>normTxt(x.empresa)===normTxt(emp)), ordem=(daEmp.length?Math.max(...daEmp.map(x=>x.ordem||0)):Math.max(0,...fs.map(x=>x.ordem||0))+1000)+1;
+      const id=efId(); setFun(id,{empresa:emp, funcao:fun, vinculo:iVin.value, quadro:q, ordem, ativo:iAt.checked});
+      if(iAt.checked && diaAberto(hojeISO())) setDia(hojeISO(), id, [q,0,0,0,0]);
+    } else setFun(f.id,{empresa:emp, funcao:fun, vinculo:iVin.value, quadro:q, ativo:iAt.checked});
+    toast(nova?"Função adicionada.":"Função atualizada."); fecharEf();
+  };
+  efModal(nova?"Nova função no quadro":"Editar função",
+    [campoEf("Empresa",iEmp,true), listaDatalist("ef-dl-emp", fs.map(x=>x.empresa)), campoEf("Função",iFun,true), campoEf("Vínculo",iVin),
+     campoEf("Quadro padrão (1ª turma)",iQ), el("label",{class:"chk full"}, iAt, "Ativa (aparece no lançamento do dia)")],
+    [el("button",{class:"btn pri",type:"button",text:"Salvar",onclick:salvar}),
+     nova?null:el("button",{class:"btn",type:"button",text:"Excluir",style:"color:var(--bad);margin-left:auto",onclick:()=>{ if(excluirFuncao(f)) fecharEf(); }})]);
+}
+function editarEmpresa(E){
+  const iNome=el("input",{type:"text",maxLength:120,value:E.nome});
+  const iVin=el("select",{}, el("option",{value:"Próprio",text:"Próprio (consórcio)"}), el("option",{value:"Terceirizado",text:"Terceirizado"})); iVin.value=E.vinculo||"Terceirizado";
+  efModal("Editar empresa",
+    [campoEf("Nome da empresa",iNome,true), campoEf("Vínculo",iVin),
+     el("p",{class:"info full",text:"Vale para todas as funções da empresa. Para juntar duas empresas (ex.: grafias diferentes), dê a esta o mesmo nome da outra."})],
+    [el("button",{class:"btn pri",type:"button",text:"Salvar",onclick:()=>{
+      const nome=iNome.value.trim(); if(!nome) return toast("Informe o nome da empresa.");
+      for(const f of E.fs) setFun(f.id,{empresa:nome, vinculo:iVin.value});
+      toast("Empresa atualizada."); fecharEf(); }})]);
+}
+const opcoesFuncao = (sel) => { const s=el("select",{});
+  for(const E of empresas(funcoes())) s.append(el("optgroup",{label:E.nome}, ...E.fs.map(f=>el("option",{value:f.id,text:f.funcao+(f.ativo?"":" (inativa)")}))));
+  if(sel) s.value=sel; return s; };
+function editarPessoa(p, fid){
+  if(!funcoes().length) return toast("Cadastre ou importe o quadro (empresas e funções) antes dos nomes.");
+  const nova=!p;
+  const iNome=el("input",{type:"text",maxLength:120,value:p?.nome||"",autocomplete:"off"}), iFun=opcoesFuncao(p?.fid||fid);
+  const iMat=el("input",{type:"text",maxLength:40,value:p?.matricula||"",autocomplete:"off"}), iObs=el("input",{type:"text",maxLength:200,value:p?.obs||""});
+  const iAt=el("input",{type:"checkbox",checked:p?p.ativo:true});
+  const salvar=()=>{
+    const nome=iNome.value.trim().replace(/\s+/g," "); if(!nome) return toast("Informe o nome.");
+    if(pessoas().some(x=>x.id!==p?.id && normTxt(x.nome)===normTxt(nome)) && !confirm(`Já existe "${nome}" cadastrado. Cadastrar mesmo assim?`)) return;
+    const id=p?.id||efId();
+    setPes(id,{nome, fid:iFun.value, matricula:iMat.value.trim(), obs:iObs.value.trim(), ativo:iAt.checked});
+    recontar(hojeISO(), [iFun.value, p?.fid]); toast(nova?"Nome adicionado.":"Cadastro atualizado."); fecharEf();
+  };
+  efModal(nova?"Adicionar nome":"Editar nome",
+    [campoEf("Nome",iNome,true), campoEf("Empresa · função",iFun,true), campoEf("Matrícula (opcional)",iMat), campoEf("Observação",iObs),
+     el("label",{class:"chk full"}, iAt, "Ativo (está trabalhando na obra)")],
+    [el("button",{class:"btn pri",type:"button",text:"Salvar",onclick:salvar}),
+     nova?null:el("button",{class:"btn",type:"button",text:"Excluir",style:"color:var(--bad);margin-left:auto",onclick:()=>{ if(excluirPessoa(p)) fecharEf(); }})]);
+}
+function colarNomes(){
+  if(!funcoes().length) return toast("Cadastre ou importe o quadro (empresas e funções) antes dos nomes.");
+  const iFun=opcoesFuncao(), iTxt=el("textarea",{rows:8,placeholder:"Um nome por linha\nJoão da Silva\nPedro Souza"});
+  efModal("Colar lista de nomes", [campoEf("Empresa · função",iFun,true), campoEf("Nomes (um por linha; pode colar do Excel ou do WhatsApp)",iTxt,true)],
+    [el("button",{class:"btn pri",type:"button",text:"Adicionar nomes",onclick:()=>{
+      const ja=new Set(pessoas().map(x=>normTxt(x.nome)));
+      const nomes=[...new Set(iTxt.value.split(/\r?\n/).map(s=>s.split("\t")[0].replace(/^\s*\d+[\s.)-]+/,"").trim().replace(/\s+/g," ")).filter(Boolean))];
+      const novos=nomes.filter(n=>!ja.has(normTxt(n)));
+      if(!novos.length) return toast(nomes.length?"Todos esses nomes já estão cadastrados.":"Cole pelo menos um nome.");
+      for(const nome of novos) setPes(efId(),{nome, fid:iFun.value, matricula:"", obs:"", ativo:true});
+      recontar(hojeISO(), [iFun.value]);
+      toast(`${novos.length} nome${novos.length>1?"s":""} adicionado${novos.length>1?"s":""}`+(nomes.length>novos.length?` · ${nomes.length-novos.length} já existia${nomes.length-novos.length>1?"m":""}`:"")+".");
+      fecharEf(); }})]);
+}
+
+// --- importação da planilha "EFETIVO DIÁRIO DE OBRA" (uma aba por dia) ---
+function dataDaAba(nome, topo){
+  const m=String(nome).match(/(\d{2})\D?(\d{2})\D?(\d{4})/);
+  if(m) return `${m[3]}-${m[2]}-${m[1]}`;
+  for(const r of topo) for(const v of r) if(typeof v==="number" && v>40000 && v<60000) return new Date(Date.UTC(1899,11,30)+v*864e5).toISOString().slice(0,10);
+  return null;
+}
+async function lerPlanilhaEf(file){
+  await loadXLSX();
+  const wb=XLSX.read(await file.arrayBuffer(),{type:"array"}), dias=new Map();
+  for(const nome of wb.SheetNames){
+    const L=XLSX.utils.sheet_to_json(wb.Sheets[nome],{header:1,raw:true,defval:""});
+    const h=L.findIndex(r=>normTxt(r[0]).startsWith("EMPRESA/F")); if(h<0) continue;
+    const data=dataDaAba(nome, L.slice(0,h)); if(!data) continue;
+    const linhas=[]; let emp="";
+    for(const r of L.slice(h+1)){
+      const a=String(r[0]).trim(); if(!a) continue;
+      if(normTxt(a).startsWith("TOTAL EFETIVO")) break;
+      if(r.slice(1,7).every(x=>String(x).trim()==="")){ emp=a; continue; } // linha de empresa
+      if(emp) linhas.push({emp, fun:a, v:[1,2,3,4,5].map(i=>Math.max(0,Math.round(num(r[i]))))});
+    }
+    if(linhas.length) dias.set(data,{data, linhas});
+  }
+  return [...dias.values()].sort((a,b)=>a.data<b.data?-1:1);
+}
+// junta pelos nomes sem acento/maiúsculas; grafia, ordem e quadro vêm do dia mais recente
+function planoImport(dias){
+  const fs=funcoes(), chave=(e,f)=>normTxt(e)+"|"+normTxt(f);
+  const existe=new Map(fs.map(f=>[chave(f.empresa,f.funcao),f]));
+  const empNome=new Map(), ult={}, seq=[], visto=new Set();
+  for(const x of dias) for(const l of x.linhas){ empNome.set(normTxt(l.emp), l.emp); ult[chave(l.emp,l.fun)]=l; }
+  for(const x of [...dias].reverse()) for(const l of x.linhas){ const k=chave(l.emp,l.fun); if(!visto.has(k)){ visto.add(k); seq.push(k); } }
+  const noUltimo=new Set(dias[dias.length-1].linhas.map(l=>chave(l.emp,l.fun)));
+  const base=Math.max(0,...fs.map(f=>f.ordem||0))+1000, ranks=new Map(), porEmp=new Map(), novas=[], ids=new Map();
+  for(const k of seq){
+    if(existe.has(k)){ ids.set(k, existe.get(k).id); continue; }
+    const l=ult[k], ek=normTxt(l.emp); if(!ranks.has(ek)) ranks.set(ek, ranks.size);
+    const j=(porEmp.get(ek)||0)+1; porEmp.set(ek,j);
+    const f={id:efId(), empresa:empNome.get(ek), funcao:l.fun, vinculo:vinculoPadrao(l.emp), quadro:l.v[0], ordem:base+ranks.get(ek)*1000+j, ativo:noUltimo.has(k)};
+    novas.push(f); ids.set(k,f.id);
+  }
+  const ops=[...novas.map(f=>({t:"funcao", ...f}))];
+  for(const x of dias) for(const l of x.linhas) ops.push({t:"dia", data:x.data, id:ids.get(chave(l.emp,l.fun)), v:l.v});
+  return {dias, novas, ops, empresas:new Set(seq.map(k=>k.split("|")[0])).size, funcoes:seq.length};
+}
+async function importarEf(input){
+  const file=input.files[0]; input.value=""; if(!file) return;
+  try{
+    const dias=await lerPlanilhaEf(file);
+    if(!dias.length) throw new Error("Não achei abas no modelo do efetivo diário (coluna EMPRESA/FUNÇÃO).");
+    EF.imp=planoImport(dias);
+  }catch(e){ EF.imp=null; toast(e.message||"Não consegui ler a planilha."); }
+  renderPonto();
+}
+async function confirmarImport(btn){
+  if(!S.cfg?.url) return toast("Configure o banco em Produtividade › Aço › Ajustes antes de importar.");
+  btn.disabled=true; btn.textContent="Gravando no Google…";
+  try{
+    const j=await post({v:S.meta?.v||"", ops:EF.imp.ops});
+    if(!j.efetivo) throw new Error("O Code.gs do Google está na versão antiga. Atualize o script (veja o LEIA-ME) e tente de novo.");
+    applyServer(j); toast(`Importado: ${EF.imp.dias.length} dias.`); EF.imp=null; EF.aba="dia"; EF.data=hojeISO();
+  }catch(e){ toast(e.message); }
+  renderPonto(); setSync();
+}
+
+// --- exportação no modelo da obra (uma aba por dia) ---
+async function exportarEf(de, ate, btn){
+  const dias=datasEf().filter(d=>d>=de && d<=ate);
+  if(!dias.length) return toast("Nenhum dia lançado nesse período.");
+  btn.disabled=true;
+  try{
+    await loadXLSX();
+    const fs=funcoes(), ps=pessoas(), abas=[], res=[["DATA","1ª TURMA","FALTAS","ATESTADO","FOLGA","EMPREITEIROS","TOTAL NA OBRA","PRÓPRIO","TERCEIROS"]];
+    for(const d of dias){
+      const vals=diaVals(d), tot=[0,0,0,0,0,0];
+      const aoa=[["EFETIVO DIÁRIO DE OBRA — SAA RIO GRANDE"],["DATA",dataBR(d)],[],["EMPRESA/FUNÇÃO",...EF_COLS,"TOTAL DO DIA","Subtotal"]];
+      for(const E of empresas(fs.filter(f=>vals[f.id]))){
+        aoa.push([E.nome]); const sub=E.fs.reduce((s,f)=>s+totalEf(vals[f.id]),0);
+        E.fs.forEach((f,k)=>{ const v=vals[f.id]; aoa.push([f.funcao,...v,totalEf(v),k?"":sub]); v.forEach((x,i)=>tot[i]+=x); tot[5]+=totalEf(v); });
+        aoa.push([]);
+      }
+      aoa.push(["TOTAL EFETIVO",...tot,tot[5]]);
+      const ws=XLSX.utils.aoa_to_sheet(aoa); ws["!cols"]=[{wch:36},...Array(7).fill({wch:13})];
+      abas.push([ws,"DIA "+dataBR(d).replace(/\//g,"-")]);
+      const r=resumoEfDia(d); res.push([dataBR(d),r.turma,r.f,r.at,r.fo,tot[4],r.tot,r.prop,r.terc]);
+    }
+    const wb=XLSX.utils.book_new();
+    const wr=XLSX.utils.aoa_to_sheet(res); wr["!cols"]=Array(9).fill({wch:13}); XLSX.utils.book_append_sheet(wb,wr,"Resumo");
+    if(ps.length){
+      const fm=new Map(fs.map(f=>[f.id,f])), pd=dias.map(presDia);
+      const aoa=[["NOME","EMPRESA","FUNÇÃO","MATRÍCULA","ATIVO",...dias.map(dataBR)],
+        ...ps.map(p=>[p.nome, fm.get(p.fid)?.empresa||"", fm.get(p.fid)?.funcao||"", p.matricula, p.ativo?"SIM":"NÃO",
+          ...pd.map(o=>{ const [st,h]=(o[p.id]||"").split(" "); return st==="P" ? (h||"Chegou") : st ? EF_SIT[st] : ""; })])];
+      const wn=XLSX.utils.aoa_to_sheet(aoa); wn["!cols"]=[{wch:32},{wch:26},{wch:22},{wch:12},{wch:7},...dias.map(()=>({wch:11}))];
+      XLSX.utils.book_append_sheet(wb,wn,"Chegadas por nome");
+    }
+    for(const [ws,n] of abas) XLSX.utils.book_append_sheet(wb,ws,n);
+    baixar(`Efetivo_SAA_Rio_Grande_${de}_a_${ate}.xlsx`, new Blob([XLSX.write(wb,{type:"array",bookType:"xlsx"})],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}));
+  }catch(e){ toast(e.message||"Não foi possível gerar o Excel."); }
+  finally{ btn.disabled=false; }
+}
+
+// --- telas ---
+function renderPonto(){
+  const box=$("#ponto"); if(!box) return;
+  const abas=[["dia","Chegada do dia"],["quadro","Quadro"],["nomes","Nomes"],["hist","Histórico"]];
+  const corpo = EF.aba==="quadro" ? efQuadro() : EF.aba==="nomes" ? efNomes() : EF.aba==="hist" ? efHist() : efDiaTela();
+  repor(box,
+    el("p",{class:"saud"}, "Ponto e efetivo", el("small",{text:"Quem está na obra · próprio e terceirizado"})),
+    !S.cfg?.url ? el("p",{class:"aviso"}, el("b",{text:"Banco não configurado. "}), "Os lançamentos ficam no aparelho até configurar em Produtividade › Aço › Ajustes.") : null,
+    S.cfg?.url && S.scriptVelho ? el("p",{class:"aviso"}, el("b",{text:"Atualize o Code.gs do Google. "}), "O efetivo fica guardado no aparelho e só vai para a planilha depois da atualização (veja o LEIA-ME).") : null,
+    el("div",{class:"modo ef-abas",role:"group","aria-label":"Seções do efetivo"}, ...abas.map(([k,n])=>el("button",{class:"chipbtn"+(EF.aba===k?" on":""),type:"button",text:n,"aria-pressed":String(EF.aba===k),
+      onclick:()=>{ EF.aba=k; LS.set("efAba",k); renderPonto(); }}))),
+    ...corpo);
+}
+function pessoaLinha(p, d, pr){
+  const [st,hora]=(pr[p.id]||"").split(" ");
+  const bt=(k,rot,tit)=>el("button",{class:"chipbtn"+(st===k?" on":"")+(k==="P"?" ef-chegou":""),type:"button",text:rot,title:tit,"aria-label":`${tit}: ${p.nome}`,"aria-pressed":String(st===k),
+    onclick:()=>marcar(p,d,st===k?"":k)});
+  return el("div",{class:"ef-pes"+(st==="P"?" ok":"")},
+    el("div",{}, el("b",{text:p.nome}), el("small",{text: st==="P" ? `Chegou${hora?" às "+hora:""}` : st ? EF_SIT[st] : "Ainda não chegou"})),
+    el("div",{class:"ef-bts"}, bt("P","Chegou","Chegou na obra"), bt("F","F","Falta"), bt("AT","AT","Atestado"), bt("FO","FO","Folga")));
+}
+function efDiaTela(){
+  const h=hojeISO(), min=somaDias(h,-EF_DIAS_EDICAO), d=EF.data<min||EF.data>h ? (EF.data=h) : EF.data;
+  const ir=x=>{ if(x>=min && x<=h){ EF.data=x; renderPonto(); } };
+  const inp=el("input",{type:"date",value:d,min,max:h,"aria-label":"Dia do lançamento"}); inp.onchange=()=>ir(inp.value);
+  const nav=el("div",{class:"row"},
+    el("button",{class:"btn",type:"button",text:"‹","aria-label":"Dia anterior",disabled:d<=min,onclick:()=>ir(somaDias(d,-1))}), inp,
+    el("button",{class:"btn",type:"button",text:"›","aria-label":"Próximo dia",disabled:d>=h,onclick:()=>ir(somaDias(d,1))}),
+    d!==h ? el("button",{class:"btn",type:"button",text:"Hoje",onclick:()=>ir(h)}) : null,
+    el("span",{class:"info",text:dataLonga(d)}));
+  const fs=funcoes();
+  if(!fs.length) return [nav, el("div",{class:"vazio"}, el("b",{text:"O quadro ainda está vazio"}),
+    el("span",{text:"Importe a planilha de efetivo diário ou cadastre empresas e funções."}),
+    el("button",{class:"btn pri",type:"button",text:"Ir para o Quadro",onclick:()=>{ EF.aba="quadro"; renderPonto(); }}))];
+  const vals=diaVals(d);
+  if(!Object.keys(vals).length){
+    const ant=datasEf().filter(x=>x<d).pop();
+    return [nav, el("div",{class:"vazio"}, el("b",{text:"Dia ainda não lançado"}),
+      el("span",{text:(ant?`A 1ª turma vem do dia ${ddmm(ant)}. `:"A 1ª turma vem do quadro padrão. ")+"Nas funções com nomes, todos começam como “ainda não chegou”."}),
+      el("button",{class:"btn pri",type:"button",text:"Abrir o dia",onclick:()=>{ abrirDia(d); renderPonto(); }}))];
+  }
+  const r=resumoEfDia(d), pr=presDia(d), ps=pessoas().filter(p=>p.ativo);
+  const kpis=el("div",{class:"kpis"},
+    kpi("Na obra", nf0.format(r.tot), `próprio ${r.prop} · terceiros ${r.terc}`),
+    kpi("1ª turma", nf0.format(r.turma), "efetivo do dia"),
+    kpi("Faltas", nf0.format(r.f), r.turma?`${pct(r.f/r.turma)} da turma`:""),
+    kpi("Atestado e folga", nf0.format(r.at+r.fo), `${r.at} atestado · ${r.fo} folga`));
+  const busca=el("input",{type:"search",placeholder:"Buscar nome para marcar a chegada…","aria-label":"Buscar nome",value:EF.busca});
+  busca.oninput=()=>{ EF.busca=busca.value; const pos=busca.selectionStart; renderPonto(); const b=$("#ponto input[type=search]"); b?.focus(); b?.setSelectionRange(pos,pos); };
+  if(EF.busca.trim()){
+    const q=normTxt(EF.busca), achou=ps.filter(p=>normTxt(p.nome).includes(q) || normTxt(p.matricula)===q);
+    return [nav, kpis, busca, achou.length ? el("div",{class:"ef-pess"}, ...achou.slice(0,40).map(p=>pessoaLinha(p,d,pr))) : el("p",{class:"info",text:"Nenhum nome encontrado."})];
+  }
+  const editar=(f,i,inp)=>{ const v=[...(diaVals(d)[f.id]||[0,0,0,0,0])]; v[i]=Math.max(0,Math.round(num(inp.value)));
+    if(v[1]+v[2]+v[3]>v[0]){ toast("Faltas + atestado + folga passam da 1ª turma."); return renderPonto(); }
+    setDia(d,f.id,v); renderPonto(); };
+  const cards=empresas(fs.filter(f=>f.ativo||vals[f.id])).map(E=>{
+    const tot=E.fs.reduce((s,f)=>s+(vals[f.id]?totalEf(vals[f.id]):0),0), tur=E.fs.reduce((s,f)=>s+(vals[f.id]?.[0]||0),0);
+    const linhas=E.fs.map(f=>{
+      const v=vals[f.id]||[0,0,0,0,0], n=nomesDa(f.id).length;
+      const cel=(i)=> n && i<4 ? el("td",{class:"lido",text:v[i]})
+        : el("td",{}, (()=>{ const x=el("input",{type:"number",min:0,step:1,inputMode:"numeric",value:v[i],"aria-label":`${EF_COLS[i]} · ${f.funcao}`}); x.onchange=()=>editar(f,i,x); return x; })());
+      // total logo depois das faltas: no celular é o que aparece sem rolar a tabela
+      return el("tr",{}, el("td",{}, f.funcao, n?el("span",{class:"nomes",text:`pelos nomes (${n})`}):null), cel(0), cel(1), el("td",{class:"tot"}, el("b",{text:totalEf(v)})), cel(2), cel(3), cel(4));
+    });
+    const comNomes=E.fs.filter(f=>nomesDa(f.id).length).map(f=>{
+      const lista=nomesDa(f.id), cheg=lista.filter(p=>(pr[p.id]||"").startsWith("P")).length, falta=lista.filter(p=>!pr[p.id]);
+      const det=el("details",{class:"ef-fun",open:EF.abertos.has(f.id)});
+      det.ontoggle=()=>{ det.open?EF.abertos.add(f.id):EF.abertos.delete(f.id); };
+      det.append(el("summary",{}, `${f.funcao}: ${cheg} de ${lista.length} chegaram`),
+        falta.length ? el("div",{class:"row"}, el("button",{class:"btn",type:"button",text:`Marcar os ${falta.length} restantes como chegou`,onclick:()=>{
+          if(!confirm(`Marcar ${falta.length} nome${falta.length>1?"s":""} de ${f.funcao} como "chegou"?`)) return;
+          const hora=d===hojeISO()?new Date().toTimeString().slice(0,5):"";
+          for(const p of falta) S.pendEf.pres[d+"|"+p.id]=("P "+hora).trim();
+          savePendEf(); recontar(d,[f.id]); scheduleSync(); renderPonto(); }})) : null,
+        el("div",{class:"ef-pess"}, ...lista.map(p=>pessoaLinha(p,d,pr))));
+      return det;
+    });
+    return el("div",{class:"card"},
+      el("div",{class:"i-top"}, el("h3",{text:E.nome}), el("span",{class:"chip"+(E.vinculo==="Próprio"?" ok":""),text:E.vinculo}), el("span",{class:"kg",text:`${tot} na obra · turma ${tur}`})),
+      el("div",{class:"tbl ef-tab"}, el("table",{},
+        el("thead",{}, el("tr",{}, el("th",{text:"Função"}), el("th",{text:"Turma"}), el("th",{text:"Faltas"}), el("th",{text:"Total"}), el("th",{text:"Atest."}), el("th",{text:"Folga"}), el("th",{text:"Empr."}))),
+        el("tbody",{}, ...linhas))),
+      ...comNomes);
+  });
+  return [nav, kpis, ps.length?busca:null, ...cards,
+    el("p",{class:"info",text:"Total do dia = 1ª turma − faltas − atestado − folga + empreiteiros. Nas funções com nomes, quem não foi marcado conta como falta."})];
+}
+function efQuadro(){
+  const fs=funcoes(), arq=el("input",{type:"file",accept:".xls,.xlsx,.xlsm",style:"display:none"}); arq.onchange=()=>importarEf(arq);
+  const imp=EF.imp ? el("div",{class:"confirma"},
+    el("b",{text:`Planilha lida: ${EF.imp.dias.length} dias (${ddmm(EF.imp.dias[0].data)} a ${ddmm(EF.imp.dias.at(-1).data)})`}),
+    el("span",{text:`${EF.imp.empresas} empresas · ${EF.imp.funcoes} funções, ${EF.imp.novas.length} novas no quadro. `+
+      `Funções que não aparecem no último dia entram como inativas. Os dias da planilha substituem o que houver no app nessas datas.`}),
+    el("div",{class:"row"}, el("button",{class:"btn pri",type:"button",text:"Importar para o Google",onclick:e=>confirmarImport(e.currentTarget)}),
+      el("button",{class:"btn",type:"button",text:"Cancelar",onclick:()=>{ EF.imp=null; renderPonto(); }}))) : null;
+  const cards=empresas(fs).map(E=>el("div",{class:"card"},
+    el("div",{class:"i-top"}, el("h3",{text:E.nome}), el("span",{class:"chip"+(E.vinculo==="Próprio"?" ok":""),text:E.vinculo})),
+    el("div",{}, ...E.fs.map(f=>{ const n=pessoas().filter(p=>p.fid===f.id && p.ativo).length;
+      return el("div",{class:"ef-lin"+(f.ativo?"":" inativa")}, el("span",{class:"nm",text:f.funcao}),
+        el("span",{class:"info",text:`quadro ${f.quadro||0}`+(n?` · ${n} nome${n>1?"s":""}`:"")+(f.ativo?"":" · inativa")}),
+        el("button",{class:"linkbtn",type:"button",text:"Editar","aria-label":`Editar ${f.funcao}`,onclick:()=>editarFuncao(f)})); })),
+    el("div",{class:"row"}, el("button",{class:"btn",type:"button",text:"+ Função",onclick:()=>editarFuncao(null,E.nome)}),
+      el("button",{class:"btn",type:"button",text:"Editar empresa",onclick:()=>editarEmpresa(E)}))));
+  return [
+    el("p",{class:"info",text:"O quadro é a lista de empresas e funções do efetivo diário. Desative o que saiu da obra para manter o histórico; exclua só o que foi cadastrado por engano."}),
+    el("div",{class:"row"}, el("button",{class:"btn pri",type:"button",text:"+ Nova empresa ou função",onclick:()=>editarFuncao(null)}),
+      el("button",{class:"btn",type:"button",text:"Importar planilha de efetivo",onclick:()=>arq.click()}), arq),
+    imp, ...(cards.length ? cards : [el("div",{class:"vazio",text:"Nenhuma função cadastrada ainda."})])];
+}
+function efNomes(){
+  const fs=funcoes(), fm=new Map(fs.map(f=>[f.id,f])), todas=pessoas();
+  const busca=el("input",{type:"search",placeholder:"Filtrar por nome ou matrícula…","aria-label":"Filtrar nomes",value:EF.buscaNomes||""});
+  busca.oninput=()=>{ EF.buscaNomes=busca.value; const pos=busca.selectionStart; renderPonto(); const b=$("#ponto input[type=search]"); b?.focus(); b?.setSelectionRange(pos,pos); };
+  const q=normTxt(EF.buscaNomes), ps=q ? todas.filter(p=>normTxt(p.nome).includes(q)||normTxt(p.matricula).includes(q)) : todas;
+  const grupos=new Map(); for(const p of ps){ const k=p.fid; if(!grupos.has(k)) grupos.set(k,[]); grupos.get(k).push(p); }
+  const cards=[...grupos].sort((a,b)=>(fm.get(a[0])?.ordem??1e9)-(fm.get(b[0])?.ordem??1e9)).map(([fid,lista])=>{ const f=fm.get(fid);
+    return el("div",{class:"card"},
+      el("div",{class:"i-top"}, el("h3",{text:f?`${f.funcao} · ${f.empresa}`:"Sem função (função excluída)"}), el("span",{class:"kg",text:`${lista.filter(p=>p.ativo).length} ativo(s)`})),
+      el("div",{}, ...lista.map(p=>el("div",{class:"ef-lin"+(p.ativo?"":" inativa")}, el("span",{class:"nm",text:p.nome}),
+        el("span",{class:"info",text:[p.matricula&&`mat. ${p.matricula}`, !p.ativo&&"inativo", p.obs].filter(Boolean).join(" · ")}),
+        el("button",{class:"linkbtn",type:"button",text:"Editar","aria-label":`Editar ${p.nome}`,onclick:()=>editarPessoa(p)})))),
+      f ? el("div",{class:"row"}, el("button",{class:"btn",type:"button",text:"+ Nome nesta função",onclick:()=>editarPessoa(null,fid)})) : null);
+  });
+  return [
+    el("p",{class:"info",text:"Nomes são opcionais. Uma função com nomes passa a ser contada pela chegada de cada pessoa na aba Chegada do dia. Quem saiu da obra: desmarque Ativo (o histórico fica)."}),
+    el("div",{class:"row"}, el("button",{class:"btn pri",type:"button",text:"+ Adicionar nome",onclick:()=>editarPessoa(null)}),
+      el("button",{class:"btn",type:"button",text:"Colar lista de nomes",onclick:colarNomes})),
+    todas.length ? busca : null,
+    ...(cards.length ? cards : [el("div",{class:"vazio",text:todas.length?"Nenhum nome encontrado.":"Nenhum nome cadastrado ainda."})])];
+}
+function efHist(){
+  const dias=datasEf().reverse(), h=hojeISO(), min=somaDias(h,-EF_DIAS_EDICAO);
+  const de=el("input",{type:"date",value:dias.length?dias.at(-1):h,max:h,"aria-label":"Exportar a partir de"}), ate=el("input",{type:"date",value:h,max:h,"aria-label":"Exportar até"});
+  const linhas=dias.map(d=>{ const r=resumoEfDia(d);
+    return el("tr",{title:d>=min?"Abrir este dia":"", onclick:()=>{ if(d<min) return toast(`Só dá para corrigir os últimos ${EF_DIAS_EDICAO} dias no app.`); EF.data=d; EF.aba="dia"; LS.set("efAba","dia"); renderPonto(); }},
+      el("td",{text:`${ddmm(d)} · ${new Date(d+"T12:00").toLocaleDateString("pt-BR",{weekday:"short"}).replace(".","")}`}),
+      el("td",{text:r.turma}), el("td",{text:r.f}), el("td",{text:r.at+r.fo}), el("td",{}, el("b",{text:r.tot})), el("td",{text:r.prop}), el("td",{text:r.terc})); });
+  return [
+    el("div",{class:"card"}, el("h3",{text:"Exportar Excel (modelo da obra)"}),
+      el("p",{class:"info",text:"Uma aba por dia, no mesmo formato da planilha de efetivo diário, mais o resumo e as chegadas por nome."}),
+      el("div",{class:"form-oc"}, campoEf("De",de), campoEf("Até",ate)),
+      el("div",{class:"row"}, el("button",{class:"btn pri",type:"button",text:"Exportar Excel",onclick:e=>{ if(!de.value||!ate.value||de.value>ate.value) return toast("Confira o período."); exportarEf(de.value,ate.value,e.currentTarget); }}))),
+    dias.length ? el("div",{class:"card"}, el("h3",{text:`Últimos ${dias.length} dias lançados`}),
+      el("div",{class:"tbl ef-hist"}, el("table",{},
+        el("thead",{}, el("tr",{}, el("th",{text:"Dia"}), el("th",{text:"Turma"}), el("th",{text:"Faltas"}), el("th",{text:"Atest./folga"}), el("th",{text:"Na obra"}), el("th",{text:"Próprio"}), el("th",{text:"Terceiros"}))),
+        el("tbody",{}, ...linhas))),
+      el("p",{class:"info",text:"O app guarda os últimos 45 dias; o histórico inteiro fica na aba EfetivoDia da planilha."}))
+    : el("div",{class:"vazio",text:"Nenhum dia lançado ainda."})];
 }
 
 // botão "início" no topo do módulo de aço

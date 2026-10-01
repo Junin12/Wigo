@@ -1240,7 +1240,7 @@ $("#tema").addEventListener("click", e=>{ const b=e.target.closest("button[data-
   renderTema(); });
 renderTema();
 
-const VERSAO_APP = "v29"; // igual ao número em sw.js (armacao-v29)
+const VERSAO_APP = "v30"; // igual ao número em sw.js (armacao-v30)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -2682,23 +2682,20 @@ function contar(elm, alvo, fmt, ms=900){
   const t0=performance.now(); const passo=t=>{ const k=Math.min(1,(t-t0)/ms), v=alvo*(1-Math.pow(1-k,3)); elm.textContent=fmt(v); if(k<1) requestAnimationFrame(passo); };
   requestAnimationFrame(passo);
 }
-// card "Aço armado" da tela inicial mostra o lançado com este acréscimo de projeção (1.15 = +15%)
-const PROJECAO_ACO = 1.15;
 function renderIndicadores(){
   const box=$("#ind-ini"); if(!box) return; numProd();
   if(!S.items.length){ box.replaceChildren(el("div",{class:"ind"}, el("span",{text:"Primeiro acesso"}), el("b",{text:"Conecte o banco"}), el("small",{text:"Produtividade › Aço › Ajustes"}))); return; }
   const r=resumoAco(), w=r.w, meta=w?metaSemana(w):0;
-  const proj=Math.min(r.E*PROJECAO_ACO, r.P); // projeção: lançado + 15%, nunca acima do previsto
   const i1=el("b"), i2=el("b"), i3=el("b",{text:$("#sync").textContent});
   box.replaceChildren(
     el("div",{class:"ind",style:"animation-delay:.05s"}, el("span",{text:"Aço armado"}), i1, el("small",{text:`de ${t(r.P)} t previstas`})),
     el("div",{class:"ind",style:"animation-delay:.12s"}, el("span",{text:w?`Semana ${w.n} · ${ddmm(w.ini)} a ${ddmm(w.fim)}`:"Semana"}), i2, el("small",{text:meta?`meta ${t(meta)} t · ${pct(w.kg/meta)} atingido`:"sem meta definida"})),
     el("div",{class:"ind",style:"animation-delay:.19s"}, el("span",{text:"Sincronização"}), i3, el("small",{text:S.lastSync?`última: ${new Date(S.lastSync).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}`:"ainda não sincronizado"})));
-  contar(i1, proj/1000, v=>`${nf1.format(v)} t · ${pct(r.P?v*1000/r.P:0)}`);
+  contar(i1, r.E/1000, v=>`${nf1.format(v)} t · ${pct(r.P?v*1000/r.P:0)}`);
   contar(i2, (w?.kg||0)/1000, v=>`${nf1.format(v)} t na semana`);
 }
 // percentual do aço no botão Produtividade (atualiza quando a base chega)
-function numProd(){ const n=$("#num-prod"); if(n) n.textContent = S.items.length ? `Aço ${pct(Math.min(1,resumoAco().pct*PROJECAO_ACO))}` : ""; }
+function numProd(){ const n=$("#num-prod"); if(n) n.textContent = S.items.length ? `Aço ${pct(resumoAco().pct)}` : ""; }
 function saudacao(){
   const h=new Date().getHours(), s=h<12?"Bom dia":h<18?"Boa tarde":"Boa noite";
   const d=new Date().toLocaleDateString("pt-BR",{weekday:"long",day:"numeric",month:"long"});

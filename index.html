@@ -198,6 +198,11 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
 .v-stage{position:relative;flex:1;overflow:hidden;touch-action:none;cursor:grab;background:#2A3038}
 .v-stage canvas{position:absolute;left:0;top:0;transform-origin:0 0;background:transparent}
 .v-msg{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:24px;color:#C9D2DC;font-weight:600}
+.v-alvo{display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap}
+.v-alvo b{background:#FFDD00;color:#141B23;border-radius:6px;padding:4px 8px;font-size:.85rem;white-space:nowrap}
+#v-marcar.on{background:#B42318;border-color:#B42318}
+.v-stage.marcando{cursor:crosshair}
+.v-aviso{position:absolute;left:50%;top:12px;transform:translateX(-50%);max-width:min(92%,520px);background:rgba(20,27,35,.92);color:#fff;font-size:.85rem;padding:8px 12px;border-radius:8px;text-align:center;z-index:2;pointer-events:none}
 .v-dica{position:absolute;left:50%;bottom:calc(12px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:rgba(0,0,0,.6);color:#fff;font-size:.78rem;padding:6px 10px;border-radius:8px;pointer-events:none}
 </style>
 </head>
@@ -422,8 +427,14 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
     <button id="v-menos" type="button" aria-label="Diminuir zoom">−</button>
     <button id="v-mais" type="button" aria-label="Aumentar zoom">+</button>
     <button id="v-ajustar" type="button">Ajustar</button>
+    <span id="v-alvo" class="v-alvo" hidden>
+      <button id="v-mk-ant" type="button" aria-label="Marcação anterior">‹</button>
+      <b id="v-mk-txt"></b>
+      <button id="v-mk-prox" type="button" aria-label="Próxima marcação">›</button>
+      <button id="v-marcar" type="button">Marcar</button>
+    </span>
   </div>
-  <div class="v-stage" id="v-stage"><div class="v-msg" id="v-msg"></div><div class="v-dica" id="v-dica" hidden>Pinça para zoom · arraste para mover · toque duplo aproxima</div></div>
+  <div class="v-stage" id="v-stage"><div class="v-msg" id="v-msg"></div><div class="v-aviso" id="v-aviso" hidden></div><div class="v-dica" id="v-dica" hidden>Pinça para zoom · arraste para mover · toque duplo aproxima</div></div>
 </div>
 
 <script>
@@ -831,7 +842,7 @@ LISTA.addEventListener("click", e=>{
   if(b.classList.contains("mais")) commit(card, cur+passo, true);
   else if(b.classList.contains("menos")) commit(card, Math.max(0,cur-passo), true);
   else if(b.classList.contains("tudo")) { commit(card, P ? max/it.qp*100 : max, true); toast("Posição completada"); }
-  else if(b.classList.contains("prancha")) { const m=pjFind(S.byCode.get(card.dataset.c).pr); if(m) abrirPdf(m.f, m.pag); }
+  else if(b.classList.contains("prancha")) { const it=S.byCode.get(card.dataset.c), m=pjFind(it.pr); if(m) abrirPdf(m.f, m.pag, {cod:m.cod, pos:posNorm(it.pos)}); }
   else if(b.classList.contains("regbtn")) abrirRegistro(card.dataset.c);
 });
 let inT;
@@ -991,7 +1002,7 @@ function renderDados(){
 
 // ---------- importar / exportar ----------
 // ---------- versão do app e atualização manual ----------
-const VERSAO_APP = "v16"; // igual ao número em sw.js (armacao-v16)
+const VERSAO_APP = "v17"; // igual ao número em sw.js (armacao-v17)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -1239,7 +1250,7 @@ $("#exportar").addEventListener("click", async ()=>{
     XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([["DATA","SEMANA","EQUIPE","TIPO","HORAS_PERDIDAS","DESCRICAO"],
       ...rg.filter(r=>r.tipo==="ocorrencia").map(r=>[r.data,r.sem,r.equipe,r.cat,+r.horas||0,r.texto])]),"Ocorrencias");
     XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([["DATA","SEMANA","EQUIPE","TIPO","CODIGO","ESTRUTURA","POSICAO","TEXTO","FOTO"],
-      ...rg.filter(r=>r.tipo!=="ocorrencia").map(r=>{ const i=S.byCode.get(r.cod); return [r.data,r.sem,r.equipe,r.tipo==="foto"?"Foto":"Observação",r.cod,i?.est||"",i?.pos||"",r.texto,r.url||""]; })]),"Fotos e observacoes");
+      ...rg.filter(r=>!["ocorrencia","marca"].includes(r.tipo)).map(r=>{ const i=S.byCode.get(r.cod); return [r.data,r.sem,r.equipe,r.tipo==="foto"?"Foto":"Observação",r.cod,i?.est||"",i?.pos||"",r.texto,r.url||""]; })]),"Fotos e observacoes");
     baixar(`Armacao_SAA_Rio_Grande_${new Date().toISOString().slice(0,10)}.xlsx`, new Blob([XLSX.write(wb,{type:"array",bookType:"xlsx"})],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}));
     toast("Planilha exportada");
   }catch(err){ toast(err.message||"Não foi possível exportar"); }
@@ -1705,7 +1716,10 @@ $("#ck-foto").addEventListener("change", async ev=>{
 // ---------- projetos (PDFs da pasta Projetos no Drive) ----------
 const PJ = { lista:LS.get("projetos")||[], off:LS.get("pdfOff")||{} }; // off: id -> data da versão guardada no celular
 const PDFCACHE = "armacao-pdfs";
-const codigoDe = s => (String(s).match(/PR-\d{3}-\d{3}-E\d+-PE-EST-DE-\d{3}/i)||[""])[0].toUpperCase();
+// código da prancha sem espaços e com 3 dígitos (a base às vezes traz "DE-42" em vez de "DE-042")
+const codigoDe = s => { const m=String(s).replace(/\s+/g,"").toUpperCase().match(/(PR-\d{3}-\d{3}-E\d+-PE-EST-DE-)(\d{1,3})/); return m ? m[1]+m[2].padStart(3,"0") : ""; };
+const folhaDe = s => +((String(s).match(/(?:FL|FOLHA)\s*(\d+)/i)||[])[1]||1);
+const posNorm = p => String(p).replace(/\s+/g,"").toUpperCase();
 const pjTitulo = n => n.replace(/\.pdf$/i,"").replace(/^PR-[\w-]*?DE-\d{3}(-\d{2})?[\s-]*/i,"").trim() || n;
 const pjRev = n => (n.match(/DE-(\d{3})(?:-(\d{2}))?/i)||[]);
 const mb = b => nf1.format(b/1e6)+" MB";
@@ -1713,7 +1727,7 @@ function pjFind(prancha){
   const cod=codigoDe(prancha); if(!cod) return null;
   const fs=PJ.lista.filter(f=>codigoDe(f.nome)===cod).sort((a,b)=>b.nome.localeCompare(a.nome)); // revisão mais nova primeiro
   if(!fs.length) return null;
-  return { f:fs[0], pag: +((String(prancha).match(/FL\s*(\d+)/i)||[])[1]||1) };
+  return { f:fs[0], pag: folhaDe(prancha), cod };
 }
 async function carregarProjetos(){
   const j=await post({acao:"projetos"});
@@ -1781,7 +1795,9 @@ async function loadPdfjs(){
 // V = vista desejada; R = vista que está desenhada no canvas atual. O CSS leva R até V enquanto redesenha.
 const V={doc:null,fid:null,page:null,n:1,z:1,tx:0,ty:0,fit:1,canvas:null,task:null,R:null,rT:null};
 const stage=$("#v-stage"), vmsg=t=>{ $("#v-msg").textContent=t; $("#v-msg").hidden=!t; };
-async function abrirPdf(f, pag){
+async function abrirPdf(f, pag, alvo){
+  MK.alvo=alvo||null; MK.marcando=false; stage.classList.remove("marcando");
+  $("#v-alvo").hidden=!MK.alvo; if(MK.alvo){ $("#v-marcar").textContent=`Marcar ${MK.alvo.pos}`; carregarMarcas(); }
   $("#viewer").hidden=false; document.body.style.overflow="hidden";
   if(!history.state?.viewer) history.pushState({viewer:1},"");
   $("#v-tit").textContent=pjTitulo(f.nome);
@@ -1805,8 +1821,11 @@ addEventListener("popstate", ()=>{ if(!$("#viewer").hidden) fecharViewer(); });
 async function irPagina(n){
   vmsg("Desenhando folha…");
   V.n=n; $("#v-pag").value=n; V.page=await V.doc.getPage(n);
-  ajustar();
+  await carregarMarcas(); MK.lista=marcasDaFolha(); MK.k=0; avisoMarca();
+  if(MK.lista.length){ calcFit(); focarMarca(0); } else ajustar();
 }
+// zoom em que a folha inteira cabe na tela
+function calcFit(){ const {width:w,height:h}=stage.getBoundingClientRect(), vp=V.page.getViewport({scale:1}); V.fit=Math.min(w/vp.width, h/vp.height)*0.97; }
 function ajustar(){
   if(!V.page) return;
   const {width:w,height:h}=stage.getBoundingClientRect(), vp=V.page.getViewport({scale:1});
@@ -1830,6 +1849,7 @@ async function desenhar(){
   ctx.fillStyle="#fff"; ctx.fillRect(snap.tx*dpr, snap.ty*dpr, vp.width, vp.height); // folha branca, fundo escuro em volta
   V.task=V.page.render({canvasContext:ctx, viewport:vp, transform:[1,0,0,1,snap.tx*dpr,snap.ty*dpr], background:"rgba(0,0,0,0)"});
   try{ await V.task.promise; }catch(e){ return; } // cancelado por um novo desenho
+  desenharMarcas(ctx, vp, snap.tx*dpr, snap.ty*dpr, dpr);
   V.canvas?.remove(); stage.prepend(c); V.canvas=c; V.R=snap; aplicarCss(); vmsg("");
 }
 const ZMAX=8;
@@ -1878,6 +1898,7 @@ function soltar(e){
   if(e.type==="pointerup" && p && !ptr.size){
     const agora=Date.now();
     if(arrastou){ ultimoToque=0; return; }
+    if(MK.marcando){ tocarMarca(p); return; }
     if(agora-ultimoToque<300){ if(V.z>V.fit*1.5) ajustar(); else { zoomEm(p.x,p.y,3); mudou(); } ultimoToque=0; }
     else ultimoToque=agora;
   }
@@ -1885,6 +1906,80 @@ function soltar(e){
 stage.addEventListener("pointerup", soltar);
 stage.addEventListener("pointercancel", soltar);
 stage.addEventListener("wheel", e=>{ e.preventDefault(); const p=pos(e); zoomEm(p.x,p.y,Math.exp(-e.deltaY*0.0015)); mudou(); }, {passive:false});
+
+// ---------- marcação da posição na prancha ----------
+// marcas.json: posições encontradas por OCR nas pranchas (gerado a partir dos PDFs).
+// Marcações manuais: registros tipo "marca" (cod "MK|prancha|folha|posição", texto "x,y,w,h" em pontos do PDF).
+const MK={auto:null, alvo:null, lista:[], k:0, marcando:false};
+async function carregarMarcas(){
+  if(MK.auto) return;
+  try{ MK.auto=await (await fetch("marcas.json")).json(); }catch{ MK.auto={pranchas:{}}; }
+}
+const chaveMarca = () => `MK|${MK.alvo.cod}|${V.n}|${MK.alvo.pos}`;
+function marcasDaFolha(){
+  if(!MK.alvo) return [];
+  const auto=(MK.auto?.pranchas?.[MK.alvo.cod]?.folhas?.[String(V.n)]?.[MK.alvo.pos]||[]).map(r=>({r, auto:true}));
+  const man=regsAll().filter(x=>x.tipo==="marca" && x.cod===chaveMarca()).map(x=>({r:String(x.texto).split(",").map(Number), id:x.id}));
+  return [...auto, ...man].filter(m=>m.r.length===4 && m.r.every(isFinite));
+}
+function rotuloMarca(){
+  const n=MK.lista.length;
+  $("#v-mk-txt").textContent = MK.alvo ? (n ? `${MK.alvo.pos} · ${MK.k+1} de ${n}` : `${MK.alvo.pos} · não localizada`) : "";
+  $("#v-mk-ant").disabled=$("#v-mk-prox").disabled=n<2;
+}
+let avisoT;
+function avisoMarca(){
+  rotuloMarca(); const a=$("#v-aviso"); clearTimeout(avisoT);
+  if(!MK.alvo || MK.marcando){ a.hidden=!MK.marcando; if(MK.marcando) a.textContent=`Toque no desenho onde está a ${MK.alvo.pos}. Tocar numa marcação feita à mão apaga. Toque em "Concluir" ao terminar.`; return; }
+  if(MK.lista.length) { a.hidden=true; return; }
+  a.hidden=false; a.textContent=`${MK.alvo.pos} não foi localizada automaticamente nesta folha. Toque em "Marcar ${MK.alvo.pos}" e depois no desenho para indicar onde ela está.`;
+  avisoT=setTimeout(()=>a.hidden=true, 8000);
+}
+// centraliza e aproxima na marcação k
+function focarMarca(k){
+  if(!V.page || !MK.lista.length) return;
+  MK.k=(k+MK.lista.length)%MK.lista.length; rotuloMarca();
+  const [x,y,w,h]=MK.lista[MK.k].r, {width:sw,height:sh}=stage.getBoundingClientRect();
+  // texto da posição com ~20 px de altura na tela: legível e com o desenho em volta
+  const z=Math.min(ZMAX, Math.max(V.fit*2, 20/Math.max(Math.min(w,h),5)));
+  const [px,py]=V.page.getViewport({scale:z}).convertToViewportPoint(x+w/2, y+h/2);
+  V.z=z; V.tx=sw/2-px; V.ty=sh/2-py; mudou(0);
+}
+$("#v-mk-ant").onclick=()=>focarMarca(MK.k-1);
+$("#v-mk-prox").onclick=()=>focarMarca(MK.k+1);
+$("#v-marcar").onclick=()=>{
+  MK.marcando=!MK.marcando; const b=$("#v-marcar");
+  b.classList.toggle("on",MK.marcando); b.textContent = MK.marcando ? "Concluir" : `Marcar ${MK.alvo.pos}`;
+  stage.classList.toggle("marcando",MK.marcando); avisoMarca();
+};
+// marca-texto amarelo + círculo vermelho em volta de cada ocorrência
+function desenharMarcas(ctx, vp, ox, oy, dpr){
+  if(!MK.alvo) return;
+  MK.lista.forEach((m,k)=>{
+    const [x,y,w,h]=m.r, q=vp.convertToViewportRectangle([x,y,x+w,y+h]);
+    const x1=Math.min(q[0],q[2])+ox, x2=Math.max(q[0],q[2])+ox, y1=Math.min(q[1],q[3])+oy, y2=Math.max(q[1],q[3])+oy;
+    const pw=Math.max(3*dpr,(x2-x1)*0.12), ph=Math.max(3*dpr,(y2-y1)*0.25);
+    ctx.save();
+    ctx.globalCompositeOperation="multiply"; ctx.fillStyle="rgba(255,221,0,0.55)";
+    ctx.fillRect(x1-pw, y1-ph, (x2-x1)+2*pw, (y2-y1)+2*ph);
+    ctx.globalCompositeOperation="source-over"; ctx.strokeStyle="#E0201B"; ctx.lineWidth=(k===MK.k?3.5:2.2)*dpr;
+    ctx.beginPath(); ctx.ellipse((x1+x2)/2, (y1+y2)/2, (x2-x1)/2+pw*2.2+6*dpr, (y2-y1)/2+ph*2.2+6*dpr, 0, 0, Math.PI*2); ctx.stroke();
+    ctx.restore();
+  });
+}
+// no modo "Marcar": toque cria uma marcação manual; toque numa manual existente apaga
+function tocarMarca(p){
+  const [x,y]=V.page.getViewport({scale:V.z}).convertToPdfPoint(p.x-V.tx, p.y-V.ty);
+  const tol=8/V.z;
+  const existente=MK.lista.find(m=>m.id && x>=m.r[0]-tol && x<=m.r[0]+m.r[2]+tol && y>=m.r[1]-tol && y<=m.r[1]+m.r[3]+tol);
+  if(existente){ delReg(existente.id); toast("Marcação removida"); }
+  else{
+    const w=30, h=14;
+    addReg({id:uid(), data:hojeISO(), sem:S.cur, equipe:eqAtual(), tipo:"marca", cod:chaveMarca(), texto:[x-w/2,y-h/2,w,h].map(v=>Math.round(v*10)/10).join(",")});
+    toast(`${MK.alvo.pos} marcada`);
+  }
+  MK.lista=marcasDaFolha(); MK.k=Math.max(0,MK.lista.length-1); rotuloMarca(); mudou(0);
+}
 
 // ---------- abas e início ----------
 function show(v){

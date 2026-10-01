@@ -1,8 +1,8 @@
 // Guarda o app no aparelho para abrir sem internet.
 // Ao alterar index.html, suba o número da versão para os celulares receberem a atualização.
 // Os PDFs dos projetos ficam num cache à parte ("armacao-pdfs"), que não é apagado nas atualizações.
-const VERSAO = "armacao-v16";
-const APP = ["./", "index.html", "painel.html", "manifest.webmanifest", "icon-192.png", "icon-512.png", "logo-heca.webp"];
+const VERSAO = "armacao-v17";
+const APP = ["./", "index.html", "painel.html", "manifest.webmanifest", "icon-192.png", "icon-512.png", "logo-heca.webp", "marcas.json"];
 const LIBS = [
   "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js",
   "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js",

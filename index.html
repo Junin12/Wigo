@@ -274,6 +274,17 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
 @keyframes malha{to{background-position:48px 48px}}
 @media (prefers-reduced-motion:reduce){.tela-topo{animation:none}}
 .toast{z-index:40!important}
+/* carimbo das fotos (fica acima das telas e dos modais) */
+.modal.cb{z-index:35}
+.cb-prev{width:100%;max-height:52vh;object-fit:contain;background:#14181D;border-radius:10px;display:block}
+.cb-cantos{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px}
+.cb-cantos .chipbtn{border-radius:10px;min-height:40px}
+.cb-campos{display:grid;grid-template-columns:1fr 1fr;gap:0 10px}
+.cb-campos .chk{min-height:38px}
+.cb-campos .chk input{width:22px}
+.cb-opcoes{display:grid;gap:10px;transition:opacity .2s}
+.cb-opcoes.desligado{opacity:.4;pointer-events:none}
+#cb-opac{width:100%;accent-color:var(--accent)}
 </style>
 </head>
 <body>
@@ -511,6 +522,38 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
     </div>
     <p class="msg" id="ck-msg" hidden></p>
     <div class="regs" id="ck-fotos"></div>
+  </div>
+</div>
+
+<div class="modal cb" id="cb" role="dialog" aria-modal="true" aria-labelledby="cb-tit" hidden>
+  <div class="modal-box">
+    <div class="modal-top"><h2 id="cb-tit">Carimbo da foto</h2><button class="btn" id="cb-cancelar" type="button">Descartar</button></div>
+    <canvas id="cb-prev" class="cb-prev" aria-label="Prévia da foto com o carimbo"></canvas>
+    <p class="info" id="cb-gps"></p>
+    <label class="chk"><input type="checkbox" id="cb-ativo"> Colocar data, hora e local na foto</label>
+    <div class="cb-opcoes" id="cb-opcoes">
+      <div class="campo">Canto da foto
+        <div class="cb-cantos" id="cb-cantos" role="group" aria-label="Canto do carimbo">
+          <button class="chipbtn" type="button" data-c="se">↖ Superior esquerdo</button>
+          <button class="chipbtn" type="button" data-c="sd">↗ Superior direito</button>
+          <button class="chipbtn" type="button" data-c="ie">↙ Inferior esquerdo</button>
+          <button class="chipbtn" type="button" data-c="id">↘ Inferior direito</button>
+        </div>
+      </div>
+      <label class="chk"><input type="checkbox" id="cb-fundo"> Retângulo escuro atrás do texto</label>
+      <label class="campo" for="cb-opac">Escurecimento do retângulo: <b id="cb-opac-v"></b>
+        <input type="range" id="cb-opac" min="10" max="80" step="5"></label>
+      <div class="campo">Informações
+        <div class="cb-campos">
+          <label class="chk"><input type="checkbox" id="cb-data"> Data e hora</label>
+          <label class="chk"><input type="checkbox" id="cb-local"> Endereço</label>
+          <label class="chk"><input type="checkbox" id="cb-coord"> Coordenadas GPS</label>
+          <label class="chk"><input type="checkbox" id="cb-obra"> Obra e posição</label>
+          <label class="chk"><input type="checkbox" id="cb-logo"> Logo Heca</label>
+        </div>
+      </div>
+    </div>
+    <div class="row"><button class="btn pri" id="cb-salvar" type="button">Salvar foto</button></div>
   </div>
 </div>
 
@@ -1101,7 +1144,7 @@ function renderDados(){
 
 // ---------- importar / exportar ----------
 // ---------- versão do app e atualização manual ----------
-const VERSAO_APP = "v19"; // igual ao número em sw.js (armacao-v19)
+const VERSAO_APP = "v20"; // igual ao número em sw.js (armacao-v20)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -1420,16 +1463,131 @@ $("#reg-salvar").addEventListener("click", ()=>{
   const txt=$("#reg-txt").value.trim(); if(!txt){ toast("Escreva a observação primeiro."); return; }
   addReg({...baseReg(), tipo:"obs", texto:txt}); $("#reg-txt").value=""; renderRegLista(); toast("Observação salva");
 });
-async function comprimir(file){
-  const bmp=await createImageBitmap(file), s=Math.min(1,1600/Math.max(bmp.width,bmp.height));
-  const c=el("canvas",{width:Math.round(bmp.width*s),height:Math.round(bmp.height*s)});
-  c.getContext("2d").drawImage(bmp,0,0,c.width,c.height);
-  return await new Promise(res=>c.toBlob(res,"image/jpeg",0.72));
+// ---------- carimbo nas fotos: data, hora, endereço e GPS gravados na imagem ----------
+// Canto: se = superior esquerdo, sd = superior direito, ie = inferior esquerdo, id = inferior direito.
+const CB_PADRAO={ativo:true, canto:"ie", fundo:true, opac:45, data:true, local:true, coord:true, obra:true, logo:false};
+const CB={cfg:Object.assign({},CB_PADRAO,LS.get("carimbo")||{}), bmp:null, W:0, H:0, info:null, res:null, logo:null};
+function salvarCfgCarimbo(){ LS.set("carimbo",CB.cfg); }
+function localizacao(){
+  return new Promise(res=>{
+    if(!navigator.geolocation) return res({erro:"Este aparelho não informa a localização."});
+    navigator.geolocation.getCurrentPosition(
+      p=>res({lat:p.coords.latitude, lon:p.coords.longitude, prec:p.coords.accuracy}),
+      e=>res({erro: e.code===1 ? "Localização não autorizada. Libere a localização para este site nas permissões do navegador." : "Não foi possível obter a localização (sem sinal de GPS)."}),
+      {enableHighAccuracy:true, timeout:15000, maximumAge:30000});
+  });
 }
+// endereço a partir das coordenadas (OpenStreetMap). Guarda os últimos para não repetir a consulta.
+async function endereco(lat,lon){
+  const k=`${lat.toFixed(4)},${lon.toFixed(4)}`, cache=LS.get("geoend")||{};
+  if(cache[k]) return cache[k];
+  if(!navigator.onLine) return "";
+  try{
+    const r=await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1&accept-language=pt-BR`);
+    const j=await r.json(), a=j.address||{};
+    const uf=(a["ISO3166-2-lvl4"]||"").split("-")[1]||a.state||"";
+    const rua=[a.road,a.house_number].filter(Boolean).join(", "), bairro=a.suburb||a.neighbourhood||a.quarter||a.village||a.hamlet||"";
+    const cidade=a.city||a.town||a.municipality||a.county||"";
+    const txt=[rua, bairro, [cidade,uf].filter(Boolean).join(" - ")].filter(Boolean).join(" · ") || j.display_name || "";
+    const novo={...cache,[k]:txt}, ks=Object.keys(novo); if(ks.length>60) delete novo[ks[0]];
+    LS.set("geoend",novo); return txt;
+  }catch{ return ""; }
+}
+const grau = (v,neg,pos) => `${nfCoord.format(Math.abs(v))}° ${v<0?neg:pos}`;
+const nfCoord = new Intl.NumberFormat("pt-BR",{minimumFractionDigits:5,maximumFractionDigits:5});
+function linhasCarimbo(info, cfg){
+  const L=[], d=info.quando;
+  if(cfg.data){
+    L.push({t:`${d.toLocaleDateString("pt-BR")}  ${d.toLocaleTimeString("pt-BR")}`, g:true});
+    const dia=d.toLocaleDateString("pt-BR",{weekday:"long"}); L.push({t:dia[0].toUpperCase()+dia.slice(1)});
+  }
+  if(cfg.local && info.end) L.push({t:info.end});
+  if(cfg.coord && info.lat!=null) L.push({t:`${grau(info.lat,"S","N")}   ${grau(info.lon,"O","L")}   ±${Math.round(info.prec)} m`});
+  if(cfg.obra && info.ctx) L.push({t:info.ctx});
+  return L;
+}
+// quebra uma linha longa em várias que caibam na largura
+function quebrar(ctx, txt, max){
+  const ps=String(txt).split(" "), out=[]; let atual="";
+  for(const p of ps){ const t=atual?atual+" "+p:p; if(ctx.measureText(t).width>max && atual){ out.push(atual); atual=p; } else atual=t; }
+  if(atual) out.push(atual); return out;
+}
+function desenharCarimbo(ctx, W, H, cfg, info){
+  if(!cfg.ativo) return;
+  const base=Math.max(13, Math.round(Math.min(W,H)*0.034)), pad=Math.round(base*0.7), mar=Math.round(base*0.9), maxW=W*0.9-2*pad;
+  const fonte=g=>`${g?"700 ":"500 "}${Math.round(g?base*1.3:base*0.92)}px Barlow, "Segoe UI", Roboto, Arial, sans-serif`;
+  // monta as linhas já quebradas e mede
+  const linhas=[];
+  for(const l of linhasCarimbo(info,cfg)){ ctx.font=fonte(l.g); for(const q of quebrar(ctx,l.t,maxW)) linhas.push({t:q,g:l.g,w:ctx.measureText(q).width,h:Math.round((l.g?base*1.3:base*0.92)*1.32)}); }
+  const temLogo = cfg.logo && CB.logo, lh=temLogo?Math.round(base*2.1):0, lw=temLogo?Math.round(lh*CB.logo.naturalWidth/CB.logo.naturalHeight):0;
+  if(!linhas.length && !temLogo) return;
+  const bw=Math.max(lw, ...linhas.map(l=>l.w),0)+2*pad, bh=lh+(temLogo&&linhas.length?Math.round(base*0.5):0)+linhas.reduce((s,l)=>s+l.h,0)+2*pad;
+  const dir=cfg.canto.endsWith("d"), sup=cfg.canto.startsWith("s");
+  const x=dir?W-mar-bw:mar, y=sup?mar:H-mar-bh;
+  ctx.save();
+  if(cfg.fundo){
+    ctx.fillStyle=`rgba(0,0,0,${cfg.opac/100})`;
+    ctx.beginPath(); (ctx.roundRect ? ctx.roundRect(x,y,bw,bh,Math.round(base*0.5)) : ctx.rect(x,y,bw,bh)); ctx.fill();
+  }
+  let cy=y+pad;
+  if(temLogo){ ctx.drawImage(CB.logo, dir?x+bw-pad-lw:x+pad, cy, lw, lh); cy+=lh+(linhas.length?Math.round(base*0.5):0); }
+  ctx.fillStyle="#fff"; ctx.textBaseline="top"; ctx.textAlign=dir?"right":"left";
+  if(!cfg.fundo){ ctx.shadowColor="rgba(0,0,0,.9)"; ctx.shadowBlur=Math.round(base*0.4); ctx.shadowOffsetX=ctx.shadowOffsetY=Math.max(1,Math.round(base*0.06)); }
+  for(const l of linhas){ ctx.font=fonte(l.g); ctx.fillText(l.t, dir?x+bw-pad:x+pad, cy+Math.round(l.h*0.12)); cy+=l.h; }
+  ctx.restore();
+}
+function desenharPrevia(){
+  if(!CB.bmp) return;
+  const c=$("#cb-prev"); c.width=CB.W; c.height=CB.H;
+  const ctx=c.getContext("2d"); ctx.drawImage(CB.bmp,0,0,CB.W,CB.H);
+  desenharCarimbo(ctx, CB.W, CB.H, CB.cfg, CB.info);
+}
+function sincronizarControles(){
+  const c=CB.cfg;
+  $("#cb-ativo").checked=c.ativo; $("#cb-fundo").checked=c.fundo; $("#cb-opac").value=c.opac; $("#cb-opac-v").textContent=`${c.opac}%`;
+  for(const k of ["data","local","coord","obra","logo"]) $("#cb-"+k).checked=c[k];
+  document.querySelectorAll("#cb-cantos button").forEach(b=>b.classList.toggle("on", b.dataset.c===c.canto));
+  $("#cb-opcoes").classList.toggle("desligado", !c.ativo); $("#cb-opac").disabled=!c.fundo||!c.ativo;
+}
+function textoGps(){
+  const i=CB.info, g=$("#cb-gps");
+  if(i.erro){ g.className="msg"; g.textContent=i.erro; return; }
+  if(i.lat==null){ g.className="info"; g.textContent="Obtendo localização…"; return; }
+  g.className="okmsg"; g.textContent=`Localização obtida (±${Math.round(i.prec)} m)` + (i.end ? "" : navigator.onLine ? " · buscando endereço…" : " · sem internet: o endereço fica de fora");
+}
+// abre a tela do carimbo e devolve a foto pronta (ou null se cancelar)
+async function carimbarFoto(file, contexto){
+  const bmp=await createImageBitmap(file), s=Math.min(1,1600/Math.max(bmp.width,bmp.height));
+  const agora=Date.now(), quando=new Date(file.lastModified && Math.abs(agora-file.lastModified)<36e5 ? file.lastModified : agora);
+  Object.assign(CB,{bmp, W:Math.round(bmp.width*s), H:Math.round(bmp.height*s), info:{quando, ctx:contexto}});
+  if(CB.cfg.logo && !CB.logo) carregarLogoCarimbo();
+  $("#cb").hidden=false; sincronizarControles(); textoGps(); desenharPrevia();
+  localizacao().then(async g=>{
+    if(!CB.bmp) return;
+    Object.assign(CB.info,g); textoGps(); desenharPrevia();
+    if(g.lat!=null){ const e=await endereco(g.lat,g.lon); if(!CB.bmp) return; CB.info.end=e; textoGps(); desenharPrevia(); }
+  });
+  return new Promise(res=>CB.res=res);
+}
+async function carregarLogoCarimbo(){
+  const lg=await logoRelatorio(); if(!lg) return;
+  const im=new Image(); im.onload=()=>{ CB.logo=im; desenharPrevia(); }; im.src=lg.src;
+}
+function fecharCarimbo(blob){ $("#cb").hidden=true; const r=CB.res; CB.res=null; CB.bmp=null; r?.(blob); }
+$("#cb-cancelar").onclick=()=>fecharCarimbo(null);
+$("#cb-salvar").onclick=()=>{ desenharPrevia(); $("#cb-prev").toBlob(b=>fecharCarimbo(b),"image/jpeg",0.8); };
+$("#cb-ativo").onchange=e=>{ CB.cfg.ativo=e.target.checked; salvarCfgCarimbo(); sincronizarControles(); desenharPrevia(); };
+$("#cb-fundo").onchange=e=>{ CB.cfg.fundo=e.target.checked; salvarCfgCarimbo(); sincronizarControles(); desenharPrevia(); };
+$("#cb-opac").oninput=e=>{ CB.cfg.opac=+e.target.value; $("#cb-opac-v").textContent=`${CB.cfg.opac}%`; desenharPrevia(); };
+$("#cb-opac").onchange=()=>salvarCfgCarimbo();
+for(const k of ["data","local","coord","obra","logo"]) $("#cb-"+k).onchange=e=>{ CB.cfg[k]=e.target.checked; salvarCfgCarimbo(); if(k==="logo"&&e.target.checked&&!CB.logo) carregarLogoCarimbo(); desenharPrevia(); };
+document.querySelectorAll("#cb-cantos button").forEach(b=>b.onclick=()=>{ CB.cfg.canto=b.dataset.c; salvarCfgCarimbo(); sincronizarControles(); desenharPrevia(); });
+
 $("#reg-foto").addEventListener("change", async e=>{
   const f=e.target.files[0]; e.target.value=""; if(!f) return;
   try{
-    const blob=await comprimir(f), r={...baseReg(), tipo:"foto", texto:$("#reg-txt").value.trim()};
+    const r={...baseReg(), tipo:"foto", texto:$("#reg-txt").value.trim()}, i=S.byCode.get(REG.cod);
+    const blob=await carimbarFoto(f, i ? `SAA Rio Grande · ${i.est} · ${i.pos} ${bitLabel(i.bit)} · ${i.loc}` : "SAA Rio Grande"); if(!blob) return;
     await (await caches.open(FOTOS)).put("foto/"+r.id, new Response(blob,{headers:{"Content-Type":"image/jpeg"}}));
     addReg(r); $("#reg-txt").value=""; renderRegLista(); toast(`Foto salva (${nf0.format(blob.size/1024)} KB)`);
   }catch{ toast("Não foi possível salvar a foto. Tente de novo."); }
@@ -1806,7 +1964,8 @@ $("#ck-concretado").addEventListener("click", ()=>{
 $("#ck-foto").addEventListener("change", async ev=>{
   const f=ev.target.files[0]; ev.target.value=""; if(!f||!CK.e) return;
   try{
-    const blob=await comprimir(f), r={id:uid(),data:hojeISO(),sem:S.cur,equipe:eqAtual(),tipo:"foto",cod:"EL:"+CK.e.chave,texto:`Checklist do ${nomeLance(CK.L)} · ${CK.e.loc}`};
+    const r={id:uid(),data:hojeISO(),sem:S.cur,equipe:eqAtual(),tipo:"foto",cod:"EL:"+CK.e.chave,texto:`Checklist do ${nomeLance(CK.L)} · ${CK.e.loc}`};
+    const blob=await carimbarFoto(f, `SAA Rio Grande · ${CK.e.est} · ${CK.e.loc} · ${nomeLance(CK.L)}`); if(!blob) return;
     await (await caches.open(FOTOS)).put("foto/"+r.id, new Response(blob,{headers:{"Content-Type":"image/jpeg"}}));
     addReg(r); renderCkFotos(); toast("Foto salva");
   }catch{ toast("Não foi possível salvar a foto."); }

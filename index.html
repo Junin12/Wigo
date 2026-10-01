@@ -204,9 +204,106 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
 .v-stage.marcando{cursor:crosshair}
 .v-aviso{position:absolute;left:50%;top:12px;transform:translateX(-50%);max-width:min(92%,520px);background:rgba(20,27,35,.92);color:#fff;font-size:.85rem;padding:8px 12px;border-radius:8px;text-align:center;z-index:2;pointer-events:none}
 .v-dica{position:absolute;left:50%;bottom:calc(12px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:rgba(0,0,0,.6);color:#fff;font-size:.78rem;padding:6px 10px;border-radius:8px;pointer-events:none}
+
+/* ================= tela inicial e menu de módulos ================= */
+:root{ --heca:#0067A6; --heca-claro:#1A9BDC; --heca-escuro:#004F80; }
+.tela{position:fixed;inset:0;z-index:25;background:var(--bg);overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.tela-topo{position:relative;background:var(--heca);color:#fff;padding:calc(14px + env(safe-area-inset-top,0px)) 16px 34px;overflow:hidden}
+.tela-topo::before{content:"";position:absolute;inset:auto -20% -60% auto;width:70%;aspect-ratio:1;border-radius:50%;background:radial-gradient(circle,rgba(26,155,220,.45),transparent 65%);animation:brilho 9s ease-in-out infinite alternate;pointer-events:none}
+.tela-topo::after{content:"";position:absolute;left:0;right:0;bottom:0;height:22px;background:var(--bg);border-radius:22px 22px 0 0}
+@keyframes brilho{from{transform:translate(0,0) scale(1)}to{transform:translate(-18%,-12%) scale(1.15)}}
+.tela-topo .in{position:relative;z-index:1;max-width:1000px;margin-inline:auto;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 16px}
+.tela-logo{height:58px;width:auto;display:block}
+.tela-obra{text-align:right;line-height:1.15}
+.tela-obra small{display:block;font-size:.68rem;letter-spacing:.12em;text-transform:uppercase;color:#CFE6F6}
+.tela-obra b{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-size:1.25rem;font-weight:600}
+.tela-obra span{display:block;font-size:.8rem;color:#CFE6F6}
+.tela-topo.compacto{padding-bottom:30px}
+.tela-topo.compacto .in{justify-content:flex-start}
+.tela-topo.compacto .tela-logo{height:44px;margin-left:auto}
+.tela-voltar{border:1px solid rgba(255,255,255,.35);background:rgba(255,255,255,.12);color:#fff;border-radius:12px;min-height:44px;padding:0 14px;font-weight:600;display:inline-flex;align-items:center;gap:6px;transition:background .2s}
+.tela-voltar:hover{background:rgba(255,255,255,.22)}
+.tela-voltar svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.tela-corpo{max-width:1000px;margin-inline:auto;padding:4px 16px calc(28px + env(safe-area-inset-bottom,0px));display:grid;gap:16px}
+.saud{margin:0;font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-size:1.6rem;font-weight:600;line-height:1.1}
+.saud small{display:block;font-family:"Barlow",sans-serif;font-size:.85rem;font-weight:500;color:var(--muted);margin-top:2px}
+.tela-tit{font-size:.78rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-family:"Barlow",sans-serif;font-weight:600;margin:4px 0 -4px}
+/* indicadores rápidos */
+.ind-ini{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.ind{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px 12px;display:grid;gap:2px;animation:entra .5s both}
+.ind span{font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.ind b{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-size:1.35rem;font-weight:600;line-height:1.1}
+.ind small{color:var(--muted);font-size:.78rem}
+/* grade de módulos */
+.mods{display:grid;grid-template-columns:repeat(auto-fill,minmax(146px,1fr));gap:12px}
+.mods-prod{grid-template-columns:repeat(auto-fill,minmax(190px,1fr))}
+.mod{position:relative;overflow:hidden;isolation:isolate;border:1px solid var(--line);background:var(--surface);border-radius:18px;padding:18px 12px 14px;
+  display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;cursor:pointer;color:var(--ink);
+  box-shadow:0 1px 2px rgba(0,30,60,.06);transition:transform .22s cubic-bezier(.2,.8,.2,1),box-shadow .22s,border-color .22s;animation:entra .55s cubic-bezier(.2,.8,.2,1) both}
+.mod::before{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(135deg,transparent 40%,rgba(26,155,220,.10));opacity:0;transition:opacity .25s}
+.mod:hover,.mod:focus-visible{transform:translateY(-4px);box-shadow:0 10px 24px -10px rgba(0,79,128,.45);border-color:var(--heca-claro)}
+.mod:hover::before,.mod:focus-visible::before{opacity:1}
+.mod:active{transform:translateY(-1px) scale(.97)}
+.mod .ic{width:64px;height:64px;border-radius:20px;display:grid;place-items:center;color:#fff;background:linear-gradient(145deg,var(--c1,var(--heca-claro)),var(--c2,var(--heca)));
+  box-shadow:0 8px 18px -8px var(--c2,var(--heca));transition:transform .35s cubic-bezier(.3,1.6,.5,1)}
+.mod .ic svg{width:34px;height:34px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.mod:hover .ic,.mod:focus-visible .ic{transform:translateY(-3px) rotate(-6deg) scale(1.06)}
+.mod b{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-size:1.12rem;font-weight:600;line-height:1.1}
+.mod small{font-size:.76rem;color:var(--muted);line-height:1.25}
+.mod .selo{position:absolute;top:8px;right:8px;font-size:.6rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:2px 7px;border-radius:999px;background:var(--idle-bg);color:var(--idle)}
+.mod .selo.ok{background:var(--good-bg);color:var(--good)}
+.mod.ativo .ic::after{content:"";position:absolute;width:64px;height:64px;border-radius:20px;border:2px solid var(--heca-claro);animation:pulso 2.4s ease-out infinite}
+.mod .ic{position:relative}
+@keyframes pulso{0%{transform:scale(1);opacity:.8}100%{transform:scale(1.45);opacity:0}}
+.mod .anel{position:absolute;inset:-6px;width:76px;height:76px}
+.mod .anel circle{fill:none;stroke-width:4}
+.mod .anel .fundo{stroke:var(--idle-bg)} .mod .anel .valor{stroke:var(--good);stroke-linecap:round;transition:stroke-dashoffset 1.2s cubic-bezier(.2,.8,.2,1)}
+.mod .num{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-weight:600;font-size:.95rem;color:var(--heca)}
+.ripple{position:absolute;border-radius:50%;pointer-events:none;background:rgba(26,155,220,.35);transform:scale(0);animation:onda .6s ease-out forwards;z-index:-1}
+@keyframes onda{to{transform:scale(1);opacity:0}}
+/* entrada: desliza e clareia, mas nunca parte de invisível (a tela fica legível mesmo se a animação não rodar) */
+@keyframes entra{from{opacity:.55;transform:translateY(18px) scale(.97)}to{opacity:1;transform:none}}
+.mod.treme{animation:treme .4s}
+@keyframes treme{20%,60%{transform:translateX(-4px)}40%,80%{transform:translateX(4px)}}
+.rodape-ini{text-align:center;font-size:.75rem;color:var(--muted);margin-top:4px}
+.btn-inicio{border:1px solid var(--line);background:var(--surface);border-radius:10px;min-height:40px;min-width:40px;display:grid;place-items:center;color:var(--accent)}
+.btn-inicio svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+@media (prefers-reduced-motion:reduce){.mod,.ind,.tela-topo::before,.mod.ativo .ic::after{animation:none!important}.mod,.mod .ic{transition:none}}
+/* malha de armadura animada no fundo do topo */
+.tela-topo{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48'%3E%3Cpath d='M0 24H48M24 0V48' stroke='%23ffffff' stroke-opacity='.09' stroke-width='3'/%3E%3Ccircle cx='24' cy='24' r='3.4' fill='%23ffffff' fill-opacity='.14'/%3E%3C/svg%3E");background-size:48px 48px;animation:malha 40s linear infinite}
+@keyframes malha{to{background-position:48px 48px}}
+@media (prefers-reduced-motion:reduce){.tela-topo{animation:none}}
+.toast{z-index:40!important}
 </style>
 </head>
 <body>
+<!-- ================= tela inicial ================= -->
+<section id="inicio" class="tela" aria-label="Início">
+  <header class="tela-topo"><div class="in">
+    <img class="tela-logo" src="logo-heca.webp" alt="Heca Construtora">
+    <div class="tela-obra"><small>Obra</small><b>SAA Rio Grande</b><span>Uberaba / MG</span></div>
+  </div></header>
+  <div class="tela-corpo">
+    <p class="saud" id="saud"></p>
+    <div class="ind-ini" id="ind-ini"></div>
+    <h2 class="tela-tit" id="tit-mods">Módulos</h2>
+    <div class="mods" id="mods"></div>
+    <p class="rodape-ini">Heca Construtora · gestão de obra</p>
+  </div>
+</section>
+
+<!-- ================= Produtividade: escolha do serviço ================= -->
+<section id="tela-prod" class="tela" aria-label="Produtividade" hidden>
+  <header class="tela-topo compacto"><div class="in">
+    <button class="tela-voltar" type="button" data-voltar><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>Início</button>
+    <img class="tela-logo" src="logo-heca.webp" alt="Heca Construtora">
+  </div></header>
+  <div class="tela-corpo">
+    <p class="saud">Produtividade<small>Escolha o serviço para acompanhar</small></p>
+    <div class="mods mods-prod" id="mods-prod"></div>
+  </div>
+</section>
+
 
 <header class="top">
   <div class="wrap">
@@ -451,6 +548,8 @@ const pct = v => nf1.format(v*100)+"%";
 const t = kg => nf1.format(kg/1000);
 const num = v => { if(typeof v==="number") return isFinite(v)?v:0; const s=String(v??"").trim(); const n=parseFloat(/,/.test(s)?s.replace(/\./g,"").replace(",","."):s); return isFinite(n)?n:0; };
 const el = (tag, props={}, ...kids) => { const e=document.createElement(tag); for(const [k,v] of Object.entries(props)){ if(k==="class") e.className=v; else if(k==="text") e.textContent=v; else if(k.startsWith("data-")||k.startsWith("aria-")) e.setAttribute(k,v); else e[k]=v; } e.append(...kids.filter(x=>x!=null)); return e; };
+// replaceChildren ignorando itens vazios (sem isso aparece o texto "null" na tela)
+const repor = (elm, ...k) => elm.replaceChildren(...k.filter(x=>x!=null && x!==false));
 let toastT;
 function toast(msg){ const e=$("#toast"); e.textContent=msg; e.hidden=false; clearTimeout(toastT); toastT=setTimeout(()=>e.hidden=true, 3200); }
 const bitLabel = b => typeof b==="number" ? "Ø "+String(b).replace(".",",") : b;
@@ -677,7 +776,7 @@ $("#semana").addEventListener("change", e=>{
 function renderResumo(){
   const w=curW(), r=$("#resumo-sem");
   if(!w){ r.replaceChildren(); return; }
-  r.replaceChildren(
+  repor(r,
     el("span",{}, "Semana ", el("b",{text:w.n}), ` · ${ddmm(w.ini)} a ${ddmm(w.fim)}`),
     el("span",{}, el("b",{text:w.arm}), " armadores × ", el("b",{text:w.dias}), " dias"),
     el("span",{}, el("b",{text:nf0.format(w.q)}), " barras · ", el("b",{text:t(w.kg)+" t"})),
@@ -1002,7 +1101,7 @@ function renderDados(){
 
 // ---------- importar / exportar ----------
 // ---------- versão do app e atualização manual ----------
-const VERSAO_APP = "v18"; // igual ao número em sw.js (armacao-v18)
+const VERSAO_APP = "v19"; // igual ao número em sw.js (armacao-v19)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -1411,7 +1510,7 @@ function renderEqInfo(){
   const e=eqList().find(x=>x.nome===eqAtual()), box=$("#eq-info");
   if(!e){ box.replaceChildren(); return; }
   const fr=(e.frentes||[]);
-  box.replaceChildren(
+  repor(box,
     e.encarregado ? el("span",{}, "Encarregado: ", el("b",{text:e.encarregado})) : null,
     fr.length ? el("span",{text:"Frentes:"}) : el("span",{text:"Sem frentes definidas (aba Semanas)."}),
     ...fr.map(f=>{ const b=el("button",{class:"chipbtn"+(F.est===f.est?" on":""),type:"button",text:frenteTxt(f)});
@@ -2026,10 +2125,148 @@ function renderData(){
   if(!document.activeElement?.closest?.("#v-semanas")) renderSemanas();
   if(!$("#v-painel").hidden) renderPainel();
   if(REG.cod) renderRegLista();
+  if(!$("#inicio").hidden) renderIndicadores();
   if(!$("#v-frentes").hidden && !document.activeElement?.closest?.("#v-frentes")) renderFrentes();
   if(CK.e) renderCkFotos();
   setSync();
 }
+
+// ================= tela inicial, menu de módulos e Produtividade =================
+// Ícones de traço (24×24). Os módulos sem tela ainda mostram "em breve".
+const ICO={
+  rdo:'<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M8.5 10h7M8.5 14h7M8.5 18h4"/>',
+  ponto:'<circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.8-3.2 3-5 5.5-5s4.7 1.8 5.5 5"/><circle cx="17.5" cy="15.5" r="3.5"/><path d="M17.5 13.8v1.9l1.2.8"/>',
+  prod:'<path d="M3 17l5-5 4 3 7-8"/><path d="M15 7h4v4"/><path d="M3 21h18"/>',
+  obras:'<path d="M5 21V4l13 3"/><path d="M5 7h14M17 7v4"/><rect x="15" y="11" width="4" height="3"/><path d="M3 21h8M5 4l3 3"/>',
+  rel:'<path d="M14 3H6v18h12V7z"/><path d="M14 3v4h4"/><path d="M9 17v-3M12 17v-6M15 17v-4"/>',
+  sup:'<path d="M3 6h11v10H3z"/><path d="M14 10h4l3 3v3h-7"/><circle cx="7" cy="17.5" r="1.8"/><circle cx="17" cy="17.5" r="1.8"/>',
+  qual:'<path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z"/><path d="M8.8 12l2.2 2.2 4.2-4.4"/>',
+  seg:'<path d="M4 17h16v2H4z"/><path d="M5 17a7 7 0 0 1 14 0"/><path d="M10 10.5V6.5h4v4"/>',
+  med:'<rect x="3" y="8" width="18" height="8" rx="1.5"/><path d="M7 8v3M11 8v4M15 8v3M19 8v2"/>',
+  equip:'<rect x="3" y="14" width="10" height="4" rx="2"/><path d="M5 14v-3h5l2 3"/><path d="M12 11l4-5 3 2"/><path d="M19 8l1.2 4H17"/>',
+  aco:'<path d="M4 8h16M4 12h16M4 16h16"/><path d="M8 4v16M12 4v16M16 4v16"/>',
+  forma:'<rect x="4" y="4" width="16" height="16" rx="1"/><path d="M4 9.5h16M4 14.5h16M10 4v5.5M14 9.5v5M10 14.5V20"/>',
+  conc:'<path d="M2 17h3"/><ellipse cx="11" cy="11" rx="6" ry="4" transform="rotate(-18 11 11)"/><path d="M17 9h2l3 4v4h-4M5 15.5h12"/><circle cx="7" cy="18" r="1.8"/><circle cx="18" cy="18" r="1.8"/>',
+  esc:'<path d="M14 4l6 6M17 7l-8 8"/><path d="M4 20l3-1 4-4-2-2-4 4z"/>',
+  lancar:'<path d="M12 5v14M5 12h14"/>', frentes:'<path d="M3 21h18M5 21V9l7-5 7 5v12"/><path d="M9 21v-6h6v6"/>', pdf:'<path d="M14 3H6v18h12V7z"/><path d="M14 3v4h4M9 13h6M9 17h4"/>', painel:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+  casa:'<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/>'
+};
+const svgIco = k => `<svg viewBox="0 0 24 24" aria-hidden="true">${ICO[k]}</svg>`;
+const MODULOS=[
+  {id:"rdo",   nome:"RDO",              desc:"Diário de obra",                 c:["#3C8DD8","#1F5FA8"]},
+  {id:"ponto", nome:"Ponto e efetivo",  desc:"Presença diária por equipe",     c:["#18B5A6","#0B7C74"]},
+  {id:"prod",  nome:"Produtividade",    desc:"Aço · forma · concreto · escavação", c:["#1A9BDC","#0067A6"], ativo:true},
+  {id:"obras", nome:"Obras e projetos", desc:"Estruturas, etapas e pranchas",  c:["#4F7CE8","#2747B0"]},
+  {id:"rel",   nome:"Relatórios",       desc:"PDF semanal e painéis",          c:["#8A6BE0","#5A3FB0"]},
+  {id:"sup",   nome:"Suprimentos",      desc:"Pedidos e recebimento",          c:["#F2AE3D","#D27D1F"]},
+  {id:"qual",  nome:"Qualidade",        desc:"Fichas de verificação (FVS)",    c:["#36B37E","#1D7A48"]},
+  {id:"seg",   nome:"Segurança",        desc:"DDS, inspeções e SST",           c:["#F2783A","#C9461A"]},
+  {id:"med",   nome:"Medições",         desc:"Boletins e avanço físico",       c:["#45A1D6","#22709F"]},
+  {id:"equip", nome:"Equipamentos",     desc:"Máquinas e horímetros",          c:["#7D8B99","#4A5866"]},
+];
+const SERVICOS=[
+  {id:"aco",   nome:"Aço",       desc:"Armação: coleta, frentes e produtividade", c:["#1A9BDC","#0067A6"], ativo:true},
+  {id:"forma", nome:"Forma",     desc:"Montagem e desforma",                       c:["#D49A5A","#9C6430"]},
+  {id:"conc",  nome:"Concreto",  desc:"Volumes e concretagens",                    c:["#98A5B3","#5F6B78"]},
+  {id:"esc",   nome:"Escavação", desc:"Cortes, aterros e reaterros",               c:["#D2A03C","#946A1E"]},
+];
+
+// --- navegação entre telas: início → produtividade → aço (o app de armação) ---
+function abrirTela(t, empilhar=true){
+  $("#inicio").hidden = t!=="inicio"; $("#tela-prod").hidden = t!=="prod";
+  document.body.style.overflow = t==="aco" ? "" : "hidden";
+  if(t==="inicio") renderInicio(); if(t==="prod") renderProdMenu();
+  if(empilhar) history.pushState({tela:t},"");
+}
+addEventListener("popstate", e=>{ if(e.state?.tela) abrirTela(e.state.tela,false); });
+document.querySelectorAll("[data-voltar]").forEach(b=>b.onclick=()=>history.back());
+function irAco(aba){ abrirTela("aco"); show(aba); }
+
+// --- números do resumo ---
+function resumoAco(){
+  const P=S.items.reduce((s,i)=>s+i.kp,0), E=S.items.reduce((s,i)=>s+Math.min(S.acum.get(i.c)||0,i.qp)*i.ppb,0);
+  return {P,E,pct:P?E/P:0, w:semanaDeHoje()||curW()};
+}
+// conta de 0 até o valor (dá vida ao número quando a tela abre)
+function contar(elm, alvo, fmt, ms=900){
+  if(matchMedia("(prefers-reduced-motion: reduce)").matches){ elm.textContent=fmt(alvo); return; }
+  const t0=performance.now(); const passo=t=>{ const k=Math.min(1,(t-t0)/ms), v=alvo*(1-Math.pow(1-k,3)); elm.textContent=fmt(v); if(k<1) requestAnimationFrame(passo); };
+  requestAnimationFrame(passo);
+}
+function renderIndicadores(){
+  const box=$("#ind-ini"); if(!box) return; numProd();
+  if(!S.items.length){ box.replaceChildren(el("div",{class:"ind"}, el("span",{text:"Primeiro acesso"}), el("b",{text:"Conecte o banco"}), el("small",{text:"Produtividade › Aço › Ajustes"}))); return; }
+  const r=resumoAco(), w=r.w, meta=w?metaSemana(w):0;
+  const i1=el("b"), i2=el("b"), i3=el("b",{text:$("#sync").textContent});
+  box.replaceChildren(
+    el("div",{class:"ind",style:"animation-delay:.05s"}, el("span",{text:"Aço armado"}), i1, el("small",{text:`de ${t(r.P)} t previstas`})),
+    el("div",{class:"ind",style:"animation-delay:.12s"}, el("span",{text:w?`Semana ${w.n} · ${ddmm(w.ini)} a ${ddmm(w.fim)}`:"Semana"}), i2, el("small",{text:meta?`meta ${t(meta)} t · ${pct(w.kg/meta)} atingido`:"sem meta definida"})),
+    el("div",{class:"ind",style:"animation-delay:.19s"}, el("span",{text:"Sincronização"}), i3, el("small",{text:S.lastSync?`última: ${new Date(S.lastSync).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}`:"ainda não sincronizado"})));
+  contar(i1, r.E/1000, v=>`${nf1.format(v)} t · ${pct(r.P?v*1000/r.P:0)}`);
+  contar(i2, (w?.kg||0)/1000, v=>`${nf1.format(v)} t na semana`);
+}
+// percentual do aço no botão Produtividade (atualiza quando a base chega)
+function numProd(){ const n=$("#num-prod"); if(n) n.textContent = S.items.length ? `Aço ${pct(resumoAco().pct)}` : ""; }
+function saudacao(){
+  const h=new Date().getHours(), s=h<12?"Bom dia":h<18?"Boa tarde":"Boa noite";
+  const d=new Date().toLocaleDateString("pt-BR",{weekday:"long",day:"numeric",month:"long"});
+  $("#saud").replaceChildren(s, el("small",{text:d[0].toUpperCase()+d.slice(1)}));
+}
+// --- botão de módulo: ícone em degradê, nome, legenda; onda ao toque; inclinação 3D no mouse ---
+function moduloBtn(m, k, extra){
+  const b=el("button",{class:"mod"+(m.ativo?" ativo":""),type:"button","aria-label":`${m.nome}: ${m.desc}${m.ativo?"":" (em breve)"}`});
+  b.style.animationDelay=`${0.06*k+0.15}s`; b.style.setProperty("--c1",m.c[0]); b.style.setProperty("--c2",m.c[1]);
+  const ic=el("span",{class:"ic"}); ic.innerHTML=svgIco(m.id);
+  b.append(ic, el("b",{text:m.nome}), el("small",{text:m.desc}));
+  if(!m.ativo) b.append(el("span",{class:"selo",text:"em breve"}));
+  if(extra) extra(b, ic);
+  b.addEventListener("pointerdown", e=>{
+    const r=b.getBoundingClientRect(), d=Math.max(r.width,r.height)*2.2, o=el("span",{class:"ripple"});
+    o.style.cssText=`width:${d}px;height:${d}px;left:${e.clientX-r.left-d/2}px;top:${e.clientY-r.top-d/2}px`; b.append(o); setTimeout(()=>o.remove(),650);
+  });
+  if(matchMedia("(pointer:fine)").matches && !matchMedia("(prefers-reduced-motion: reduce)").matches){
+    b.addEventListener("pointermove", e=>{ const r=b.getBoundingClientRect(), x=(e.clientX-r.left)/r.width-.5, y=(e.clientY-r.top)/r.height-.5;
+      b.style.transform=`perspective(600px) rotateX(${(-y*8).toFixed(2)}deg) rotateY(${(x*10).toFixed(2)}deg) translateY(-4px)`; });
+    b.addEventListener("pointerleave", ()=>{ b.style.transform=""; });
+  }
+  b.addEventListener("click", ()=>{
+    if(m.acao) return m.acao();
+    b.classList.remove("treme"); void b.offsetWidth; b.classList.add("treme");
+    toast(`${m.nome}: módulo em construção. Em breve por aqui.`);
+  });
+  return b;
+}
+// anel de progresso real no botão do aço
+function anelProgresso(ic, frac){
+  const R=34, C=2*Math.PI*R, ns="http://www.w3.org/2000/svg", s=document.createElementNS(ns,"svg");
+  s.setAttribute("viewBox","0 0 76 76"); s.setAttribute("class","anel");
+  s.innerHTML=`<circle class="fundo" cx="38" cy="38" r="${R}"/><circle class="valor" cx="38" cy="38" r="${R}" stroke-dasharray="${C}" stroke-dashoffset="${C}" transform="rotate(-90 38 38)"/>`;
+  ic.append(s); requestAnimationFrame(()=>requestAnimationFrame(()=>{ s.querySelector(".valor").style.strokeDashoffset=C*(1-Math.min(1,Math.max(frac,0.015))); }));
+}
+function renderInicio(){
+  saudacao(); renderIndicadores();
+  const mods=MODULOS.map(m=>({...m, acao: m.id==="prod" ? ()=>abrirTela("prod") : m.id==="rel" ? null : null}));
+  $("#mods").replaceChildren(...mods.map((m,k)=>moduloBtn(m,k, m.id==="prod" ? (b)=>{ b.append(el("span",{class:"num",id:"num-prod"})); } : null)));
+  numProd();
+  // atalhos que já funcionam
+  const at=[
+    {id:"lancar", nome:"Lançar aço", desc:"Coleta da semana", c:["#1A9BDC","#0067A6"], ativo:true, acao:()=>irAco("coleta")},
+    {id:"frentes",nome:"Frentes", desc:"Liberações e concretagem", c:["#36B37E","#1D7A48"], ativo:true, acao:()=>irAco("frentes")},
+    {id:"pdf",    nome:"Relatório PDF", desc:"Semana atual", c:["#8A6BE0","#5A3FB0"], ativo:true, acao:()=>{ irAco("painel"); setTimeout(()=>$("#rel-pdf").click(),300); }},
+    {id:"painel", nome:"Painel do aço", desc:"Meta, curva S e equipes", c:["#45A1D6","#22709F"], ativo:true, acao:()=>irAco("painel")},
+  ];
+  let box=$("#atalhos");
+  if(!box){ box=el("div",{class:"mods",id:"atalhos"}); $("#tit-mods").before(el("h2",{class:"tela-tit",text:"Atalhos"}), box); }
+  box.replaceChildren(...at.map((m,k)=>moduloBtn(m,k)));
+}
+function renderProdMenu(){
+  const r=S.items.length ? resumoAco() : null;
+  $("#mods-prod").replaceChildren(...SERVICOS.map((m,k)=>moduloBtn({...m, acao: m.id==="aco" ? ()=>{ abrirTela("aco"); show(LS.get("aba")||"coleta"); } : null}, k,
+    m.id==="aco" && r ? (b,ic)=>{ anelProgresso(ic, r.pct); b.append(el("span",{class:"num",text:`${t(r.E)} de ${t(r.P)} t · ${pct(r.pct)}`})); } : null)));
+}
+// botão "início" no topo do módulo de aço
+(()=>{ const b=el("button",{class:"btn-inicio",type:"button","aria-label":"Voltar ao início"}); b.innerHTML=svgIco("casa");
+  b.onclick=()=>abrirTela("inicio"); document.querySelector(".top .wrap").prepend(b); })();
 
 (function boot(){
   const cached=LS.get("base"); if(cached?.itens) setBase(cached.meta, cached.itens);
@@ -2043,6 +2280,7 @@ function renderData(){
     document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="visible") navigator.serviceWorker.getRegistration().then(r=>r?.update()).catch(()=>{}); });
   }
   navigator.storage?.persist?.().catch(()=>{});
+  history.replaceState({tela:"inicio"},""); abrirTela("inicio",false);
 })();
 </script>
 </body>

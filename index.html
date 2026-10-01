@@ -381,6 +381,32 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
 .ps-step b{min-width:32px;text-align:center;font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-size:1.8rem}
 .ps-ger{justify-self:center;text-align:center;margin-top:8px}
 .ps-voltar{justify-self:start}
+/* login por cargo */
+#login,#producao{grid-template-columns:minmax(0,1fr)}
+.lg-cargos{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-top:4px}
+.lg-cargo{border:2px solid var(--line);background:var(--surface);color:var(--ink);border-radius:12px;min-height:52px;padding:8px 10px;font-weight:600;text-align:left}
+.lg-cargo.on{border-color:var(--accent);background:var(--accent);color:var(--on-accent)}
+.lg-chip{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:4px 10px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:6px 12px;font-size:.88rem}
+.ps-por{font-size:.7rem!important;font-weight:400!important;opacity:.85}
+/* Produção */
+.pr-card{border-left:5px solid var(--line)}
+.pr-card.and{border-left-color:var(--warn)} .pr-card.bad{border-left-color:var(--bad)} .pr-card.ok{border-left-color:var(--good)}
+.pr-tit{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-size:1.35rem;line-height:1.1}
+.pr-onde{font-weight:600;color:var(--muted)}
+.pr-eq{display:flex;flex-wrap:wrap;gap:6px}
+.pr-nome{background:var(--good-bg);color:var(--good);border-radius:999px;padding:4px 10px;font-weight:600;font-size:.85rem}
+.pr-bts{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.pr-bts .chipbtn{min-height:40px}
+.pr-hist summary{cursor:pointer;font-size:.8rem;color:var(--muted);min-height:32px;display:flex;align-items:center}
+.pr-h{font-size:.8rem;color:var(--muted);border-top:1px solid var(--line);padding:5px 0}
+.pr-h b{color:var(--ink)}
+.pr-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+.pr-chips .chipbtn{min-height:42px}
+.pr-escolha{display:grid;gap:2px;max-height:42vh;overflow:auto;border:1px solid var(--line);border-radius:10px;padding:4px 10px;background:var(--surface)}
+.pr-pessoa small{color:var(--muted);font-weight:400} .pr-pessoa small.livre{color:var(--good);font-weight:600}
+.pr-opcoes{display:grid;gap:8px}
+.pr-opcao{display:grid;text-align:left;gap:2px} .pr-opcao small{color:var(--muted);font-weight:400}
+.pr-sum{cursor:pointer;font-weight:600;min-height:40px;display:flex;align-items:center}
 /* Fotos da obra */
 #fotos{grid-template-columns:minmax(0,1fr)}
 .ft-tirar{border:0;border-radius:18px;min-height:96px;display:flex;align-items:center;justify-content:center;gap:14px;font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-size:1.6rem;font-weight:600;color:#fff;background:linear-gradient(145deg,#E25C8A,#A8305C);box-shadow:0 10px 22px -12px #A8305C}
@@ -409,6 +435,7 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
     <div class="tela-obra"><small>Obra</small><b>SAA Rio Grande</b><span>Uberaba / MG</span></div>
   </div></header>
   <div class="tela-corpo">
+    <div id="usuario-ini"></div>
     <p class="saud" id="saud"></p>
     <div class="ind-ini" id="ind-ini"></div>
     <h2 class="tela-tit" id="tit-mods">Módulos</h2>
@@ -466,6 +493,24 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
     <img class="tela-logo" src="logo-heca.webp" alt="Heca Construtora">
   </div></header>
   <div class="tela-corpo" id="ponto"></div>
+</section>
+
+<!-- ================= Login por cargo ================= -->
+<section id="tela-login" class="tela" aria-label="Entrar no app" hidden>
+  <header class="tela-topo"><div class="in">
+    <img class="tela-logo" src="logo-heca.webp" alt="Heca Construtora">
+    <div class="tela-obra"><small>Obra</small><b>SAA Rio Grande</b><span>Uberaba / MG</span></div>
+  </div></header>
+  <div class="tela-corpo" id="login"></div>
+</section>
+
+<!-- ================= Produção (mestre de obras) ================= -->
+<section id="tela-producao" class="tela" aria-label="Produção" hidden>
+  <header class="tela-topo compacto"><div class="in">
+    <button class="tela-voltar" type="button" data-voltar><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>Início</button>
+    <img class="tela-logo" src="logo-heca.webp" alt="Heca Construtora">
+  </div></header>
+  <div class="tela-corpo" id="producao"></div>
 </section>
 
 <!-- ================= Fotos da obra ================= -->
@@ -802,8 +847,33 @@ const S = { items:[], byCode:new Map(), meta:null, weeks:LS.get("weeks2")||{}, p
 // efetivo: quadro (empresa + função), dias, nomes e chegadas; pendEf = fila offline do efetivo
 Object.assign(S, { ef:LS.get("ef")||[], efDia:LS.get("efDia")||{}, pes:LS.get("pes")||[], presEf:LS.get("presEf")||{},
   pendEf:{fun:{}, funDel:[], dia:{}, pes:{}, pesDel:[], pres:{}, ...(LS.get("pendEf")||{})} });
+// produção: atividades do mestre de obras (servidor + fila offline) e quem marcou a presença
+Object.assign(S, { ativ:LS.get("ativ")||[], pendAt:LS.get("pendAt")||{}, pendAtDel:LS.get("pendAtDel")||[], presPor:LS.get("presPor")||{} });
+
+// ---------- login por cargo (sem senha) ----------
+// Cada cargo vê só os módulos da sua função. O nome vai junto em toda alteração (aba Historico da planilha).
+// m = módulos que aparecem no início; x = permissões extras (producao-edit: mexer nas atividades; ponto-ger: Gerenciar do efetivo)
+const TODOS_MODULOS="producao ponto fotos rdo prod obras rel sup qual seg med equip";
+const CARGOS={
+  "Gerente de obra":          {m:TODOS_MODULOS, x:"producao-edit ponto-ger"},
+  "Engenheiro de produção":   {m:TODOS_MODULOS, x:"producao-edit ponto-ger"},
+  "Engenheiro de qualidade":  {m:"producao qual fotos rdo obras rel prod", x:""},
+  "Técnico de planejamento":  {m:"producao prod ponto med rel obras fotos rdo sup", x:"producao-edit ponto-ger"},
+  "Engenheiro ambiental":     {m:"fotos rdo rel obras qual seg", x:""},
+  "Técnico de segurança":     {m:"seg ponto producao fotos rdo rel", x:""},
+  "Assistente técnico":       {m:"producao prod ponto med rel obras fotos rdo sup", x:"producao-edit ponto-ger"},
+  "Mestre de obras":          {m:"producao ponto fotos rdo prod", x:"producao-edit"},
+  "Apontador":                {m:"ponto producao fotos rdo prod", x:"producao-edit"},
+  "Almoxarife":               {m:"sup equip fotos", x:""},
+  "Suprimentos":              {m:"sup med rel fotos", x:""},
+  "Recursos humanos":         {m:"ponto rel fotos", x:"ponto-ger"},
+};
+let U=LS.get("usuario"); if(U && !CARGOS[U.cargo]) U=null;
+const quemSou = () => U ? `${U.nome} (${U.cargo})` : "sem login";
+const pode = k => { const c=CARGOS[U?.cargo]; return !!c && (c.m.split(" ").includes(k) || c.x.split(" ").includes(k)); };
+
 const K = (cod, eq) => cod+"|"+eq;
-const SCRIPT_MIN = 11; // versão do Code.gs que este app espera
+const SCRIPT_MIN = 12; // versão do Code.gs que este app espera
 // O Planilhas converte "DEC-0001" em data (dez/2001). Reconstrói o código se ele chegar como data.
 const MESES=["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
 function consertaCod(c){
@@ -855,7 +925,7 @@ async function post(body){
   try{
     // text/plain evita a checagem CORS extra que o Apps Script não responde
     r = await fetch(S.cfg.url, {method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"},
-      body: JSON.stringify({token:S.cfg.token, ...body})});
+      body: JSON.stringify({token:S.cfg.token, usuario:U?{nome:U.nome, cargo:U.cargo}:null, ...body})});
   }catch{ throw new Error("Sem conexão com o Google."); }
   let j; try{ j = await r.json(); }catch{ throw new Error("Resposta inválida do Google. Confira o endereço /exec e se a implantação está como “Qualquer pessoa”."); }
   if(!j.ok) throw new Error(j.erro||"Erro no Google Apps Script.");
@@ -878,6 +948,8 @@ function applyServer(j){
   if(j.config){ S.cfgObra=j.config; LS.set("cfgObra",S.cfgObra); }
   if(j.efetivo){ S.ef=j.efetivo; S.efDia=j.efDia||{}; S.pes=j.pessoas||[]; S.presEf=j.presencas||{};
     LS.set("ef",S.ef); LS.set("efDia",S.efDia); LS.set("pes",S.pes); LS.set("presEf",S.presEf); }
+  if(j.presPor){ S.presPor=j.presPor; LS.set("presPor",S.presPor); }
+  if(j.atividades){ S.ativ=j.atividades; LS.set("ativ",S.ativ); }
   if(j.leitura){ S.leitura=j.leitura; LS.set("leitura",j.leitura); }
   S.lastSync=j.agora; LS.set("lastSync",j.agora);
 }
@@ -917,8 +989,10 @@ async function sync(){
   const snapEl = JSON.parse(JSON.stringify(S.pendEl));
   const snapCfg = {...S.pendCfg};
   const snapEf = JSON.parse(JSON.stringify(S.pendEf));
+  const snapAt = JSON.parse(JSON.stringify(S.pendAt)), snapAtDel = [...S.pendAtDel];
   const ops = [
     ...opsEf(snapEf),
+    ...Object.entries(snapAt).map(([id,x])=>({t:"ativ", id, ...x})), ...snapAtDel.map(id=>({t:"ativDel", id})),
     ...Object.entries(snapEq).map(([nome,p])=>({t:"equipe", nome, ...p})),
     ...Object.entries(snap).flatMap(([n,p])=>pendOps(p,n)),
     ...snapReg.map(r=>({t:"reg", ...JSON.parse(r)})),
@@ -958,7 +1032,7 @@ async function sync(){
       if(ok && JSON.stringify(S.pendEl[ch])===JSON.stringify(p)) delete S.pendEl[ch];
     }
     for(const [k,v] of Object.entries(snapCfg)) if(j.config && String(j.config[k])===String(v) && S.pendCfg[k]===v) delete S.pendCfg[k];
-    limparPendEf(snapEf, j);
+    limparPendEf(snapEf, j); limparPendAt(snapAt, snapAtDel, j);
     savePend(); savePendExtra();
     await enviarFotos();
     S.err=""; afterData(); renderData();
@@ -973,7 +1047,8 @@ setInterval(()=>{ if(document.visibilityState==="visible" && !pendCount()) sync(
 $("#sync").addEventListener("click", ()=>{ if(!S.cfg?.url) show("dados"); else sync(); });
 
 function pendCount(){ let c=Object.keys(S.pendEq).length+S.pendReg.length+S.pendDel.length+Object.keys(S.pendEl).length+Object.keys(S.pendCfg).length
-    +Object.values(S.pendEf).reduce((s,x)=>s+(Array.isArray(x)?x.length:Object.keys(x).length),0); for(const p of Object.values(S.pend)){ c+=Object.keys(p.raw||{}).length + (p.arm!=null) + (p.dias!=null) + (p.novo?1:0); } return c; }
+    +Object.values(S.pendEf).reduce((s,x)=>s+(Array.isArray(x)?x.length:Object.keys(x).length),0)
+    +Object.keys(S.pendAt).length+S.pendAtDel.length; for(const p of Object.values(S.pend)){ c+=Object.keys(p.raw||{}).length + (p.arm!=null) + (p.dias!=null) + (p.novo?1:0); } return c; }
 function setSync(){
   const e=$("#sync"), c=pendCount();
   $("#aviso").hidden = !(S.scriptVelho && S.cfg?.url);
@@ -2800,6 +2875,7 @@ function renderData(){
   if(CK.e) renderCkFotos();
   if(!$("#tela-ponto").hidden && !document.activeElement?.closest?.("#ponto,#ef-modal")) renderPonto();
   if(!$("#tela-fotos").hidden && $("#ef-modal").hidden && !document.activeElement?.closest?.("#fotos")) renderFotos();
+  if(!$("#tela-producao").hidden && $("#ef-modal").hidden) renderProducao();
   setSync();
 }
 
@@ -2807,6 +2883,7 @@ function renderData(){
 // Ícones de traço (24×24). Os módulos sem tela ainda mostram "em breve".
 const ICO={
   rdo:'<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M8.5 10h7M8.5 14h7M8.5 18h4"/>',
+  producao:'<path d="M4 15a8 8 0 0 1 16 0"/><path d="M2.5 15h19v2.5h-19z"/><path d="M10 7.3V5h4v2.3M12 7v8"/>',
   fotos:'<path d="M3 8.5A1.5 1.5 0 0 1 4.5 7h2.8l1.6-2.2h6.2L16.7 7h2.8A1.5 1.5 0 0 1 21 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5z"/><circle cx="12" cy="13" r="3.6"/>',
   ponto:'<circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.8-3.2 3-5 5.5-5s4.7 1.8 5.5 5"/><circle cx="17.5" cy="15.5" r="3.5"/><path d="M17.5 13.8v1.9l1.2.8"/>',
   prod:'<path d="M3 17l5-5 4 3 7-8"/><path d="M15 7h4v4"/><path d="M3 21h18"/>',
@@ -2830,9 +2907,10 @@ const ICO={
 };
 const svgIco = k => `<svg viewBox="0 0 24 24" aria-hidden="true">${ICO[k]}</svg>`;
 const MODULOS=[
-  {id:"rdo",   nome:"RDO",              desc:"Diário de obra",                 c:["#3C8DD8","#1F5FA8"]},
+  {id:"producao", nome:"Produção",      desc:"Quem está na obra e o que cada um faz", c:["#F28C28","#C2570C"], ativo:true},
   {id:"ponto", nome:"Ponto e efetivo",  desc:"Quem veio hoje",                 c:["#18B5A6","#0B7C74"], ativo:true},
   {id:"fotos", nome:"Fotos",            desc:"Tirar e guardar fotos da obra",  c:["#E25C8A","#A8305C"], ativo:true},
+  {id:"rdo",   nome:"RDO",              desc:"Diário de obra",                 c:["#3C8DD8","#1F5FA8"]},
   {id:"prod",  nome:"Produtividade",    desc:"Aço · forma · concreto · escavação", c:["#1A9BDC","#0067A6"], ativo:true},
   {id:"obras", nome:"Obras e projetos", desc:"Estruturas, etapas e pranchas",  c:["#4F7CE8","#2747B0"]},
   {id:"rel",   nome:"Relatórios",       desc:"PDF semanal e painéis",          c:["#8A6BE0","#5A3FB0"]},
@@ -2850,14 +2928,19 @@ const SERVICOS=[
 ];
 
 // --- navegação entre telas: início → produtividade → aço (o app de armação) ---
-const TELAS={inicio:"#inicio", prod:"#tela-prod", sup:"#tela-sup", supaco:"#tela-sup-aco", supped:"#tela-sup-pedido", ponto:"#tela-ponto", fotos:"#tela-fotos"};
-function abrirTela(t, empilhar=true){
+const TELAS={inicio:"#inicio", prod:"#tela-prod", sup:"#tela-sup", supaco:"#tela-sup-aco", supped:"#tela-sup-pedido", ponto:"#tela-ponto", fotos:"#tela-fotos",
+  producao:"#tela-producao", login:"#tela-login"};
+// módulo exigido por cada tela (o cargo precisa ter acesso)
+const TELA_MOD={prod:"prod", aco:"prod", sup:"sup", supaco:"sup", supped:"sup", ponto:"ponto", fotos:"fotos", producao:"producao"};
+function abrirTela(t, empilhar=true, forcar=false){
+  if(!U && t!=="login") t="login";
+  if(!forcar && TELA_MOD[t] && !pode(TELA_MOD[t])){ toast("Seu cargo não tem acesso a esta parte do app."); t="inicio"; }
   for(const [k,s] of Object.entries(TELAS)) $(s).hidden = t!==k;
   document.body.style.overflow = t==="aco" ? "" : "hidden";
   if(t==="inicio") renderInicio(); if(t==="prod") renderProdMenu();
   if(t==="sup") renderSupMenu(); if(t==="supaco") renderSupAco(); if(t==="supped") renderSupPedido();
   if(t==="ponto") renderPonto(); if(t!=="ponto") $("#ef-modal").hidden=true;
-  if(t==="fotos") renderFotos();
+  if(t==="fotos") renderFotos(); if(t==="producao") renderProducao(); if(t==="login") renderLogin();
   if(empilhar) history.pushState({tela:t},"");
 }
 addEventListener("popstate", e=>{ if(e.state?.tela) abrirTela(e.state.tela,false); });
@@ -2927,7 +3010,11 @@ function anelProgresso(ic, frac){
 }
 function renderInicio(){
   saudacao(); renderIndicadores();
-  const mods=MODULOS.map(m=>({...m, acao: ["prod","sup","ponto","fotos"].includes(m.id) ? ()=>abrirTela(m.id) : null}));
+  // usuário logado e troca de usuário
+  repor($("#usuario-ini"), U ? el("div",{class:"lg-chip"},
+    el("span",{}, "👤 ", el("b",{text:U.nome}), ` · ${U.cargo}`),
+    el("button",{class:"linkbtn",type:"button",text:"Trocar usuário",onclick:()=>abrirTela("login")})) : null);
+  const mods=MODULOS.filter(m=>pode(m.id)).map(m=>({...m, acao: ["prod","sup","ponto","fotos","producao"].includes(m.id) ? ()=>abrirTela(m.id) : null}));
   const hoje=resumoEfDia(hojeISO());
   $("#mods").replaceChildren(...mods.map((m,k)=>moduloBtn(m,k, m.id==="prod" ? (b)=>{ b.append(el("span",{class:"num",id:"num-prod"})); }
     : m.id==="ponto" && hoje ? (b)=>{ b.append(el("span",{class:"num",text:`${hoje.tot} na obra hoje`})); }
@@ -2941,8 +3028,13 @@ function renderInicio(){
     {id:"painel", nome:"Painel do aço", desc:"Meta, curva S e equipes", c:["#45A1D6","#22709F"], ativo:true, acao:()=>irAco("painel")},
   ];
   let box=$("#atalhos");
-  if(!box){ box=el("div",{class:"mods",id:"atalhos"}); $("#tit-mods").before(el("h2",{class:"tela-tit",text:"Atalhos"}), box); }
-  box.replaceChildren(...at.map((m,k)=>moduloBtn(m,k)));
+  if(!box){ box=el("div",{class:"mods",id:"atalhos"}); $("#tit-mods").before(el("h2",{class:"tela-tit",id:"tit-atalhos",text:"Atalhos"}), box); }
+  box.replaceChildren(...(pode("prod") ? at.map((m,k)=>moduloBtn(m,k)) : []));
+  box.hidden=$("#tit-atalhos").hidden=!pode("prod");
+  // banco ainda não configurado neste celular: atalho para os Ajustes, para qualquer cargo
+  let cfgIni=$("#cfg-ini");
+  if(!cfgIni){ cfgIni=el("button",{class:"btn",id:"cfg-ini",type:"button",text:"⚙ Configurar o banco neste celular",onclick:()=>{ abrirTela("aco",true,true); show("dados"); }}); $("#mods").after(cfgIni); }
+  cfgIni.hidden=!!S.cfg?.url;
 }
 function renderProdMenu(){
   const r=S.items.length ? resumoAco() : null;
@@ -3541,7 +3633,9 @@ function efModal(tit, campos, acoes){
   $("#ef-m-tit").textContent=tit; repor($("#ef-m-corpo"), ...campos); repor($("#ef-m-acoes"), ...acoes);
   $("#ef-modal").hidden=false; setTimeout(()=>$("#ef-m-corpo").querySelector("input,select,textarea")?.focus(),50);
 }
-const fecharEf = () => { $("#ef-modal").hidden=true; renderPonto(); };
+// a janela é compartilhada pelas telas de efetivo, fotos e produção: ao fechar, redesenha a que estiver aberta
+const fecharEf = () => { $("#ef-modal").hidden=true;
+  if(!$("#tela-producao").hidden) renderProducao(); else if(!$("#tela-fotos").hidden) renderFotos(); else renderPonto(); };
 $("#ef-m-fechar").onclick=fecharEf;
 $("#ef-modal").addEventListener("click", e=>{ if(e.target.id==="ef-modal") fecharEf(); });
 const listaDatalist = (id, valores) => el("datalist",{id}, ...[...new Set(valores)].sort().map(v=>el("option",{value:v})));
@@ -3855,9 +3949,9 @@ function renderPonto(){
   const avisos=[
     !S.cfg?.url ? el("p",{class:"aviso"}, el("b",{text:"Banco não configurado. "}), "As marcações ficam no celular até configurar em Produtividade › Aço › Ajustes.") : null,
     S.cfg?.url && S.scriptVelho ? el("p",{class:"aviso"}, el("b",{text:"Atualize o Code.gs do Google. "}), "As marcações ficam guardadas no celular e só vão para a planilha depois da atualização (veja o LEIA-ME).") : null];
-  if(!EF.gerenciar){
+  if(!EF.gerenciar || !pode("ponto-ger")){
     repor(box, el("p",{class:"saud"}, "Presença", el("small",{text:"Marque OK para quem veio e Faltou para quem não veio"})), ...avisos, ...efSimples(),
-      el("button",{class:"linkbtn ps-ger",type:"button",text:"⚙ Gerenciar: empresas, importar planilhas, histórico e relatórios",onclick:()=>{ EF.gerenciar=true; renderPonto(); }}));
+      pode("ponto-ger") ? el("button",{class:"linkbtn ps-ger",type:"button",text:"⚙ Gerenciar: empresas, importar planilhas, histórico e relatórios",onclick:()=>{ EF.gerenciar=true; renderPonto(); }}) : null);
     return;
   }
   const abas=[["dia","Contagem do dia"],["quadro","Quadro"],["nomes","Nomes"],["hist","Histórico"]];
@@ -3913,7 +4007,8 @@ function linhaPresenca(p, d, pr, f){
   const motivo=k=>el("button",{class:"chipbtn"+(st===k?" on":""),type:"button",text:EF_SIT[k],onclick:()=>marcar(p,d,k)});
   return el("div",{class:"ps-linha"+(sit?" "+sit:"")},
     el("button",{class:"ps-nome",type:"button","aria-label":`Editar cadastro de ${p.nome}`,onclick:()=>editarPessoa(p)},
-      el("b",{text:p.nome}), el("small",{text: sit==="veio" ? `OK${hora?" · chegou às "+hora:""}` : sit==="faltou" ? EF_SIT[st] : (f?.funcao||"")})),
+      el("b",{text:p.nome}), el("small",{text: sit==="veio" ? `OK${hora?" · chegou às "+hora:""}` : sit==="faltou" ? EF_SIT[st] : (f?.funcao||"")}),
+      sit ? el("small",{class:"ps-por",text:`marcado por ${(d+"|"+p.id) in S.pendEf.pres ? quemSou() : S.presPor[d]?.[p.id] || "—"}`}) : null),
     el("div",{class:"ps-bts"}, bt("P","OK","ps-veio"), bt("F","Faltou","ps-faltou")),
     sit==="faltou" ? el("div",{class:"ps-motivo"}, el("span",{text:"Motivo:"}), motivo("F"), motivo("AT"), motivo("FO")) : null);
 }
@@ -4176,6 +4271,219 @@ function efHist(){
     : el("div",{class:"vazio",text:"Nenhum dia lançado ainda."})];
 }
 
+// ================= Login por cargo =================
+function renderLogin(){
+  const box=$("#login"); if(!box) return;
+  const iNome=el("input",{type:"text",maxLength:80,autocomplete:"name",placeholder:"Seu nome",value:U?.nome||""}); iNome.setAttribute("list","dl-login");
+  let cargo=U?.cargo||"";
+  const bts=el("div",{class:"lg-cargos",role:"group","aria-label":"Cargo"}, ...Object.keys(CARGOS).map(c=>el("button",{type:"button",class:"lg-cargo"+(c===cargo?" on":""),text:c,"aria-pressed":String(c===cargo),
+    onclick:e=>{ cargo=c; bts.querySelectorAll("button").forEach(x=>{ const on=x===e.currentTarget; x.classList.toggle("on",on); x.setAttribute("aria-pressed",String(on)); }); }})));
+  const entrar=()=>{
+    const nome=iNome.value.trim().replace(/\s+/g," ");
+    if(nome.length<3) return toast("Escreva seu nome.");
+    if(!cargo) return toast("Toque no seu cargo.");
+    U={nome, cargo}; LS.set("usuario",U); EF.gerenciar=false;
+    abrirTela("inicio"); toast(`Bem-vindo, ${nome.split(" ")[0]}!`);
+  };
+  repor(box,
+    el("p",{class:"saud"}, "Quem está usando o app?", el("small",{text:"Escolha seu cargo: o app mostra só o que é da sua função. Seu nome fica registrado em tudo o que você alterar."})),
+    el("label",{class:"campo"}, "Seu nome", iNome), el("datalist",{id:"dl-login"}, ...pessoas().filter(p=>p.ativo).map(p=>el("option",{value:p.nome}))),
+    el("div",{class:"campo"}, "Seu cargo", bts),
+    el("button",{class:"btn pri ps-novo",type:"button",text:"Entrar",onclick:entrar}),
+    U ? el("button",{class:"btn",type:"button",text:"Cancelar",onclick:()=>abrirTela("inicio")}) : null);
+}
+
+// ================= Produção (mestre de obras) =================
+// Mostra quem deu OK na presença hoje (atualiza a cada 30 s), as atividades em andamento, onde estão e quem está em cada uma.
+// Cada alteração entra no histórico da atividade com o nome de quem fez.
+const AT_PADRAO=["Armação","Forma: montagem","Desforma","Concretagem","Escoramento","Escavação","Reaterro e compactação","Alvenaria","Reboco",
+  "Impermeabilização","Instalações elétricas","Instalações hidráulicas","Carga e descarga de material","Topografia e locação","Andaimes","Limpeza do canteiro","Apoio geral"];
+const AT_STATUS=["A fazer","Em andamento","Parada","Concluída"];
+const AT_COR={"A fazer":"","Em andamento":"and","Parada":"bad","Concluída":"ok"};
+const PR_HIST=new Set(); // históricos abertos na tela
+const savePendAt = () => { LS.set("pendAt",S.pendAt); LS.set("pendAtDel",S.pendAtDel); };
+// atividades: servidor + fila do aparelho (as entradas novas do histórico aparecem com "a enviar")
+function ativs(){
+  const m=new Map(S.ativ.map(a=>[a.id,{...a}]));
+  for(const [id,p] of Object.entries(S.pendAt)){
+    const {logs, ...c}=p, a={id, status:"A fazer", progresso:0, equipes:{}, obs:"", local:"", hist:[], ...m.get(id), ...c};
+    const ids=new Set((a.hist||[]).map(h=>h.id));
+    a.hist=[...(a.hist||[]), ...(logs||[]).filter(l=>!ids.has(l.id)).map(l=>({...l, pend:true}))];
+    m.set(id,a);
+  }
+  for(const id of S.pendAtDel) m.delete(id);
+  return [...m.values()];
+}
+function setAt(id, campos, txt){
+  const p=(S.pendAt[id] ??= {}); Object.assign(p, campos);
+  if(txt) (p.logs ??= []).push({id:uid().slice(0,10), em:new Date().toISOString(), por:quemSou(), txt});
+  savePendAt(); scheduleSync();
+}
+function limparPendAt(snap, snapDel, j){
+  if(!j.atividades) return; // Code.gs antigo
+  const srv=new Map(j.atividades.map(a=>[a.id,a])), igual=(a,b)=>JSON.stringify(a??null)===JSON.stringify(b??null);
+  for(const [id,x] of Object.entries(snap)){
+    const a=srv.get(id); if(!a) continue;
+    const {logs, ...c}=x, hs=new Set((a.hist||[]).map(h=>h.id));
+    const ok=Object.entries(c).every(([k,v])=> k==="progresso" ? +a[k]===+v : igual(a[k],v)) && (logs||[]).every(l=>hs.has(l.id));
+    if(ok && igual(S.pendAt[id],x)) delete S.pendAt[id];
+  }
+  S.pendAtDel=S.pendAtDel.filter(id=>!(snapDel.includes(id) && !srv.has(id)));
+  savePendAt();
+}
+// equipes guardadas por dia: só os últimos 10 dias
+const aparar = eq => Object.fromEntries(Object.entries(eq||{}).filter(([d,ids])=>d>=somaDias(hojeISO(),-10) && ids.length).sort());
+const presentesHoje = () => { const pr=presDia(hojeISO()); return pessoas().filter(p=>p.ativo && situacao(pr,p.id)==="veio"); };
+const nomePessoa = id => pessoas().find(p=>p.id===id)?.nome || "?";
+// nome curto: primeiro + último ("JAILSON DOS SANTOS CRUZ" → "JAILSON CRUZ")
+const primeiroNome = n => { const p=String(n).trim().split(/\s+/); return p.length>2 ? p[0]+" "+p[p.length-1] : p.join(" "); };
+const quandoTxt = iso => { try{ const d=new Date(iso), hoje=new Date().toDateString()===d.toDateString();
+  return (hoje?"hoje":d.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"}))+" às "+d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}); }catch{ return ""; } };
+const estruturasObra = () => [...new Set([...S.items.map(i=>i.est).filter(Boolean), "CANTEIRO DE OBRAS"])].sort((a,b)=>a.localeCompare(b,"pt-BR"));
+const ondeTxt = a => [a.estrutura, a.local].filter(Boolean).join(" · ");
+// põe estas pessoas na atividade hoje; quem estava em outra atividade sai de lá (cada um fica numa só por dia)
+function definirEquipe(a, ids){
+  const h=hojeISO(), antes=new Set(a.equipes?.[h]||[]), depois=new Set(ids);
+  for(const o of ativs()) if(o.id!==a.id){
+    const eq=o.equipes?.[h]||[], sai=eq.filter(id=>depois.has(id));
+    if(sai.length) setAt(o.id, {equipes:aparar({...o.equipes, [h]:eq.filter(id=>!depois.has(id))})}, `${sai.map(nomePessoa).map(primeiroNome).join(", ")} foi para ${a.atividade}`);
+  }
+  const ent=[...depois].filter(id=>!antes.has(id)), sai=[...antes].filter(id=>!depois.has(id));
+  if(!ent.length && !sai.length) return;
+  const campos={equipes:aparar({...a.equipes, [h]:[...depois]})};
+  if(a.status==="A fazer" && depois.size) campos.status="Em andamento";
+  setAt(a.id, campos, [ent.length&&`Entrou: ${ent.map(nomePessoa).map(primeiroNome).join(", ")}`, sai.length&&`Saiu: ${sai.map(nomePessoa).map(primeiroNome).join(", ")}`,
+    campos.status&&"Status: Em andamento"].filter(Boolean).join(" · "));
+}
+// marcação de pessoas: quem já está nesta atividade primeiro, depois os livres, depois quem está em outra
+function listaEscolha(pres, marcados, atual){
+  const h=hojeISO(), ocup=new Map(); for(const o of ativs()) for(const id of o.equipes?.[h]||[]) ocup.set(id,o);
+  const ordem=p=>marcados.has(p.id)?0:!ocup.has(p.id)?1:2;
+  const caixas=[];
+  const box=el("div",{class:"pr-escolha full"}, ...pres.slice().sort((a,b)=>ordem(a)-ordem(b)||a.nome.localeCompare(b.nome,"pt-BR")).map(p=>{
+    const c=el("input",{type:"checkbox",checked:marcados.has(p.id),value:p.id,"aria-label":p.nome}); caixas.push(c);
+    const o=ocup.get(p.id);
+    return el("label",{class:"chk pr-pessoa"}, c, el("span",{}, p.nome, o && o.id!==atual ? el("small",{text:` (está em ${o.atividade})`}) : !o ? el("small",{class:"livre",text:" · livre"}) : null));
+  }));
+  return {box, ids:()=>caixas.filter(c=>c.checked).map(c=>c.value)};
+}
+function escolherPessoas(a){
+  const pres=presentesHoje();
+  if(!pres.length) return toast("Ninguém com OK na presença hoje ainda.");
+  const L=listaEscolha(pres, new Set(a.equipes?.[hojeISO()]||[]), a.id);
+  efModal(`Quem está em: ${a.atividade}`, [el("p",{class:"info full",text:`📍 ${ondeTxt(a)} · marque quem está trabalhando nesta atividade hoje.`}), L.box],
+    [el("button",{class:"btn pri",type:"button",text:"Salvar equipe",onclick:()=>{ definirEquipe(ativs().find(x=>x.id===a.id)||a, L.ids()); toast("Equipe atualizada."); fecharEf(); }})]);
+}
+function editarAtividade(a){
+  const nova=!a, padrao=AT_PADRAO.includes(a?.atividade);
+  let escolha = nova ? "" : padrao ? a.atividade : "__outra";
+  const outra=el("input",{type:"text",maxLength:120,placeholder:"Escreva a atividade",value:!nova&&!padrao?a.atividade:""});
+  const boxOutra=campoEf("Qual atividade?",outra,true);
+  const chips=el("div",{class:"pr-chips full"});
+  const marcarChip=()=>{ chips.querySelectorAll("button").forEach(b=>{ const on=b.dataset.v===escolha; b.classList.toggle("on",on); b.setAttribute("aria-pressed",String(on)); }); boxOutra.hidden=escolha!=="__outra"; };
+  chips.append(...[...AT_PADRAO,"__outra"].map(n=>el("button",{class:"chipbtn","data-v":n,type:"button",text:n==="__outra"?"✎ Outra…":n,onclick:()=>{ escolha=n; marcarChip(); if(n==="__outra") outra.focus(); }})));
+  const ests=estruturasObra();
+  const iEst=el("select",{}, el("option",{value:"",text:"Escolha a estrutura…"}), ...ests.map(e=>el("option",{value:e,text:e})), el("option",{value:"__outro",text:"✎ Outro local…"}));
+  const iEstOutro=el("input",{type:"text",maxLength:120,placeholder:"Escreva o local"}), boxEstOutro=campoEf("Qual local?",iEstOutro,true);
+  if(a){ if(ests.includes(a.estrutura)) iEst.value=a.estrutura; else { iEst.value="__outro"; iEstOutro.value=a.estrutura; } }
+  const ajEst=()=>{ boxEstOutro.hidden=iEst.value!=="__outro"; }; iEst.onchange=ajEst;
+  const iLocal=el("input",{type:"text",maxLength:120,placeholder:"Ex.: parede 3, laje de fundo (opcional)",value:a?.local||""});
+  const iObs=el("input",{type:"text",maxLength:300,placeholder:"Opcional",value:a?.obs||""});
+  const pres=presentesHoje(), L=nova && pres.length ? listaEscolha(pres, new Set(), null) : null;
+  const salvar=()=>{
+    const atividade = escolha==="__outra" ? outra.value.trim() : escolha;
+    if(!atividade) return toast("Escolha a atividade.");
+    const estrutura = iEst.value==="__outro" ? iEstOutro.value.trim() : iEst.value;
+    if(!estrutura) return toast("Escolha onde é a atividade.");
+    const local=iLocal.value.trim(), obs=iObs.value.trim();
+    if(nova){
+      const id=uid().slice(0,10);
+      setAt(id, {atividade, estrutura, local, status:"A fazer", progresso:0, equipes:{}, obs}, `Criou: ${atividade} · ${[estrutura,local].filter(Boolean).join(" · ")}`);
+      const ids=L?L.ids():[]; if(ids.length) definirEquipe(ativs().find(x=>x.id===id), ids);
+      toast("Atividade criada.");
+    } else {
+      const mud=[], c={};
+      if(atividade!==a.atividade){ c.atividade=atividade; mud.push(`Atividade: ${atividade}`); }
+      if(estrutura!==a.estrutura || local!==(a.local||"")){ c.estrutura=estrutura; c.local=local; mud.push(`Local: ${[estrutura,local].filter(Boolean).join(" · ")}`); }
+      if(obs!==(a.obs||"")){ c.obs=obs; mud.push(obs?`Obs.: ${obs}`:"Obs. apagada"); }
+      if(mud.length){ setAt(a.id, c, mud.join(" · ")); toast("Atividade atualizada."); }
+    }
+    fecharEf();
+  };
+  efModal(nova?"Nova atividade":"Editar atividade",
+    [el("div",{class:"campo full"}, "1. O que vai ser feito?", chips), boxOutra,
+     campoEf("2. Onde?",iEst,true), boxEstOutro, campoEf("Detalhe do local",iLocal,true),
+     L ? el("div",{class:"campo full"}, "3. Quem vai fazer? (quem deu OK hoje)", L.box) : nova ? el("p",{class:"info full",text:"Ninguém com OK na presença hoje ainda: as pessoas podem ser colocadas depois."}) : null,
+     campoEf("Observação",iObs,true)],
+    [el("button",{class:"btn pri",type:"button",text:nova?"Criar atividade":"Salvar",onclick:salvar}),
+     nova ? null : el("button",{class:"btn",type:"button",text:"Excluir",style:"color:var(--bad);margin-left:auto",onclick:()=>{
+       if(!confirm(`Excluir a atividade "${a.atividade}"? O histórico dela também some (a exclusão fica registrada no Histórico da planilha).`)) return;
+       delete S.pendAt[a.id]; if(S.ativ.some(x=>x.id===a.id)) S.pendAtDel.push(a.id); savePendAt(); scheduleSync(); toast("Atividade excluída."); fecharEf(); }})]);
+  marcarChip(); ajEst();
+}
+// dar atividade a uma pessoa livre: escolhe uma das abertas ou cria outra
+function darAtividade(p){
+  const h=hojeISO(), abertas=ativs().filter(a=>a.status!=="Concluída");
+  efModal(`Atividade para ${primeiroNome(p.nome)}`,
+    [el("div",{class:"pr-opcoes full"}, ...abertas.map(a=>el("button",{class:"btn pr-opcao",type:"button",onclick:()=>{ definirEquipe(a, [...(a.equipes?.[h]||[]), p.id]); toast(`${primeiroNome(p.nome)} em ${a.atividade}.`); fecharEf(); }},
+      el("b",{text:a.atividade}), el("small",{text:`📍 ${ondeTxt(a)} · ${(a.equipes?.[h]||[]).length} pessoa(s)`}))),
+      abertas.length ? null : el("p",{class:"info",text:"Nenhuma atividade aberta ainda."}))],
+    [el("button",{class:"btn pri",type:"button",text:"+ Nova atividade",onclick:()=>{ $("#ef-modal").hidden=true; editarAtividade(null); }})]);
+}
+function cardAtividade(a, ed, presIds){
+  const h=hojeISO(), eq=a.equipes?.[h]||[];
+  const ant=Object.keys(a.equipes||{}).filter(d=>d<h).sort().pop(), eqAnt=(ant?a.equipes[ant]:[]).filter(id=>presIds.has(id));
+  const ult=(a.hist||[]).at(-1);
+  const st=s=>el("button",{class:"chipbtn"+(a.status===s?" on":""),type:"button",text:s,"aria-pressed":String(a.status===s),onclick:()=>{
+    if(a.status===s) return;
+    setAt(a.id, {status:s, ...(s==="Concluída"&&a.progresso!==100?{progresso:100}:{})}, `Status: ${s}`+(s==="Concluída"&&a.progresso!==100?" · 100%":"")); renderProducao(); }});
+  const pc=v=>el("button",{class:"chipbtn"+(a.progresso===v?" on":""),type:"button",text:v+"%",onclick:()=>{
+    if(a.progresso===v) return;
+    const c={progresso:v}; if(v===100 && a.status!=="Concluída") c.status="Concluída"; else if(v>0 && v<100 && a.status==="A fazer") c.status="Em andamento";
+    setAt(a.id, c, `Feito: ${v}%`+(c.status?` · Status: ${c.status}`:"")); renderProducao(); }});
+  return el("div",{class:"card pr-card "+(AT_COR[a.status]||"")},
+    el("div",{class:"i-top"}, el("b",{class:"pr-tit",text:a.atividade}), el("span",{class:"chip "+(AT_COR[a.status]||""),text:a.status})),
+    el("div",{class:"pr-onde",text:`📍 ${ondeTxt(a)}`}),
+    a.obs ? el("div",{class:"i-sub",text:a.obs}) : null,
+    el("div",{class:"i-prog"}, barra(a.progresso/100), el("b",{text:`${a.progresso}%`})),
+    el("div",{class:"pr-eq"}, ...(eq.length ? eq.map(id=>el("span",{class:"pr-nome",text:primeiroNome(nomePessoa(id))})) : [el("span",{class:"info",text:"Ninguém nesta atividade hoje"})])),
+    ed ? el("div",{class:"row"},
+      el("button",{class:"btn",type:"button",text:"👷 Quem está aqui",onclick:()=>escolherPessoas(a)}),
+      !eq.length && eqAnt.length ? el("button",{class:"btn",type:"button",text:`↺ Mesma equipe de ${ddmm(ant)} (${eqAnt.length})`,onclick:()=>{ definirEquipe(a, eqAnt); renderProducao(); }}) : null) : null,
+    ed ? el("div",{class:"pr-bts"}, ...AT_STATUS.map(st)) : null,
+    ed ? el("div",{class:"pr-bts"}, el("span",{class:"info",text:"Feito:"}), ...[0,25,50,75,100].map(pc)) : null,
+    (()=>{ const d=el("details",{class:"pr-hist",open:PR_HIST.has(a.id)}, // continua aberto quando a tela se atualiza sozinha
+      el("summary",{text: ult ? `Última alteração: ${ult.por} · ${quandoTxt(ult.em)}` : `Criada por ${a.criadoPor||"—"}`}),
+      ...(a.hist||[]).slice().reverse().map(x=>el("div",{class:"pr-h"}, el("b",{text:quandoTxt(x.em)}), ` · ${x.por}: ${x.txt}`, x.pend?el("span",{class:"off",style:"color:var(--warn)",text:" A ENVIAR"}):null)));
+      d.ontoggle=()=>{ d.open?PR_HIST.add(a.id):PR_HIST.delete(a.id); }; return d; })(),
+    ed ? el("button",{class:"linkbtn",type:"button",text:"Editar ou excluir atividade",onclick:()=>editarAtividade(a)}) : null);
+}
+function renderProducao(){
+  const box=$("#producao"); if(!box) return;
+  const h=hojeISO(), ed=pode("producao-edit"), pres=presentesHoje(), presIds=new Set(pres.map(p=>p.id));
+  const fm=new Map(funcoes().map(f=>[f.id,f])), lista=ativs();
+  const ocup=new Map(); for(const a of lista) for(const id of a.equipes?.[h]||[]) if(presIds.has(id)) ocup.set(id,a);
+  const livres=pres.filter(p=>!ocup.has(p.id));
+  const abertas=lista.filter(a=>a.status!=="Concluída").sort((a,b)=>AT_STATUS.indexOf(a.status)-AT_STATUS.indexOf(b.status) || String(b.atualizadoEm||"").localeCompare(String(a.atualizadoEm||"")));
+  const concl=lista.filter(a=>a.status==="Concluída");
+  const kp=(n,rot,cls,alvo)=>el("button",{class:cls,type:"button",onclick:()=>$(alvo)?.scrollIntoView({behavior:"smooth"})}, el("b",{text:n}), el("span",{text:rot}));
+  repor(box,
+    el("p",{class:"saud"}, "Produção", el("small",{text:`${dataLonga(h)} · atualiza sozinho a cada 30 s`})),
+    !ed ? el("p",{class:"info",text:`Seu cargo (${U?.cargo}) só acompanha: quem distribui as atividades é o mestre, o apontador, o planejamento ou a engenharia.`}) : null,
+    el("div",{class:"ps-cont"}, kp(pres.length,"Na obra","ok","#pr-ativ"), kp(pres.length-livres.length,"Trabalhando","","#pr-ativ"), kp(livres.length,"Sem atividade","bad","#pr-livres")),
+    ed ? el("button",{class:"btn pri ps-novo",type:"button",text:"+ Nova atividade",onclick:()=>editarAtividade(null)}) : null,
+    !pres.length ? el("p",{class:"aviso"}, el("b",{text:"Ninguém com OK hoje ainda. "}), "A chegada é marcada em Ponto e efetivo (botão OK); quem for marcado aparece aqui em até 30 segundos.") : null,
+    el("h2",{class:"tela-tit",id:"pr-ativ",text:`Atividades em andamento · ${abertas.length}`}),
+    ...(abertas.length ? abertas.map(a=>cardAtividade(a,ed,presIds)) : [el("div",{class:"vazio",text:ed?"Nenhuma atividade aberta. Toque em + Nova atividade.":"Nenhuma atividade aberta."})]),
+    el("h2",{class:"tela-tit",id:"pr-livres",text:`Na obra sem atividade · ${livres.length}`}),
+    livres.length ? el("div",{class:"ps-grupo"}, ...livres.map(p=>el("div",{class:"ps-linha"},
+      el("div",{class:"ps-nome"}, el("b",{text:p.nome}), el("small",{text:[fm.get(p.fid)?.funcao, fm.get(p.fid)?.empresa].filter(Boolean).join(" · ")})),
+      ed ? el("button",{class:"btn pri",type:"button",text:"Dar atividade",onclick:()=>darAtividade(p)}) : null)))
+      : el("p",{class:"info",text: pres.length ? "Todo mundo que está na obra já tem atividade." : "—"}),
+    concl.length ? el("details",{class:"card"}, el("summary",{class:"pr-sum",text:`Concluídas recentemente · ${concl.length}`}),
+      ...concl.map(a=>cardAtividade(a,ed,presIds))) : null);
+}
+
 // botão "início" no topo do módulo de aço
 (()=>{ const b=el("button",{class:"btn-inicio",type:"button","aria-label":"Voltar ao início"}); b.innerHTML=svgIco("casa");
   b.onclick=()=>abrirTela("inicio"); document.querySelector(".top .wrap").prepend(b); })();
@@ -4192,7 +4500,9 @@ function efHist(){
     document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="visible") navigator.serviceWorker.getRegistration().then(r=>r?.update()).catch(()=>{}); });
   }
   navigator.storage?.persist?.().catch(()=>{});
-  history.replaceState({tela:"inicio"},""); abrirTela("inicio",false);
+  history.replaceState({tela:"inicio"},""); abrirTela(U?"inicio":"login",false);
+  // tempo real: com a Produção ou a Presença aberta, busca as novidades a cada 30 s
+  setInterval(()=>{ if(document.visibilityState==="visible" && S.cfg?.url && !S.syncing && (!$("#tela-producao").hidden || !$("#tela-ponto").hidden)) sync(); }, 30000);
 })();
 </script>
 </body>

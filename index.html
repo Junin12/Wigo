@@ -3900,7 +3900,8 @@ function efSimples(){
   const blocos=[...grupos].map(([e,ps])=>el("div",{class:"ps-grupo"},
     el("h2",{class:"tela-tit",text:`${e} · ${ps.length}`}), ...ps.map(p=>linhaPresenca(p,d,pr,fm.get(p.fid)))));
   const filtroTxt={veio:"marcados OK", faltou:"que faltaram", "":"que falta marcar"}[EF.filtro];
-  return [dia, cont, novo, busca,
+  const pdf=el("button",{class:"btn ps-novo",type:"button",text:"📄 Relatório do dia em PDF",onclick:e=>pdfEfetivoDia(d,e.currentTarget)});
+  return [dia, cont, novo, pdf, busca,
     EF.filtro!=null ? el("p",{class:"info"}, `Mostrando só os ${filtroTxt}. `, el("button",{class:"linkbtn",type:"button",text:"Mostrar todos",onclick:()=>{ EF.filtro=null; renderPonto(); }})) : null,
     ...(blocos.length ? blocos : [el("p",{class:"info",text:"Ninguém encontrado."})]),
     ...equipesSemNomes(d, fs)];
@@ -3915,6 +3916,63 @@ function linhaPresenca(p, d, pr, f){
       el("b",{text:p.nome}), el("small",{text: sit==="veio" ? `OK${hora?" · chegou às "+hora:""}` : sit==="faltou" ? EF_SIT[st] : (f?.funcao||"")})),
     el("div",{class:"ps-bts"}, bt("P","OK","ps-veio"), bt("F","Faltou","ps-faltou")),
     sit==="faltou" ? el("div",{class:"ps-motivo"}, el("span",{text:"Motivo:"}), motivo("F"), motivo("AT"), motivo("FO")) : null);
+}
+// relatório em PDF do efetivo do dia: resumo, quadro por empresa e função, quem veio (com a hora), quem faltou e quem não foi marcado
+async function pdfEfetivoDia(d, btn){
+  const fs=funcoes(), fm=new Map(fs.map(f=>[f.id,f])), pr=presDia(d), vals=diaVals(d), ps=pessoas().filter(p=>p.ativo);
+  if(!Object.keys(vals).length && !Object.keys(pr).length) return toast("Nenhuma marcação neste dia ainda.");
+  const txt=btn.textContent; btn.disabled=true; btn.textContent="Gerando PDF…";
+  try{
+    await carregarScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js");
+    await carregarScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js");
+    const {jsPDF}=window.jspdf, doc=new jsPDF({unit:"mm",format:"a4"}), W=210, M=12, AZ=[0,103,166], VD=[29,122,72], VM=[180,35,24];
+    doc.setFillColor(...AZ); doc.rect(0,0,W,30,"F");
+    const logo=await logoRelatorio();
+    if(logo){ const lw=Math.min(52,14*logo.w/logo.h), lh=lw*logo.h/logo.w; doc.addImage(logo.src,"PNG",W-M-lw,(30-lh)/2,lw,lh,undefined,"FAST"); }
+    doc.setTextColor(255); doc.setFont("helvetica","bold"); doc.setFontSize(15); doc.text("Efetivo do dia — SAA Rio Grande",M,11);
+    doc.setFont("helvetica","normal"); doc.setFontSize(10); doc.text(dataLonga(d)+" · "+dataBR(d),M,18.5);
+    doc.setFontSize(8); doc.text(`Gerado em ${new Date().toLocaleString("pt-BR")}`,M,24.5);
+    let y=38; doc.setTextColor(20);
+    const tit=(s,cor=AZ)=>{ if(y>265){ doc.addPage(); y=16; } doc.setFont("helvetica","bold"); doc.setFontSize(11); doc.setTextColor(...cor); doc.text(s,M,y); y+=4; doc.setTextColor(20); doc.setFont("helvetica","normal"); };
+    const tab=(head,body,opts={})=>{ doc.autoTable({startY:y,head:[head],body,margin:{left:M,right:M},styles:{fontSize:8,cellPadding:1.5,textColor:20},
+      headStyles:{fillColor:opts.cor||AZ,textColor:255,fontStyle:"bold"},alternateRowStyles:{fillColor:[244,246,249]},...opts}); y=doc.lastAutoTable.finalY+8; };
+    const dir={halign:"right"};
+    // resumo em caixas
+    const r=resumoEfDia(d)||{turma:0,f:0,at:0,fo:0,tot:0,prop:0,terc:0}, sit=p=>situacao(pr,p.id);
+    const nSem=ps.filter(p=>!sit(p)).length;
+    const caixas=[["Na obra",r.tot,VD],["1ª turma",r.turma,AZ],["Faltas",r.f,VM,nSem?`inclui ${nSem} sem marcação`:""],["Atestado + folga",r.at+r.fo,[154,91,0]]], cw=(W-2*M-9)/4;
+    caixas.forEach(([rot,v,cor,sub],k)=>{ const x=M+k*(cw+3); doc.setDrawColor(...cor); doc.setLineWidth(0.6); doc.roundedRect(x,y,cw,18,2,2);
+      doc.setFontSize(7.5); doc.setTextColor(90); doc.text(rot.toUpperCase(),x+3,y+5.5);
+      doc.setFont("helvetica","bold"); doc.setFontSize(16); doc.setTextColor(...cor); doc.text(String(v),x+3,y+14.5); doc.setFont("helvetica","normal");
+      if(sub){ doc.setFontSize(6.5); doc.setTextColor(110); doc.text(sub,x+cw-2.5,y+14.5,{align:"right"}); } });
+    y+=24; doc.setFontSize(8.5); doc.setTextColor(60);
+    doc.text(`Próprio: ${r.prop} · Terceiros: ${r.terc}`+(ps.length?` · Nomes: ${ps.filter(p=>sit(p)==="veio").length} OK, ${ps.filter(p=>sit(p)==="faltou").length} faltaram, ${ps.filter(p=>!sit(p)).length} sem marcação`:""),M,y); y+=8;
+    // quadro por empresa e função (modelo da obra)
+    if(Object.keys(vals).length){
+      tit("Efetivo por empresa e função");
+      const body=[];
+      for(const E of empresas(fs.filter(f=>vals[f.id]))){
+        const sub=E.fs.reduce((s,f)=>s+totalEf(vals[f.id]),0);
+        body.push([{content:`${E.nome} (${E.vinculo}) — ${sub} na obra`,colSpan:6,styles:{fontStyle:"bold",fillColor:[230,236,242]}}]);
+        for(const f of E.fs){ const v=vals[f.id]; body.push([f.funcao,v[0],v[1],v[2],v[3],totalEf(v)]); }
+      }
+      tab(["Função","1ª turma","Faltas","Atestado","Folga","Na obra"], body,
+        {columnStyles:{1:dir,2:dir,3:dir,4:dir,5:{halign:"right",fontStyle:"bold"}},foot:[["TOTAL",r.turma,r.f,r.at,r.fo,r.tot]],footStyles:{fillColor:[230,236,242],textColor:20,fontStyle:"bold",halign:"right"}});
+    }
+    // listas por nome
+    const linhas=lst=>lst.sort((a,b)=>((fm.get(a.fid)?.ordem??1e9)-(fm.get(b.fid)?.ordem??1e9))||a.nome.localeCompare(b.nome,"pt-BR"))
+      .map(p=>{ const f=fm.get(p.fid), [st,h]=(pr[p.id]||"").split(" "); return [p.nome, f?.empresa||"", f?.funcao||"", st==="P"?(h||"OK"):st?EF_SIT[st]:""]; });
+    const ok=ps.filter(p=>sit(p)==="veio"), fal=ps.filter(p=>sit(p)==="faltou"), sem=ps.filter(p=>!sit(p));
+    if(ok.length){ tit(`OK — vieram (${ok.length})`,VD); tab(["Nome","Empresa","Função","Chegada"], linhas(ok), {cor:VD}); }
+    if(fal.length){ tit(`Faltaram (${fal.length})`,VM); tab(["Nome","Empresa","Função","Motivo"], linhas(fal), {cor:VM}); }
+    if(sem.length){ tit(`Sem marcação (${sem.length})`,[90,102,116]); tab(["Nome","Empresa","Função",""], linhas(sem), {cor:[90,102,116]}); }
+    const n=doc.getNumberOfPages(); for(let p=1;p<=n;p++){ doc.setPage(p); doc.setFontSize(7); doc.setTextColor(120); doc.text(`Página ${p} de ${n}`,W-M,292,{align:"right"}); }
+    const nome=`Efetivo_${d}.pdf`, blob=doc.output("blob"), file=new File([blob],nome,{type:"application/pdf"});
+    // no celular abre o compartilhar (WhatsApp, e-mail); no computador baixa
+    if(navigator.canShare?.({files:[file]})){ try{ await navigator.share({files:[file],title:`Efetivo do dia ${dataBR(d)}`}); }catch(e){ if(e.name!=="AbortError") baixar(nome,blob); } }
+    else baixar(nome,blob);
+  }catch(e){ toast(e.message||"Não foi possível gerar o PDF."); }
+  finally{ btn.disabled=false; btn.textContent=txt; }
 }
 // funções sem lista de nomes (ex.: empreiteira que só manda a quantidade): quantos vieram, com − e +
 function equipesSemNomes(d, fs){

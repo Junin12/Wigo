@@ -95,6 +95,30 @@ section.view{padding-block:14px;display:grid;gap:14px}
 .chip{margin-left:auto;font-size:.7rem;font-weight:700;letter-spacing:.06em;padding:3px 8px;border-radius:999px;background:var(--idle-bg);color:var(--idle);white-space:nowrap}
 .chip.and{background:var(--warn-bg);color:var(--warn)}
 .chip.ok{background:var(--good-bg);color:var(--good)}
+.chip.bad{background:var(--bad-bg);color:var(--bad)}
+/* romaneios (Suprimentos › Aço) */
+#sup-aco .kpi b{display:block;font-size:1.6rem;white-space:nowrap}
+#sup-aco .kpi small{display:block}
+.rom summary{cursor:pointer;min-height:32px;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px;list-style:none}
+.rom summary::-webkit-details-marker{display:none}
+.rom summary::before{content:"▸";color:var(--muted);transition:transform .2s}
+.rom[open] summary::before{transform:rotate(90deg)}
+.rom .rom-kg{margin-left:auto;font-weight:700}
+.rom:not([open]){gap:0}
+.rom summary input[type=checkbox]{width:22px;height:22px;accent-color:var(--accent);align-self:center}
+.rom td input[type=checkbox]{width:22px;height:22px;accent-color:var(--accent)}
+.row.rec input[type=date],.pd-campos input{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 10px;min-height:44px;max-width:100%}
+.pd-modos{border:1px solid var(--line);border-radius:var(--r);padding:6px 12px;margin:0;display:grid}
+.pd-modos legend{font-size:.72rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600;padding:0 4px}
+.pd-modos .chk{align-items:flex-start;padding-block:6px}
+.rom td input.pd-q{width:84px;min-height:40px;text-align:right;background:var(--in-bg);color:var(--in-ink);border:1px solid var(--line);border-radius:6px;padding:4px 6px}
+.rom td select.pd-tipo{min-height:40px;padding:4px 6px;max-width:180px}
+#sup-aco,#sup-ped{grid-template-columns:minmax(0,1fr)} /* textos longos e tabelas rolam dentro do cartão, não alargam a tela */
+#sup-ped select{width:100%}
+.rom,#sup-ped .card{grid-template-columns:minmax(0,1fr)}
+.aviso-ok{border-color:var(--good);background:var(--good-bg)}
+.aviso-ok h3{color:var(--good)}
+.pd-campos{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
 .i-sub{font-size:.78rem;color:var(--muted);overflow-wrap:anywhere}
 .i-prog{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;font-size:.85rem}
 .bar{height:8px;border-radius:4px;background:var(--idle-bg);overflow:hidden}
@@ -327,6 +351,36 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
     <p class="saud">Produtividade<small>Escolha o serviço para acompanhar</small></p>
     <div class="mods mods-prod" id="mods-prod"></div>
   </div>
+</section>
+
+<!-- ================= Suprimentos: escolha do material ================= -->
+<section id="tela-sup" class="tela" aria-label="Suprimentos" hidden>
+  <header class="tela-topo compacto"><div class="in">
+    <button class="tela-voltar" type="button" data-voltar><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>Início</button>
+    <img class="tela-logo" src="logo-heca.webp" alt="Heca Construtora">
+  </div></header>
+  <div class="tela-corpo">
+    <p class="saud">Suprimentos<small>Pedidos e recebimento por material</small></p>
+    <div class="mods" id="mods-sup"></div>
+  </div>
+</section>
+
+<!-- ================= Suprimentos › Aço: romaneios ================= -->
+<section id="tela-sup-aco" class="tela" aria-label="Suprimentos de aço" hidden>
+  <header class="tela-topo compacto"><div class="in">
+    <button class="tela-voltar" type="button" data-voltar><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>Suprimentos</button>
+    <img class="tela-logo" src="logo-heca.webp" alt="Heca Construtora">
+  </div></header>
+  <div class="tela-corpo" id="sup-aco"></div>
+</section>
+
+<!-- ================= Suprimentos › Aço › Gerar pedido ================= -->
+<section id="tela-sup-pedido" class="tela" aria-label="Pedido de aço" hidden>
+  <header class="tela-topo compacto"><div class="in">
+    <button class="tela-voltar" type="button" data-voltar><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>Aço</button>
+    <img class="tela-logo" src="logo-heca.webp" alt="Heca Construtora">
+  </div></header>
+  <div class="tela-corpo" id="sup-ped"></div>
 </section>
 
 
@@ -1174,7 +1228,7 @@ $("#tema").addEventListener("click", e=>{ const b=e.target.closest("button[data-
   renderTema(); });
 renderTema();
 
-const VERSAO_APP = "v21"; // igual ao número em sw.js (armacao-v21)
+const VERSAO_APP = "v26"; // igual ao número em sw.js (armacao-v26)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -1221,8 +1275,9 @@ async function logoRelatorio(){
     const c=document.createElement("canvas"); c.width=img.naturalWidth; c.height=img.naturalHeight; const g=c.getContext("2d"); g.drawImage(img,0,0);
     const d=g.getImageData(0,0,c.width,c.height).data; let x0=c.width,y0=c.height,x1=0,y1=0;
     for(let y=0;y<c.height;y+=2) for(let x=0;x<c.width;x+=2) if(d[(y*c.width+x)*4+3]>20){ if(x<x0)x0=x; if(x>x1)x1=x; if(y<y0)y0=y; if(y>y1)y1=y; }
-    const w=Math.max(1,x1-x0+2), h=Math.max(1,y1-y0+2), o=document.createElement("canvas"); o.width=w; o.height=h;
-    o.getContext("2d").drawImage(c,x0,y0,w,h,0,0,w,h); URL.revokeObjectURL(url);
+    // reduz para no máximo 800 px de largura: o PDF guarda a imagem sem compressão e a logo original deixava o arquivo com ~6 MB
+    const w=Math.max(1,x1-x0+2), h=Math.max(1,y1-y0+2), k=Math.min(1,800/w), o=document.createElement("canvas"); o.width=Math.round(w*k); o.height=Math.round(h*k);
+    o.getContext("2d").drawImage(c,x0,y0,w,h,0,0,o.width,o.height); URL.revokeObjectURL(url);
     LOGO={src:o.toDataURL("image/png"), w, h}; return LOGO;
   }catch{ return null; }
 }
@@ -1240,7 +1295,7 @@ async function montarRelatorio(aviso){
   // cabeçalho (faixa azul-escura com a logo)
   const HB=30; doc.setFillColor(...AZ); doc.rect(0,0,W,HB,"F");
   const logo=await logoRelatorio();
-  if(logo){ const lw=Math.min(52,14*logo.w/logo.h), lh=lw*logo.h/logo.w; doc.addImage(logo.src,"PNG",W-M-lw,(HB-lh)/2,lw,lh); }
+  if(logo){ const lw=Math.min(52,14*logo.w/logo.h), lh=lw*logo.h/logo.w; doc.addImage(logo.src,"PNG",W-M-lw,(HB-lh)/2,lw,lh,undefined,"FAST"); }
   doc.setTextColor(255); doc.setFont("helvetica","bold"); doc.setFontSize(15);
   doc.text("Relatório semanal de armação — SAA Rio Grande",M,11); doc.setFont("helvetica","normal"); doc.setFontSize(10);
   doc.text(`Semana ${w.n}: ${fmtData(new Date(w.ini+"T12:00:00"))} a ${fmtData(new Date(w.fim+"T12:00:00"))}  ·  ${w.arm} armadores × ${w.dias} dias`,M,18.5);
@@ -2338,7 +2393,11 @@ const ICO={
   conc:'<path d="M2 17h3"/><ellipse cx="11" cy="11" rx="6" ry="4" transform="rotate(-18 11 11)"/><path d="M17 9h2l3 4v4h-4M5 15.5h12"/><circle cx="7" cy="18" r="1.8"/><circle cx="18" cy="18" r="1.8"/>',
   esc:'<path d="M14 4l6 6M17 7l-8 8"/><path d="M4 20l3-1 4-4-2-2-4 4z"/>',
   lancar:'<path d="M12 5v14M5 12h14"/>', frentes:'<path d="M3 21h18M5 21V9l7-5 7 5v12"/><path d="M9 21v-6h6v6"/>', pdf:'<path d="M14 3H6v18h12V7z"/><path d="M14 3v4h4M9 13h6M9 17h4"/>', painel:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
-  casa:'<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/>'
+  casa:'<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/>',
+  rachao:'<path d="M3 19l2-6 4-3 4 2 3-2 5 9z"/><path d="M9 10l1 9M16 10l-2 9"/>',
+  bica:'<path d="M2 20h20"/><path d="M4 20l6-10 3 4 2-3 5 9"/>',
+  bgs:'<path d="M3 8l9-4 9 4-9 4z"/><path d="M3 12l9 4 9-4M3 16l9 4 9-4"/>',
+  areia:'<path d="M3 20h18"/><path d="M5 20c2-6 4.5-9 7-9s5 3 7 9"/><path d="M10 16h.01M13 14h.01M14 17h.01"/>'
 };
 const svgIco = k => `<svg viewBox="0 0 24 24" aria-hidden="true">${ICO[k]}</svg>`;
 const MODULOS=[
@@ -2347,7 +2406,7 @@ const MODULOS=[
   {id:"prod",  nome:"Produtividade",    desc:"Aço · forma · concreto · escavação", c:["#1A9BDC","#0067A6"], ativo:true},
   {id:"obras", nome:"Obras e projetos", desc:"Estruturas, etapas e pranchas",  c:["#4F7CE8","#2747B0"]},
   {id:"rel",   nome:"Relatórios",       desc:"PDF semanal e painéis",          c:["#8A6BE0","#5A3FB0"]},
-  {id:"sup",   nome:"Suprimentos",      desc:"Pedidos e recebimento",          c:["#F2AE3D","#D27D1F"]},
+  {id:"sup",   nome:"Suprimentos",      desc:"Pedidos e recebimento",          c:["#F2AE3D","#D27D1F"], ativo:true},
   {id:"qual",  nome:"Qualidade",        desc:"Fichas de verificação (FVS)",    c:["#36B37E","#1D7A48"]},
   {id:"seg",   nome:"Segurança",        desc:"DDS, inspeções e SST",           c:["#F2783A","#C9461A"]},
   {id:"med",   nome:"Medições",         desc:"Boletins e avanço físico",       c:["#45A1D6","#22709F"]},
@@ -2361,10 +2420,12 @@ const SERVICOS=[
 ];
 
 // --- navegação entre telas: início → produtividade → aço (o app de armação) ---
+const TELAS={inicio:"#inicio", prod:"#tela-prod", sup:"#tela-sup", supaco:"#tela-sup-aco", supped:"#tela-sup-pedido"};
 function abrirTela(t, empilhar=true){
-  $("#inicio").hidden = t!=="inicio"; $("#tela-prod").hidden = t!=="prod";
+  for(const [k,s] of Object.entries(TELAS)) $(s).hidden = t!==k;
   document.body.style.overflow = t==="aco" ? "" : "hidden";
   if(t==="inicio") renderInicio(); if(t==="prod") renderProdMenu();
+  if(t==="sup") renderSupMenu(); if(t==="supaco") renderSupAco(); if(t==="supped") renderSupPedido();
   if(empilhar) history.pushState({tela:t},"");
 }
 addEventListener("popstate", e=>{ if(e.state?.tela) abrirTela(e.state.tela,false); });
@@ -2434,7 +2495,7 @@ function anelProgresso(ic, frac){
 }
 function renderInicio(){
   saudacao(); renderIndicadores();
-  const mods=MODULOS.map(m=>({...m, acao: m.id==="prod" ? ()=>abrirTela("prod") : m.id==="rel" ? null : null}));
+  const mods=MODULOS.map(m=>({...m, acao: m.id==="prod" ? ()=>abrirTela("prod") : m.id==="sup" ? ()=>abrirTela("sup") : null}));
   $("#mods").replaceChildren(...mods.map((m,k)=>moduloBtn(m,k, m.id==="prod" ? (b)=>{ b.append(el("span",{class:"num",id:"num-prod"})); } : null)));
   numProd();
   // atalhos que já funcionam
@@ -2453,6 +2514,468 @@ function renderProdMenu(){
   $("#mods-prod").replaceChildren(...SERVICOS.map((m,k)=>moduloBtn({...m, acao: m.id==="aco" ? ()=>{ abrirTela("aco"); show(LS.get("aba")||"coleta"); } : null}, k,
     m.id==="aco" && r ? (b,ic)=>{ anelProgresso(ic, r.pct); b.append(el("span",{class:"num",text:`${t(r.E)} de ${t(r.P)} t · ${pct(r.pct)}`})); } : null)));
 }
+// --- Suprimentos ---
+const MATERIAIS=[
+  {id:"aco",    nome:"Aço",          desc:"Romaneios de armadura",     c:["#1A9BDC","#0067A6"], ativo:true},
+  {id:"conc",   nome:"Concreto",     desc:"Usinado: pedidos e notas",  c:["#98A5B3","#5F6B78"]},
+  {id:"forma",  nome:"Formas",       desc:"Chapas, madeira e escoras", c:["#D49A5A","#9C6430"]},
+  {id:"rachao", nome:"Rachão",       desc:"Cargas e volumes",          c:["#A08C78","#6E5B48"]},
+  {id:"bica",   nome:"Bica corrida", desc:"Cargas e volumes",          c:["#C9A15A","#8E6A2C"]},
+  {id:"bgs",    nome:"BGS",          desc:"Brita graduada simples",    c:["#8B98A8","#566373"]},
+  {id:"areia",  nome:"Areia",        desc:"Cargas e volumes",          c:["#E2B65C","#B0832A"]},
+];
+// Romaneios da Aços Campinas (PDFs da pasta "00. Romaneio aços"). O número da remessa é o (1)…(4) do nome do arquivo.
+// O recebimento é confirmado no app (fica na aba Config da planilha como ACO_REC_<remessa>).
+// Pedidos novos são gerados no app e ficam na aba Config como ACO_PEDIDO_<remessa>; não precisam ser lançados aqui.
+const REMESSAS_ACO={
+  1:{est:"FLOCULADORES", entregue:true},
+  2:{est:"DECANTADORES", entregue:true},
+  3:{est:"DECANTADORES", ini:"2026-10-06", fim:"2026-10-08"},
+  4:{est:"ELEVATÓRIA AT", ini:"2026-10-15", fim:"2026-10-20"},
+};
+// Posições (códigos da base) que vieram nos romaneios das remessas 3 e 4: "CÓDIGO" = posição inteira, "CÓDIGO:n" = n barras.
+// Cruzamento feito pelos PDFs (folha + posição + bitola + elemento). As remessas 1 e 2 estão na coluna PEDIDO da planilha.
+const ITENS_REMESSA={
+  3:"DEC-0009:30 DEC-0010:32 DEC-0011:35 DEC-0012:33 DEC-0013:32 DEC-0014:32 DEC-0015:32 DEC-0016:48 DEC-0017:40 DEC-0018:48 DEC-0019:40 DEC-0020:200 DEC-0021:1280 DEC-0022:1896 DEC-0023:16 DEC-0024:76 DEC-0025:32 DEC-0026:6 DEC-0027:6 DEC-0028:184 DEC-0029:808 DEC-0030:371 DEC-0031:371 DEC-0032:8 DEC-0033:8 DEC-0034:8 DEC-0036:56 DEC-0037:136 DEC-0038:56 DEC-0039 DEC-0041:16 DEC-0043:112 DEC-0044:308 DEC-0046:64 DEC-0047:32 DEC-0048:64 DEC-0049:72 DEC-0050:28 DEC-0051:56 DEC-0054:12 DEC-0055:123 DEC-0056 DEC-0057 DEC-0058 DEC-0059 DEC-0060 DEC-0061:24 DEC-0062:24 DEC-0063:36 DEC-0064:24 DEC-0065:36 DEC-0066:24 DEC-0067:10 DEC-0068:36 DEC-0069:16 DEC-0070:40 DEC-0071:10 DEC-0072:76 DEC-0073:23 DEC-0074:24 DEC-0075:24 DEC-0077:600 DEC-0080:600 DEC-0082:297 DEC-0083:320 DEC-0085:8 DEC-0086:8 DEC-0087:8 DEC-0089:56 DEC-0090 DEC-0093:56 DEC-0095:232 DEC-0098:2400 DEC-0100 DEC-0101:20 DEC-0102 DEC-0103:17 DEC-0104:51 DEC-0105:6 DEC-0106:12 DEC-0107:12 DEC-0108:32 DEC-0109:32 DEC-0110:51 DEC-0111:16 DEC-0112:16 DEC-0113:16 DEC-0114:16 DEC-0115:107 DEC-0117:240 DEC-0118:129 DEC-0119:12 DEC-0120:472 DEC-0122:96 DEC-0123:192 DEC-0124:107 DEC-0126:488 DEC-0127:278 DEC-0129:6 DEC-0130:180 DEC-0131:192 DEC-0132:364 DEC-0134:8 DEC-0135:4 DEC-0136:4 DEC-0137:88 DEC-0138:16 DEC-0141:84 DEC-0144 DEC-0145 DEC-0146 DEC-0147 DEC-0148 DEC-0151 DEC-0154:16 DEC-0155:16 DEC-0156:16 DEC-0157:107 DEC-0159:376 DEC-0160:472 DEC-0162:192 DEC-0163:107 DEC-0165:376 DEC-0166:278 DEC-0168:24 DEC-0169:180 DEC-0170:192 DEC-0171:214 DEC-0173:4 DEC-0174:8 DEC-0175:16 DEC-0176:16 DEC-0177:48 DEC-0178:32 DEC-0179:4 DEC-0180:144 DEC-0181:48 DEC-0182:72 DEC-0183:252 DEC-0184:136 DEC-0185:20 DEC-0186:43 DEC-0187:36 DEC-0188:8 DEC-0189:16 DEC-0190:48 DEC-0191:68 DEC-0192:16 DEC-0193:16 DEC-0194:8 DEC-0195:16 DEC-0196:48 DEC-0197:64 DEC-0198:24 DEC-0199 DEC-0200 DEC-0201 DEC-0202 DEC-0203 DEC-0204 DEC-0205 DEC-0206 DEC-0207 DEC-0208 DEC-0209 DEC-0210 DEC-0211",
+  4:"ELA-0001 ELA-0002 ELA-0003 ELA-0004 ELA-0005 ELA-0006 ELA-0007 ELA-0008 ELA-0009 ELA-0010 ELA-0011 ELA-0012 ELA-0013 ELA-0014 ELA-0015 ELA-0016 ELA-0017 ELA-0018 ELA-0019 ELA-0020 ELA-0021 ELA-0022 ELA-0023 ELA-0024 ELA-0025 ELA-0026 ELA-0027 ELA-0028 ELA-0029 ELA-0030 ELA-0031 ELA-0032 ELA-0033 ELA-0034 ELA-0035 ELA-0036 ELA-0037 ELA-0038 ELA-0039 ELA-0040 ELA-0041 ELA-0042 ELA-0043 ELA-0044 ELA-0045 ELA-0046:32 ELA-0047 ELA-0048 ELA-0049 ELA-0050 ELA-0051 ELA-0052 ELA-0053 ELA-0054 ELA-0055 ELA-0056 ELA-0057:91 ELA-0058 ELA-0059 ELA-0060 ELA-0061 ELA-0062 ELA-0063 ELA-0064 ELA-0065 ELA-0066 ELA-0067 ELA-0068 ELA-0069 ELA-0070 ELA-0071 ELA-0072 ELA-0073 ELA-0074:28 ELA-0075 ELA-0076 ELA-0077:16 ELA-0078 ELA-0079:3 ELA-0080 ELA-0081 ELA-0082 ELA-0083 ELA-0084 ELA-0085 ELA-0086 ELA-0087 ELA-0088 ELA-0089 ELA-0090 ELA-0091 ELA-0092 ELA-0093 ELA-0094 ELA-0095 ELA-0096 ELA-0097 ELA-0098 ELA-0099 ELA-0100 ELA-0101 ELA-0102 ELA-0103 ELA-0104 ELA-0105 ELA-0106 ELA-0107 ELA-0108 ELA-0109 ELA-0110 ELA-0111 ELA-0112 ELA-0113 ELA-0114 ELA-0115 ELA-0116 ELA-0117 ELA-0118 ELA-0119 ELA-0120 ELA-0121 ELA-0122 ELA-0123 ELA-0124 ELA-0125 ELA-0126 ELA-0127 ELA-0128 ELA-0129 ELA-0130 ELA-0131 ELA-0132 ELA-0133 ELA-0134 ELA-0135 ELA-0136 ELA-0137 ELA-0138 ELA-0139 ELA-0140 ELA-0141 ELA-0142 ELA-0143 ELA-0144 ELA-0145 ELA-0146 ELA-0147 ELA-0148 ELA-0149 ELA-0150 ELA-0151 ELA-0152 ELA-0153 ELA-0154 ELA-0155 ELA-0156 ELA-0157 ELA-0158 ELA-0159 ELA-0160 ELA-0161 ELA-0162 ELA-0163 ELA-0164 ELA-0165 ELA-0166 ELA-0167 ELA-0168 ELA-0169 ELA-0170 ELA-0171 ELA-0172 ELA-0173 ELA-0174 ELA-0175 ELA-0176 ELA-0177 ELA-0178 ELA-0179 ELA-0180 ELA-0181 ELA-0182:85 ELA-0183 ELA-0184 ELA-0185 ELA-0186 ELA-0187 ELA-0188 ELA-0189 ELA-0190 ELA-0191 ELA-0192 ELA-0193 ELA-0194 ELA-0195 ELA-0196 ELA-0197 ELA-0198 ELA-0199 ELA-0200 ELA-0201 ELA-0202 ELA-0203 ELA-0204 ELA-0205 ELA-0206 ELA-0207 ELA-0208 ELA-0209 ELA-0210 ELA-0211 ELA-0212 ELA-0213 ELA-0214 RAT-0032 RAT-0033 RAT-0034 RAT-0035 RAT-0036 RAT-0037 RAT-0038 RAT-0039:59 RAT-0040 RAT-0041 RAT-0042 RAT-0043 RAT-0044 RAT-0045 RAT-0046:30 RAT-0047 RAT-0048 RAT-0049",
+};
+// kg = peso total do romaneio; b = kg por bitola (mm)
+const ROMANEIOS=[
+  {n:"004336", rem:1, desc:"Arranques parede / laje de fundo", emit:"2026-08-12", kg:19399.88, b:{6.3:124.74, 10:319.29, 12.5:17671.07, 16:1284.78}, els:"Laje de fundo 795,40 · lajes 795,25 · PAR1 a PAR6"},
+  {n:"004337", rem:1, desc:"Arranques parede",                 emit:"2026-08-12", kg:14432.77, b:{6.3:249.48, 8:35.56, 10:485.91, 12.5:11231.91, 16:2429.91}, els:"PAR7 a PAR23"},
+  {n:"004518", rem:1, desc:"Laje das passarelas / paredes",    emit:"2026-08-28", kg:13594.85, b:{8:238.31, 10:5356.08, 12.5:6807.60, 16:583.26, 20:609.60}, els:"Laje das passarelas · PAR1 a PAR6"},
+  {n:"004531", rem:1, desc:"Paredes",                          emit:"2026-08-28", kg:19688.34, b:{8:5.52, 10:3760.89, 12.5:13837.32, 16:865.41, 20:1219.20}, els:"PAR7 a PAR18"},
+  {n:"004534", rem:1, desc:"Paredes (complementos)",           emit:"2026-08-28", kg:1194.52,  b:{6.3:24.06, 8:107.65, 10:329.30, 12.5:733.51}, els:"PAR19 a PAR23 · V1 · VPM1 a VPM4 · consoles · cortes EE/FF/GG · reforços · furos de içamento"},
+  {n:"004396", rem:2, desc:"Arranques parede",                 emit:"2026-08-18", kg:16437.01, b:{6.3:82.86, 8:102.31, 10:544.08, 12.5:13573.04, 16:2134.72}, els:"PAR1 · PAR4A/4B · PAR8A/8B · PAR10 · PAR11=PAR12"},
+  {n:"004403", rem:2, desc:"Arranques parede",                 emit:"2026-08-18", kg:22410.09, b:{6.3:87.39, 10:736.46, 12.5:18334.29, 16:3251.95}, els:"PAR2 · PAR5A/5B · PAR6 · PAR7A/7B"},
+  {n:"004404", rem:2, desc:"Arranques parede / laje de fundo", emit:"2026-08-18", kg:19237.96, b:{10:296.16, 12.5:16707.34, 16:2234.46}, els:"Laje de fundo (parte) · PAR3 · PAR9"},
+  {n:"004405", rem:2, desc:"Laje de fundo",                    emit:"2026-08-18", kg:21801.76, b:{12.5:21801.76}, els:"Laje de fundo"},
+  {n:"004742", rem:3, desc:"Paredes (rom. 1)",                 emit:"2026-09-21", kg:14350.04, b:{10:3327.48, 12.5:9172.10, 16:250.91, 20:1599.55}, els:"PAR2 · PAR3 a PAR9B · PAR4 a PAR8B · PAR10 · PAR11=PAR12"},
+  {n:"004743", rem:3, desc:"Lajes / paredes (rom. 2)",         emit:"2026-09-22", kg:14540.45, b:{8:68.57, 10:3055.35, 12.5:11183.30, 16:233.23}, els:"Lajes 796,75 · 798,50 · 800,30 · PAR13 · V1"},
+  {n:"004749", rem:3, desc:"Paredes / escada (rom. 3)",        emit:"2026-09-21", kg:13853.15, b:{6.3:28.61, 10:976.64, 12.5:10996.32, 16:767.13, 20:1084.45}, els:"PAR1 · PAR4 a PAR8B · PAR14 · PAR15 a PAR20 · escada"},
+  {n:"004753", rem:3, desc:"Paredes (rom. 4)",                 emit:"2026-09-21", kg:13292.21, b:{10:338.22, 12.5:11297.88, 16:1656.11}, els:"PAR3 a PAR9B · PAR5 a PAR7B"},
+  {n:"004755", rem:3, desc:"Paredes / placas (rom. 5)",        emit:"2026-09-22", kg:14034.45, b:{6.3:241.08, 8:430.17, 10:707.80, 12.5:11099.78, 16:839.50, 20:716.12}, els:"PAR1 · PAR2 e console · PAR4 a PAR8 · PAR5 a PAR7B · placas PL1/PL2 · reforços DN200/DN600"},
+  {n:"004767", rem:4, desc:"Lajes de fundo (rom. 1)",          emit:"2026-09-23", kg:23737.24, b:{12.5:23737.24}, els:"Lajes de fundo EL. 790,35 · 791,55 · 793,55"},
+  {n:"004768", rem:4, desc:"Reservatório / elevatória (rom. 2)", emit:"2026-09-25", kg:20980.52, b:{6.3:258.59, 8:292.46, 10:2484.56, 12.5:10520.07, 16:6455.71, 20:969.13}, els:"Parede 2 (reservatório) · parede 3 · laje de fundo da sala de painéis · reforços DN100/DN500"},
+  {n:"004769", rem:4, desc:"Paredes / passarela (rom. 3)",     emit:"2026-09-25", kg:22339.00, b:{8:1176.57, 10:1996.61, 12.5:10517.16, 16:8258.05, 20:390.61}, els:"Paredes 3 e 4 · passarela EL. 791,65 · escadas"},
+  {n:"004770", rem:4, desc:"Paredes / lajes / vigas (rom. 4)", emit:"2026-09-25", kg:23192.58, b:{6.3:1343.54, 8:7997.60, 10:2369.03, 12.5:7420.46, 16:3174.93, 20:887.02}, els:"Paredes 4, 8 e 9 · laje EL. 800,20 · laje cob. painéis · vigas · pilares · cintas · sapatas · extravasor"},
+];
+// confere se a soma das bitolas bate com o peso total de cada romaneio (pega erro de digitação)
+ROMANEIOS.forEach(x=>console.assert(Math.abs(Object.values(x.b).reduce((s,v)=>s+v,0)-x.kg)<0.05, "Romaneio com bitolas diferentes do total:", x.n));
+
+const somaKg = l => l.reduce((s,x)=>s+x.kg,0);
+const somaBit = (destino, b) => { for(const [d,kg] of Object.entries(b)) destino[d]=(destino[d]||0)+kg; return destino; };
+// pedidos feitos pelo app: aba Config, chave ACO_PEDIDO_<n>, valor JSON {est,emp,data,ini,fim,lim,kg,b,cam,itens}
+function pedidosApp(){
+  const out=[];
+  for(const [k,v] of Object.entries({...S.cfgObra,...S.pendCfg})){
+    const m=k.match(/^ACO_PEDIDO_(\d+)$/); if(!m||!v) continue;
+    try{ const p=JSON.parse(v); if(p?.itens) out.push({...p, n:Number(m[1])}); }catch{ /* valor corrompido: ignora */ }
+  }
+  return out;
+}
+// todas as remessas (romaneios já emitidos + pedidos do app), com o recebimento confirmado no app
+function remessas(){
+  const L=[];
+  for(const [n,R] of Object.entries(REMESSAS_ACO)){
+    const roms=ROMANEIOS.filter(x=>x.rem===Number(n));
+    L.push({n:Number(n), est:R.est, ini:R.ini, fim:R.fim, fixo:!!R.entregue, roms, kg:somaKg(roms), b:roms.reduce((o,x)=>somaBit(o,x.b),{})});
+  }
+  for(const p of pedidosApp()) L.push({n:p.n, est:p.est, ini:p.ini, fim:p.fim, data:p.data, cam:p.cam||[], kg:Number(p.kg)||0, b:p.b||{}, app:true});
+  for(const R of L) R.rec = R.fixo ? "sim" : cfgv("ACO_REC_"+R.n, "");
+  return L.sort((a,b)=>a.n-b.n);
+}
+// "06 a 08/10" no mesmo mês; "28/10 a 02/11" quando vira o mês
+const janela = R => R.ini.slice(5,7)===R.fim.slice(5,7) ? `${R.ini.slice(8,10)} a ${ddmm(R.fim)}` : `${ddmm(R.ini)} a ${ddmm(R.fim)}`;
+function statusRemessa(R){
+  if(R.rec) return {cls:"ok", txt: R.rec==="sim" ? "Entregue" : `Recebida em ${ddmm(R.rec)}`};
+  if(!R.ini || !R.fim) return {cls:"", txt: R.data ? `Pedida em ${ddmm(R.data)}` : "Aguardando entrega"};
+  const h=hojeISO(), jan=janela(R);
+  if(h>R.fim) return {cls:"bad", txt:`Atrasada · prevista ${jan}`};
+  if(h>=R.ini) return {cls:"and", txt:`Chegando · ${jan}`};
+  return {cls:"", txt:`Prevista ${jan}`};
+}
+// grava na aba Config (sincroniza quando houver internet) e redesenha a tela de remessas
+function gravarCfg(k, v){ S.pendCfg[k]=String(v); savePendExtra(); scheduleSync(); renderSupAco(); }
+function renderSupMenu(){
+  const L=remessas(), tot=somaKg(L), rec=somaKg(L.filter(R=>R.rec));
+  $("#mods-sup").replaceChildren(...MATERIAIS.map((m,k)=>moduloBtn({...m, acao: m.id==="aco" ? ()=>abrirTela("supaco") : null}, k,
+    m.id==="aco" ? (b,ic)=>{ anelProgresso(ic, tot?rec/tot:0); b.append(el("span",{class:"num",text:`${t(rec)} de ${t(tot)} t recebidas`})); } : null)));
+}
+const bitola = d => `Ø ${String(d).replace(".",",")}`;
+function romaneioItem(x){
+  const bits=Object.entries(x.b).sort((a,b)=>a[0]-b[0]);
+  return el("details",{class:"item rom"},
+    el("summary",{}, el("b",{text:`C.AGUA.${x.n}`}), " ", el("span",{class:"loc",text:x.desc}), el("span",{class:"rom-kg",text:`${t(x.kg)} t`})),
+    el("p",{class:"i-sub",text:`Emitido em ${ddmm(x.emit)} · ${x.els}`}),
+    el("div",{class:"tbl"}, el("table",{},
+      el("thead",{}, el("tr",{}, el("th",{text:"Bitola (mm)"}), el("th",{text:"Peso (kg)"}))),
+      el("tbody",{}, ...bits.map(([d,kg])=>el("tr",{}, el("td",{text:bitola(d)}), el("td",{text:nf1.format(kg)})))))));
+}
+const kpi=(rot,val,sub)=>el("div",{class:"kpi"}, el("span",{text:rot}), el("b",{text:val}), el("small",{text:sub}));
+const barra=frac=>el("div",{class:"bar"}, el("i",{style:`width:${(Math.min(1,frac)*100).toFixed(1)}%`}));
+function controleRecebimento(R){
+  if(R.fixo) return null;
+  if(R.rec) return el("div",{class:"row"}, el("button",{class:"btn",type:"button",text:"Desfazer recebimento",
+    onclick:()=>{ if(confirm(`Desfazer o recebimento da remessa ${R.n}?`)) gravarCfg("ACO_REC_"+R.n, ""); }}));
+  const d=el("input",{type:"date",value:hojeISO(),max:hojeISO(),"aria-label":`Data em que a remessa ${R.n} chegou`});
+  return el("div",{class:"row rec"}, el("span",{class:"info",text:"Chegou em"}), d,
+    el("button",{class:"btn pri",type:"button",text:"Confirmar recebimento",onclick:()=>{
+      if(!d.value) return toast("Informe a data em que chegou.");
+      if(d.value>hojeISO()) return toast("A data não pode ser no futuro.");
+      gravarCfg("ACO_REC_"+R.n, d.value); toast(`Remessa ${R.n} recebida em ${ddmm(d.value)}.`); }}));
+}
+function remessaBloco(R){
+  const s=statusRemessa(R), caps=[];
+  if(R.app){
+    caps.push(el("p",{class:"i-sub",text:`Pedido gerado no app em ${ddmm(R.data)} · ${nCam(R.cam.length)}: ${R.cam.map(k=>t(k)).join(" · ")} t`}));
+    if(!R.rec) caps.push(el("div",{class:"row"}, el("button",{class:"btn",type:"button",text:"Cancelar pedido",
+      onclick:()=>{ if(confirm(`Cancelar o pedido ${R.n}? As posições voltam a aparecer como "falta pedir".`)) gravarCfg("ACO_PEDIDO_"+R.n, ""); }})));
+  }
+  return [el("div",{class:"i-top"}, el("b",{text:`Remessa ${R.n} · ${R.app?"pedido do app":R.roms.length+" romaneios"} · ${t(R.kg)} t`}), el("span",{class:"chip "+s.cls,text:s.txt})),
+    controleRecebimento(R), ...caps, R.roms?.length ? el("div",{class:"lista"}, ...R.roms.map(romaneioItem)) : null];
+}
+function renderSupAco(){
+  const L=remessas(), tot=somaKg(L), rec=somaKg(L.filter(R=>R.rec)), pend=L.filter(R=>!R.rec);
+  const prox=pend.filter(R=>R.ini).sort((a,b)=>a.ini<b.ini?-1:1)[0];
+
+  // um cartão por estrutura, com as remessas dentro
+  const cards=[...new Set(L.map(R=>R.est))].map(est=>{
+    const rs=L.filter(R=>R.est===est), tE=somaKg(rs), rE=somaKg(rs.filter(R=>R.rec));
+    return el("div",{class:"card"},
+      el("div",{class:"i-top"}, el("h3",{text:est}), el("span",{class:"kg",text:`${t(rE)} de ${t(tE)} t recebidas`})), barra(tE?rE/tE:0),
+      ...rs.flatMap(remessaBloco));
+  });
+
+  // resumo por bitola: recebido x a receber
+  const pb=new Map();
+  for(const R of L) for(const [d,kg] of Object.entries(R.b)){ const o=pb.get(d)||{rec:0,pend:0}; o[R.rec?"rec":"pend"]+=kg; pb.set(d,o); }
+  const linhas=[...pb].sort((a,b)=>a[0]-b[0]).map(([d,o])=>el("tr",{}, el("td",{text:bitola(d)}), el("td",{text:t(o.rec)}), el("td",{text:t(o.pend)}), el("td",{text:t(o.rec+o.pend)})));
+
+  repor($("#sup-aco"),
+    el("p",{class:"saud"}, "Aço", el("small",{text:"Romaneios da Aços Campinas · armadura cortada e dobrada"})),
+    el("div",{class:"row"}, el("button",{class:"btn pri",type:"button",text:"Gerar pedido de aço",onclick:()=>abrirTela("supped")})),
+    el("div",{class:"kpis"},
+      kpi("Pedido", `${t(tot)} t`, `${L.length} remessas`),
+      kpi("Recebido", `${t(rec)} t`, `${pct(tot?rec/tot:0)} do pedido`),
+      kpi("A receber", `${t(tot-rec)} t`, `${pend.length} remessas`),
+      prox ? kpi("Próxima entrega", janela(prox), `${prox.est} · ${t(prox.kg)} t`)
+           : kpi("Próxima entrega", "—", pend.length ? "sem data prevista" : "todo o pedido foi recebido")),
+    barra(tot?rec/tot:0),
+    ...cards,
+    el("div",{class:"card"}, el("h3",{text:"Por bitola (t)"}),
+      el("div",{class:"tbl"}, el("table",{},
+        el("thead",{}, el("tr",{}, el("th",{text:"Bitola (mm)"}), el("th",{text:"Recebido"}), el("th",{text:"A receber"}), el("th",{text:"Total"}))),
+        el("tbody",{}, ...linhas)))),
+    el("p",{class:"rodape-ini",text:"Pesos conforme romaneios do fornecedor. Datas de entrega informadas pela obra."}));
+}
+
+// --- Pedido de aço: o que falta pedir de cada estrutura, dividido em caminhões ---
+// barras já pedidas de cada posição: remessas 1 e 2 pela coluna PEDIDO da planilha, 3 e 4 pelos romaneios, as demais pelos pedidos do app
+// devolve Map código -> barras pedidas; .origem = Map código -> remessas em que a posição apareceu
+function barrasPedidas(){
+  const m=new Map(), origem=new Map();
+  const add=(c,q,n)=>{ const i=S.byCode.get(c); if(!i || !(q>0)) return; m.set(c, Math.min(i.qp, (m.get(c)||0)+q));
+    (origem.get(c)||origem.set(c,new Set()).get(c)).add(n); };
+  for(const i of S.items) if(i.ped==="1"||i.ped==="2") add(i.c, i.qp, Number(i.ped));
+  for(const [n,txt] of Object.entries(ITENS_REMESSA)) for(const s of txt.split(" ")){ const [c,q]=s.split(":"); add(c, q ? Number(q) : (S.byCode.get(c)?.qp||0), Number(n)); }
+  for(const p of pedidosApp()) for(const [c,q] of Object.entries(p.itens)) add(c, Number(q)||0, p.n);
+  m.origem=origem; return m;
+}
+// estrutura conta como toda pedida quando o que falta é menos de 1% (ou 100 kg): são emendas e cortes que o
+// fornecedor dividiu diferente do projeto (ex.: Elevatória AT, 236 kg em 6 posições de 74,8 t)
+const jaPedida = r => r.p - r.j < Math.max(100, r.p*0.01);
+const ehFundo = i => /FUNDO/i.test(i.loc);
+const ehParede = i => !ehFundo(i) && /PAR(EDE)?S?\b|PAR\.?\s?\d/i.test(i.loc);
+// quantas paredes o LOCAL agrupa: "(6x)" quando houver; senão conta os números ("PAREDES 2, 2A, 2B" = 3)
+function nParedes(loc){
+  const x=String(loc).match(/\((\d+)\s*x\)/i); if(x) return Number(x[1]);
+  return Math.max(1, new Set(String(loc).toUpperCase().replace(/\d+[.,]\d+/g,"").match(/\b\d+[A-Z]?\b/g)||[]).size);
+}
+// Arranque: só o trecho da parede que sai da laje (≈75 cm). A planilha não diz o que é vertical ou costela, então cada
+// posição de parede recebe um tipo que define quanto pedir. Os percentuais valem sobre o que ainda falta pedir
+// (se 2 de 3 paredes já foram pedidas inteiras, o arranque é só o da parede que falta).
+const fracaoAltura = l => { const H=alturaParede(l.i.loc); return H ? Math.min(l.q, Math.ceil(l.q*Math.min(1,PD.alt/H))) : 0; };
+const TIPOS_ARR={
+  nao:  {nome:"Não pedir",                  q:()=>0},
+  vert: {nome:"Vertical (100%)",            q:l=>l.q},
+  lig:  {nome:"Ligação laje/parede (100%)", q:l=>l.q},
+  base: {nome:"Horizontal na base (100%)",  q:l=>l.q},
+  cost: {nome:"Costela até a altura",       q:fracaoAltura},
+  dist: {nome:"Amarração/canto até a altura", q:fracaoAltura},
+  estr: {nome:"Estribo (50%)",              q:l=>Math.ceil(l.q*0.5)},
+  tudo: {nome:"Tudo (100%)",                q:l=>l.q},
+};
+// Arranques já definidos pela obra (valem em todos os aparelhos): "ESTRUTURA|LOCAL" -> {posição: tipo}.
+// Para cadastrar outra parede, acrescente uma linha. Posição fora da lista = "Não pedir".
+const ARRANQUE_PADRAO={
+  "FLOCULADORES|PAREDE 1 , PAREDE 2, PAREDE 3":
+    {N1:"lig", N4:"vert", N5:"vert", N7:"vert", N8:"vert", N11:"vert", N16:"vert", N6:"cost", N13:"cost", N15:"dist", N18:"estr"},
+  "DECANTADORES|PAREDES 2, 2A, 2B":
+    {N7:"vert", N8:"vert", N11:"vert", N14:"vert", N2:"lig", N21:"base", N10:"cost", N18:"cost", N15:"dist", N31:"estr"},
+};
+// sem cadastro: Ø20 = ligação e estribo curto de 6,3 = 50%; o resto o usuário marca
+const chaveArr = (est,loc) => `${est}|${loc}`.toUpperCase().replace(/\s+/g," ").trim();
+const ARR_PADRAO = new Map(Object.entries(ARRANQUE_PADRAO).map(([k,v])=>[chaveArr(...k.split("|")),v]));
+const tipoSugerido = i => { const p=ARR_PADRAO.get(chaveArr(i.est,i.loc)); if(p) return p[String(i.pos).toUpperCase()]||"nao";
+  return i.bit>=20 ? "lig" : (i.bit<=6.3 && i.cu<=0.6) ? "estr" : "nao"; };
+const MODOS_PEDIDO={
+  falta:   {nome:"Estrutura completa", desc:"todas as barras que ainda não estão em romaneio ou pedido"},
+  fundo:   {nome:"Laje de fundo e arranques",  desc:"do que falta: laje de fundo inteira e, nas paredes, só o arranque"},
+};
+// qtd: barras digitadas à mão (código -> n); tipos: tipo de arranque escolhido (código -> chave de TIPOS_ARR)
+const PD={est:"", modo:"falta", lim:22, ini:"", fim:"", alt:0.75, esp:0.10, qtd:new Map(), tipos:LS.get("arrTipos")||{}, altPar:LS.get("altParedes")||{}};
+const tipoArr = i => PD.tipos[i.c] || tipoSugerido(i);
+// altura da parede: a digitada; senão estimada pela costela com mais barras (2 faces × fiadas × espaçamento).
+// Ex.: Decantador paredes 2=2A=2B, N10 com 348 barras em 3 paredes → 58 fiadas por face × 0,10 m = 5,8 m.
+function alturaParede(loc){
+  if(PD.altPar[loc]) return PD.altPar[loc];
+  const c=S.items.filter(i=>i.est===PD.est && i.loc===loc && tipoArr(i)==="cost").map(i=>i.qp);
+  return c.length ? Math.round(Math.max(...c)/(nParedes(loc)*2)*PD.esp*100)/100 : 0;
+}
+// barras a pedir de uma linha: o que foi digitado, senão o padrão do modo
+function qtdPedir(l){
+  if(PD.qtd.has(l.i.c)) return Math.min(l.q, PD.qtd.get(l.i.c));
+  if(PD.modo!=="fundo" || ehFundo(l.i)) return l.q;
+  return ehParede(l.i) ? TIPOS_ARR[tipoArr(l.i)].q(l) : 0;
+}
+// linhas candidatas da estrutura escolhida, com a quantidade a pedir em cada uma
+function linhasPedido(){
+  const ped=barrasPedidas();
+  return S.items.filter(i=>i.est===PD.est).map(i=>{
+    const ja=ped.get(i.c)||0, q=i.qp-ja;
+    return {i, ja, q, kg:q*i.ppb};
+  }).filter(l=>l.q>0);
+}
+// põe no caminhão o que couber das linhas (quebrando a quantidade de barras se preciso) e devolve o que sobrou
+function encher(c, ls, lim){
+  const sobra=[];
+  for(const l of ls){
+    const n=Math.min(l.q, Math.floor((lim-c.kg+1e-6)/l.i.ppb));
+    if(n>0){ c.ls.push({...l, q:n, kg:n*l.i.ppb}); c.kg+=n*l.i.ppb; }
+    if(n<l.q) sobra.push({...l, q:l.q-n, kg:(l.q-n)*l.i.ppb});
+  }
+  return sobra;
+}
+// divide em caminhões de até lim kg. Cada elemento (LOCAL) vai inteiro num caminhão quando cabe;
+// quando não cabe, completa o caminhão que tem mais espaço e o resto segue para caminhões novos (menos viagens).
+function montarCaminhoes(linhas, lim){
+  const grupos=new Map(); for(const l of linhas){ (grupos.get(l.i.loc)||grupos.set(l.i.loc,[]).get(l.i.loc)).push(l); }
+  const cams=[];
+  for(const ls of [...grupos.values()].sort((a,b)=>somaKg(b)-somaKg(a))){
+    let resto=[...ls].sort((a,b)=>b.kg-a.kg);
+    const inteiro=cams.find(c=>c.kg+somaKg(resto)<=lim+1e-6);
+    if(inteiro){ encher(inteiro, resto, lim); continue; }
+    const folga=cams.filter(c=>lim-c.kg>=lim*0.1).sort((a,b)=>a.kg-b.kg)[0];
+    if(folga) resto=encher(folga, resto, lim);
+    while(resto.length){
+      const c={ls:[],kg:0}; resto=encher(c, resto, lim);
+      if(!c.ls.length) throw new Error("Há barra mais pesada que o limite do caminhão.");
+      cams.push(c);
+    }
+  }
+  for(const c of cams){
+    // junta pedaços da mesma posição que caíram no mesmo caminhão
+    const m=new Map(); for(const l of c.ls){ const a=m.get(l.i.c); if(a){ a.q+=l.q; a.kg+=l.kg; } else m.set(l.i.c,{...l}); }
+    c.ls=[...m.values()].sort((a,b)=>a.i.loc.localeCompare(b.i.loc) || a.i.c.localeCompare(b.i.c));
+  }
+  return cams;
+}
+// teste rápido da divisão: 50 t em posições de 1 t vira 3 caminhões, nenhum acima de 22 t
+(()=>{ const ls=Array.from({length:50},(_,k)=>({i:{loc:"L"+(k%4),c:"X"+k,ppb:100},q:10,kg:1000})), cs=montarCaminhoes(ls,22000);
+  console.assert(cs.length===3 && cs.every(c=>c.kg<=22000) && Math.round(somaKg(cs))===50000, "montarCaminhoes falhou", cs); })();
+
+function pedidoAtual(){
+  const sel=linhasPedido().map(l=>{ const q=qtdPedir(l); return {...l, q, kg:q*l.i.ppb}; }).filter(l=>l.q>0);
+  return {sel, cams:montarCaminhoes(sel, PD.lim*1000)};
+}
+const reiniciarEscolhas = () => PD.qtd.clear();
+function renderSupPedido(){
+  const box=$("#sup-ped");
+  if(!S.items.length){ repor(box, el("p",{class:"saud"},"Pedido de aço"), el("div",{class:"vazio",text:"A base de posições ainda não foi carregada. Conecte o banco em Produtividade › Aço › Ajustes."})); return; }
+  const ests=[...new Set(S.items.map(i=>i.est))];
+  if(!ests.includes(PD.est)){ PD.est=ests[0]; reiniciarEscolhas(); }
+  const ped=barrasPedidas();
+  const resumoEst=est=>{ let p=0,j=0; for(const i of S.items) if(i.est===est){ p+=i.kp; j+=(ped.get(i.c)||0)*i.ppb; } return {p,j}; };
+
+  const selEst=el("select",{id:"pd-est"}, ...ests.map(e=>{ const r=resumoEst(e);
+    return el("option",{value:e,text: jaPedida(r) ? `${e} — já pedida (${t(r.p)} t)` : `${e} — falta ${t(r.p-r.j)} de ${t(r.p)} t`,selected:e===PD.est}); }));
+  selEst.onchange=()=>{ PD.est=selEst.value; reiniciarEscolhas(); renderSupPedido(); };
+
+  // em quais remessas/romaneios as barras desta estrutura já apareceram
+  const nums=new Set(); for(const i of S.items) if(i.est===PD.est) ped.origem.get(i.c)?.forEach(n=>nums.add(n));
+  const Ls=remessas().filter(R=>nums.has(R.n));
+  const origemTxt=Ls.map(R=>`remessa ${R.n} (${R.roms?.length ? "romaneios C.AGUA "+R.roms.map(x=>x.n).join(", ") : "pedido do app de "+ddmm(R.data)} · ${statusRemessa(R).txt.toLowerCase()})`).join("; ");
+  const titulo=el("p",{class:"saud"}, "Sugestão de pedido de aço",
+    el("small",{text:"Feita com as barras do projeto que ainda não aparecem em nenhum romaneio ou pedido registrado. Confira antes de enviar ao fornecedor."}));
+  const rEst=resumoEst(PD.est);
+  if(jaPedida(rEst)){
+    const sobra=rEst.p-rEst.j, dif=linhasPedido().sort((a,b)=>b.kg-a.kg);
+    repor(box, titulo,
+      el("div",{class:"card"}, el("label",{class:"campo"}, "Estrutura", selEst)),
+      el("div",{class:"card aviso-ok",role:"status"},
+        el("h3",{text:"Nada a pedir"}),
+        el("p",{}, el("b",{text:`Na estrutura ${PD.est} as barras já foram pedidas.`}), ` Todo o aço do projeto (${t(rEst.p)} t) já está em: ${origemTxt||"pedido anterior"}.`),
+        sobra>0.5 ? el("p",{class:"info",text:`Diferença de ${nf0.format(sobra)} kg entre projeto e romaneios (emendas e cortes divididos de outro jeito pelo fornecedor)`
+          +(dif.length?`: ${dif.slice(0,8).map(l=>`${l.i.loc} ${l.i.pos} Ø${String(l.i.bit).replace(".",",")} ${nf0.format(l.q)} barras`).join(" · ")}${dif.length>8?" …":""}`:"")
+          +". Se faltar alguma barra na obra, peça avulsa ao fornecedor."}) : null));
+    return;
+  }
+  const modos=el("fieldset",{class:"pd-modos"}, el("legend",{text:"O que pedir"}),
+    ...Object.entries(MODOS_PEDIDO).map(([k,m])=>{ const r=el("input",{type:"radio",name:"pd-modo",value:k,checked:PD.modo===k});
+      r.onchange=()=>{ PD.modo=k; reiniciarEscolhas(); renderSupPedido(); };
+      return el("label",{class:"chk"}, r, el("span",{}, el("b",{text:m.nome}), el("small",{class:"info",text:" · "+m.desc}))); }));
+  const lim=el("input",{type:"number",id:"pd-lim",min:5,max:40,step:0.5,value:PD.lim,inputMode:"decimal"});
+  lim.onchange=()=>{ const v=num(lim.value); if(v<5||v>40){ toast("Use um limite entre 5 e 40 t por caminhão."); lim.value=PD.lim; return; } PD.lim=v; atualizarResumoPedido(); };
+  const ini=el("input",{type:"date",id:"pd-ini",value:PD.ini}), fim=el("input",{type:"date",id:"pd-fim",value:PD.fim});
+  ini.onchange=()=>PD.ini=ini.value; fim.onchange=()=>PD.fim=fim.value;
+
+  // arranque: altura que sai da laje e espaçamento das costelas (definem a quantidade de costelas)
+  const alt=el("input",{type:"number",min:0.2,max:3,step:0.05,value:PD.alt,inputMode:"decimal"}), esp=el("input",{type:"number",min:0.05,max:0.5,step:0.01,value:PD.esp,inputMode:"decimal"});
+  alt.onchange=()=>{ const v=num(alt.value); if(v<0.2||v>3){ toast("Altura do arranque entre 0,2 e 3 m."); alt.value=PD.alt; return; } PD.alt=v; renderSupPedido(); };
+  esp.onchange=()=>{ const v=num(esp.value); if(v<0.05||v>0.5){ toast("Espaçamento entre 0,05 e 0,5 m."); esp.value=PD.esp; return; } PD.esp=v; renderSupPedido(); };
+
+  // posições agrupadas por elemento (LOCAL): barras a pedir em cada uma (e, no arranque, o tipo da barra)
+  const linhas=linhasPedido(), grupos=new Map(), arr=PD.modo==="fundo";
+  for(const l of linhas){ (grupos.get(l.i.loc)||grupos.set(l.i.loc,[]).get(l.i.loc)).push(l); }
+  const blocos=[...grupos].map(([loc,ls])=>{
+    const ins=ls.map(l=>{
+      const inp=el("input",{type:"number",min:0,max:l.q,step:1,value:qtdPedir(l),inputMode:"numeric",class:"pd-q","aria-label":`Barras a pedir da ${l.i.pos} Ø${l.i.bit} de ${loc}`});
+      inp.onchange=()=>{ const v=Math.round(num(inp.value)); if(v<0||v>l.q){ toast(`Entre 0 e ${nf0.format(l.q)} barras.`); inp.value=qtdPedir(l); return; } PD.qtd.set(l.i.c,v); sinc(); };
+      return inp; });
+    const tipos=ls.map((l,k)=>{
+      if(!arr || !ehParede(l.i)) return null;
+      const s=el("select",{class:"pd-tipo","aria-label":`Tipo da barra ${l.i.pos} no arranque`}, ...Object.entries(TIPOS_ARR).map(([v,o])=>el("option",{value:v,text:o.nome,selected:tipoArr(l.i)===v})));
+      // muda a quantidade desta barra e das "distribuídas" (a altura estimada depende das costelas)
+      s.onchange=()=>{ PD.tipos[l.i.c]=s.value; LS.set("arrTipos",PD.tipos); PD.qtd.delete(l.i.c); ls.forEach((x,j)=>{ if(!PD.qtd.has(x.i.c)) ins[j].value=qtdPedir(x); }); sincAlt(); sinc(); };
+      return s; });
+    // altura da parede (aparece quando há costela ou amarração: a quantidade delas depende da altura)
+    const altP=el("input",{type:"number",min:0.5,max:20,step:0.05,inputMode:"decimal",class:"pd-q","aria-label":`Altura da parede de ${loc} (m)`});
+    const altBox=el("label",{class:"row info"}, "Altura da parede (m)", altP, el("span",{}));
+    const sincAlt=()=>{ const H=alturaParede(loc); altP.value=H||""; altBox.hidden=!ls.some(l=>ehParede(l.i)&&["cost","dist"].includes(tipoArr(l.i)));
+      altBox.lastChild.textContent = !H ? "informe para calcular costelas e amarrações"
+        : `${PD.altPar[loc]?"":"estimada pelas costelas · "}arranque de ${nf0.format(PD.alt*100)} cm = ${pct(Math.min(1,PD.alt/H))} da altura`; };
+    altP.onchange=()=>{ const v=num(altP.value); if(v && (v<0.5||v>20)){ toast("Altura entre 0,5 e 20 m."); sincAlt(); return; }
+      if(v) PD.altPar[loc]=v; else delete PD.altPar[loc]; LS.set("altParedes",PD.altPar); ls.forEach((x,j)=>{ if(!PD.qtd.has(x.i.c)) ins[j].value=qtdPedir(x); }); sincAlt(); sinc(); };
+    const todos=el("input",{type:"checkbox","aria-label":`Pedir todas as barras de ${loc}`}), kgG=el("span",{class:"rom-kg"});
+    const sinc=()=>{ const qs=ls.map(qtdPedir), cheio=qs.every((q,k)=>q===ls[k].q), vazio=qs.every(q=>q===0);
+      todos.checked=cheio; todos.indeterminate=!cheio&&!vazio;
+      kgG.textContent=`${peso(ls.reduce((s,l,k)=>s+qs[k]*l.i.ppb,0))} de ${peso(somaKg(ls))}`; atualizarResumoPedido(); };
+    todos.onchange=()=>{ ls.forEach((l,k)=>{ PD.qtd.set(l.i.c, todos.checked?l.q:0); ins[k].value=qtdPedir(l); }); sinc(); };
+    todos.onclick=e=>e.stopPropagation(); // marcar o grupo sem abrir/fechar a lista
+    const qs=ls.map(qtdPedir); todos.checked=qs.every((q,k)=>q===ls[k].q); todos.indeterminate=!todos.checked&&qs.some(q=>q>0);
+    kgG.textContent=`${peso(ls.reduce((s,l,k)=>s+qs[k]*l.i.ppb,0))} de ${peso(somaKg(ls))}`;
+    const temTipo=tipos.some(Boolean);
+    return el("details",{class:"item rom",open:arr&&temTipo},
+      el("summary",{}, todos, el("b",{text:loc}), kgG),
+      temTipo ? el("p",{class:"i-sub",text:`${nParedes(loc)} parede(s)`+(ARR_PADRAO.has(chaveArr(PD.est,loc))?" · tipos de arranque definidos pela obra":"")}) : null,
+      temTipo ? (sincAlt(), altBox) : null,
+      el("div",{class:"tbl"}, el("table",{},
+        el("thead",{}, el("tr",{}, el("th",{text:"Pos."}), el("th",{text:"Ø"}), el("th",{text:"Comp. (m)"}), el("th",{text:"Falta"}), temTipo?el("th",{text:"Tipo no arranque"}):null, el("th",{text:"Pedir (barras)"}))),
+        el("tbody",{}, ...ls.map((l,k)=>el("tr",{}, el("td",{text:l.i.pos}), el("td",{text:String(l.i.bit).replace(".",",")}), el("td",{text:nf1.format(l.i.cu)}),
+          el("td",{text:nf0.format(l.q)+(l.ja?` de ${nf0.format(l.i.qp)}`:"")}), temTipo?el("td",{},tipos[k]):null, el("td",{},ins[k])))))));
+  });
+
+  const r=rEst;
+  repor(box, titulo,
+    el("div",{class:"card"},
+      el("label",{class:"campo"}, "Estrutura", selEst),
+      el("div",{class:"kpis"}, kpi("Previsto", `${t(r.p)} t`, "projeto"), kpi("Já pedido", `${t(r.j)} t`, pct(r.p?r.j/r.p:0)), kpi("Falta pedir", `${t(r.p-r.j)} t`, "")),
+      origemTxt ? el("p",{class:"info",text:`Já pedido: ${origemTxt}. A sugestão abaixo considera só o restante.`}) : null,
+      modos,
+      el("div",{class:"pd-campos"},
+        el("label",{class:"campo"}, "Limite por caminhão (t)", lim),
+        el("label",{class:"campo"}, "Entrega prevista de", ini),
+        el("label",{class:"campo"}, "até", fim),
+        arr ? el("label",{class:"campo"}, "Altura do arranque (m)", alt) : null,
+        arr ? el("label",{class:"campo"}, "Espaçamento da costela principal (m)", esp) : null),
+      arr ? el("p",{class:"info",text:"Arranque = verticais que saem da laje + ligação laje/parede + horizontais da base + costelas e amarrações só até a altura acima + pelo menos 50% dos estribos. A altura da parede é estimada pela costela principal (a de mais barras, nas duas faces); cada costela recebe a mesma fração da altura, então a de bitola menor sai proporcionalmente. Paredes sem cadastro: marque o tipo de cada barra (fica salvo neste aparelho)."}) : null),
+    linhas.length ? el("div",{class:"lista"}, ...blocos)
+                  : el("div",{class:"vazio",text:"Nada a pedir nesta estrutura: todas as posições já foram pedidas."}),
+    el("div",{class:"card",id:"pd-resumo"}));
+  atualizarResumoPedido();
+}
+function atualizarResumoPedido(){
+  const box=$("#pd-resumo"); if(!box) return;
+  const {sel,cams}=pedidoAtual(), kg=somaKg(sel);
+  if(!sel.length){ repor(box, el("h3",{text:"Pedido"}), el("p",{class:"info",text:"Marque ao menos uma posição."})); return; }
+  repor(box, el("h3",{text:"Pedido"}),
+    el("p",{}, el("b",{text:`${t(kg)} t`}), ` · ${nf0.format(sel.length)} posições · ${nf0.format(sel.reduce((s,l)=>s+l.q,0))} barras · `, el("b",{text:`${nCam(cams.length)}`})),
+    el("div",{class:"tbl"}, el("table",{},
+      el("thead",{}, el("tr",{}, el("th",{text:"Caminhão"}), el("th",{text:"Elementos"}), el("th",{text:"Posições"}), el("th",{text:"Peso (t)"}))),
+      el("tbody",{}, ...cams.map((c,k)=>el("tr",{}, el("td",{text:`${k+1}`}), el("td",{text:[...new Set(c.ls.map(l=>l.i.loc))].join(" · ")}),
+        el("td",{text:nf0.format(c.ls.length)}), el("td",{text:t(c.kg)})))))),
+    el("div",{class:"row"},
+      el("button",{class:"btn",type:"button",text:"Baixar Excel",onclick:e=>gerarArquivoPedido("xlsx",e.currentTarget)}),
+      el("button",{class:"btn",type:"button",text:"Baixar PDF",onclick:e=>gerarArquivoPedido("pdf",e.currentTarget)}),
+      el("button",{class:"btn pri",type:"button",text:"Registrar pedido",onclick:registrarPedido})),
+    el("p",{class:"info",text:"Registrar marca estas barras como pedidas: elas saem do \"falta pedir\" e a remessa aparece em Suprimentos › Aço para confirmar o recebimento."}));
+}
+const peso = kg => kg>=1000 ? `${t(kg)} t` : `${nf0.format(kg)} kg`;
+const nCam = n => n===1 ? "1 caminhão" : `${n} caminhões`;
+const proximaRemessa = () => Math.max(0, ...remessas().map(R=>R.n)) + 1;
+function registrarPedido(){
+  const {sel,cams}=pedidoAtual(); if(!sel.length) return toast("Marque ao menos uma posição.");
+  if(PD.ini && PD.fim && PD.fim<PD.ini) return toast("A data final da entrega é antes da inicial.");
+  const n=proximaRemessa(), kg=somaKg(sel);
+  if(!confirm(`Registrar a remessa ${n}: ${PD.est}, ${t(kg)} t em ${nCam(cams.length)}?`)) return;
+  const itens={}, b={};
+  for(const l of sel){ itens[l.i.c]=(itens[l.i.c]||0)+l.q; b[l.i.bit]=(b[l.i.bit]||0)+l.kg; }
+  const p={est:PD.est, emp:sel[0].i.emp, data:hojeISO(), ini:PD.ini&&PD.fim?PD.ini:"", fim:PD.ini&&PD.fim?PD.fim:"", lim:PD.lim,
+    kg:Math.round(kg*100)/100, b, cam:cams.map(c=>Math.round(c.kg)), itens};
+  S.pendCfg["ACO_PEDIDO_"+n]=JSON.stringify(p); savePendExtra(); scheduleSync();
+  toast(`Remessa ${n} registrada.`); abrirTela("supaco");
+}
+async function gerarArquivoPedido(tipo, btn){
+  const {sel,cams}=pedidoAtual(); if(!sel.length) return toast("Marque ao menos uma posição.");
+  btn.disabled=true;
+  try{
+    const nome=`Pedido_Aco_${PD.est.replace(/[^\wÀ-ú]+/g,"_").slice(0,40)}_${hojeISO()}`, modo=MODOS_PEDIDO[PD.modo].nome;
+    if(tipo==="xlsx"){
+      await loadXLSX();
+      const aoa=[["CAMINHÃO","ESTRUTURA","PRANCHA","ELEMENTO (LOCAL)","POSIÇÃO","Ø (mm)","COMP. UNIT. (m)","QTD. BARRAS","PESO (kg)","CÓDIGO"]];
+      cams.forEach((c,k)=>{ for(const l of c.ls) aoa.push([k+1,l.i.est,l.i.pr,l.i.loc,l.i.pos,l.i.bit,l.i.cu,l.q,Math.round(l.kg*100)/100,l.i.c]); });
+      const res=[["CAMINHÃO","PESO (kg)","POSIÇÕES","BARRAS","ELEMENTOS"], ...cams.map((c,k)=>[k+1,Math.round(c.kg),c.ls.length,c.ls.reduce((s,l)=>s+l.q,0),[...new Set(c.ls.map(l=>l.i.loc))].join(" · ")]),
+        ["TOTAL",Math.round(somaKg(cams)),sel.length,sel.reduce((s,l)=>s+l.q,0),""], [], [`Estrutura: ${PD.est}`], [`Tipo: ${modo}`], [`Limite por caminhão: ${PD.lim} t`], [`Gerado em ${new Date().toLocaleString("pt-BR")}`]];
+      const pb={}; for(const l of sel) pb[l.i.bit]=(pb[l.i.bit]||0)+l.kg;
+      const bit=[["Ø (mm)","PESO (kg)"], ...Object.entries(pb).sort((a,b)=>a[0]-b[0]).map(([d,k])=>[Number(d),Math.round(k)])];
+      const wb=XLSX.utils.book_new(), s1=XLSX.utils.aoa_to_sheet(aoa);
+      s1["!autofilter"]={ref:XLSX.utils.encode_range({s:{r:0,c:0},e:{r:aoa.length-1,c:aoa[0].length-1}})};
+      s1["!cols"]=[6,22,34,40,8,7,10,10,10,10].map(w=>({wch:w}));
+      XLSX.utils.book_append_sheet(wb,s1,"Pedido");
+      XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(res),"Caminhões");
+      XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(bit),"Por bitola");
+      baixar(nome+".xlsx", new Blob([XLSX.write(wb,{type:"array",bookType:"xlsx"})],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}));
+    } else {
+      await carregarScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js");
+      await carregarScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js");
+      const {jsPDF}=window.jspdf, doc=new jsPDF({unit:"mm",format:"a4"}), W=210, M=12, AZ=[0,103,166];
+      doc.setFillColor(...AZ); doc.rect(0,0,W,30,"F");
+      const logo=await logoRelatorio();
+      if(logo){ const lw=Math.min(52,14*logo.w/logo.h), lh=lw*logo.h/logo.w; doc.addImage(logo.src,"PNG",W-M-lw,(30-lh)/2,lw,lh,undefined,"FAST"); }
+      doc.setTextColor(255); doc.setFont("helvetica","bold"); doc.setFontSize(15); doc.text("Pedido de aço cortado e dobrado — SAA Rio Grande",M,11);
+      doc.setFont("helvetica","normal"); doc.setFontSize(10); doc.text(`${PD.est} · ${modo}`,M,18.5);
+      doc.setFontSize(8); doc.text(`Gerado em ${new Date().toLocaleString("pt-BR")} · limite de ${nf1.format(PD.lim)} t por caminhão`+(PD.ini&&PD.fim?` · entrega desejada ${ddmm(PD.ini)} a ${ddmm(PD.fim)}`:""),M,24.5);
+      let y=38; doc.setTextColor(20);
+      const tab=(head,body,opts={})=>{ doc.autoTable({startY:y,head:[head],body,margin:{left:M,right:M},styles:{fontSize:7.5,cellPadding:1.4,textColor:20},
+        headStyles:{fillColor:AZ,textColor:255,fontStyle:"bold"},alternateRowStyles:{fillColor:[244,246,249]},...opts}); y=doc.lastAutoTable.finalY+8; };
+      const tit=s=>{ if(y>270){ doc.addPage(); y=16; } doc.setFont("helvetica","bold"); doc.setFontSize(11); doc.setTextColor(...AZ); doc.text(s,M,y); y+=4; doc.setTextColor(20); doc.setFont("helvetica","normal"); };
+      const dir={halign:"right"};
+      tit(`Resumo: ${t(somaKg(sel))} t · ${nCam(cams.length)} · ${nf0.format(sel.reduce((s,l)=>s+l.q,0))} barras`);
+      tab(["Caminhão","Elementos","Posições","Peso (kg)"], cams.map((c,k)=>[k+1,[...new Set(c.ls.map(l=>l.i.loc))].join(" · "),c.ls.length,nf0.format(c.kg)]),{columnStyles:{2:dir,3:dir}});
+      const pb={}; for(const l of sel) pb[l.i.bit]=(pb[l.i.bit]||0)+l.kg;
+      tab(["Bitola (mm)","Peso (kg)"], Object.entries(pb).sort((a,b)=>a[0]-b[0]).map(([d,k])=>[String(d).replace(".",","),nf0.format(k)]),{tableWidth:70,columnStyles:{1:dir}});
+      cams.forEach((c,k)=>{ doc.addPage(); y=16; tit(`Caminhão ${k+1} de ${cams.length} — ${nf0.format(c.kg)} kg`);
+        tab(["Elemento (local)","Prancha","Pos.","Ø (mm)","Comp. (m)","Barras","Peso (kg)"],
+          c.ls.map(l=>[l.i.loc,l.i.pr.replace(/^.*?-DE-/,"DE-"),l.i.pos,String(l.i.bit).replace(".",","),nf1.format(l.i.cu),nf0.format(l.q),nf1.format(l.kg)]),
+          {columnStyles:{3:dir,4:dir,5:dir,6:dir},foot:[["","","","","Total",nf0.format(c.ls.reduce((s,l)=>s+l.q,0)),nf1.format(c.kg)]],footStyles:{fillColor:[230,236,242],textColor:20,fontStyle:"bold"}}); });
+      const n=doc.getNumberOfPages(); for(let p=1;p<=n;p++){ doc.setPage(p); doc.setFontSize(7); doc.setTextColor(120); doc.text(`Página ${p} de ${n}`,W-M,292,{align:"right"}); }
+      baixar(nome+".pdf", doc.output("blob"));
+    }
+  }catch(e){ toast(e.message||"Não foi possível gerar o arquivo."); }
+  finally{ btn.disabled=false; }
+}
+
 // botão "início" no topo do módulo de aço
 (()=>{ const b=el("button",{class:"btn-inicio",type:"button","aria-label":"Voltar ao início"}); b.innerHTML=svgIco("casa");
   b.onclick=()=>abrirTela("inicio"); document.querySelector(".top .wrap").prepend(b); })();

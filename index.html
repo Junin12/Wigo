@@ -323,6 +323,7 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
 .cb-opcoes{display:grid;gap:10px;transition:opacity .2s}
 .cb-opcoes.desligado{opacity:.4;pointer-events:none}
 #cb-opac{width:100%;accent-color:var(--accent)}
+.cb-escala{display:flex;justify-content:space-between;font-size:.75rem;color:var(--muted);font-weight:400}
 /* Ponto e efetivo */
 .modal.ef{z-index:30}
 #ponto{grid-template-columns:minmax(0,1fr)}
@@ -348,6 +349,50 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
 .ef-fun{display:grid;gap:8px;grid-template-columns:minmax(0,1fr)}
 #ponto .card{grid-template-columns:minmax(0,1fr)}
 .ef-fun select{width:100%}
+/* Presença (tela simples do ponto) */
+.ps-dia{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.ps-dia>div{flex:1;min-width:150px;text-align:center}
+.ps-dia b{display:block;font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-size:1.45rem;line-height:1.1}
+.ps-dia small{color:var(--muted)}
+.ps-dia .btn{min-width:48px;font-size:1.3rem}
+.ps-cont{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.ps-cont button{border:2px solid var(--line);background:var(--surface);border-radius:14px;padding:10px 4px;display:grid;gap:0;text-align:center;color:var(--ink)}
+.ps-cont b{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-size:2.1rem;line-height:1}
+.ps-cont span{font-size:.82rem;color:var(--muted);font-weight:600}
+.ps-cont .ok b{color:var(--good)} .ps-cont .bad b{color:var(--bad)}
+.ps-cont button.on{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent) inset}
+.ps-novo{min-height:56px;font-size:1.1rem;width:100%}
+.ps-grupo{display:grid;gap:8px}
+.ps-linha{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 10px;align-items:center;background:var(--surface);border:2px solid var(--line);border-radius:14px;padding:10px 10px 10px 14px}
+.ps-linha.veio{border-color:var(--good);background:var(--good-bg)}
+.ps-linha.faltou{border-color:var(--bad);background:var(--bad-bg)}
+.ps-nome{border:0;background:none;text-align:left;padding:0;color:inherit;min-width:0}
+.ps-nome b{display:block;font-size:1.02rem;line-height:1.2;overflow-wrap:anywhere}
+.ps-nome small{display:block;color:var(--muted);font-size:.8rem;margin-top:2px}
+.veio .ps-nome small{color:var(--good);font-weight:600} .faltou .ps-nome small{color:var(--bad);font-weight:600}
+.ps-bts{display:flex;gap:6px}
+.ps-bts button{min-width:74px;min-height:52px;border-radius:12px;border:2px solid;font-weight:700;font-size:1rem;background:var(--surface)}
+.ps-veio{border-color:var(--good)!important;color:var(--good)} .ps-veio.on{background:var(--good)!important;color:var(--surface)}
+.ps-faltou{border-color:var(--bad)!important;color:var(--bad)} .ps-faltou.on{background:var(--bad)!important;color:var(--surface)}
+.ps-motivo{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:.82rem;color:var(--muted)}
+.ps-motivo .chipbtn{border-color:var(--bad);color:var(--bad)} .ps-motivo .chipbtn.on{background:var(--bad);color:var(--surface)}
+.ps-step{display:flex;align-items:center;gap:10px}
+.ps-step button{width:52px;height:52px;border-radius:12px;border:2px solid var(--accent);background:var(--surface);color:var(--accent);font-size:1.6rem;font-weight:700}
+.ps-step b{min-width:32px;text-align:center;font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-size:1.8rem}
+.ps-ger{justify-self:center;text-align:center;margin-top:8px}
+.ps-voltar{justify-self:start}
+/* Fotos da obra */
+#fotos{grid-template-columns:minmax(0,1fr)}
+.ft-tirar{border:0;border-radius:18px;min-height:96px;display:flex;align-items:center;justify-content:center;gap:14px;font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-size:1.6rem;font-weight:600;color:#fff;background:linear-gradient(145deg,#E25C8A,#A8305C);box-shadow:0 10px 22px -12px #A8305C}
+.ft-tirar svg{width:40px;height:40px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.ft-tirar:active{transform:scale(.98)}
+.ft-grade{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:6px}
+.ft-mini{position:relative;aspect-ratio:1;border:1px solid var(--line);border-radius:8px;overflow:hidden;padding:0;background:var(--surface2)}
+.ft-mini img{width:100%;height:100%;object-fit:cover;display:block}
+.ft-nuvem{display:grid;place-items:center;height:100%;font-size:.75rem;color:var(--muted)}
+.ft-selo{position:absolute;top:4px;left:4px;font-size:.6rem;font-weight:700;text-transform:uppercase;background:var(--warn-bg);color:var(--warn);border-radius:999px;padding:1px 6px}
+.ft-leg{position:absolute;left:0;right:0;bottom:0;font-size:.68rem;color:#fff;background:linear-gradient(transparent,rgba(0,0,0,.75));padding:10px 4px 3px;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ft-grande{width:100%;max-height:60vh;object-fit:contain;background:#14181D;border-radius:10px;display:block}
 .ef-fun summary{cursor:pointer;font-weight:600;min-height:40px;display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px}
 .ef-lin{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;border-bottom:1px solid var(--line);padding:6px 0;min-height:44px}
 .ef-lin:last-child{border-bottom:0}
@@ -421,6 +466,15 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
     <img class="tela-logo" src="logo-heca.webp" alt="Heca Construtora">
   </div></header>
   <div class="tela-corpo" id="ponto"></div>
+</section>
+
+<!-- ================= Fotos da obra ================= -->
+<section id="tela-fotos" class="tela" aria-label="Fotos da obra" hidden>
+  <header class="tela-topo compacto"><div class="in">
+    <button class="tela-voltar" type="button" data-voltar><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>Início</button>
+    <img class="tela-logo" src="logo-heca.webp" alt="Heca Construtora">
+  </div></header>
+  <div class="tela-corpo" id="fotos"></div>
 </section>
 
 <div class="modal ef" id="ef-modal" role="dialog" aria-modal="true" aria-labelledby="ef-m-tit" hidden>
@@ -674,9 +728,10 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
           <button class="chipbtn" type="button" data-c="id">↘ Inferior direito</button>
         </div>
       </div>
-      <label class="chk"><input type="checkbox" id="cb-fundo"> Retângulo escuro atrás do texto</label>
-      <label class="campo" for="cb-opac">Escurecimento do retângulo: <b id="cb-opac-v"></b>
-        <input type="range" id="cb-opac" min="10" max="80" step="5"></label>
+      <label class="chk"><input type="checkbox" id="cb-fundo"> Quadro escuro atrás do texto (opcional)</label>
+      <label class="campo" for="cb-opac" id="cb-opac-box">Opacidade do quadro: <b id="cb-opac-v"></b>
+        <input type="range" id="cb-opac" min="10" max="90" step="5">
+        <span class="cb-escala"><span>mais transparente</span><span>mais escuro</span></span></label>
       <div class="campo">Informações
         <div class="cb-campos">
           <label class="chk"><input type="checkbox" id="cb-data"> Data e hora</label>
@@ -1435,7 +1490,7 @@ async function montarRelatorio(aviso){
     ...concSem,
     ...libArm.map(e=>["Liberado p/ armar",e.loc,e.est,pct(e.pct),`aço ${ddmm(e.st.aco)}`+(e.tipo.magro?` · magro ${ddmm(e.st.magro)}`:"")])].slice(0,40).concat(concSem.length||libArm.length?[]:[["–","Nenhum elemento liberado","","",""]]));
   // fotos
-  const fotos=regsAll().filter(r=>r.tipo==="foto"&&r.sem===w.n).slice(0,12);
+  const fotos=regsAll().filter(r=>r.tipo==="foto"&&r.sem===w.n&&r.cod!==COD_GALERIA).slice(0,12); // só as da armação
   if(fotos.length){
     titulo(`Fotos da semana (${fotos.length})`);
     const cw=(W-2*M-8)/3; let col=0;
@@ -1846,8 +1901,10 @@ $("#reg-salvar").addEventListener("click", ()=>{
 });
 // ---------- carimbo nas fotos: data, hora, endereço e GPS gravados na imagem ----------
 // Canto: se = superior esquerdo, sd = superior direito, ie = inferior esquerdo, id = inferior direito.
-const CB_PADRAO={ativo:true, canto:"ie", fundo:true, opac:45, data:true, local:true, coord:true, obra:true, logo:false};
+// O quadro escuro atrás do texto é opcional: começa desligado (sem ele o texto ganha sombra).
+const CB_PADRAO={ativo:true, canto:"ie", fundo:false, opac:45, data:true, local:true, coord:true, obra:true, logo:false, v:2};
 const CB={cfg:Object.assign({},CB_PADRAO,LS.get("carimbo")||{}), bmp:null, W:0, H:0, info:null, res:null, logo:null};
+if(CB.cfg.v!==2) Object.assign(CB.cfg,{fundo:false, v:2}); // quem já usava o app passa a começar sem o quadro
 function salvarCfgCarimbo(){ LS.set("carimbo",CB.cfg); }
 function localizacao(){
   return new Promise(res=>{
@@ -1928,7 +1985,7 @@ function sincronizarControles(){
   $("#cb-ativo").checked=c.ativo; $("#cb-fundo").checked=c.fundo; $("#cb-opac").value=c.opac; $("#cb-opac-v").textContent=`${c.opac}%`;
   for(const k of ["data","local","coord","obra","logo"]) $("#cb-"+k).checked=c[k];
   document.querySelectorAll("#cb-cantos button").forEach(b=>b.classList.toggle("on", b.dataset.c===c.canto));
-  $("#cb-opcoes").classList.toggle("desligado", !c.ativo); $("#cb-opac").disabled=!c.fundo||!c.ativo;
+  $("#cb-opcoes").classList.toggle("desligado", !c.ativo); $("#cb-opac-box").hidden=!c.fundo;
 }
 function textoGps(){
   const i=CB.info, g=$("#cb-gps");
@@ -1973,6 +2030,79 @@ $("#reg-foto").addEventListener("change", async e=>{
     addReg(r); $("#reg-txt").value=""; renderRegLista(); toast(`Foto salva (${nf0.format(blob.size/1024)} KB)`);
   }catch{ toast("Não foi possível salvar a foto. Tente de novo."); }
 });
+
+// ---------- Fotos da obra (módulo do menu inicial) ----------
+// Ficam nos Registros com o código GALERIA e vão para a pasta Fotos do Drive, prontas para anexar depois em relatórios e no RDO.
+// Não entram no relatório semanal da armação.
+const COD_GALERIA="GALERIA";
+const FT={legenda:"", urls:[]};
+const fotosGaleria = () => regsAll().filter(r=>r.tipo==="foto" && r.cod===COD_GALERIA).reverse()
+  .sort((a,b)=>String(b.data).localeCompare(String(a.data)));
+async function guardarFoto(f){
+  const legenda=FT.legenda.trim(), hoje=hojeISO();
+  const blob=await carimbarFoto(f, "SAA Rio Grande"+(legenda?" · "+legenda:"")); if(!blob) return false;
+  const r={id:uid(), data:hoje, sem:semanaDaData(hoje), equipe:"", tipo:"foto", cod:COD_GALERIA, texto:legenda};
+  await (await caches.open(FOTOS)).put("foto/"+r.id, new Response(blob,{headers:{"Content-Type":"image/jpeg"}}));
+  addReg(r); return true;
+}
+async function fotosEscolhidas(input){
+  const fs=[...input.files]; input.value=""; let n=0;
+  for(const f of fs){ try{ if(await guardarFoto(f)) n++; }catch{ toast("Não foi possível salvar a foto. Tente de novo."); break; } }
+  if(n) toast(n>1?`${n} fotos guardadas`:"Foto guardada"); renderFotos();
+}
+// foto de outro aparelho: busca no Drive e guarda neste aparelho
+async function blobDaFoto(r){
+  const b=await fotoLocal(r.id); if(b) return b;
+  const src=await fotoParaRelatorio(r); if(!src) return null;
+  const nb=await (await fetch(src)).blob();
+  try{ await (await caches.open(FOTOS)).put("foto/"+r.id, new Response(nb,{headers:{"Content-Type":nb.type||"image/jpeg"}})); }catch{}
+  return nb;
+}
+async function compartilharFoto(r){
+  const b=await blobDaFoto(r);
+  if(!b){ if(r.url) open(r.url,"_blank","noopener"); else toast("Foto indisponível neste aparelho."); return; }
+  const file=new File([b],`Foto_obra_${r.data}_${r.id.slice(0,6)}.jpg`,{type:"image/jpeg"});
+  if(navigator.canShare?.({files:[file]})){ try{ await navigator.share({files:[file], title:"Foto da obra", text:r.texto||""}); }catch{} }
+  else baixar(file.name, b);
+}
+function verFoto(r){
+  const img=el("img",{class:"ft-grande",alt:r.texto||"Foto da obra"}), msg=el("p",{class:"info",text:"Carregando foto…"});
+  blobDaFoto(r).then(b=>{ if(b){ img.src=URL.createObjectURL(b); msg.remove(); } else msg.textContent=navigator.onLine?"Foto indisponível.":"Sem internet: a foto está só no Google Drive."; });
+  const pend=S.pendReg.some(x=>x.id===r.id);
+  efModal(`Foto de ${dataBR(r.data)}`,
+    [el("div",{class:"full"}, img, msg), r.texto ? el("p",{class:"full",text:r.texto}) : null,
+     el("p",{class:"info full",text: pend ? "Ainda não foi para o Google Drive: vai sozinha quando houver internet." : "Guardada na pasta Fotos do Google Drive."})],
+    [el("button",{class:"btn pri",type:"button",text:"Enviar / compartilhar",onclick:()=>compartilharFoto(r)}),
+     r.url ? el("a",{class:"btn",href:r.url,target:"_blank",rel:"noopener",text:"Abrir no Drive"}) : null,
+     el("button",{class:"btn",type:"button",text:"Apagar",style:"color:var(--bad);margin-left:auto",onclick:async()=>{
+       if(!confirm("Apagar esta foto? Ela sai também do Google Drive.")) return;
+       await delReg(r.id); $("#ef-modal").hidden=true; toast("Foto apagada"); renderFotos(); }})]);
+}
+function renderFotos(){
+  const box=$("#fotos"); if(!box) return;
+  FT.urls.forEach(u=>URL.revokeObjectURL(u)); FT.urls=[];
+  const cam=el("input",{type:"file",accept:"image/*",hidden:true}); cam.setAttribute("capture","environment"); cam.onchange=()=>fotosEscolhidas(cam);
+  const gal=el("input",{type:"file",accept:"image/*",multiple:true,hidden:true}); gal.onchange=()=>fotosEscolhidas(gal);
+  const leg=el("input",{type:"text",maxLength:120,value:FT.legenda,placeholder:"Ex.: Decantador, parede 3"}); leg.oninput=()=>{ FT.legenda=leg.value; };
+  const tirar=el("button",{class:"ft-tirar",type:"button",onclick:()=>cam.click()}); tirar.innerHTML=svgIco("fotos"); tirar.append(el("span",{text:"Tirar foto"}));
+  const fotos=fotosGaleria(), h=hojeISO(), ontem=somaDias(h,-1), grupos=new Map();
+  for(const r of fotos){ if(!grupos.has(r.data)) grupos.set(r.data,[]); grupos.get(r.data).push(r); }
+  const blocos=[...grupos].map(([d,rs])=>el("div",{class:"card"},
+    el("h3",{text:(d===h?"Hoje":d===ontem?"Ontem":dataLonga(d))+` · ${rs.length} foto${rs.length>1?"s":""}`}),
+    el("div",{class:"ft-grade"}, ...rs.map(r=>{
+      const b=el("button",{class:"ft-mini",type:"button","aria-label":`Abrir foto${r.texto?": "+r.texto:""}`,onclick:()=>verFoto(r)});
+      fotoLocal(r.id).then(bl=>{ if(bl){ const u=URL.createObjectURL(bl); FT.urls.push(u); b.prepend(el("img",{src:u,alt:"",loading:"lazy"})); } else b.prepend(el("span",{class:"ft-nuvem",text:"No Drive"})); });
+      if(S.pendReg.some(x=>x.id===r.id)) b.append(el("span",{class:"ft-selo",text:"a enviar"}));
+      if(r.texto) b.append(el("span",{class:"ft-leg",text:r.texto}));
+      return b; }))));
+  repor(box,
+    el("p",{class:"saud"}, "Fotos da obra", el("small",{text:"Ficam guardadas para usar em relatórios e no RDO"})),
+    tirar, cam, gal,
+    el("label",{class:"campo"}, "O que é a foto? (opcional)", leg),
+    el("button",{class:"btn",type:"button",text:"Escolher fotos da galeria do celular",onclick:()=>gal.click()}),
+    !S.cfg?.url ? el("p",{class:"info",text:"As fotos ficam no celular até o banco ser configurado (Produtividade › Aço › Ajustes)."}) : null,
+    ...(blocos.length ? blocos : [el("div",{class:"vazio",text:"Nenhuma foto ainda. Toque em Tirar foto."})]));
+}
 
 // ocorrências (aba Semanas)
 function semanaDaData(iso){ return S.W.find(w=>w.ini<=iso && iso<=w.fim)?.n ?? S.cur; }
@@ -2669,6 +2799,7 @@ function renderData(){
   if(!$("#v-frentes").hidden && !document.activeElement?.closest?.("#v-frentes")) renderFrentes();
   if(CK.e) renderCkFotos();
   if(!$("#tela-ponto").hidden && !document.activeElement?.closest?.("#ponto,#ef-modal")) renderPonto();
+  if(!$("#tela-fotos").hidden && $("#ef-modal").hidden && !document.activeElement?.closest?.("#fotos")) renderFotos();
   setSync();
 }
 
@@ -2676,6 +2807,7 @@ function renderData(){
 // Ícones de traço (24×24). Os módulos sem tela ainda mostram "em breve".
 const ICO={
   rdo:'<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M8.5 10h7M8.5 14h7M8.5 18h4"/>',
+  fotos:'<path d="M3 8.5A1.5 1.5 0 0 1 4.5 7h2.8l1.6-2.2h6.2L16.7 7h2.8A1.5 1.5 0 0 1 21 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5z"/><circle cx="12" cy="13" r="3.6"/>',
   ponto:'<circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.8-3.2 3-5 5.5-5s4.7 1.8 5.5 5"/><circle cx="17.5" cy="15.5" r="3.5"/><path d="M17.5 13.8v1.9l1.2.8"/>',
   prod:'<path d="M3 17l5-5 4 3 7-8"/><path d="M15 7h4v4"/><path d="M3 21h18"/>',
   obras:'<path d="M5 21V4l13 3"/><path d="M5 7h14M17 7v4"/><rect x="15" y="11" width="4" height="3"/><path d="M3 21h8M5 4l3 3"/>',
@@ -2699,7 +2831,8 @@ const ICO={
 const svgIco = k => `<svg viewBox="0 0 24 24" aria-hidden="true">${ICO[k]}</svg>`;
 const MODULOS=[
   {id:"rdo",   nome:"RDO",              desc:"Diário de obra",                 c:["#3C8DD8","#1F5FA8"]},
-  {id:"ponto", nome:"Ponto e efetivo",  desc:"Quem está na obra hoje",         c:["#18B5A6","#0B7C74"], ativo:true},
+  {id:"ponto", nome:"Ponto e efetivo",  desc:"Quem veio hoje",                 c:["#18B5A6","#0B7C74"], ativo:true},
+  {id:"fotos", nome:"Fotos",            desc:"Tirar e guardar fotos da obra",  c:["#E25C8A","#A8305C"], ativo:true},
   {id:"prod",  nome:"Produtividade",    desc:"Aço · forma · concreto · escavação", c:["#1A9BDC","#0067A6"], ativo:true},
   {id:"obras", nome:"Obras e projetos", desc:"Estruturas, etapas e pranchas",  c:["#4F7CE8","#2747B0"]},
   {id:"rel",   nome:"Relatórios",       desc:"PDF semanal e painéis",          c:["#8A6BE0","#5A3FB0"]},
@@ -2717,13 +2850,14 @@ const SERVICOS=[
 ];
 
 // --- navegação entre telas: início → produtividade → aço (o app de armação) ---
-const TELAS={inicio:"#inicio", prod:"#tela-prod", sup:"#tela-sup", supaco:"#tela-sup-aco", supped:"#tela-sup-pedido", ponto:"#tela-ponto"};
+const TELAS={inicio:"#inicio", prod:"#tela-prod", sup:"#tela-sup", supaco:"#tela-sup-aco", supped:"#tela-sup-pedido", ponto:"#tela-ponto", fotos:"#tela-fotos"};
 function abrirTela(t, empilhar=true){
   for(const [k,s] of Object.entries(TELAS)) $(s).hidden = t!==k;
   document.body.style.overflow = t==="aco" ? "" : "hidden";
   if(t==="inicio") renderInicio(); if(t==="prod") renderProdMenu();
   if(t==="sup") renderSupMenu(); if(t==="supaco") renderSupAco(); if(t==="supped") renderSupPedido();
   if(t==="ponto") renderPonto(); if(t!=="ponto") $("#ef-modal").hidden=true;
+  if(t==="fotos") renderFotos();
   if(empilhar) history.pushState({tela:t},"");
 }
 addEventListener("popstate", e=>{ if(e.state?.tela) abrirTela(e.state.tela,false); });
@@ -2793,10 +2927,11 @@ function anelProgresso(ic, frac){
 }
 function renderInicio(){
   saudacao(); renderIndicadores();
-  const mods=MODULOS.map(m=>({...m, acao: m.id==="prod" ? ()=>abrirTela("prod") : m.id==="sup" ? ()=>abrirTela("sup") : m.id==="ponto" ? ()=>abrirTela("ponto") : null}));
+  const mods=MODULOS.map(m=>({...m, acao: ["prod","sup","ponto","fotos"].includes(m.id) ? ()=>abrirTela(m.id) : null}));
   const hoje=resumoEfDia(hojeISO());
   $("#mods").replaceChildren(...mods.map((m,k)=>moduloBtn(m,k, m.id==="prod" ? (b)=>{ b.append(el("span",{class:"num",id:"num-prod"})); }
-    : m.id==="ponto" && hoje ? (b)=>{ b.append(el("span",{class:"num",text:`${hoje.tot} na obra hoje`})); } : null)));
+    : m.id==="ponto" && hoje ? (b)=>{ b.append(el("span",{class:"num",text:`${hoje.tot} na obra hoje`})); }
+    : m.id==="fotos" ? (b)=>{ const n=fotosGaleria().filter(r=>r.data===hojeISO()).length; if(n) b.append(el("span",{class:"num",text:`${n} foto${n>1?"s":""} hoje`})); } : null)));
   numProd();
   // atalhos que já funcionam
   const at=[
@@ -3346,10 +3481,11 @@ function recontar(d, fids){
   for(const fid of new Set(fids)) if(fid && nomesDa(fid).length) setDia(d, fid, contaNomes(d, fid, vals[fid]?.[4]||0));
 }
 // abre o dia: 1ª turma do último dia lançado (ou o quadro padrão); funções com nomes começam com todos "não chegou"
+const diaAnterior = d => { const ant=datasEf().filter(x=>x<d).pop(); return ant?diaVals(ant):{}; };
+const valorInicial = (d, f, vAnt) => nomesDa(f.id).length ? contaNomes(d, f.id) : [vAnt[f.id]?.[0] ?? (f.quadro||0), 0, 0, 0, 0];
 function abrirDia(d){
-  const ant=datasEf().filter(x=>x<d).pop(), vAnt=ant?diaVals(ant):{};
-  for(const f of funcoes().filter(f=>f.ativo))
-    S.pendEf.dia[d+"|"+f.id] = nomesDa(f.id).length ? contaNomes(d, f.id) : [vAnt[f.id]?.[0] ?? (f.quadro||0), 0, 0, 0, 0];
+  const vAnt=diaAnterior(d);
+  for(const f of funcoes().filter(f=>f.ativo)) S.pendEf.dia[d+"|"+f.id]=valorInicial(d, f, vAnt);
   savePendEf(); scheduleSync();
 }
 function marcar(p, d, st){
@@ -3464,7 +3600,7 @@ function editarPessoa(p, fid){
   };
   efModal(nova?"Adicionar nome":"Editar nome",
     [campoEf("Nome",iNome,true), campoEf("Empresa · função",iFun,true), campoEf("Matrícula (opcional)",iMat), campoEf("Observação",iObs),
-     el("label",{class:"chk full"}, iAt, "Ativo (está trabalhando na obra)")],
+     el("label",{class:"chk full"}, iAt, "Ainda trabalha na obra (desmarque se foi desligado)")],
     [el("button",{class:"btn pri",type:"button",text:"Salvar",onclick:salvar}),
      nova?null:el("button",{class:"btn",type:"button",text:"Excluir",style:"color:var(--bad);margin-left:auto",onclick:()=>{ if(excluirPessoa(p)) fecharEf(); }})]);
 }
@@ -3713,17 +3849,133 @@ async function exportarEf(de, ate, btn){
 }
 
 // --- telas ---
+// A tela principal é só a lista de presença (OK / Faltou). O resto fica em "Gerenciar".
 function renderPonto(){
   const box=$("#ponto"); if(!box) return;
-  const abas=[["dia","Chegada do dia"],["quadro","Quadro"],["nomes","Nomes"],["hist","Histórico"]];
+  const avisos=[
+    !S.cfg?.url ? el("p",{class:"aviso"}, el("b",{text:"Banco não configurado. "}), "As marcações ficam no celular até configurar em Produtividade › Aço › Ajustes.") : null,
+    S.cfg?.url && S.scriptVelho ? el("p",{class:"aviso"}, el("b",{text:"Atualize o Code.gs do Google. "}), "As marcações ficam guardadas no celular e só vão para a planilha depois da atualização (veja o LEIA-ME).") : null];
+  if(!EF.gerenciar){
+    repor(box, el("p",{class:"saud"}, "Presença", el("small",{text:"Marque OK para quem veio e Faltou para quem não veio"})), ...avisos, ...efSimples(),
+      el("button",{class:"linkbtn ps-ger",type:"button",text:"⚙ Gerenciar: empresas, importar planilhas, histórico e relatórios",onclick:()=>{ EF.gerenciar=true; renderPonto(); }}));
+    return;
+  }
+  const abas=[["dia","Contagem do dia"],["quadro","Quadro"],["nomes","Nomes"],["hist","Histórico"]];
   const corpo = EF.aba==="quadro" ? efQuadro() : EF.aba==="nomes" ? efNomes() : EF.aba==="hist" ? efHist() : efDiaTela();
   repor(box,
-    el("p",{class:"saud"}, "Ponto e efetivo", el("small",{text:"Quem está na obra · próprio e terceirizado"})),
-    !S.cfg?.url ? el("p",{class:"aviso"}, el("b",{text:"Banco não configurado. "}), "Os lançamentos ficam no aparelho até configurar em Produtividade › Aço › Ajustes.") : null,
-    S.cfg?.url && S.scriptVelho ? el("p",{class:"aviso"}, el("b",{text:"Atualize o Code.gs do Google. "}), "O efetivo fica guardado no aparelho e só vai para a planilha depois da atualização (veja o LEIA-ME).") : null,
+    el("button",{class:"btn ps-voltar",type:"button",text:"← Voltar para a lista de presença",onclick:()=>{ EF.gerenciar=false; renderPonto(); }}),
+    el("p",{class:"saud"}, "Gerenciar efetivo", el("small",{text:"Quadro por empresa e função, importação, histórico e Excel"})),
+    ...avisos,
     el("div",{class:"modo ef-abas",role:"group","aria-label":"Seções do efetivo"}, ...abas.map(([k,n])=>el("button",{class:"chipbtn"+(EF.aba===k?" on":""),type:"button",text:n,"aria-pressed":String(EF.aba===k),
       onclick:()=>{ EF.aba=k; LS.set("efAba",k); renderPonto(); }}))),
     ...corpo);
+}
+// situação de uma pessoa no dia: "veio", "faltou" ou "" (ainda não marcada)
+const situacao = (pr, id) => { const s=(pr[id]||"").split(" ")[0]; return s==="P" ? "veio" : s ? "faltou" : ""; };
+function efSimples(){
+  const h=hojeISO(), min=somaDias(h,-EF_DIAS_EDICAO); if(EF.data<min || EF.data>h) EF.data=h;
+  const d=EF.data, pr=presDia(d), fs=funcoes(), fm=new Map(fs.map(f=>[f.id,f])), ativos=pessoas().filter(p=>p.ativo);
+  const ir=x=>{ if(x>=min && x<=h){ EF.data=x; renderPonto(); } };
+  const dia=el("div",{class:"ps-dia"},
+    el("button",{class:"btn",type:"button",text:"‹","aria-label":"Dia anterior",disabled:d<=min,onclick:()=>ir(somaDias(d,-1))}),
+    el("div",{}, el("b",{text:d===h?"Hoje":dataLonga(d)}), el("small",{text:d===h?dataLonga(d):"Corrigindo um dia anterior"})),
+    el("button",{class:"btn",type:"button",text:"›","aria-label":"Próximo dia",disabled:d>=h,onclick:()=>ir(somaDias(d,1))}),
+    d!==h ? el("button",{class:"btn",type:"button",text:"Hoje",onclick:()=>ir(h)}) : null);
+  const novo=el("button",{class:"btn pri ps-novo",type:"button",text:"+ Novo funcionário",onclick:novoFuncionario});
+  if(!ativos.length) return [dia, el("div",{class:"vazio"}, el("b",{text:"Nenhum funcionário cadastrado ainda"}),
+    el("span",{text:"Toque em Novo funcionário para cadastrar. Para trazer a lista inteira de uma planilha, use Gerenciar › Nomes."}), novo),
+    ...equipesSemNomes(d, fs)];
+  const conta={veio:0, faltou:0, "":0}; for(const p of ativos) conta[situacao(pr,p.id)]++;
+  const filtro=(k,rot,cls)=>el("button",{class:`${cls}${EF.filtro===k?" on":""}`,type:"button","aria-pressed":String(EF.filtro===k),
+    onclick:()=>{ EF.filtro = EF.filtro===k ? null : k; renderPonto(); }}, el("b",{text:conta[k]}), el("span",{text:rot}));
+  const cont=el("div",{class:"ps-cont"}, filtro("veio","OK","ok"), filtro("faltou","Faltaram","bad"), filtro("","Falta marcar",""));
+  const busca=el("input",{type:"search",placeholder:"Procurar pelo nome…","aria-label":"Procurar funcionário",value:EF.busca});
+  busca.oninput=()=>{ EF.busca=busca.value; const pos=busca.selectionStart; renderPonto(); const b=$("#ponto input[type=search]"); b?.focus(); b?.setSelectionRange(pos,pos); };
+  const q=normTxt(EF.busca);
+  const lista=ativos.filter(p=>(EF.filtro==null || situacao(pr,p.id)===EF.filtro) && (!q || normTxt(p.nome).includes(q)));
+  // agrupa por empresa, na ordem do quadro
+  const grupos=new Map();
+  for(const p of lista.sort((a,b)=>((fm.get(a.fid)?.ordem??1e9)-(fm.get(b.fid)?.ordem??1e9)) || a.nome.localeCompare(b.nome,"pt-BR"))){
+    const e=fm.get(p.fid)?.empresa||"Sem empresa"; if(!grupos.has(e)) grupos.set(e,[]); grupos.get(e).push(p); }
+  const blocos=[...grupos].map(([e,ps])=>el("div",{class:"ps-grupo"},
+    el("h2",{class:"tela-tit",text:`${e} · ${ps.length}`}), ...ps.map(p=>linhaPresenca(p,d,pr,fm.get(p.fid)))));
+  const filtroTxt={veio:"marcados OK", faltou:"que faltaram", "":"que falta marcar"}[EF.filtro];
+  return [dia, cont, novo, busca,
+    EF.filtro!=null ? el("p",{class:"info"}, `Mostrando só os ${filtroTxt}. `, el("button",{class:"linkbtn",type:"button",text:"Mostrar todos",onclick:()=>{ EF.filtro=null; renderPonto(); }})) : null,
+    ...(blocos.length ? blocos : [el("p",{class:"info",text:"Ninguém encontrado."})]),
+    ...equipesSemNomes(d, fs)];
+}
+function linhaPresenca(p, d, pr, f){
+  const sit=situacao(pr,p.id), [st,hora]=(pr[p.id]||"").split(" ");
+  const bt=(k,rot,cls)=>el("button",{class:`${cls}${st&&((k==="P")===(st==="P"))?" on":""}`,type:"button",text:rot,"aria-pressed":String(k==="P"?sit==="veio":sit==="faltou"),
+    "aria-label":`${rot}: ${p.nome}`, onclick:()=>marcar(p, d, (k==="P"?sit==="veio":sit==="faltou") ? "" : k)});
+  const motivo=k=>el("button",{class:"chipbtn"+(st===k?" on":""),type:"button",text:EF_SIT[k],onclick:()=>marcar(p,d,k)});
+  return el("div",{class:"ps-linha"+(sit?" "+sit:"")},
+    el("button",{class:"ps-nome",type:"button","aria-label":`Editar cadastro de ${p.nome}`,onclick:()=>editarPessoa(p)},
+      el("b",{text:p.nome}), el("small",{text: sit==="veio" ? `OK${hora?" · chegou às "+hora:""}` : sit==="faltou" ? EF_SIT[st] : (f?.funcao||"")})),
+    el("div",{class:"ps-bts"}, bt("P","OK","ps-veio"), bt("F","Faltou","ps-faltou")),
+    sit==="faltou" ? el("div",{class:"ps-motivo"}, el("span",{text:"Motivo:"}), motivo("F"), motivo("AT"), motivo("FO")) : null);
+}
+// funções sem lista de nomes (ex.: empreiteira que só manda a quantidade): quantos vieram, com − e +
+function equipesSemNomes(d, fs){
+  const sem=fs.filter(f=>f.ativo && !nomesDa(f.id).length); if(!sem.length) return [];
+  const vals=diaVals(d), vAnt=diaAnterior(d);
+  const passo=(f,delta)=>{
+    if(!diaAberto(d)) abrirDia(d);
+    const v=[...(diaVals(d)[f.id]||valorInicial(d,f,vAnt))], vieram=totalEf(v)+delta;
+    if(vieram<0) return;
+    if(delta>0){ if(v[1]>0) v[1]--; else if(v[2]>0) v[2]--; else if(v[3]>0) v[3]--; else v[0]++; } else v[1]++;
+    setDia(d,f.id,v); renderPonto();
+  };
+  return [el("h2",{class:"tela-tit",text:"Equipes sem lista de nomes"}),
+    el("p",{class:"info",text:"Para empresas que só informam a quantidade: use − e + para dizer quantos vieram."}),
+    ...empresas(sem).map(E=>el("div",{class:"ps-grupo"}, ...E.fs.map(f=>{ const v=vals[f.id]||valorInicial(d,f,vAnt);
+      return el("div",{class:"ps-linha"},
+        el("div",{class:"ps-nome"}, el("b",{text:f.funcao}), el("small",{text:`${E.nome} · de ${v[0]} no quadro`})),
+        el("div",{class:"ps-step"},
+          el("button",{type:"button",text:"−","aria-label":`Um a menos: ${f.funcao}`,onclick:()=>passo(f,-1)}),
+          el("b",{text:totalEf(v),"aria-label":`${totalEf(v)} vieram`}),
+          el("button",{type:"button",text:"+","aria-label":`Um a mais: ${f.funcao}`,onclick:()=>passo(f,1)}))); })))];
+}
+// cadastro rápido de quem foi contratado: nome, empresa e função (escolhe da lista ou escreve uma nova)
+function novoFuncionario(){
+  const fs=funcoes(), emps=empresas(fs);
+  const iNome=el("input",{type:"text",maxLength:120,autocomplete:"off",placeholder:"Nome completo"});
+  const iEmp=el("select",{}, ...emps.map(E=>el("option",{value:E.nome,text:E.nome})), el("option",{value:"",text:"Outra empresa…"}));
+  const iEmpNova=el("input",{type:"text",maxLength:120,placeholder:"Nome da empresa"});
+  const iFun=el("select",{}), iFunNova=el("input",{type:"text",maxLength:120,placeholder:"Ex.: Pedreiro"});
+  const boxEmpNova=campoEf("Nome da nova empresa",iEmpNova,true), boxFunNova=campoEf("Nome da nova função",iFunNova,true);
+  const atualizar=()=>{
+    const E=emps.find(x=>x.nome===iEmp.value);
+    repor(iFun, ...(E?E.fs.filter(f=>f.ativo):[]).map(f=>el("option",{value:f.id,text:f.funcao})), el("option",{value:"",text:"Outra função…"}));
+    boxEmpNova.hidden=!!iEmp.value; boxFunNova.hidden=!!iFun.value;
+  };
+  iEmp.onchange=atualizar; iFun.onchange=()=>{ boxFunNova.hidden=!!iFun.value; };
+  const salvar=()=>{
+    const nome=iNome.value.trim().replace(/\s+/g," "); if(!nome) return toast("Escreva o nome do funcionário.");
+    const emp=iEmp.value || iEmpNova.value.trim(); if(!emp) return toast("Escolha ou escreva a empresa.");
+    if(pessoas().some(x=>normTxt(x.nome)===normTxt(nome)) && !confirm(`Já existe "${nome}" cadastrado. Cadastrar mesmo assim?`)) return;
+    let fid=iFun.value;
+    if(!fid || !iEmp.value){
+      const fun=iFunNova.value.trim(); if(!fun) return toast("Escolha ou escreva a função.");
+      const ex=funcoes().find(x=>normTxt(x.empresa)===normTxt(emp) && normTxt(x.funcao)===normTxt(fun));
+      if(ex){ fid=ex.id; if(!ex.ativo) setFun(fid,{ativo:true}); }
+      else {
+        const todas=funcoes(), daEmp=todas.filter(x=>normTxt(x.empresa)===normTxt(emp));
+        const ordem=(daEmp.length?Math.max(...daEmp.map(x=>x.ordem||0)):Math.max(0,...todas.map(x=>x.ordem||0))+1000)+1;
+        fid=efId(); setFun(fid,{empresa:emp, funcao:fun, vinculo:daEmp[0]?.vinculo||vinculoPadrao(emp), quadro:0, ordem, ativo:true});
+      }
+    }
+    const jaContava=nomesDa(fid).length>0;
+    setPes(efId(),{nome, fid, matricula:"", obs:"", ativo:true});
+    if(jaContava) recontar(hojeISO(), [fid]);
+    toast(`${nome} cadastrado.`); fecharEf();
+  };
+  efModal("Novo funcionário",
+    [campoEf("Nome",iNome,true), campoEf("Empresa",iEmp,true), boxEmpNova, campoEf("Função",iFun,true), boxFunNova],
+    [el("button",{class:"btn pri",type:"button",text:"Cadastrar",onclick:salvar})]);
+  if(!emps.length){ iEmp.value=""; }
+  atualizar();
 }
 function pessoaLinha(p, d, pr){
   const [st,hora]=(pr[p.id]||"").split(" ");

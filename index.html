@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Armação Rio Grande</title>
 <meta name="theme-color" content="#23527E">
+<script>
+// aplica o tema salvo antes de desenhar a tela (evita piscar claro→escuro ao abrir)
+try{ const t=JSON.parse(localStorage.getItem("arm:tema")); if(t==="light"||t==="dark") document.documentElement.dataset.theme=t; }catch{}
+</script>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -21,7 +25,9 @@
   --r:10px; --tabs:64px;
   font-family:"Barlow",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
 }
-@media (prefers-color-scheme:dark){:root{
+/* tema: data-theme="light"/"dark" força a escolha feita em Ajustes; sem o atributo, segue o sistema.
+   Os dois blocos escuros abaixo precisam ficar iguais. */
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
   color-scheme:dark;
   --bg:#0E1318; --surface:#172029; --surface2:#1C2631; --ink:#E7ECF1; --muted:#98A4B2; --line:#2A3542;
   --fill:#E9C930; --fill-ink:#171300; --accent:#8BB8E3; --on-accent:#0E1318; --bar:#6F95BA; --bar-hl:#A9CCEE;
@@ -29,6 +35,14 @@
   --idle:#98A4B2; --idle-bg:#222C37;
   --in-bg:#1C2631; --in-ink:#D9DEE4; /* cinza claro sobre fundo escuro */
 }}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0E1318; --surface:#172029; --surface2:#1C2631; --ink:#E7ECF1; --muted:#98A4B2; --line:#2A3542;
+  --fill:#E9C930; --fill-ink:#171300; --accent:#8BB8E3; --on-accent:#0E1318; --bar:#6F95BA; --bar-hl:#A9CCEE;
+  --good:#5BC98B; --good-bg:#16301F; --warn:#F0B35A; --warn-bg:#35270F; --bad:#F2877C; --bad-bg:#3A1A17;
+  --idle:#98A4B2; --idle-bg:#222C37;
+  --in-bg:#1C2631; --in-ink:#D9DEE4;
+}
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
 body{margin:0;background:var(--bg);color:var(--ink);font-size:15px;line-height:1.4;font-variant-numeric:tabular-nums;
@@ -444,6 +458,12 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
 
   <section class="view" id="v-dados" hidden>
     <h2>Ajustes e planilha</h2>
+    <div class="card">
+      <h3>Aparência</h3>
+      <div class="modo" id="tema" role="group" aria-label="Tema do aplicativo">
+        <button class="chipbtn" type="button" data-t="system">Igual ao sistema</button><button class="chipbtn" type="button" data-t="light">Claro</button><button class="chipbtn" type="button" data-t="dark">Escuro</button>
+      </div>
+    </div>
     <div class="card">
       <h3>Versão do app</h3>
       <p class="info">Esta tela está na versão <b id="versao-app"></b>. Depois de subir arquivos novos no GitHub, espere 1 a 2 minutos e toque abaixo (com internet).</p>
@@ -1144,7 +1164,17 @@ function renderDados(){
 
 // ---------- importar / exportar ----------
 // ---------- versão do app e atualização manual ----------
-const VERSAO_APP = "v20"; // igual ao número em sw.js (armacao-v20)
+function renderTema(){
+  const t=LS.get("tema")||"system";
+  $("#tema").querySelectorAll("button").forEach(b=>{ const on=b.dataset.t===t; b.classList.toggle("on",on); b.setAttribute("aria-pressed",on); });
+}
+$("#tema").addEventListener("click", e=>{ const b=e.target.closest("button[data-t]"); if(!b) return;
+  const t=b.dataset.t; LS.set("tema",t);
+  if(t==="system") delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme=t;
+  renderTema(); });
+renderTema();
+
+const VERSAO_APP = "v21"; // igual ao número em sw.js (armacao-v21)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");

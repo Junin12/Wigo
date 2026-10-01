@@ -422,6 +422,14 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
 .ft-selo.rd-dentro{background:var(--good-bg);color:var(--good)}
 .rd-acoes{position:sticky;bottom:0;background:var(--bg);padding:8px 0 calc(8px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--line)}
 .chipbtn:disabled{opacity:.6;cursor:default}
+.rd-voz{border-color:var(--accent)}
+.rd-voz textarea{min-height:110px}
+.btn.rd-rec{background:var(--bad);border-color:var(--bad);color:#fff}
+.rd-ouvindo{color:var(--bad);font-weight:700;animation:pisca 1.2s ease-in-out infinite}
+@keyframes pisca{50%{opacity:.35}}
+@media (prefers-reduced-motion:reduce){.rd-ouvindo{animation:none}}
+.rd-grupo{display:grid;gap:2px;border-top:1px solid var(--line);padding-top:6px}
+.rd-item{align-items:flex-start;min-height:36px} .rd-item span{padding-top:2px}
 /* Fotos da obra */
 #fotos{grid-template-columns:minmax(0,1fr)}
 .ft-tirar{border:0;border-radius:18px;min-height:96px;display:flex;align-items:center;justify-content:center;gap:14px;font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-size:1.6rem;font-weight:600;color:#fff;background:linear-gradient(145deg,#E25C8A,#A8305C);box-shadow:0 10px 22px -12px #A8305C}
@@ -915,7 +923,7 @@ const quemSou = () => U ? `${U.nome} (${U.cargo})` : "sem login";
 const pode = k => { const c=CARGOS[U?.cargo]; return !!c && (c.m.split(" ").includes(k) || c.x.split(" ").includes(k)); };
 
 const K = (cod, eq) => cod+"|"+eq;
-const SCRIPT_MIN = 13; // versão do Code.gs que este app espera
+const SCRIPT_MIN = 14; // versão do Code.gs que este app espera
 // O Planilhas converte "DEC-0001" em data (dez/2001). Reconstrói o código se ele chegar como data.
 const MESES=["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
 function consertaCod(c){
@@ -4680,6 +4688,7 @@ function renderRdo(){
     el("p",{class:"saud"}, "Diário de obra", el("small",{text:"SAA Rio Grande · Uberaba/MG"})),
     !pode("rdo-edit") ? el("p",{class:"info",text:`Seu cargo (${U?.cargo}) consulta o RDO e gera o PDF; quem preenche é o mestre, o apontador, o planejamento ou a engenharia.`}) : null,
     topo, estado,
+    ed ? vozCard(d) : null,
     sec("1. Horário e clima",
       el("div",{class:"row"}, el("span",{class:"info",text:"Expediente:"}), hora("ini","07:00"), el("span",{text:"às"}), hora("fim","17:00")),
       ...PERIODOS.map(climaLinha),
@@ -4694,6 +4703,116 @@ function renderRdo(){
     sec(`6. Fotos do dia (${fts.filter(f=>!sem.has(f.id)).length} no RDO)`, ...fotos),
     acoes);
 }
+// ---------- RDO por voz ----------
+// O celular transcreve a fala (reconhecimento de voz do navegador, pt-BR). O Google manda o texto para a IA (Claude),
+// que devolve os campos do RDO; a pessoa confere o que entra antes de aplicar. Sem IA configurada, faz uma organização simples aqui.
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+function iniciarVoz(){
+  const V=RD.voz; if(!SR) return toast("Este navegador não transcreve voz: toque no texto e use o microfone do teclado.");
+  const r=new SR(); r.lang="pt-BR"; r.continuous=true; r.interimResults=true;
+  const base=V.texto.trim() ? V.texto.trim()+" " : ""; let finais="";
+  r.onresult=e=>{ let inter="";
+    for(let i=e.resultIndex;i<e.results.length;i++){ const t=e.results[i][0].transcript; if(e.results[i].isFinal) finais+=t+" "; else inter+=t; }
+    V.texto=(base+finais+inter).replace(/\s+/g," "); if(V.ta) V.ta.value=V.texto; };
+  r.onerror=e=>{ if(e.error==="not-allowed"||e.error==="service-not-allowed"){ V.gravando=false; toast("Libere o microfone para este site nas permissões do navegador."); }
+    else if(e.error==="network"){ V.gravando=false; toast("A transcrição precisa de internet. Sem sinal, use o microfone do teclado."); }
+    else if(e.error!=="no-speech" && e.error!=="aborted") toast("Erro na gravação: "+e.error); };
+  // o Android encerra sozinho depois de um silêncio: se ainda está gravando, continua de onde parou
+  r.onend=()=>{ if(V.rec!==r) return; V.rec=null; if(V.gravando) iniciarVoz(); else renderRdo(); };
+  V.rec=r; V.gravando=true;
+  try{ r.start(); }catch{ V.gravando=false; toast("Não foi possível abrir o microfone."); }
+  renderRdo();
+}
+function pararVoz(){ const V=RD.voz; V.gravando=false; try{ V.rec?.stop(); }catch{} renderRdo(); }
+// organização simples, sem IA: clima e equipamentos por palavras-chave; o relato inteiro vai para "outros serviços"
+function organizarSimples(texto, ctx){
+  const n=normTxt(texto), clima={manha:"",tarde:"",noite:""};
+  const tipo=s=> /CHUV|CHOV/.test(s) && /PAROU|PARALIS|IMPRATICAVEL/.test(s) ? "Impraticável" : /CHUV|CHOV/.test(s) ? "Chuva" : /NUBLAD/.test(s) ? "Nublado" : /\bSOL\b|ENSOLARAD|TEMPO BOM|BOM TEMPO|TEMPO FIRME/.test(s) ? "Bom" : "";
+  let algum=false;
+  for(const [k,p] of [["manha","MANHA"],["tarde","TARDE"],["noite","NOITE"]]){ const m=new RegExp(p+"[^.,;]*").exec(n); if(m){ clima[k]=tipo(m[0]); algum ||= !!clima[k]; } }
+  if(!algum){ const t=tipo(n); if(t) clima.manha=clima.tarde=t; }
+  const equipamentos=ctx.equipamentos.filter(e=>n.includes(normTxt(e))).map(nome=>({nome, quantidade:1, horas:0}));
+  return {clima, condicao:/IMPRATICAVEL/.test(n)?"Impraticável":"", inicio:"", fim:"", atividades:[], outrosServicos:[texto], equipamentos, ocorrencias:[], visitas:[]};
+}
+async function organizarVoz(d, btn){
+  const V=RD.voz, texto=V.texto.trim();
+  if(texto.length<10) return toast("Dite ou escreva o relato primeiro.");
+  if(V.gravando) pararVoz();
+  btn.disabled=true; btn.textContent="Organizando…";
+  const ctx={atividades:atividadesDoDia(d).map(a=>({id:a.id, atividade:a.atividade, onde:ondeTxt(a)})), estruturas:estruturasObra(), equipamentos:EQUIP_PADRAO};
+  let res=null, aviso="";
+  try{
+    if(!S.cfg?.url) aviso="sem banco configurado";
+    else if(!navigator.onLine) aviso="sem internet";
+    else { const j=await post({acao:"rdoVoz", data:d, texto, contexto:ctx}); if(j.rdo) res=j.rdo; else aviso = j.semChave ? "a IA ainda não foi ligada no Google (veja o LEIA-ME)" : "o Code.gs do Google está desatualizado"; }
+  }catch(e){ aviso=e.message; }
+  if(!res) res=organizarSimples(texto, ctx);
+  // marca tudo para entrar; a pessoa desmarca o que não quiser
+  const marcas=new Set(["clima","cond","hora", ...res.atividades.map((_,k)=>"at"+k), ...res.outrosServicos.map((_,k)=>"sv"+k),
+    ...res.equipamentos.map((_,k)=>"eq"+k), ...res.ocorrencias.map((_,k)=>"oc"+k), ...res.visitas.map((_,k)=>"vi"+k)]);
+  V.prev={res, aviso, texto, marcas, ctx};
+  btn.disabled=false; renderRdo();
+}
+function aplicarVoz(d){
+  const V=RD.voz, {res, marcas, texto}=V.prev, ok=k=>marcas.has(k), soma=(a,b)=>[a,b].filter(s=>s&&s.trim()).join("\n");
+  const hora=s=>/^\d{1,2}:\d{2}$/.test(s) ? s.padStart(5,"0") : "";
+  setRdo(d, x=>{
+    if(ok("clima")) for(const k of ["manha","tarde","noite"]) if(res.clima[k]) (x.clima ??= {})[k]=res.clima[k];
+    if(ok("cond") && res.condicao) x.cond=res.condicao;
+    if(ok("hora")){ if(hora(res.inicio)) x.ini=hora(res.inicio); if(hora(res.fim)) x.fim=hora(res.fim); }
+    res.atividades.forEach((a,k)=>{ if(ok("at"+k) && a.observacao) { x.obsAtiv ??= {}; x.obsAtiv[a.id]=soma(x.obsAtiv[a.id], a.observacao).replace(/\n/g," "); } });
+    res.outrosServicos.forEach((s,k)=>{ if(ok("sv"+k)) x.servicos=soma(x.servicos, s); });
+    res.equipamentos.forEach((q,k)=>{ if(!ok("eq"+k) || !q.nome) return;
+      x.equip ??= []; const e=x.equip.find(z=>normTxt(z.nome)===normTxt(q.nome));
+      if(e){ if(q.quantidade>0) e.qtd=q.quantidade; if(q.horas>0) e.horas=q.horas; }
+      else x.equip.push({nome:q.nome, qtd:Math.max(1,q.quantidade||1), horas:q.horas>0?q.horas:null}); });
+    res.ocorrencias.forEach((s,k)=>{ if(ok("oc"+k)) x.ocorr=soma(x.ocorr, "• "+s); });
+    res.visitas.forEach((s,k)=>{ if(ok("vi"+k)) x.visitas=soma(x.visitas, "• "+s); });
+    // o relato ditado fica guardado no RDO (os 5 últimos), com quem ditou
+    x.ditados=[...(x.ditados||[]), {em:new Date().toISOString(), por:quemSou(), texto:texto.slice(0,3000)}].slice(-5);
+  }, "Preenchido por voz");
+  RD.voz={texto:"", gravando:false}; toast("RDO preenchido com o relato. Confira os campos."); renderRdo();
+}
+function vozCard(d){
+  const V=(RD.voz ??= {texto:"", gravando:false});
+  if(V.prev) return previaVoz(d);
+  const ta=el("textarea",{maxLength:12000,rows:5,value:V.texto,"aria-label":"Relato do dia",
+    placeholder: SR ? "Toque em Gravar e fale do dia: clima, o que cada equipe fez e onde, equipamentos, ocorrências e visitas."
+      : "Toque aqui e use o microfone do teclado para ditar o relato do dia."});
+  ta.oninput=()=>{ V.texto=ta.value; }; V.ta=ta;
+  return el("div",{class:"card rd-voz"},
+    el("h3",{text:"🎤 Ditar o RDO"}),
+    el("p",{class:"info",text:"Fale como se estivesse contando o dia. O texto aparece aqui, dá para corrigir, e depois o app separa em clima, atividades, equipamentos, ocorrências e visitas."}),
+    el("div",{class:"row"},
+      SR ? el("button",{class:"btn "+(V.gravando?"rd-rec":"pri"),type:"button",text:V.gravando?"⏹ Parar":"🎤 Gravar",onclick:()=>V.gravando?pararVoz():iniciarVoz()}) : null,
+      V.gravando ? el("span",{class:"rd-ouvindo",text:"Ouvindo…"}) : null),
+    ta,
+    el("div",{class:"row"},
+      el("button",{class:"btn pri",type:"button",text:"✨ Organizar no RDO",onclick:e=>organizarVoz(d,e.currentTarget)}),
+      V.texto ? el("button",{class:"btn",type:"button",text:"Limpar",onclick:()=>{ if(V.gravando) pararVoz(); V.texto=""; renderRdo(); }}) : null));
+}
+function previaVoz(d){
+  const V=RD.voz, {res, aviso, marcas, ctx}=V.prev, nomeAt=new Map(ctx.atividades.map(a=>[a.id,a.atividade]));
+  const item=(k,txt)=>{ const c=el("input",{type:"checkbox",checked:marcas.has(k)}); c.onchange=()=>{ c.checked?marcas.add(k):marcas.delete(k); }; return el("label",{class:"chk rd-item"}, c, el("span",{text:txt})); };
+  const grupo=(tit,itens)=>itens.length ? el("div",{class:"rd-grupo"}, el("b",{text:tit}), ...itens) : null;
+  const cl=["manha","tarde","noite"].filter(k=>res.clima[k]).map(k=>`${{manha:"Manhã",tarde:"Tarde",noite:"Noite"}[k]}: ${res.clima[k]}`).join(" · ");
+  const vazio=!cl && !res.condicao && !res.inicio && !res.fim && ![res.atividades,res.outrosServicos,res.equipamentos,res.ocorrencias,res.visitas].some(l=>l.length);
+  return el("div",{class:"card rd-voz"},
+    el("h3",{text:"✨ O que vai entrar no RDO"}),
+    aviso ? el("p",{class:"aviso"}, el("b",{text:"Organização simples (sem IA): "}), `${aviso}. Só o clima e os equipamentos foram separados; o relato inteiro vai em "Outros serviços".`)
+      : el("p",{class:"info",text:"Organizado pela IA a partir do que foi falado. Desmarque o que não estiver certo."}),
+    vazio ? el("p",{class:"info",text:"Não deu para tirar nenhuma informação do relato."}) : null,
+    grupo("Clima e horário", [cl&&item("clima",cl), res.condicao&&item("cond",`Obra: ${res.condicao}`), (res.inicio||res.fim)&&item("hora",`Expediente: ${res.inicio||"?"} às ${res.fim||"?"}`)].filter(Boolean)),
+    grupo("Atividades da Produção", res.atividades.map((a,k)=>item("at"+k,`${nomeAt.get(a.id)||"Atividade"}: ${a.observacao}`))),
+    grupo("Outros serviços", res.outrosServicos.map((s,k)=>item("sv"+k,s))),
+    grupo("Equipamentos", res.equipamentos.map((q,k)=>item("eq"+k,`${q.nome} · ${q.quantidade||1} un.${q.horas>0?` · ${nf1.format(q.horas)} h`:""}`))),
+    grupo("Ocorrências", res.ocorrencias.map((s,k)=>item("oc"+k,s))),
+    grupo("Visitas", res.visitas.map((s,k)=>item("vi"+k,s))),
+    el("div",{class:"row"},
+      el("button",{class:"btn pri",type:"button",text:"Colocar no RDO",disabled:vazio,onclick:()=>aplicarVoz(d)}),
+      el("button",{class:"btn",type:"button",text:"Voltar ao texto",onclick:()=>{ V.prev=null; renderRdo(); }})));
+}
+
 // depois de digitar, redesenha só quando o campo perde o foco (para não atrapalhar quem está escrevendo)
 function renderRdoDepois(){ setTimeout(()=>{ if(!document.activeElement?.closest?.("#rdo")) renderRdo(); }, 800); }
 

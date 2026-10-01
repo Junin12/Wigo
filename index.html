@@ -1002,7 +1002,7 @@ function renderDados(){
 
 // ---------- importar / exportar ----------
 // ---------- versão do app e atualização manual ----------
-const VERSAO_APP = "v17"; // igual ao número em sw.js (armacao-v17)
+const VERSAO_APP = "v18"; // igual ao número em sw.js (armacao-v18)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -1250,7 +1250,7 @@ $("#exportar").addEventListener("click", async ()=>{
     XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([["DATA","SEMANA","EQUIPE","TIPO","HORAS_PERDIDAS","DESCRICAO"],
       ...rg.filter(r=>r.tipo==="ocorrencia").map(r=>[r.data,r.sem,r.equipe,r.cat,+r.horas||0,r.texto])]),"Ocorrencias");
     XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([["DATA","SEMANA","EQUIPE","TIPO","CODIGO","ESTRUTURA","POSICAO","TEXTO","FOTO"],
-      ...rg.filter(r=>!["ocorrencia","marca"].includes(r.tipo)).map(r=>{ const i=S.byCode.get(r.cod); return [r.data,r.sem,r.equipe,r.tipo==="foto"?"Foto":"Observação",r.cod,i?.est||"",i?.pos||"",r.texto,r.url||""]; })]),"Fotos e observacoes");
+      ...rg.filter(r=>!["ocorrencia","marca","marcaX"].includes(r.tipo)).map(r=>{ const i=S.byCode.get(r.cod); return [r.data,r.sem,r.equipe,r.tipo==="foto"?"Foto":"Observação",r.cod,i?.est||"",i?.pos||"",r.texto,r.url||""]; })]),"Fotos e observacoes");
     baixar(`Armacao_SAA_Rio_Grande_${new Date().toISOString().slice(0,10)}.xlsx`, new Blob([XLSX.write(wb,{type:"array",bookType:"xlsx"})],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}));
     toast("Planilha exportada");
   }catch(err){ toast(err.message||"Não foi possível exportar"); }
@@ -1910,17 +1910,25 @@ stage.addEventListener("wheel", e=>{ e.preventDefault(); const p=pos(e); zoomEm(
 // ---------- marcação da posição na prancha ----------
 // marcas.json: posições encontradas por OCR nas pranchas (gerado a partir dos PDFs).
 // Marcações manuais: registros tipo "marca" (cod "MK|prancha|folha|posição", texto "x,y,w,h" em pontos do PDF).
-const MK={auto:null, alvo:null, lista:[], k:0, marcando:false};
+// Marcas automáticas desmarcadas (OCR errou): registros tipo "marcaX" com as coordenadas da marca escondida.
+const MK={auto:null, alvo:null, lista:[], ocultas:[], k:0, marcando:false};
 async function carregarMarcas(){
   if(MK.auto) return;
   try{ MK.auto=await (await fetch("marcas.json")).json(); }catch{ MK.auto={pranchas:{}}; }
 }
 const chaveMarca = () => `MK|${MK.alvo.cod}|${V.n}|${MK.alvo.pos}`;
+const coords = t => String(t).split(",").map(Number);
+const mesmaCaixa = (a,b) => a.length===4 && b.length===4 && a.every((v,k)=>Math.abs(v-b[k])<0.6);
 function marcasDaFolha(){
-  if(!MK.alvo) return [];
-  const auto=(MK.auto?.pranchas?.[MK.alvo.cod]?.folhas?.[String(V.n)]?.[MK.alvo.pos]||[]).map(r=>({r, auto:true}));
-  const man=regsAll().filter(x=>x.tipo==="marca" && x.cod===chaveMarca()).map(x=>({r:String(x.texto).split(",").map(Number), id:x.id}));
-  return [...auto, ...man].filter(m=>m.r.length===4 && m.r.every(isFinite));
+  if(!MK.alvo){ MK.ocultas=[]; return []; }
+  const regs=regsAll().filter(x=>x.cod===chaveMarca());
+  const desm=regs.filter(x=>x.tipo==="marcaX").map(x=>({r:coords(x.texto), id:x.id}));
+  const auto=(MK.auto?.pranchas?.[MK.alvo.cod]?.folhas?.[String(V.n)]?.[MK.alvo.pos]||[]);
+  // automáticas escondidas ficam à parte (aparecem só no modo Marcar, para poder restaurar)
+  MK.ocultas=auto.map(r=>({r, desm:desm.find(d=>mesmaCaixa(d.r,r))})).filter(m=>m.desm).map(m=>({r:m.r, idDesm:m.desm.id}));
+  const ativas=auto.filter(r=>!desm.some(d=>mesmaCaixa(d.r,r))).map(r=>({r, auto:true}));
+  const man=regs.filter(x=>x.tipo==="marca").map(x=>({r:coords(x.texto), id:x.id}));
+  return [...ativas, ...man].filter(m=>m.r.length===4 && m.r.every(isFinite));
 }
 function rotuloMarca(){
   const n=MK.lista.length;
@@ -1930,7 +1938,7 @@ function rotuloMarca(){
 let avisoT;
 function avisoMarca(){
   rotuloMarca(); const a=$("#v-aviso"); clearTimeout(avisoT);
-  if(!MK.alvo || MK.marcando){ a.hidden=!MK.marcando; if(MK.marcando) a.textContent=`Toque no desenho onde está a ${MK.alvo.pos}. Tocar numa marcação feita à mão apaga. Toque em "Concluir" ao terminar.`; return; }
+  if(!MK.alvo || MK.marcando){ a.hidden=!MK.marcando; if(MK.marcando) a.textContent=`Toque onde está a ${MK.alvo.pos} para marcar. Toque numa marcação errada para desmarcar (as desmarcadas ficam cinza; toque de novo para restaurar). "Concluir" ao terminar.`; return; }
   if(MK.lista.length) { a.hidden=true; return; }
   a.hidden=false; a.textContent=`${MK.alvo.pos} não foi localizada automaticamente nesta folha. Toque em "Marcar ${MK.alvo.pos}" e depois no desenho para indicar onde ela está.`;
   avisoT=setTimeout(()=>a.hidden=true, 8000);
@@ -1950,7 +1958,7 @@ $("#v-mk-prox").onclick=()=>focarMarca(MK.k+1);
 $("#v-marcar").onclick=()=>{
   MK.marcando=!MK.marcando; const b=$("#v-marcar");
   b.classList.toggle("on",MK.marcando); b.textContent = MK.marcando ? "Concluir" : `Marcar ${MK.alvo.pos}`;
-  stage.classList.toggle("marcando",MK.marcando); avisoMarca();
+  stage.classList.toggle("marcando",MK.marcando); avisoMarca(); mudou(0);
 };
 // marca-texto amarelo + círculo vermelho em volta de cada ocorrência
 function desenharMarcas(ctx, vp, ox, oy, dpr){
@@ -1966,13 +1974,29 @@ function desenharMarcas(ctx, vp, ox, oy, dpr){
     ctx.beginPath(); ctx.ellipse((x1+x2)/2, (y1+y2)/2, (x2-x1)/2+pw*2.2+6*dpr, (y2-y1)/2+ph*2.2+6*dpr, 0, 0, Math.PI*2); ctx.stroke();
     ctx.restore();
   });
+  // no modo Marcar, mostra as automáticas desmarcadas: cinza tracejado com "×"
+  if(MK.marcando) MK.ocultas.forEach(m=>{
+    const [x,y,w,h]=m.r, q=vp.convertToViewportRectangle([x,y,x+w,y+h]);
+    const x1=Math.min(q[0],q[2])+ox, x2=Math.max(q[0],q[2])+ox, y1=Math.min(q[1],q[3])+oy, y2=Math.max(q[1],q[3])+oy;
+    const rx=(x2-x1)/2+10*dpr, ry=(y2-y1)/2+8*dpr, cx=(x1+x2)/2, cy=(y1+y2)/2;
+    ctx.save(); ctx.strokeStyle="#7A8794"; ctx.lineWidth=2*dpr; ctx.setLineDash([5*dpr,4*dpr]);
+    ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI*2); ctx.stroke();
+    ctx.setLineDash([]); ctx.beginPath(); ctx.moveTo(cx-rx*0.5,cy-ry*0.5); ctx.lineTo(cx+rx*0.5,cy+ry*0.5); ctx.moveTo(cx+rx*0.5,cy-ry*0.5); ctx.lineTo(cx-rx*0.5,cy+ry*0.5); ctx.stroke();
+    ctx.restore();
+  });
 }
-// no modo "Marcar": toque cria uma marcação manual; toque numa manual existente apaga
+// no modo "Marcar": toque numa marca manual apaga; numa automática desmarca (fica cinza);
+// numa desmarcada restaura; no vazio cria uma marca manual
 function tocarMarca(p){
   const [x,y]=V.page.getViewport({scale:V.z}).convertToPdfPoint(p.x-V.tx, p.y-V.ty);
-  const tol=8/V.z;
-  const existente=MK.lista.find(m=>m.id && x>=m.r[0]-tol && x<=m.r[0]+m.r[2]+tol && y>=m.r[1]-tol && y<=m.r[1]+m.r[3]+tol);
-  if(existente){ delReg(existente.id); toast("Marcação removida"); }
+  const tol=10/V.z, dentro=m=>x>=m.r[0]-tol && x<=m.r[0]+m.r[2]+tol && y>=m.r[1]-tol && y<=m.r[1]+m.r[3]+tol;
+  const manual=MK.lista.find(m=>m.id && dentro(m)), auto=MK.lista.find(m=>m.auto && dentro(m)), oculta=MK.ocultas.find(dentro);
+  if(manual){ delReg(manual.id); toast("Marcação removida"); }
+  else if(auto){
+    addReg({id:uid(), data:hojeISO(), sem:S.cur, equipe:eqAtual(), tipo:"marcaX", cod:chaveMarca(), texto:auto.r.join(",")});
+    toast("Marcação automática desmarcada");
+  }
+  else if(oculta){ delReg(oculta.idDesm); toast("Marcação restaurada"); }
   else{
     const w=30, h=14;
     addReg({id:uid(), data:hojeISO(), sem:S.cur, equipe:eqAtual(), tipo:"marca", cod:chaveMarca(), texto:[x-w/2,y-h/2,w,h].map(v=>Math.round(v*10)/10).join(",")});

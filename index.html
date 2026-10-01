@@ -345,7 +345,9 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
 .ef-bts .chipbtn{min-width:44px;min-height:40px}
 .ef-bts .chipbtn.ef-chegou{min-width:84px;border-color:var(--good);color:var(--good)}
 .ef-bts .chipbtn.ef-chegou.on{background:var(--good);color:var(--surface)}
-.ef-fun{display:grid;gap:8px}
+.ef-fun{display:grid;gap:8px;grid-template-columns:minmax(0,1fr)}
+#ponto .card{grid-template-columns:minmax(0,1fr)}
+.ef-fun select{width:100%}
 .ef-fun summary{cursor:pointer;font-weight:600;min-height:40px;display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px}
 .ef-lin{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;border-bottom:1px solid var(--line);padding:6px 0;min-height:44px}
 .ef-lin:last-child{border-bottom:0}
@@ -3481,6 +3483,133 @@ function colarNomes(){
       fecharEf(); }})]);
 }
 
+// --- importação da lista de nomes (planilha com colunas EMPRESA, NOME e CARGO/FUNÇÃO) ---
+// A grafia da lista não bate com a do quadro ("OP. MAQUINAS" × "Operador de Maquina", "AGUIA CONST" × "AGUIA CONSTRUTORA"):
+// compara palavra a palavra (abreviação, erro de 1 letra, acento) e sugere o destino; o usuário confere antes de gravar.
+const tokensEf = s => normTxt(s).replace(/º/g,"").split(/[^A-Z0-9]+/).filter(t=>t && !["DE","DA","DO","DOS","DAS","E"].includes(t)).map(t=>t==="OP"?"OPERADOR":t);
+function dist1(a,b){ // no máximo uma letra trocada, sobrando ou faltando
+  if(Math.abs(a.length-b.length)>1) return false;
+  let i=0, j=0, d=0;
+  while(i<a.length && j<b.length){ if(a[i]===b[j]){ i++; j++; continue; } if(++d>1) return false; if(a.length>b.length) i++; else if(b.length>a.length) j++; else { i++; j++; } }
+  return d+(a.length-i)+(b.length-j)<=1;
+}
+const prefixoComum = (a,b) => { let k=0; while(k<a.length && a[k]===b[k]) k++; return k; };
+const tokIgual = (a,b) => a===b || (a.length>=3 && b.startsWith(a)) || (b.length>=3 && a.startsWith(b)) || prefixoComum(a,b)>=6 || (a.length>=5 && b.length>=5 && dist1(a,b));
+// parte das palavras de a que aparecem em b
+const cob = (a,b) => { const A=tokensEf(a), B=tokensEf(b); return A.length ? A.filter(x=>B.some(y=>tokIgual(x,y))).length/A.length : 0; };
+
+async function lerListaNomes(file){
+  await loadXLSX();
+  const wb=XLSX.read(await file.arrayBuffer(),{type:"array"}); let melhor=null;
+  for(const aba of wb.SheetNames){
+    const L=XLSX.utils.sheet_to_json(wb.Sheets[aba],{header:1,raw:true,defval:""});
+    const h=L.findIndex(r=>{ const c=r.map(normTxt); return c.includes("NOME") && c.some(x=>/^EMPRESA/.test(x)) && c.some(x=>/^(CARGO|FUNCAO)/.test(x)); });
+    if(h<0) continue;
+    const cab=L[h].map(normTxt), iN=cab.indexOf("NOME"), iE=cab.findIndex(x=>/^EMPRESA/.test(x)), iC=cab.findIndex(x=>/^(CARGO|FUNCAO)/.test(x)), iM=cab.findIndex(x=>/^(MATRICULA|CHAPA)$/.test(x));
+    const pes=[];
+    for(const r of L.slice(h+1)){
+      const nome=String(r[iN]).trim().replace(/\s+/g," "), emp=String(r[iE]).trim(), cargo=String(r[iC]).trim().replace(/\s+/g," ");
+      if(nome && /[A-ZÀ-Ú]/i.test(nome) && emp && cargo) pes.push({nome, emp, cargo, mat:iM>=0?String(r[iM]).trim():""});
+    }
+    if(pes.length && (!melhor || pes.length>melhor.pes.length)) melhor={aba, pes};
+  }
+  if(!melhor) throw new Error("Não achei uma aba com as colunas EMPRESA, NOME e CARGO (ou FUNÇÃO).");
+  return melhor;
+}
+function planoNomes(lista){
+  const fs=funcoes(), emps=empresas(fs), nDias=new Map();
+  for(const d of datasEf()) for(const id of Object.keys(diaVals(d))) nDias.set(id,(nDias.get(id)||0)+1);
+  const diasCom=id=>nDias.get(id)||0;
+  const grupos=new Map(), vistos=new Set(); let dup=0;
+  for(const p of lista.pes){
+    const k=normTxt(p.nome); if(vistos.has(k)){ dup++; continue; } vistos.add(k);
+    const g=normTxt(p.emp)+"|"+normTxt(p.cargo);
+    if(!grupos.has(g)) grupos.set(g,{emp:p.emp, cargo:p.cargo, pes:[]});
+    grupos.get(g).pes.push(p);
+  }
+  const empAlvo=new Map();
+  for(const g of grupos.values()){
+    const k=normTxt(g.emp); if(empAlvo.has(k)) continue;
+    let best=null, bs=0;
+    for(const E of emps){ const c=cob(g.emp,E.nome), s=c+0.1*cob(E.nome,g.emp); if(c>=0.5 && s>bs){ bs=s; best=E; } }
+    empAlvo.set(k,best);
+  }
+  for(const g of grupos.values()){
+    const E=empAlvo.get(normTxt(g.emp)); g.empQuadro=E?.nome||g.emp; g.vinculo=E?.vinculo||vinculoPadrao(g.emp);
+    // pontuação: palavras do cargo achadas na função; desempate por grafia idêntica, função ativa e dias com lançamento
+    const cands=(E?.fs||[]).map(f=>{ const c=cob(g.cargo,f.funcao);
+      return {f, c, s:c+0.1*cob(f.funcao,g.cargo)+(normTxt(f.funcao)===normTxt(g.cargo)?0.05:0)+(f.ativo?0.01:0)+0.0001*diasCom(f.id)}; })
+      .filter(x=>x.c>=0.75).sort((a,b)=>b.s-a.s);
+    const empate = cands.length>1 && Math.abs(cands[0].s-cands[1].s)<1e-9; // ex.: VIGIA × Vigia diurno / Vigia Noturno
+    g.alvo = cands.length && !empate ? cands[0].f.id : "novo";
+    g.empate = empate ? cands.filter(x=>Math.abs(x.s-cands[0].s)<1e-9).map(x=>x.f.funcao) : null;
+  }
+  // empresas da lista no quadro: a escolhida para cada uma e as de nome contido nela (ex.: "AGUIA" ⊂ "AGUIA CONST")
+  const relacionadas=new Set([...[...empAlvo.values()].filter(Boolean).map(E=>normTxt(E.nome)),
+    ...emps.filter(E=>[...grupos.values()].some(g=>cob(E.nome,g.emp)>=0.75)).map(E=>normTxt(E.nome))]);
+  return {aba:lista.aba, total:vistos.size, dup, grupos:[...grupos.values()].sort((a,b)=>a.empQuadro.localeCompare(b.empQuadro)), relacionadas, manterFun:new Set(), manterPes:new Set()};
+}
+// funções ativas das empresas da lista que ficam sem ninguém, e nomes já cadastrados que não estão na lista
+function sobrasNomes(P){
+  const alvos=new Set(P.grupos.map(g=>g.alvo)), naLista=new Set(P.grupos.flatMap(g=>g.pes.map(p=>normTxt(p.nome))));
+  return {
+    funs: funcoes().filter(f=>f.ativo && P.relacionadas.has(normTxt(f.empresa)) && !alvos.has(f.id)),
+    pes: pessoas().filter(p=>p.ativo && !naLista.has(normTxt(p.nome))) };
+}
+async function importarNomes(input){
+  const file=input.files[0]; input.value=""; if(!file) return;
+  try{ EF.impNomes=planoNomes(await lerListaNomes(file)); }
+  catch(e){ EF.impNomes=null; toast(e.message||"Não consegui ler a planilha."); }
+  renderPonto();
+}
+function confirmarNomes(){
+  const P=EF.impNomes, h=hojeISO(), {funs, pes}=sobrasNomes(P), porNome=new Map(pessoas().map(p=>[normTxt(p.nome),p])), alvos=[];
+  let n=0;
+  for(const g of P.grupos){
+    if(!g.alvo) continue;
+    let fid=g.alvo;
+    if(fid==="novo"){
+      const todas=funcoes(), daEmp=todas.filter(x=>normTxt(x.empresa)===normTxt(g.empQuadro));
+      const ordem=(daEmp.length?Math.max(...daEmp.map(x=>x.ordem||0)):Math.max(0,...todas.map(x=>x.ordem||0))+1000)+1;
+      fid=efId(); setFun(fid,{empresa:g.empQuadro, funcao:g.cargo, vinculo:g.vinculo, quadro:g.pes.length, ordem, ativo:true});
+    } else if(!funcoes().find(f=>f.id===fid)?.ativo) setFun(fid,{ativo:true});
+    alvos.push(fid);
+    for(const p of g.pes){ const ex=porNome.get(normTxt(p.nome)); n++;
+      setPes(ex?.id||efId(), {nome:ex?.nome||p.nome, fid, matricula:p.mat||ex?.matricula||"", obs:ex?.obs||"", ativo:true}); }
+  }
+  // dias já lançados não mudam: a contagem pelos nomes começa no próximo dia aberto
+  // (ou, no dia de hoje, quando marcar a primeira chegada da função)
+  for(const f of funs) if(!P.manterFun.has(f.id)) setFun(f.id,{ativo:false});
+  for(const p of pes) if(!P.manterPes.has(p.id)) setPes(p.id,{ativo:false});
+  const marcadas=new Set(Object.keys(presDia(h)).map(id=>pessoas().find(p=>p.id===id)?.fid));
+  recontar(h, alvos.filter(id=>marcadas.has(id)));
+  EF.impNomes=null; toast(`${n} nomes no efetivo.`); renderPonto();
+}
+function previaNomes(){
+  const P=EF.impNomes, {funs, pes}=sobrasNomes(P);
+  const selAlvo=g=>{ const s=el("select",{"aria-label":`Destino de ${g.emp} · ${g.cargo}`},
+      el("option",{value:"novo",text:`＋ Nova função “${g.cargo}” em ${g.empQuadro}`}), el("option",{value:"",text:"Não importar estes nomes"}),
+      ...empresas(funcoes()).map(E=>el("optgroup",{label:E.nome}, ...E.fs.map(f=>el("option",{value:f.id,text:f.funcao+(f.ativo?"":" (inativa)")})))));
+    s.value=g.alvo; s.onchange=()=>{ g.alvo=s.value; renderPonto(); }; return s; };
+  const marca=(conj,id,rot)=>{ const c=el("input",{type:"checkbox",checked:!conj.has(id)}); c.onchange=()=>{ c.checked?conj.delete(id):conj.add(id); }; return el("label",{class:"chk"}, c, rot); };
+  return el("div",{class:"card"},
+    el("h3",{text:`Lista lida: ${P.total} nomes (aba “${P.aba}”)`}),
+    el("p",{class:"info",text:"Confira para qual função do quadro vai cada cargo. A sugestão compara as palavras (abreviações, acentos e erros de digitação)."+(P.dup?` ${P.dup} nome(s) repetido(s) na lista foram ignorados.`:"")}),
+    ...P.grupos.map(g=>el("div",{class:"ef-fun",style:"border-top:1px solid var(--line);padding-top:8px"},
+      el("div",{}, el("b",{text:`${g.emp} · ${g.cargo}`}), el("span",{class:"info",text:` — ${g.pes.length} nome${g.pes.length>1?"s":""}`})),
+      el("small",{class:"i-sub",text:g.pes.map(p=>p.nome).join(" · ")}),
+      g.empate && g.alvo==="novo" ? el("small",{class:"i-sub",style:"color:var(--warn)",text:`Pode ser ${g.empate.join(" ou ")}; sem saber qual, a sugestão é criar uma função nova. Escolha abaixo se preferir.`}) : null,
+      selAlvo(g))),
+    funs.length ? el("div",{class:"ef-fun"}, el("b",{text:"Desativar estas funções (ninguém da lista está nelas)"}),
+      el("small",{class:"i-sub",text:"Sem isso, elas continuam no dia a dia contadas por número, junto com os nomes. Desmarque o que deve continuar."}),
+      ...funs.map(f=>marca(P.manterFun, f.id, `${f.empresa} · ${f.funcao}`))) : null,
+    pes.length ? el("div",{class:"ef-fun"}, el("b",{text:"Desativar estes nomes (não estão na lista)"}),
+      ...pes.map(p=>marca(P.manterPes, p.id, p.nome))) : null,
+    el("p",{class:"info",text:"Empresas que não estão na lista continuam como estão, contadas por número. Os dias já lançados não mudam: a contagem pelos nomes vale a partir do próximo dia aberto (no dia de hoje, a partir da primeira chegada marcada em cada função)."}),
+    el("div",{class:"row"}, el("button",{class:"btn pri",type:"button",text:"Atualizar o efetivo",onclick:confirmarNomes}),
+      el("button",{class:"btn",type:"button",text:"Cancelar",onclick:()=>{ EF.impNomes=null; renderPonto(); }})));
+}
+
 // --- importação da planilha "EFETIVO DIÁRIO DE OBRA" (uma aba por dia) ---
 function dataDaAba(nome, topo){
   const m=String(nome).match(/(\d{2})\D?(\d{2})\D?(\d{4})/);
@@ -3707,10 +3836,13 @@ function efNomes(){
         el("button",{class:"linkbtn",type:"button",text:"Editar","aria-label":`Editar ${p.nome}`,onclick:()=>editarPessoa(p)})))),
       f ? el("div",{class:"row"}, el("button",{class:"btn",type:"button",text:"+ Nome nesta função",onclick:()=>editarPessoa(null,fid)})) : null);
   });
+  const arq=el("input",{type:"file",accept:".xlsx,.xls,.xlsm",style:"display:none"}); arq.onchange=()=>importarNomes(arq);
   return [
     el("p",{class:"info",text:"Nomes são opcionais. Uma função com nomes passa a ser contada pela chegada de cada pessoa na aba Chegada do dia. Quem saiu da obra: desmarque Ativo (o histórico fica)."}),
     el("div",{class:"row"}, el("button",{class:"btn pri",type:"button",text:"+ Adicionar nome",onclick:()=>editarPessoa(null)}),
-      el("button",{class:"btn",type:"button",text:"Colar lista de nomes",onclick:colarNomes})),
+      el("button",{class:"btn",type:"button",text:"Colar lista de nomes",onclick:colarNomes}),
+      el("button",{class:"btn",type:"button",text:"Importar lista de nomes (Excel)",onclick:()=>arq.click()}), arq),
+    EF.impNomes ? previaNomes() : null,
     todas.length ? busca : null,
     ...(cards.length ? cards : [el("div",{class:"vazio",text:todas.length?"Nenhum nome encontrado.":"Nenhum nome cadastrado ainda."})])];
 }

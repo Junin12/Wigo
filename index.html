@@ -228,7 +228,7 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
 .off{font-size:.7rem;font-weight:700;letter-spacing:.06em;color:var(--good)}
 
 /* visualizador de PDF */
-.viewer{position:fixed;inset:0;z-index:20;background:#2A3038;display:flex;flex-direction:column;color:#fff}
+.viewer{position:fixed;inset:0;z-index:28;background:#2A3038;display:flex;flex-direction:column;color:#fff}
 .v-bar{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:8px 10px;padding-top:calc(8px + env(safe-area-inset-top,0px));background:#161B21}
 .v-bar .tit{flex:1 1 160px;min-width:0;font-weight:600;font-size:.9rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .v-bar button,.v-bar select{min-height:40px;min-width:40px;border:1px solid #3A434E;background:#232A33;color:#fff;border-radius:8px;font-weight:600;padding:0 10px}
@@ -240,6 +240,17 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
 .v-alvo b{background:#FFDD00;color:#141B23;border-radius:6px;padding:4px 8px;font-size:.85rem;white-space:nowrap}
 #v-marcar.on{background:#B42318;border-color:#B42318}
 .v-stage.marcando{cursor:crosshair}
+/* concretagem: barra de pintura e traço sendo desenhado */
+.v-cc{display:flex;align-items:center;gap:6px;padding:6px 10px;background:#1E242C;overflow-x:auto;white-space:nowrap;scrollbar-width:thin}
+.v-cc button,.v-cc select{min-height:40px;min-width:40px;border:1px solid #3A434E;background:#232A33;color:#fff;border-radius:8px;font-weight:600;padding:0 10px;flex:none}
+.v-cc button.on{background:#0067A6;border-color:#1A9BDC}
+.v-cc .cc-cam{display:inline-flex;align-items:center;gap:6px}
+.v-cc .cc-cam::before{content:"";width:16px;height:16px;border-radius:4px;background:var(--cor);flex:none}
+.v-cc .cc-cam.on{background:#2E3742;border-color:var(--cor);box-shadow:0 0 0 2px var(--cor) inset}
+.v-cc .cc-sep{width:1px;height:28px;background:#3A434E;flex:none}
+.v-cc .cc-info{color:#C9D2DC;font-size:.8rem;flex:none}
+.v-stage.pintando{cursor:crosshair}
+.v-cc-live{position:absolute;inset:0;pointer-events:none;z-index:1;opacity:.5}
 .v-aviso{position:absolute;left:50%;top:12px;transform:translateX(-50%);max-width:min(92%,520px);background:rgba(20,27,35,.92);color:#fff;font-size:.85rem;padding:8px 12px;border-radius:8px;text-align:center;z-index:2;pointer-events:none}
 .v-dica{position:absolute;left:50%;bottom:calc(12px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:rgba(0,0,0,.6);color:#fff;font-size:.78rem;padding:6px 10px;border-radius:8px;pointer-events:none}
 
@@ -408,6 +419,17 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
 .pr-opcoes{display:grid;gap:8px}
 .pr-opcao{display:grid;text-align:left;gap:2px} .pr-opcao small{color:var(--muted);font-weight:400}
 .pr-sum{cursor:pointer;font-weight:600;min-height:40px;display:flex;align-items:center}
+/* Concreto */
+#conc{grid-template-columns:minmax(0,1fr)}
+#conc .card{grid-template-columns:minmax(0,1fr)}
+.cc-dots{display:flex;flex-wrap:wrap;gap:6px}
+.cc-dot{display:inline-flex;align-items:center;gap:4px;font-size:.78rem;font-weight:700;border:1px solid var(--line);border-radius:999px;padding:2px 8px 2px 4px}
+.cc-dot::before{content:"";width:14px;height:14px;border-radius:50%;background:var(--cor)}
+.cc-lista{display:grid;gap:6px}
+.cc-linha{display:grid;text-align:left;gap:2px;border-left:6px solid var(--cor)}
+.cc-linha small{color:var(--muted);font-weight:400}
+#ef-m-corpo input[type=color]{width:100%;min-height:44px;border:1px solid var(--line);border-radius:8px;background:var(--surface);padding:2px}
+#ef-m-corpo input[type=time],#ef-m-corpo input[type=date]{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 10px;min-height:44px;width:100%}
 /* RDO */
 #rdo{grid-template-columns:minmax(0,1fr)}
 #rdo .card{grid-template-columns:minmax(0,1fr)}
@@ -534,6 +556,15 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
     <img class="tela-logo" src="logo-heca.webp" alt="Heca Construtora">
   </div></header>
   <div class="tela-corpo" id="producao"></div>
+</section>
+
+<!-- ================= Produtividade › Concreto: concretagens ================= -->
+<section id="tela-conc" class="tela" aria-label="Concreto" hidden>
+  <header class="tela-topo compacto"><div class="in">
+    <button class="tela-voltar" type="button" data-voltar><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>Produtividade</button>
+    <img class="tela-logo" src="logo-heca.webp" alt="Heca Construtora">
+  </div></header>
+  <div class="tela-corpo" id="conc"></div>
 </section>
 
 <!-- ================= RDO (diário de obra) ================= -->
@@ -840,7 +871,8 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
       <button id="v-marcar" type="button">Marcar</button>
     </span>
   </div>
-  <div class="v-stage" id="v-stage"><div class="v-msg" id="v-msg"></div><div class="v-aviso" id="v-aviso" hidden></div><div class="v-dica" id="v-dica" hidden>Pinça para zoom · arraste para mover · toque duplo aproxima</div></div>
+  <div class="v-cc" id="v-cc" hidden></div>
+  <div class="v-stage" id="v-stage"><canvas class="v-cc-live" id="v-cc-live" aria-hidden="true"></canvas><div class="v-msg" id="v-msg"></div><div class="v-aviso" id="v-aviso" hidden></div><div class="v-dica" id="v-dica" hidden>Pinça para zoom · arraste para mover · toque duplo aproxima</div></div>
 </div>
 
 <script>
@@ -883,6 +915,8 @@ Object.assign(S, { ef:LS.get("ef")||[], efDia:LS.get("efDia")||{}, pes:LS.get("p
 Object.assign(S, { ativ:LS.get("ativ")||[], pendAt:LS.get("pendAt")||{}, pendAtDel:LS.get("pendAtDel")||[], presPor:LS.get("presPor")||{} });
 // RDO: diários por data (servidor + fila offline)
 Object.assign(S, { rdo:LS.get("rdo")||{}, pendRdo:LS.get("pendRdo")||{} });
+// concretagens (servidor + fila) e traços pintados ainda não enviados: id -> traço, ou {del:true} para apagar
+Object.assign(S, { cc:LS.get("cc")||[], pendCc:LS.get("pendCc")||{}, pendCcDel:LS.get("pendCcDel")||[], pendTr:LS.get("pendTr")||{} });
 
 // ---------- login por cargo (sem senha) ----------
 // Cada cargo vê só os módulos da sua função. O nome vai junto em toda alteração (aba Historico da planilha).
@@ -923,7 +957,7 @@ const quemSou = () => U ? `${U.nome} (${U.cargo})` : "sem login";
 const pode = k => { const c=CARGOS[U?.cargo]; return !!c && (c.m.split(" ").includes(k) || c.x.split(" ").includes(k)); };
 
 const K = (cod, eq) => cod+"|"+eq;
-const SCRIPT_MIN = 14; // versão do Code.gs que este app espera
+const SCRIPT_MIN = 15; // versão do Code.gs que este app espera
 // O Planilhas converte "DEC-0001" em data (dez/2001). Reconstrói o código se ele chegar como data.
 const MESES=["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
 function consertaCod(c){
@@ -1001,6 +1035,7 @@ function applyServer(j){
   if(j.presPor){ S.presPor=j.presPor; LS.set("presPor",S.presPor); }
   if(j.atividades){ S.ativ=j.atividades; LS.set("ativ",S.ativ); }
   if(j.rdo){ S.rdo=j.rdo; LS.set("rdo",S.rdo); }
+  if(j.concretagens){ S.cc=j.concretagens; LS.set("cc",S.cc); }
   if(j.leitura){ S.leitura=j.leitura; LS.set("leitura",j.leitura); }
   S.lastSync=j.agora; LS.set("lastSync",j.agora);
 }
@@ -1042,7 +1077,11 @@ async function sync(){
   const snapEf = JSON.parse(JSON.stringify(S.pendEf));
   const snapAt = JSON.parse(JSON.stringify(S.pendAt)), snapAtDel = [...S.pendAtDel];
   const snapRdo = JSON.parse(JSON.stringify(S.pendRdo));
+  const snapCc = JSON.parse(JSON.stringify(S.pendCc)), snapCcDel = [...S.pendCcDel], snapTr = JSON.parse(JSON.stringify(S.pendTr));
   const ops = [
+    ...Object.entries(snapCc).map(([id,x])=>({t:"conc", id, ...x})),
+    ...Object.entries(snapTr).map(([id,x])=> x.del ? {t:"ccTracoDel", id} : {t:"ccTraco", id, ...x}),
+    ...snapCcDel.map(id=>({t:"concDel", id})),
     ...Object.entries(snapRdo).map(([data,x])=>({t:"rdo", data, ...x})),
     ...opsEf(snapEf),
     ...Object.entries(snapAt).map(([id,x])=>({t:"ativ", id, ...x})), ...snapAtDel.map(id=>({t:"ativDel", id})),
@@ -1085,7 +1124,7 @@ async function sync(){
       if(ok && JSON.stringify(S.pendEl[ch])===JSON.stringify(p)) delete S.pendEl[ch];
     }
     for(const [k,v] of Object.entries(snapCfg)) if(j.config && String(j.config[k])===String(v) && S.pendCfg[k]===v) delete S.pendCfg[k];
-    limparPendEf(snapEf, j); limparPendAt(snapAt, snapAtDel, j); limparPendRdo(snapRdo, j);
+    limparPendEf(snapEf, j); limparPendAt(snapAt, snapAtDel, j); limparPendRdo(snapRdo, j); limparPendCc(snapCc, snapCcDel, snapTr, j);
     savePend(); savePendExtra();
     await enviarFotos();
     S.err=""; afterData(); renderData();
@@ -1101,7 +1140,8 @@ $("#sync").addEventListener("click", ()=>{ if(!S.cfg?.url) show("dados"); else s
 
 function pendCount(){ let c=Object.keys(S.pendEq).length+S.pendReg.length+S.pendDel.length+Object.keys(S.pendEl).length+Object.keys(S.pendCfg).length
     +Object.values(S.pendEf).reduce((s,x)=>s+(Array.isArray(x)?x.length:Object.keys(x).length),0)
-    +Object.keys(S.pendAt).length+S.pendAtDel.length+Object.keys(S.pendRdo).length; for(const p of Object.values(S.pend)){ c+=Object.keys(p.raw||{}).length + (p.arm!=null) + (p.dias!=null) + (p.novo?1:0); } return c; }
+    +Object.keys(S.pendAt).length+S.pendAtDel.length+Object.keys(S.pendRdo).length
+    +Object.keys(S.pendCc).length+S.pendCcDel.length+Object.keys(S.pendTr).length; for(const p of Object.values(S.pend)){ c+=Object.keys(p.raw||{}).length + (p.arm!=null) + (p.dias!=null) + (p.novo?1:0); } return c; }
 function setSync(){
   const e=$("#sync"), c=pendCount();
   $("#aviso").hidden = !(S.scriptVelho && S.cfg?.url);
@@ -2692,8 +2732,9 @@ async function loadPdfjs(){
 // V = vista desejada; R = vista que está desenhada no canvas atual. O CSS leva R até V enquanto redesenha.
 const V={doc:null,fid:null,page:null,n:1,z:1,tx:0,ty:0,fit:1,canvas:null,task:null,R:null,rT:null};
 const stage=$("#v-stage"), vmsg=t=>{ $("#v-msg").textContent=t; $("#v-msg").hidden=!t; };
-async function abrirPdf(f, pag, alvo){
+async function abrirPdf(f, pag, alvo, conc){
   MK.alvo=alvo||null; MK.marcando=false; stage.classList.remove("marcando");
+  CC.conc=conc||null; CC.atual=null; renderCcBar(); // concretagem: barra de pintura só quando aberto por uma concretagem
   $("#v-alvo").hidden=!MK.alvo; if(MK.alvo){ $("#v-marcar").textContent=`Marcar ${MK.alvo.pos}`; carregarMarcas(); }
   $("#viewer").hidden=false; document.body.style.overflow="hidden";
   if(!history.state?.viewer) history.pushState({viewer:1},"");
@@ -2709,9 +2750,11 @@ async function abrirPdf(f, pag, alvo){
     }
     await irPagina(Math.min(Math.max(1,pag||1), V.doc.numPages));
     const d=$("#v-dica"); d.hidden=false; setTimeout(()=>d.hidden=true, 4000);
+    d.textContent = CC.conc ? "No modo Pintar: um dedo pinta · dois dedos movem e dão zoom" : "Pinça para zoom · arraste para mover · toque duplo aproxima";
   }catch(e){ V.fid=null; vmsg(e.message||"Não foi possível abrir o PDF."); }
 }
-function fecharViewer(){ $("#viewer").hidden=true; document.body.style.overflow=""; V.task?.cancel(); }
+function fecharViewer(){ $("#viewer").hidden=true; document.body.style.overflow=""; V.task?.cancel();
+  if(CC.conc){ CC.conc=null; CC.atual=null; renderCcBar(); if(!$("#tela-conc").hidden) renderConc(); } }
 $("#v-fechar").addEventListener("click", ()=> history.state?.viewer ? history.back() : fecharViewer());
 addEventListener("popstate", ()=>{ if(!$("#viewer").hidden) fecharViewer(); });
 
@@ -2747,6 +2790,7 @@ async function desenhar(){
   V.task=V.page.render({canvasContext:ctx, viewport:vp, transform:[1,0,0,1,snap.tx*dpr,snap.ty*dpr], background:"rgba(0,0,0,0)"});
   try{ await V.task.promise; }catch(e){ return; } // cancelado por um novo desenho
   desenharMarcas(ctx, vp, snap.tx*dpr, snap.ty*dpr, dpr);
+  if(CC.conc) desenharPintura(ctx, vp, snap.tx*dpr, snap.ty*dpr, CC.conc, V.n, dpr);
   V.canvas?.remove(); stage.prepend(c); V.canvas=c; V.R=snap; aplicarCss(); vmsg("");
 }
 const ZMAX=8;
@@ -2776,11 +2820,15 @@ const pos=e=>{ const r=stage.getBoundingClientRect(); return {x:e.clientX-r.left
 stage.addEventListener("pointerdown", e=>{
   stage.setPointerCapture(e.pointerId); ptr.set(e.pointerId,pos(e));
   if(ptr.size===1){ inicio=pos(e); arrastou=false; } else arrastou=true;
+  // concretagem: um dedo pinta; o segundo dedo cancela o traço e vira pinça/arrasto
+  if(ptr.size===1 && CC.conc && CC.modo==="pintar") iniciarTraco(pos(e));
+  else if(CC.atual) cancelarTraco();
 });
 stage.addEventListener("pointermove", e=>{
   if(!ptr.has(e.pointerId)) return;
   const antes=[...ptr.values()], p=pos(e); ptr.set(e.pointerId,p);
   if(inicio && Math.hypot(p.x-inicio.x,p.y-inicio.y)>10) arrastou=true;
+  if(ptr.size===1 && CC.atual){ continuarTraco(p); return; }
   if(ptr.size===1){ const a=antes[0]; V.tx+=p.x-a.x; V.ty+=p.y-a.y; }
   else if(ptr.size===2){
     const [a1,a2]=antes, [b1,b2]=[...ptr.values()];
@@ -2792,9 +2840,11 @@ stage.addEventListener("pointermove", e=>{
 });
 function soltar(e){
   const p=ptr.get(e.pointerId); ptr.delete(e.pointerId);
+  if(CC.atual){ if(e.type==="pointerup" && !ptr.size) concluirTraco(); else cancelarTraco(); return; }
   if(e.type==="pointerup" && p && !ptr.size){
     const agora=Date.now();
     if(arrastou){ ultimoToque=0; return; }
+    if(CC.conc && CC.modo==="apagar"){ apagarTracoEm(p); return; }
     if(MK.marcando){ tocarMarca(p); return; }
     if(agora-ultimoToque<300){ if(V.z>V.fit*1.5) ajustar(); else { zoomEm(p.x,p.y,3); mudou(); } ultimoToque=0; }
     else ultimoToque=agora;
@@ -2930,6 +2980,8 @@ function renderData(){
   if(!$("#tela-fotos").hidden && $("#ef-modal").hidden && !document.activeElement?.closest?.("#fotos")) renderFotos();
   if(!$("#tela-producao").hidden && $("#ef-modal").hidden) renderProducao();
   if(!$("#tela-rdo").hidden && !document.activeElement?.closest?.("#rdo")) renderRdo();
+  if(!$("#tela-conc").hidden && $("#ef-modal").hidden) renderConc();
+  if(CC.conc && !$("#viewer").hidden && !CC.atual) renderCcBar();
   setSync();
 }
 
@@ -2977,15 +3029,15 @@ const MODULOS=[
 const SERVICOS=[
   {id:"aco",   nome:"Aço",       desc:"Armação: coleta, frentes e produtividade", c:["#1A9BDC","#0067A6"], ativo:true},
   {id:"forma", nome:"Forma",     desc:"Montagem e desforma",                       c:["#D49A5A","#9C6430"]},
-  {id:"conc",  nome:"Concreto",  desc:"Volumes e concretagens",                    c:["#98A5B3","#5F6B78"]},
+  {id:"conc",  nome:"Concreto",  desc:"Concretagens: forma e caminhões",           c:["#98A5B3","#5F6B78"], ativo:true},
   {id:"esc",   nome:"Escavação", desc:"Cortes, aterros e reaterros",               c:["#D2A03C","#946A1E"]},
 ];
 
 // --- navegação entre telas: início → produtividade → aço (o app de armação) ---
 const TELAS={inicio:"#inicio", prod:"#tela-prod", sup:"#tela-sup", supaco:"#tela-sup-aco", supped:"#tela-sup-pedido", ponto:"#tela-ponto", fotos:"#tela-fotos",
-  producao:"#tela-producao", login:"#tela-login", rdo:"#tela-rdo"};
+  producao:"#tela-producao", login:"#tela-login", rdo:"#tela-rdo", conc:"#tela-conc"};
 // módulo exigido por cada tela (o cargo precisa ter acesso)
-const TELA_MOD={prod:"prod", aco:"prod", sup:"sup", supaco:"sup", supped:"sup", ponto:"ponto", fotos:"fotos", producao:"producao", rdo:"rdo"};
+const TELA_MOD={prod:"prod", aco:"prod", sup:"sup", supaco:"sup", supped:"sup", ponto:"ponto", fotos:"fotos", producao:"producao", rdo:"rdo", conc:"prod"};
 function abrirTela(t, empilhar=true, forcar=false){
   if(!U && t!=="login") t="login";
   if(!forcar && TELA_MOD[t] && !pode(TELA_MOD[t])){ toast("Seu cargo não tem acesso a esta parte do app."); t="inicio"; }
@@ -2994,7 +3046,7 @@ function abrirTela(t, empilhar=true, forcar=false){
   if(t==="inicio") renderInicio(); if(t==="prod") renderProdMenu();
   if(t==="sup") renderSupMenu(); if(t==="supaco") renderSupAco(); if(t==="supped") renderSupPedido();
   if(t==="ponto") renderPonto(); if(t!=="ponto") $("#ef-modal").hidden=true;
-  if(t==="fotos") renderFotos(); if(t==="producao") renderProducao(); if(t==="login") renderLogin(); if(t==="rdo") renderRdo();
+  if(t==="fotos") renderFotos(); if(t==="producao") renderProducao(); if(t==="login") renderLogin(); if(t==="rdo") renderRdo(); if(t==="conc") renderConc();
   if(empilhar) history.pushState({tela:t},"");
 }
 addEventListener("popstate", e=>{ if(e.state?.tela) abrirTela(e.state.tela,false); });
@@ -3093,7 +3145,7 @@ function renderInicio(){
 }
 function renderProdMenu(){
   const r=S.items.length ? resumoAco() : null;
-  $("#mods-prod").replaceChildren(...SERVICOS.map((m,k)=>moduloBtn({...m, acao: m.id==="aco" ? ()=>{ abrirTela("aco"); show(LS.get("aba")||"coleta"); } : null}, k,
+  $("#mods-prod").replaceChildren(...SERVICOS.map((m,k)=>moduloBtn({...m, acao: m.id==="aco" ? ()=>{ abrirTela("aco"); show(LS.get("aba")||"coleta"); } : m.id==="conc" ? ()=>abrirTela("conc") : null}, k,
     m.id==="aco" && r ? (b,ic)=>{ anelProgresso(ic, r.pct); b.append(el("span",{class:"num",text:`${t(r.E)} de ${t(r.P)} t · ${pct(r.pct)}`})); } : null)));
 }
 // --- Suprimentos ---
@@ -3690,7 +3742,9 @@ function efModal(tit, campos, acoes){
 }
 // a janela é compartilhada pelas telas de efetivo, fotos e produção: ao fechar, redesenha a que estiver aberta
 const fecharEf = () => { $("#ef-modal").hidden=true;
-  if(!$("#tela-producao").hidden) renderProducao(); else if(!$("#tela-fotos").hidden) renderFotos(); else renderPonto(); };
+  if(CC.conc && !$("#viewer").hidden){ renderCcBar(); mudou(0); }
+  if(!$("#tela-conc").hidden) renderConc();
+  else if(!$("#tela-producao").hidden) renderProducao(); else if(!$("#tela-fotos").hidden) renderFotos(); else renderPonto(); };
 $("#ef-m-fechar").onclick=fecharEf;
 $("#ef-modal").addEventListener("click", e=>{ if(e.target.id==="ef-modal") fecharEf(); });
 const listaDatalist = (id, valores) => el("datalist",{id}, ...[...new Set(valores)].sort().map(v=>el("option",{value:v})));
@@ -4892,6 +4946,342 @@ async function pdfRdo(d, btn){
     if(navigator.canShare?.({files:[file]})){ try{ await navigator.share({files:[file],title:`RDO ${dataBR(d)}`}); }catch(e){ if(e.name!=="AbortError") baixar(nome,blob); } }
     else baixar(nome,blob);
   }catch(e){ toast(e.message||"Não foi possível gerar o PDF."); }
+  finally{ btn.disabled=false; btn.textContent=txt; }
+}
+
+// ================= Concreto: acompanhamento das concretagens =================
+// Cada concretagem tem o PDF da forma; cada caminhão ganha uma cor e quem acompanha pinta, no PDF, a área que ele concretou.
+// Os traços ficam em pontos do PDF (não dependem do zoom) e vão para a aba ConcretagemTracos com o nome de quem pintou.
+const CC_CORES=["#E53935","#1E88E5","#43A047","#FB8C00","#8E24AA","#00ACC1","#FDD835","#6D4C41","#D81B60","#3949AB","#7CB342","#546E7A"];
+const CC_STATUS=["Programada","Em andamento","Concluída"];
+const CC_COR_ST={"Programada":"","Em andamento":"and","Concluída":"ok"};
+const CC_LARG={f:["Fino",0.8], m:["Médio",2], g:["Grosso",5]}; // múltiplos de 1% do lado maior da folha
+const CC={conc:null, modo:"mover", cam:null, larg:LS.get("ccLarg")||"m", atual:null, desfazer:[], srv:{}};
+const savePendCc = () => { LS.set("pendCc",S.pendCc); LS.set("pendCcDel",S.pendCcDel); LS.set("pendTr",S.pendTr); };
+function concs(){
+  const m=new Map(S.cc.map(c=>[c.id,{...c}]));
+  for(const [id,p] of Object.entries(S.pendCc)){ const {log, ...c}=p; m.set(id,{id, status:"Programada", cams:[], volPrev:0, obs:"", local:"", ...m.get(id), ...c, pend:true}); }
+  for(const id of S.pendCcDel) m.delete(id);
+  return [...m.values()];
+}
+const concDe = id => concs().find(c=>c.id===id);
+function setConc(id, campos, log){
+  const p=(S.pendCc[id] ??= {}); Object.assign(p, campos); if(log) p.log=log;
+  savePendCc(); scheduleSync();
+}
+function limparPendCc(snap, snapDel, snapTr, j){
+  if(!(j.script>=15) || !j.concretagens) return; // Code.gs antigo: fica tudo na fila
+  const srv=new Map(j.concretagens.map(c=>[c.id,c])), igual=(a,b)=>JSON.stringify(a??null)===JSON.stringify(b??null);
+  for(const [id,x] of Object.entries(snap)){
+    const s=srv.get(id); if(!s) continue;
+    const {log, ...c}=x;
+    if(Object.entries(c).every(([k,v])=> k==="volPrev" ? +s[k]===+v : igual(s[k],v)) && igual(S.pendCc[id],x)) delete S.pendCc[id];
+  }
+  S.pendCcDel=S.pendCcDel.filter(id=>!(snapDel.includes(id) && !srv.has(id)));
+  // traços: o servidor grava por id (reenvio não duplica); saem da fila quando o envio deu certo
+  for(const [id,x] of Object.entries(snapTr)) if(igual(S.pendTr[id],x)){
+    delete S.pendTr[id];
+    const lista=CC.srv[x.conc]; if(lista){ if(x.del) CC.srv[x.conc]=lista.filter(t=>t.id!==id); else if(!lista.some(t=>t.id===id)) lista.push({id, ...x, por:quemSou()}); }
+  }
+  savePendCc();
+}
+// traços de uma concretagem: os do servidor (buscados ao abrir a forma) + os da fila
+function tracosDe(conc){
+  const m=new Map((CC.srv[conc] || LS.get("ccTr:"+conc) || []).map(t=>[t.id,t]));
+  for(const [id,x] of Object.entries(S.pendTr)) if(x.conc===conc){ if(x.del) m.delete(id); else m.set(id,{id,...x}); }
+  return [...m.values()];
+}
+async function buscarTracos(conc){
+  if(!S.cfg?.url || !navigator.onLine) return;
+  try{ const j=await post({acao:"ccTracos", conc}); if(Array.isArray(j.tracos)){ CC.srv[conc]=j.tracos; LS.set("ccTr:"+conc, j.tracos); } }catch{ /* sem conexão: fica com a cópia do celular */ }
+}
+const volLancado = c => (c.cams||[]).reduce((s,k)=>s+(+k.vol||0),0);
+const hexRgb = h => [1,3,5].map(i=>parseInt(h.slice(i,i+2),16));
+const agoraHM = () => new Date().toTimeString().slice(0,5);
+
+// --- desenho das áreas pintadas (na tela e no relatório) ---
+// cada caminhão é desenhado opaco numa camada à parte e aplicado com transparência: traços sobrepostos não escurecem
+function desenharPintura(ctx, vp, ox, oy, conc, pag, dpr=1, letra=1){ // letra: aumenta o "C1, C2…" (relatório)
+  const c=concDe(conc); if(!c) return;
+  const ts=tracosDe(conc).filter(t=>t.pag===pag); if(!ts.length) return;
+  const cor=n=>c.cams.find(k=>k.n===n)?.cor||"#888", grupos=new Map();
+  for(const t of ts){ if(!grupos.has(t.cam)) grupos.set(t.cam,[]); grupos.get(t.cam).push(t); }
+  const off=document.createElement("canvas"); off.width=ctx.canvas.width; off.height=ctx.canvas.height; const o=off.getContext("2d");
+  for(const [cam,lista] of grupos){
+    o.clearRect(0,0,off.width,off.height); o.strokeStyle=cor(cam); o.lineCap=o.lineJoin="round";
+    let sx=0, sy=0, n=0;
+    for(const t of lista){
+      o.lineWidth=Math.max(1, t.w*vp.scale); o.beginPath();
+      for(let i=0;i<t.pts.length;i+=2){ const [x,y]=vp.convertToViewportPoint(t.pts[i],t.pts[i+1]); if(i) o.lineTo(x+ox,y+oy); else o.moveTo(x+ox,y+oy); sx+=x+ox; sy+=y+oy; n++; }
+      if(t.pts.length===2){ const [x,y]=vp.convertToViewportPoint(t.pts[0],t.pts[1]); o.lineTo(x+ox+0.01,y+oy); }
+      o.stroke();
+    }
+    ctx.save(); ctx.globalAlpha=0.5; ctx.drawImage(off,0,0); ctx.restore();
+    // número do caminhão no meio da área dele
+    const fs=Math.max(12*dpr, Math.min(40*dpr, vp.scale*14))*letra;
+    ctx.save(); ctx.font=`700 ${fs}px Barlow, Arial, sans-serif`; ctx.textAlign="center"; ctx.textBaseline="middle";
+    ctx.lineWidth=fs*0.22; ctx.strokeStyle="#fff"; ctx.strokeText("C"+cam, sx/n, sy/n); ctx.fillStyle=cor(cam); ctx.fillText("C"+cam, sx/n, sy/n); ctx.restore();
+  }
+}
+
+// --- pintura com o dedo no visualizador ---
+const live=$("#v-cc-live");
+const pontoPdf = p => V.page.getViewport({scale:V.z}).convertToPdfPoint(p.x-V.tx, p.y-V.ty);
+const largPdf = () => { const vp=V.page.getViewport({scale:1}); return Math.max(vp.width,vp.height)/100*CC_LARG[CC.larg][1]; };
+function iniciarTraco(p){
+  const c=concDe(CC.conc);
+  if(!c?.cams.some(k=>k.n===CC.cam)){ toast("Escolha o caminhão na barra de cima (ou + Caminhão) antes de pintar."); return; }
+  const r=stage.getBoundingClientRect(), dpr=devicePixelRatio||1;
+  live.width=Math.round(r.width*dpr); live.height=Math.round(r.height*dpr); live.style.width=r.width+"px"; live.style.height=r.height+"px";
+  CC.atual={pts:[...pontoPdf(p)], tela:[p], w:largPdf(), cor:c.cams.find(k=>k.n===CC.cam).cor, dpr};
+  desenharVivo();
+}
+function continuarTraco(p){
+  const a=CC.atual, u=a.tela[a.tela.length-1];
+  if(Math.hypot(p.x-u.x,p.y-u.y)<4) return; // poucos pontos: traço leve para gravar
+  a.tela.push(p); a.pts.push(...pontoPdf(p)); desenharVivo();
+}
+function desenharVivo(){
+  const a=CC.atual, g=live.getContext("2d"); g.setTransform(a.dpr,0,0,a.dpr,0,0); g.clearRect(0,0,live.width,live.height);
+  g.strokeStyle=a.cor; g.lineCap=g.lineJoin="round"; g.lineWidth=Math.max(2, a.w*V.z); g.beginPath();
+  a.tela.forEach((q,i)=>i?g.lineTo(q.x,q.y):g.moveTo(q.x,q.y)); if(a.tela.length===1) g.lineTo(a.tela[0].x+0.01,a.tela[0].y); g.stroke();
+}
+function limparVivo(){ live.getContext("2d").clearRect(0,0,live.width,live.height); }
+function cancelarTraco(){ CC.atual=null; limparVivo(); }
+function concluirTraco(){
+  const a=CC.atual; CC.atual=null; if(!a) return;
+  const id=uid().slice(0,12), c=concDe(CC.conc);
+  S.pendTr[id]={conc:CC.conc, cam:CC.cam, pag:V.n, w:Math.round(a.w*10)/10, pts:a.pts.map(v=>Math.round(v*10)/10)};
+  CC.desfazer.push(id);
+  if(c.status==="Programada") setConc(c.id,{status:"Em andamento"},"Status: Em andamento");
+  savePendCc(); scheduleSync(2500);
+  desenhar().then(limparVivo); renderCcBar();
+}
+function apagarTraco(id){
+  const x=S.pendTr[id];
+  if(x && !x.del) delete S.pendTr[id]; else S.pendTr[id]={del:true, conc:CC.conc};
+  savePendCc(); scheduleSync(2500); mudou(0); renderCcBar();
+}
+// toque no modo Apagar: tira o traço mais recente que passa por ali
+function apagarTracoEm(p){
+  const [x,y]=pontoPdf(p), tol=8/V.z;
+  const dist=(t)=>{ let d=Infinity; for(let i=0;i<t.pts.length;i+=2){ const ax=t.pts[i], ay=t.pts[i+1], bx=t.pts[i+2]??ax, by=t.pts[i+3]??ay;
+    const l2=(bx-ax)**2+(by-ay)**2, k=l2?Math.max(0,Math.min(1,((x-ax)*(bx-ax)+(y-ay)*(by-ay))/l2)):0; d=Math.min(d,Math.hypot(x-ax-k*(bx-ax), y-ay-k*(by-ay))); } return d; };
+  const alvo=tracosDe(CC.conc).filter(t=>t.pag===V.n && dist(t)<=t.w/2+tol).pop();
+  if(!alvo) return toast("Nenhuma área pintada aqui.");
+  apagarTraco(alvo.id); toast("Área apagada");
+}
+function renderCcBar(){
+  const bar=$("#v-cc"), c=CC.conc && concDe(CC.conc);
+  bar.hidden=!c; stage.classList.toggle("pintando", !!c && CC.modo!=="mover"); if(!c) return;
+  const ed=pode("producao-edit") && c.status!=="Concluída"; if(!ed) CC.modo="mover";
+  const modo=(k,rot)=>el("button",{class:CC.modo===k?"on":"",type:"button",text:rot,"aria-pressed":String(CC.modo===k),onclick:()=>{ CC.modo=k; renderCcBar(); }});
+  const desf=CC.desfazer.filter(id=>tracosDe(CC.conc).some(t=>t.id===id));
+  repor(bar,
+    modo("mover","✋ Mover"), ed?modo("pintar","🖌 Pintar"):null, ed?modo("apagar","🧽 Apagar"):null,
+    el("span",{class:"cc-sep"}),
+    ...c.cams.map(k=>{ const b=el("button",{class:"cc-cam"+(CC.cam===k.n?" on":""),type:"button",text:`C${k.n} · ${nf1.format(+k.vol||0)} m³`,
+      title:ed?"Toque de novo para editar o caminhão":"", "aria-pressed":String(CC.cam===k.n),
+      onclick:()=>{ if(CC.cam===k.n && ed) return editarCaminhao(c, k); CC.cam=k.n; if(ed && CC.modo==="mover") CC.modo="pintar"; renderCcBar(); }});
+      b.style.setProperty("--cor",k.cor); return b; }),
+    ed ? el("button",{type:"button",text:"+ Caminhão",onclick:()=>editarCaminhao(c,null)}) : null,
+    el("span",{class:"cc-sep"}),
+    ed ? (()=>{ const s=el("select",{"aria-label":"Espessura do pincel"}, ...Object.entries(CC_LARG).map(([k,[n]])=>el("option",{value:k,text:`Pincel ${n.toLowerCase()}`})));
+      s.value=CC.larg; s.onchange=()=>{ CC.larg=s.value; LS.set("ccLarg",CC.larg); }; return s; })() : null,
+    ed ? el("button",{type:"button",text:"↶ Desfazer",disabled:!desf.length,onclick:()=>{ const id=desf.pop(); CC.desfazer=CC.desfazer.filter(x=>x!==id); apagarTraco(id); }}) : null,
+    el("span",{class:"cc-info",text:`${nf1.format(volLancado(c))}${c.volPrev?` de ${nf1.format(c.volPrev)}`:""} m³ · ${c.cams.length} caminhão(ões)`}));
+}
+
+// --- caminhões ---
+function editarCaminhao(c, k){
+  const novo=!k, ult=c.cams[c.cams.length-1];
+  // o seletor de cor devolve minúsculas ("#e53935"): compara sem diferenciar
+  const usado=new Set(c.cams.map(x=>String(x.cor).toUpperCase())), cor=k?.cor || CC_CORES.find(x=>!usado.has(x)) || CC_CORES[c.cams.length%CC_CORES.length];
+  const inp=(v,extra={})=>el("input",{type:"text",value:v??"",...extra});
+  const iNf=inp(k?.nf,{maxLength:40,placeholder:"Nº da nota ou do ticket"}), iUs=inp(k?.usina??ult?.usina,{maxLength:60,placeholder:"Concreteira"});
+  iUs.setAttribute("list","dl-usinas");
+  const iVol=el("input",{type:"number",min:0,step:0.5,inputMode:"decimal",value:k?.vol ?? ult?.vol ?? 8});
+  const hora=v=>el("input",{type:"time",value:v||""});
+  const iCh=hora(k?.chegada ?? (novo?agoraHM():"")), iIn=hora(k?.inicio), iFim=hora(k?.fim);
+  const iSl=el("input",{type:"number",min:0,step:0.5,inputMode:"decimal",value:k?.slump??"",placeholder:"cm"});
+  const iFck=el("input",{type:"number",min:0,step:1,inputMode:"numeric",value:k?.fck ?? ult?.fck ?? "",placeholder:"MPa"});
+  const iObs=inp(k?.obs,{maxLength:200,placeholder:"Opcional"});
+  const iCor=el("input",{type:"color",value:cor,"aria-label":"Cor do caminhão"});
+  const usinas=[...new Set(concs().flatMap(x=>x.cams.map(z=>z.usina)).filter(Boolean))];
+  const salvar=()=>{
+    const vol=Math.max(0,num(iVol.value)); if(!vol) return toast("Informe o volume do caminhão (m³).");
+    const dados={nf:iNf.value.trim(), usina:iUs.value.trim(), vol, chegada:iCh.value, inicio:iIn.value, fim:iFim.value,
+      slump:iSl.value===""?"":num(iSl.value), fck:iFck.value===""?"":num(iFck.value), obs:iObs.value.trim(), cor:iCor.value};
+    let cams;
+    if(novo){ const n=Math.max(0,...c.cams.map(x=>x.n))+1; cams=[...c.cams,{n,...dados}]; CC.cam=n; }
+    else cams=c.cams.map(x=>x.n===k.n?{...x,...dados}:x);
+    setConc(c.id, {cams, ...(c.status==="Programada"?{status:"Em andamento"}:{})}, novo?`Caminhão C${cams.at(-1).n}: ${nf1.format(vol)} m³`:`Caminhão C${k.n} editado`);
+    if(novo && CC.conc) CC.modo="pintar";
+    toast(novo?`Caminhão C${cams.at(-1).n} adicionado. Pinte a área que ele concretou.`:"Caminhão atualizado."); fecharEf();
+  };
+  efModal(novo?"Novo caminhão":`Caminhão C${k.n}`,
+    [campoEf("Volume (m³)",iVol), campoEf("Cor no desenho",iCor), campoEf("Nota fiscal / ticket",iNf), campoEf("Concreteira",iUs),
+     el("datalist",{id:"dl-usinas"}, ...usinas.map(u=>el("option",{value:u}))),
+     campoEf("Chegada",iCh), campoEf("Início do lançamento",iIn), campoEf("Fim do lançamento",iFim),
+     campoEf("Slump (cm)",iSl), campoEf("fck (MPa)",iFck), campoEf("Observação",iObs,true)],
+    [el("button",{class:"btn pri",type:"button",text:novo?"Adicionar caminhão":"Salvar",onclick:salvar}),
+     novo ? null : el("button",{class:"btn",type:"button",text:"Excluir",style:"color:var(--bad);margin-left:auto",onclick:()=>{
+       const n=tracosDe(c.id).filter(t=>t.cam===k.n);
+       if(!confirm(`Excluir o caminhão C${k.n}?`+(n.length?` As ${n.length} área(s) pintadas com a cor dele também são apagadas.`:""))) return;
+       for(const t of n){ if(S.pendTr[t.id] && !S.pendTr[t.id].del) delete S.pendTr[t.id]; else S.pendTr[t.id]={del:true, conc:c.id}; }
+       setConc(c.id, {cams:c.cams.filter(x=>x.n!==k.n)}, `Caminhão C${k.n} excluído`); if(CC.cam===k.n) CC.cam=null; fecharEf(); }})]);
+}
+function listaCaminhoes(c){
+  const ed=pode("producao-edit") && c.status!=="Concluída";
+  efModal(`Caminhões · ${c.estrutura}${c.local?" · "+c.local:""}`,
+    [el("p",{class:"info full",text:`${nf1.format(volLancado(c))}${c.volPrev?` de ${nf1.format(c.volPrev)}`:""} m³ lançados em ${c.cams.length} caminhão(ões).`}),
+     el("div",{class:"full cc-lista"}, ...(c.cams.length ? c.cams.map(k=>{ const b=el("button",{class:"btn cc-linha",type:"button",disabled:!ed,onclick:()=>editarCaminhao(c,k)},
+        el("b",{text:`C${k.n} · ${nf1.format(+k.vol||0)} m³`}),
+        el("small",{text:[k.nf&&`NF ${k.nf}`, k.usina, k.chegada&&`chegou ${k.chegada}`, k.inicio&&k.fim&&`lançamento ${k.inicio}–${k.fim}`, k.slump!==""&&k.slump!=null&&`slump ${k.slump}`, k.fck&&`fck ${k.fck}`].filter(Boolean).join(" · ")||"sem detalhes"}));
+        b.style.setProperty("--cor",k.cor); return b; }) : [el("p",{class:"info",text:"Nenhum caminhão ainda."})]))],
+    [ed ? el("button",{class:"btn pri",type:"button",text:"+ Caminhão",onclick:()=>editarCaminhao(c,null)}) : null]);
+}
+
+// --- concretagens ---
+async function abrirConcretagem(c){
+  if(!c.pdfId) return toast("Escolha o PDF da forma em Editar.");
+  const f=PJ.lista.find(x=>x.id===c.pdfId) || {id:c.pdfId, nome:c.pdfNome||"Forma", atualizado:""};
+  CC.cam=c.cams.at(-1)?.n ?? null; CC.desfazer=[];
+  CC.modo = pode("producao-edit") && c.status!=="Concluída" && CC.cam!=null ? "pintar" : "mover";
+  const pag=(tracosDe(c.id).at(-1)?.pag) || LS.get("ccPag:"+c.id) || 1;
+  await abrirPdf(f, pag, null, c.id);
+  $("#v-tit").textContent=`Concretagem · ${c.estrutura}${c.local?" · "+c.local:""}`;
+  await buscarTracos(c.id); if(CC.conc===c.id){ mudou(0); renderCcBar(); }
+  if(pode("producao-edit") && !c.cams.length && c.status!=="Concluída") toast("Toque em + Caminhão quando o primeiro chegar e pinte a área que ele concretou.");
+}
+// lembra a folha usada em cada concretagem
+$("#v-pag").addEventListener("change", ()=>{ if(CC.conc) LS.set("ccPag:"+CC.conc, V.n); });
+function editarConc(c){
+  const nova=!c, ests=estruturasObra();
+  const iData=el("input",{type:"date",value:c?.data||hojeISO()});
+  const iEst=el("select",{}, el("option",{value:"",text:"Escolha a estrutura…"}), ...ests.map(e=>el("option",{value:e,text:e})), el("option",{value:"__outro",text:"✎ Outra…"}));
+  const iEstO=el("input",{type:"text",maxLength:120,placeholder:"Nome da estrutura"}), boxEstO=campoEf("Qual estrutura?",iEstO,true);
+  if(c){ if(ests.includes(c.estrutura)) iEst.value=c.estrutura; else { iEst.value="__outro"; iEstO.value=c.estrutura; } }
+  const iLoc=el("input",{type:"text",maxLength:120,placeholder:"Ex.: parede 3 · lance 2, laje de fundo",value:c?.local||""});
+  const iVol=el("input",{type:"number",min:0,step:0.5,inputMode:"decimal",value:c?.volPrev||"",placeholder:"m³"});
+  const iObs=el("input",{type:"text",maxLength:300,value:c?.obs||"",placeholder:"Opcional"});
+  // PDF da forma: os que combinam com a estrutura aparecem primeiro
+  const busca=el("input",{type:"search",placeholder:"Filtrar PDFs: forma, parede, DE-0…","aria-label":"Filtrar PDFs"});
+  const iPdf=el("select",{"aria-label":"PDF da forma"});
+  const montarPdfs=()=>{ const est=iEst.value==="__outro"?iEstO.value:iEst.value, q=normTxt(busca.value), pal=tokensEf(est).filter(t=>t.length>3);
+    // compara pelo começo da palavra (DECANTADORES × DECANTADOR)
+    const nota=f=>{ const n=normTxt(f.nome); return (pal.some(p=>n.includes(p.slice(0,7)))?2:0)+(/FORMA|FOR-|FORM/.test(n)?1:0); };
+    const fs=PJ.lista.filter(f=>!q || normTxt(f.nome).includes(q)).sort((a,b)=>nota(b)-nota(a) || a.nome.localeCompare(b.nome));
+    const atual=iPdf.value || c?.pdfId || "";
+    repor(iPdf, el("option",{value:"",text:fs.length?"Escolha o PDF da forma…":"Nenhum PDF encontrado"}), ...fs.map(f=>el("option",{value:f.id,text:pjTitulo(f.nome)+(nota(f)>=2?" ★":"")})),
+      c?.pdfId && !PJ.lista.some(f=>f.id===c.pdfId) ? el("option",{value:c.pdfId,text:c.pdfNome||"PDF atual"}) : null);
+    iPdf.value=atual; };
+  busca.oninput=montarPdfs; iEst.onchange=()=>{ boxEstO.hidden=iEst.value!=="__outro"; montarPdfs(); }; iEstO.oninput=montarPdfs;
+  const salvar=()=>{
+    const estrutura=iEst.value==="__outro"?iEstO.value.trim():iEst.value; if(!estrutura) return toast("Escolha a estrutura.");
+    if(!iData.value) return toast("Informe a data.");
+    const f=PJ.lista.find(x=>x.id===iPdf.value), campos={data:iData.value, estrutura, local:iLoc.value.trim(), volPrev:Math.max(0,num(iVol.value)), obs:iObs.value.trim(),
+      pdfId:iPdf.value, pdfNome:f?.nome || (iPdf.value===c?.pdfId ? c.pdfNome : "")};
+    if(nova){ setConc(uid().slice(0,10), {...campos, status:"Programada", cams:[]}, "Programada"); toast("Concretagem programada."); }
+    else { setConc(c.id, campos, "Dados editados"); toast("Concretagem atualizada."); }
+    fecharEf();
+  };
+  efModal(nova?"Nova concretagem":"Editar concretagem",
+    [campoEf("Data",iData), campoEf("Volume previsto (m³)",iVol), campoEf("Estrutura",iEst,true), boxEstO, campoEf("Elemento / lance",iLoc,true),
+     el("div",{class:"campo full"}, "PDF da forma (pasta Projetos do Drive)", busca, iPdf,
+       !PJ.lista.length ? el("small",{class:"i-sub",text:"A lista de PDFs está vazia: toque em Atualizar lista de projetos na tela anterior."}) : null),
+     campoEf("Observação",iObs,true)],
+    [el("button",{class:"btn pri",type:"button",text:nova?"Programar concretagem":"Salvar",onclick:salvar}),
+     nova ? null : el("button",{class:"btn",type:"button",text:"Excluir",style:"color:var(--bad);margin-left:auto",onclick:()=>{
+       if(!confirm(`Excluir a concretagem ${c.estrutura}${c.local?" · "+c.local:""}? Os caminhões e as áreas pintadas também somem.`)) return;
+       delete S.pendCc[c.id]; for(const [id,x] of Object.entries(S.pendTr)) if(x.conc===c.id) delete S.pendTr[id];
+       if(S.cc.some(x=>x.id===c.id)) S.pendCcDel.push(c.id); savePendCc(); scheduleSync(); toast("Concretagem excluída."); fecharEf(); }})]);
+  boxEstO.hidden=iEst.value!=="__outro"; montarPdfs();
+}
+function cardConc(c, ed){
+  const lanc=volLancado(c), frac=c.volPrev?lanc/c.volPrev:0, edSt=ed && pode("producao-edit");
+  const dots=el("div",{class:"cc-dots"}, ...c.cams.map(k=>{ const s=el("span",{class:"cc-dot",text:`C${k.n}`}); s.style.setProperty("--cor",k.cor); return s; }));
+  return el("div",{class:"card pr-card "+(CC_COR_ST[c.status]||"")},
+    el("div",{class:"i-top"}, el("b",{class:"pr-tit",text:`${c.estrutura}${c.local?" · "+c.local:""}`}), el("span",{class:"chip "+(CC_COR_ST[c.status]||""),text:c.status})),
+    el("div",{class:"pr-onde",text:`📅 ${dataBR(c.data)} · 📄 ${c.pdfNome?pjTitulo(c.pdfNome):"sem PDF da forma"}`}),
+    el("div",{class:"i-prog"}, barra(frac), el("b",{text:`${nf1.format(lanc)}${c.volPrev?` / ${nf1.format(c.volPrev)}`:""} m³`})),
+    c.cams.length ? dots : el("span",{class:"info",text:"Nenhum caminhão ainda."}),
+    c.obs ? el("div",{class:"i-sub",text:c.obs}) : null,
+    el("div",{class:"row"},
+      el("button",{class:"btn pri",type:"button",text:edSt&&c.status!=="Concluída"?"🖌 Abrir a forma e pintar":"📄 Ver a forma",onclick:()=>abrirConcretagem(c)}),
+      el("button",{class:"btn",type:"button",text:`🚚 Caminhões (${c.cams.length})`,onclick:()=>listaCaminhoes(c)}),
+      el("button",{class:"btn",type:"button",text:"📄 Relatório",onclick:e=>relatorioConc(c,e.currentTarget)})),
+    edSt ? el("div",{class:"pr-bts"}, ...CC_STATUS.map(s=>el("button",{class:"chipbtn"+(c.status===s?" on":""),type:"button",text:s,"aria-pressed":String(c.status===s),
+      onclick:()=>{ if(c.status===s) return; if(s==="Concluída" && !confirm("Marcar a concretagem como concluída? Depois disso a pintura fica travada.")) return; setConc(c.id,{status:s},`Status: ${s}`); renderConc(); }}))) : null,
+    edSt ? el("button",{class:"linkbtn",type:"button",text:"Editar ou excluir",onclick:()=>editarConc(c)}) : null,
+    c.atualizadoPor ? el("small",{class:"i-sub",text:`Última alteração: ${c.atualizadoPor}${c.atualizadoEm?" · "+quandoTxt(c.atualizadoEm):""}${c.pend?" · a enviar":""}`}) : null);
+}
+function renderConc(){
+  const box=$("#conc"); if(!box) return;
+  const ed=pode("producao-edit"), L=concs(), ord=c=>CC_STATUS.indexOf(c.status);
+  const abertas=L.filter(c=>c.status!=="Concluída").sort((a,b)=>ord(b)-ord(a) || a.data.localeCompare(b.data)), feitas=L.filter(c=>c.status==="Concluída").sort((a,b)=>b.data.localeCompare(a.data));
+  repor(box,
+    el("p",{class:"saud"}, "Concreto", el("small",{text:"Concretagens: forma da estrutura, caminhões e área concretada por cada um"})),
+    el("div",{class:"card"}, el("h3",{text:"Levantamento de volumes"}), el("p",{class:"info",text:"Em breve: o previsto × executado por estrutura entra aqui quando a planilha de concreto for carregada."})),
+    ed ? el("button",{class:"btn pri ps-novo",type:"button",text:"+ Nova concretagem",onclick:()=>editarConc(null)}) : null,
+    S.cfg?.url ? el("div",{class:"row"}, el("button",{class:"btn",type:"button",text:"Atualizar lista de projetos (PDFs)",onclick:async e=>{
+      e.currentTarget.disabled=true; try{ await carregarProjetos(); toast(`${PJ.lista.length} PDFs na pasta Projetos`); }catch(x){ toast(x.message); } renderConc(); }}),
+      el("span",{class:"info",text:`${PJ.lista.length} PDFs no app`})) : el("p",{class:"aviso"}, el("b",{text:"Banco não configurado. "}), "Os PDFs das formas vêm da pasta Projetos do Google Drive."),
+    el("h2",{class:"tela-tit",text:`Programadas e em andamento · ${abertas.length}`}),
+    ...(abertas.length ? abertas.map(c=>cardConc(c,ed)) : [el("div",{class:"vazio",text:ed?"Nenhuma concretagem programada. Toque em + Nova concretagem.":"Nenhuma concretagem programada."})]),
+    feitas.length ? el("details",{class:"card"}, el("summary",{class:"pr-sum",text:`Concluídas · ${feitas.length}`}), ...feitas.map(c=>cardConc(c,ed))) : null);
+}
+
+// --- relatório: mapa pintado + tabela dos caminhões ---
+async function relatorioConc(c, btn){
+  const txt=btn.textContent; btn.disabled=true; btn.textContent="Gerando…";
+  try{
+    await buscarTracos(c.id);
+    await carregarScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js");
+    await carregarScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js");
+    const {jsPDF}=window.jspdf, doc=new jsPDF({unit:"mm",format:"a4"}), W=210, M=12, AZ=[0,103,166];
+    doc.setFillColor(...AZ); doc.rect(0,0,W,30,"F");
+    const logo=await logoRelatorio();
+    if(logo){ const lw=Math.min(52,14*logo.w/logo.h), lh=lw*logo.h/logo.w; doc.addImage(logo.src,"PNG",W-M-lw,(30-lh)/2,lw,lh,undefined,"FAST"); }
+    doc.setTextColor(255); doc.setFont("helvetica","bold"); doc.setFontSize(15); doc.text("Relatório de concretagem — SAA Rio Grande",M,11);
+    doc.setFont("helvetica","normal"); doc.setFontSize(10); doc.text(`${c.estrutura}${c.local?" · "+c.local:""} · ${dataBR(c.data)} · ${c.status}`,M,18.5);
+    doc.setFontSize(8); doc.text(`Gerado em ${new Date().toLocaleString("pt-BR")} por ${quemSou()}`,M,24.5);
+    let y=38; doc.setTextColor(20);
+    const lanc=volLancado(c);
+    doc.autoTable({startY:y, margin:{left:M,right:M}, theme:"plain", styles:{fontSize:9,cellPadding:1.2},
+      body:[["Volume lançado",`${nf1.format(lanc)} m³`,"Previsto",c.volPrev?`${nf1.format(c.volPrev)} m³`:"—"],["Caminhões",String(c.cams.length),"Forma",c.pdfNome?pjTitulo(c.pdfNome):"—"]],
+      columnStyles:{0:{fontStyle:"bold"},2:{fontStyle:"bold"}}}); y=doc.lastAutoTable.finalY+6;
+    doc.autoTable({startY:y, margin:{left:M,right:M}, head:[["","Caminhão","NF / ticket","Concreteira","m³","Chegada","Lançamento","Slump","fck"]],
+      body:c.cams.map(k=>["",`C${k.n}`,k.nf||"",k.usina||"",nf1.format(+k.vol||0),k.chegada||"",k.inicio||k.fim?`${k.inicio||"?"}–${k.fim||"?"}`:"",k.slump!==""&&k.slump!=null?`${k.slump} cm`:"",k.fck?`${k.fck} MPa`:""]),
+      styles:{fontSize:8,cellPadding:1.5,textColor:20}, headStyles:{fillColor:AZ,textColor:255}, columnStyles:{0:{cellWidth:5},4:{halign:"right"}},
+      didParseCell:d=>{ if(d.section==="body" && d.column.index===0) d.cell.styles.fillColor=hexRgb(c.cams[d.row.index].cor); },
+      foot:[["","Total","","",nf1.format(lanc),"","","",""]], footStyles:{fillColor:[230,236,242],textColor:20,fontStyle:"bold"}});
+    y=doc.lastAutoTable.finalY+8;
+    // mapa: cada folha que tem área pintada, desenhada com as cores dos caminhões
+    const ts=tracosDe(c.id), pags=[...new Set(ts.map(t=>t.pag))].sort((a,b)=>a-b);
+    if(c.pdfId && pags.length){
+      await loadPdfjs();
+      const f=PJ.lista.find(x=>x.id===c.pdfId) || {id:c.pdfId, nome:c.pdfNome, atualizado:""};
+      const pdf=await pdfjsLib.getDocument({data:new Uint8Array(await obterPdf(f))}).promise;
+      for(const n of pags){
+        btn.textContent=`Desenhando folha ${n}…`;
+        const pg=await pdf.getPage(n), v1=pg.getViewport({scale:1}), s=Math.min(2200/Math.max(v1.width,v1.height), 3), vp=pg.getViewport({scale:s});
+        const cv=document.createElement("canvas"); cv.width=Math.round(vp.width); cv.height=Math.round(vp.height);
+        const g=cv.getContext("2d"); g.fillStyle="#fff"; g.fillRect(0,0,cv.width,cv.height);
+        await pg.render({canvasContext:g, viewport:vp}).promise;
+        desenharPintura(g, vp, 0, 0, c.id, n, 2, 2.5);
+        const img=cv.toDataURL("image/jpeg",0.82), maxW=W-2*M, maxH=297-16-y-10, r=cv.width/cv.height;
+        let w=maxW, h=w/r; if(h>maxH && maxH<120){ doc.addPage(); y=16; } const lim=297-16-y-10; if(h>lim){ h=lim; w=h*r; }
+        doc.setFont("helvetica","bold"); doc.setFontSize(10); doc.setTextColor(...AZ); doc.text(`Área concretada por caminhão — folha ${n}`,M,y); y+=3; doc.setTextColor(20);
+        doc.addImage(img,"JPEG",M+(maxW-w)/2,y,w,h,undefined,"FAST"); y+=h+8;
+      }
+      pdf.destroy();
+    } else { doc.setFontSize(9); doc.text("Nenhuma área pintada na forma.",M,y); y+=8; }
+    const n=doc.getNumberOfPages(); for(let p=1;p<=n;p++){ doc.setPage(p); doc.setFontSize(7); doc.setTextColor(120); doc.text(`Página ${p} de ${n}`,W-M,292,{align:"right"}); }
+    const nome=`Concretagem_${c.estrutura.replace(/\W+/g,"_")}_${c.data}.pdf`, blob=doc.output("blob"), file=new File([blob],nome,{type:"application/pdf"});
+    if(navigator.canShare?.({files:[file]})){ try{ await navigator.share({files:[file],title:`Concretagem ${c.estrutura}`}); }catch(e){ if(e.name!=="AbortError") baixar(nome,blob); } }
+    else baixar(nome,blob);
+  }catch(e){ toast(e.message||"Não foi possível gerar o relatório."); }
   finally{ btn.disabled=false; btn.textContent=txt; }
 }
 

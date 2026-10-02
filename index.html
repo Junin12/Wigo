@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Armação Rio Grande</title>
-<meta name="theme-color" content="#23527E">
+<title>Prumo · gestão de obra</title>
+<meta name="theme-color" content="#1F3A5F">
 <script>
 // aplica o tema salvo antes de desenhar a tela (evita piscar claro→escuro ao abrir)
 try{ const t=JSON.parse(localStorage.getItem("arm:tema")); if(t==="light"||t==="dark") document.documentElement.dataset.theme=t; }catch{}
@@ -243,7 +243,7 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
 /* concretagem: barra de pintura e traço sendo desenhado */
 .v-cc{display:flex;align-items:center;gap:6px;padding:6px 10px;background:#1E242C;overflow-x:auto;white-space:nowrap;scrollbar-width:thin}
 .v-cc button,.v-cc select{min-height:40px;min-width:40px;border:1px solid #3A434E;background:#232A33;color:#fff;border-radius:8px;font-weight:600;padding:0 10px;flex:none}
-.v-cc button.on{background:#0067A6;border-color:#1A9BDC}
+.v-cc button.on{background:#2E5C8A;border-color:#3E78B2}
 .v-cc .cc-cam{display:inline-flex;align-items:center;gap:6px}
 .v-cc .cc-cam::before{content:"";width:16px;height:16px;border-radius:4px;background:var(--cor);flex:none}
 .v-cc .cc-cam.on{background:#2E3742;border-color:var(--cor);box-shadow:0 0 0 2px var(--cor) inset}
@@ -255,21 +255,22 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
 .v-dica{position:absolute;left:50%;bottom:calc(12px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:rgba(0,0,0,.6);color:#fff;font-size:.78rem;padding:6px 10px;border-radius:8px;pointer-events:none}
 
 /* ================= tela inicial e menu de módulos ================= */
-:root{ --heca:#0067A6; --heca-claro:#1A9BDC; --heca-escuro:#004F80; }
+/* marca Prumo: azul-marinho + laranja do prumo */
+:root{ --marca:#1F3A5F; --marca-claro:#3E78B2; --marca-escuro:#16304F; --marca-laranja:#E07A1F; }
 .tela{position:fixed;inset:0;z-index:25;background:var(--bg);overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
-.tela-topo{position:relative;background:var(--heca);color:#fff;padding:calc(14px + env(safe-area-inset-top,0px)) 16px 34px;overflow:hidden}
+.tela-topo{position:relative;background:var(--marca);color:#fff;padding:calc(14px + env(safe-area-inset-top,0px)) 16px 34px;overflow:hidden}
 .tela-topo::before{content:"";position:absolute;inset:auto -20% -60% auto;width:70%;aspect-ratio:1;border-radius:50%;background:radial-gradient(circle,rgba(26,155,220,.45),transparent 65%);animation:brilho 9s ease-in-out infinite alternate;pointer-events:none}
 .tela-topo::after{content:"";position:absolute;left:0;right:0;bottom:0;height:22px;background:var(--bg);border-radius:22px 22px 0 0}
 @keyframes brilho{from{transform:translate(0,0) scale(1)}to{transform:translate(-18%,-12%) scale(1.15)}}
 .tela-topo .in{position:relative;z-index:1;max-width:1000px;margin-inline:auto;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 16px}
-.tela-logo{height:58px;width:auto;display:block}
+.tela-logo{height:42px;width:auto;display:block}
 .tela-obra{text-align:right;line-height:1.15}
 .tela-obra small{display:block;font-size:.68rem;letter-spacing:.12em;text-transform:uppercase;color:#CFE6F6}
 .tela-obra b{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-size:1.25rem;font-weight:600}
 .tela-obra span{display:block;font-size:.8rem;color:#CFE6F6}
 .tela-topo.compacto{padding-bottom:30px}
 .tela-topo.compacto .in{justify-content:flex-start}
-.tela-topo.compacto .tela-logo{height:44px;margin-left:auto}
+.tela-topo.compacto .tela-logo{height:32px;margin-left:auto}
 .tela-voltar{border:1px solid rgba(255,255,255,.35);background:rgba(255,255,255,.12);color:#fff;border-radius:12px;min-height:44px;padding:0 14px;font-weight:600;display:inline-flex;align-items:center;gap:6px;transition:background .2s}
 .tela-voltar:hover{background:rgba(255,255,255,.22)}
 .tela-voltar svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
@@ -290,24 +291,24 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
   display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;cursor:pointer;color:var(--ink);
   box-shadow:0 1px 2px rgba(0,30,60,.06);transition:transform .22s cubic-bezier(.2,.8,.2,1),box-shadow .22s,border-color .22s;animation:entra .55s cubic-bezier(.2,.8,.2,1) both}
 .mod::before{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(135deg,transparent 40%,rgba(26,155,220,.10));opacity:0;transition:opacity .25s}
-.mod:hover,.mod:focus-visible{transform:translateY(-4px);box-shadow:0 10px 24px -10px rgba(0,79,128,.45);border-color:var(--heca-claro)}
+.mod:hover,.mod:focus-visible{transform:translateY(-4px);box-shadow:0 10px 24px -10px rgba(0,79,128,.45);border-color:var(--marca-claro)}
 .mod:hover::before,.mod:focus-visible::before{opacity:1}
 .mod:active{transform:translateY(-1px) scale(.97)}
-.mod .ic{width:64px;height:64px;border-radius:20px;display:grid;place-items:center;color:#fff;background:linear-gradient(145deg,var(--c1,var(--heca-claro)),var(--c2,var(--heca)));
-  box-shadow:0 8px 18px -8px var(--c2,var(--heca));transition:transform .35s cubic-bezier(.3,1.6,.5,1)}
+.mod .ic{width:64px;height:64px;border-radius:20px;display:grid;place-items:center;color:#fff;background:linear-gradient(145deg,var(--c1,var(--marca-claro)),var(--c2,var(--marca)));
+  box-shadow:0 8px 18px -8px var(--c2,var(--marca));transition:transform .35s cubic-bezier(.3,1.6,.5,1)}
 .mod .ic svg{width:34px;height:34px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
 .mod:hover .ic,.mod:focus-visible .ic{transform:translateY(-3px) rotate(-6deg) scale(1.06)}
 .mod b{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-size:1.12rem;font-weight:600;line-height:1.1}
 .mod small{font-size:.76rem;color:var(--muted);line-height:1.25}
 .mod .selo{position:absolute;top:8px;right:8px;font-size:.6rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:2px 7px;border-radius:999px;background:var(--idle-bg);color:var(--idle)}
 .mod .selo.ok{background:var(--good-bg);color:var(--good)}
-.mod.ativo .ic::after{content:"";position:absolute;width:64px;height:64px;border-radius:20px;border:2px solid var(--heca-claro);animation:pulso 2.4s ease-out infinite}
+.mod.ativo .ic::after{content:"";position:absolute;width:64px;height:64px;border-radius:20px;border:2px solid var(--marca-claro);animation:pulso 2.4s ease-out infinite}
 .mod .ic{position:relative}
 @keyframes pulso{0%{transform:scale(1);opacity:.8}100%{transform:scale(1.45);opacity:0}}
 .mod .anel{position:absolute;inset:-6px;width:76px;height:76px}
 .mod .anel circle{fill:none;stroke-width:4}
 .mod .anel .fundo{stroke:var(--idle-bg)} .mod .anel .valor{stroke:var(--good);stroke-linecap:round;transition:stroke-dashoffset 1.2s cubic-bezier(.2,.8,.2,1)}
-.mod .num{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-weight:600;font-size:.95rem;color:var(--heca)}
+.mod .num{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-weight:600;font-size:.95rem;color:var(--accent)}
 .ripple{position:absolute;border-radius:50%;pointer-events:none;background:rgba(26,155,220,.35);transform:scale(0);animation:onda .6s ease-out forwards;z-index:-1}
 @keyframes onda{to{transform:scale(1);opacity:0}}
 /* entrada: desliza e clareia, mas nunca parte de invisível (a tela fica legível mesmo se a animação não rodar) */
@@ -476,7 +477,7 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
 <!-- ================= tela inicial ================= -->
 <section id="inicio" class="tela" aria-label="Início">
   <header class="tela-topo"><div class="in">
-    <img class="tela-logo" src="logo-heca.webp" alt="Heca Construtora">
+    <img class="tela-logo" src="logo-prumo.png" alt="Prumo">
     <div class="tela-obra"><small>Obra</small><b>SAA Rio Grande</b><span>Uberaba / MG</span></div>
   </div></header>
   <div class="tela-corpo">
@@ -485,7 +486,7 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
     <div class="ind-ini" id="ind-ini"></div>
     <h2 class="tela-tit" id="tit-mods">Módulos</h2>
     <div class="mods" id="mods"></div>
-    <p class="rodape-ini">Heca Construtora · gestão de obra</p>
+    <p class="rodape-ini">Prumo · gestão de obra</p>
   </div>
 </section>
 
@@ -493,7 +494,7 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
 <section id="tela-prod" class="tela" aria-label="Produtividade" hidden>
   <header class="tela-topo compacto"><div class="in">
     <button class="tela-voltar" type="button" data-voltar><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>Início</button>
-    <img class="tela-logo" src="logo-heca.webp" alt="Heca Construtora">
+    <img class="tela-logo" src="logo-prumo.png" alt="Prumo">
   </div></header>
   <div class="tela-corpo">
     <p class="saud">Produtividade<small>Escolha o serviço para acompanhar</small></p>
@@ -505,7 +506,7 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
 <section id="tela-sup" class="tela" aria-label="Suprimentos" hidden>
   <header class="tela-topo compacto"><div class="in">
     <button class="tela-voltar" type="button" data-voltar><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>Início</button>
-    <img class="tela-logo" src="logo-heca.webp" alt="Heca Construtora">
+    <img class="tela-logo" src="logo-prumo.png" alt="Prumo">
   </div></header>
   <div class="tela-corpo">
     <p class="saud">Suprimentos<small>Pedidos e recebimento por material</small></p>
@@ -517,7 +518,7 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
 <section id="tela-sup-aco" class="tela" aria-label="Suprimentos de aço" hidden>
   <header class="tela-topo compacto"><div class="in">
     <button class="tela-voltar" type="button" data-voltar><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>Suprimentos</button>
-    <img class="tela-logo" src="logo-heca.webp" alt="Heca Construtora">
+    <img class="tela-logo" src="logo-prumo.png" alt="Prumo">
   </div></header>
   <div class="tela-corpo" id="sup-aco"></div>
 </section>
@@ -526,7 +527,7 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
 <section id="tela-sup-pedido" class="tela" aria-label="Pedido de aço" hidden>
   <header class="tela-topo compacto"><div class="in">
     <button class="tela-voltar" type="button" data-voltar><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>Aço</button>
-    <img class="tela-logo" src="logo-heca.webp" alt="Heca Construtora">
+    <img class="tela-logo" src="logo-prumo.png" alt="Prumo">
   </div></header>
   <div class="tela-corpo" id="sup-ped"></div>
 </section>
@@ -535,7 +536,7 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
 <section id="tela-ponto" class="tela" aria-label="Ponto e efetivo" hidden>
   <header class="tela-topo compacto"><div class="in">
     <button class="tela-voltar" type="button" data-voltar><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>Início</button>
-    <img class="tela-logo" src="logo-heca.webp" alt="Heca Construtora">
+    <img class="tela-logo" src="logo-prumo.png" alt="Prumo">
   </div></header>
   <div class="tela-corpo" id="ponto"></div>
 </section>
@@ -543,7 +544,7 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
 <!-- ================= Login por cargo ================= -->
 <section id="tela-login" class="tela" aria-label="Entrar no app" hidden>
   <header class="tela-topo"><div class="in">
-    <img class="tela-logo" src="logo-heca.webp" alt="Heca Construtora">
+    <img class="tela-logo" src="logo-prumo.png" alt="Prumo">
     <div class="tela-obra"><small>Obra</small><b>SAA Rio Grande</b><span>Uberaba / MG</span></div>
   </div></header>
   <div class="tela-corpo" id="login"></div>
@@ -553,7 +554,7 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
 <section id="tela-producao" class="tela" aria-label="Produção" hidden>
   <header class="tela-topo compacto"><div class="in">
     <button class="tela-voltar" type="button" data-voltar><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>Início</button>
-    <img class="tela-logo" src="logo-heca.webp" alt="Heca Construtora">
+    <img class="tela-logo" src="logo-prumo.png" alt="Prumo">
   </div></header>
   <div class="tela-corpo" id="producao"></div>
 </section>
@@ -562,7 +563,7 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
 <section id="tela-conc" class="tela" aria-label="Concreto" hidden>
   <header class="tela-topo compacto"><div class="in">
     <button class="tela-voltar" type="button" data-voltar><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>Produtividade</button>
-    <img class="tela-logo" src="logo-heca.webp" alt="Heca Construtora">
+    <img class="tela-logo" src="logo-prumo.png" alt="Prumo">
   </div></header>
   <div class="tela-corpo" id="conc"></div>
 </section>
@@ -571,7 +572,7 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
 <section id="tela-rdo" class="tela" aria-label="Diário de obra" hidden>
   <header class="tela-topo compacto"><div class="in">
     <button class="tela-voltar" type="button" data-voltar><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>Início</button>
-    <img class="tela-logo" src="logo-heca.webp" alt="Heca Construtora">
+    <img class="tela-logo" src="logo-prumo.png" alt="Prumo">
   </div></header>
   <div class="tela-corpo" id="rdo"></div>
 </section>
@@ -580,7 +581,7 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
 <section id="tela-fotos" class="tela" aria-label="Fotos da obra" hidden>
   <header class="tela-topo compacto"><div class="in">
     <button class="tela-voltar" type="button" data-voltar><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>Início</button>
-    <img class="tela-logo" src="logo-heca.webp" alt="Heca Construtora">
+    <img class="tela-logo" src="logo-prumo.png" alt="Prumo">
   </div></header>
   <div class="tela-corpo" id="fotos"></div>
 </section>
@@ -846,7 +847,7 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
           <label class="chk"><input type="checkbox" id="cb-local"> Endereço</label>
           <label class="chk"><input type="checkbox" id="cb-coord"> Coordenadas GPS</label>
           <label class="chk"><input type="checkbox" id="cb-obra"> Obra e posição</label>
-          <label class="chk"><input type="checkbox" id="cb-logo"> Logo Heca</label>
+          <label class="chk"><input type="checkbox" id="cb-logo"> Logo Prumo</label>
         </div>
       </div>
     </div>
@@ -1557,12 +1558,12 @@ $("#rel-pdf").addEventListener("click", async ()=>{
   }catch(e){ msg.textContent=e.message||"Não foi possível gerar o relatório."; }
   finally{ btn.disabled=false; }
 });
-// logo da Heca para o cabeçalho do relatório: converte o webp em PNG e corta as margens transparentes
+// logo do Prumo (branca, para fundo escuro) no cabeçalho dos relatórios e no carimbo das fotos: corta as margens transparentes
 let LOGO=null;
 async function logoRelatorio(){
   if(LOGO) return LOGO;
   try{
-    const b=await (await fetch("logo-heca.webp")).blob(), url=URL.createObjectURL(b);
+    const b=await (await fetch("logo-prumo.png")).blob(), url=URL.createObjectURL(b);
     const img=await new Promise((res,rej)=>{ const i=new Image(); i.onload=()=>res(i); i.onerror=rej; i.src=url; });
     const c=document.createElement("canvas"); c.width=img.naturalWidth; c.height=img.naturalHeight; const g=c.getContext("2d"); g.drawImage(img,0,0);
     const d=g.getImageData(0,0,c.width,c.height).data; let x0=c.width,y0=c.height,x1=0,y1=0;
@@ -1576,7 +1577,7 @@ async function logoRelatorio(){
 async function montarRelatorio(aviso){
   const {jsPDF}=window.jspdf, doc=new jsPDF({unit:"mm",format:"a4"}), W=210, M=12;
   const w=curW(); if(!w) throw new Error("Escolha uma semana.");
-  const AZ=[0,103,166], /* #0067A6, azul da Heca (fundo da logo) */ CINZA=[90,102,116], LINHA=[211,218,226], AMAR=[242,176,40];
+  const AZ=[31,58,95], /* #1F3A5F, azul-marinho do Prumo */ CINZA=[90,102,116], LINHA=[211,218,226], AMAR=[242,176,40];
   const ate=w.n, Wate=S.W.filter(x=>x.n<=ate), ac=new Map();
   for(const x of Wate) for(const [c,q] of Object.entries(x.exec)) ac.set(c,(ac.get(c)||0)+q);
   const exe=i=>Math.min(ac.get(i.c)||0,i.qp)*i.ppb, P=S.items.reduce((s,i)=>s+i.kp,0), E=S.items.reduce((s,i)=>s+exe(i),0);
@@ -3583,7 +3584,7 @@ async function gerarArquivoPedido(tipo, btn){
     } else {
       await carregarScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js");
       await carregarScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js");
-      const {jsPDF}=window.jspdf, doc=new jsPDF({unit:"mm",format:"a4"}), W=210, M=12, AZ=[0,103,166];
+      const {jsPDF}=window.jspdf, doc=new jsPDF({unit:"mm",format:"a4"}), W=210, M=12, AZ=[31,58,95];
       doc.setFillColor(...AZ); doc.rect(0,0,W,30,"F");
       const logo=await logoRelatorio();
       if(logo){ const lw=Math.min(52,14*logo.w/logo.h), lh=lw*logo.h/logo.w; doc.addImage(logo.src,"PNG",W-M-lw,(30-lh)/2,lw,lh,undefined,"FAST"); }
@@ -4129,7 +4130,7 @@ async function pdfEfetivoDia(d, btn){
   try{
     await carregarScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js");
     await carregarScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js");
-    const {jsPDF}=window.jspdf, doc=new jsPDF({unit:"mm",format:"a4"}), W=210, M=12, AZ=[0,103,166], VD=[29,122,72], VM=[180,35,24];
+    const {jsPDF}=window.jspdf, doc=new jsPDF({unit:"mm",format:"a4"}), W=210, M=12, AZ=[31,58,95], VD=[29,122,72], VM=[180,35,24];
     doc.setFillColor(...AZ); doc.rect(0,0,W,30,"F");
     const logo=await logoRelatorio();
     if(logo){ const lw=Math.min(52,14*logo.w/logo.h), lh=lw*logo.h/logo.w; doc.addImage(logo.src,"PNG",W-M-lw,(30-lh)/2,lw,lh,undefined,"FAST"); }
@@ -4876,7 +4877,7 @@ async function pdfRdo(d, btn){
   try{
     await carregarScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js");
     await carregarScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js");
-    const {jsPDF}=window.jspdf, doc=new jsPDF({unit:"mm",format:"a4"}), W=210, M=12, AZ=[0,103,166];
+    const {jsPDF}=window.jspdf, doc=new jsPDF({unit:"mm",format:"a4"}), W=210, M=12, AZ=[31,58,95];
     doc.setFillColor(...AZ); doc.rect(0,0,W,30,"F");
     const logo=await logoRelatorio();
     if(logo){ const lw=Math.min(52,14*logo.w/logo.h), lh=lw*logo.h/logo.w; doc.addImage(logo.src,"PNG",W-M-lw,(30-lh)/2,lw,lh,undefined,"FAST"); }
@@ -5239,7 +5240,7 @@ async function relatorioConc(c, btn){
     await buscarTracos(c.id);
     await carregarScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js");
     await carregarScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js");
-    const {jsPDF}=window.jspdf, doc=new jsPDF({unit:"mm",format:"a4"}), W=210, M=12, AZ=[0,103,166];
+    const {jsPDF}=window.jspdf, doc=new jsPDF({unit:"mm",format:"a4"}), W=210, M=12, AZ=[31,58,95];
     doc.setFillColor(...AZ); doc.rect(0,0,W,30,"F");
     const logo=await logoRelatorio();
     if(logo){ const lw=Math.min(52,14*logo.w/logo.h), lh=lw*logo.h/logo.w; doc.addImage(logo.src,"PNG",W-M-lw,(30-lh)/2,lw,lh,undefined,"FAST"); }

@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Painel da Armação — SAA Rio Grande</title>
-<meta name="theme-color" content="#23527E">
+<title>Prumo · Painel da Armação — SAA Rio Grande</title>
+<meta name="theme-color" content="#1F3A5F">
 <link rel="icon" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap">
@@ -29,10 +29,10 @@ h1,h2,h3{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-weight:60
 h3{font-size:1.05rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
 .wrap{max-width:1100px;margin-inline:auto;display:grid;gap:14px;padding-block:14px}
 .top{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center}
-/* faixa da marca: mesmo azul do fundo da logo da Heca */
-.faixa{background:#0067A6;color:#fff;margin-inline:-16px;padding:calc(12px + env(safe-area-inset-top,0px)) 16px 12px}
+/* faixa da marca: azul-marinho do Prumo */
+.faixa{background:#1F3A5F;color:#fff;margin-inline:-16px;padding:calc(12px + env(safe-area-inset-top,0px)) 16px 12px}
 .faixa .in{max-width:1100px;margin-inline:auto;display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px}
-.faixa img{height:52px;width:auto;display:block}
+.faixa img{height:40px;width:auto;display:block}
 .faixa .brand{color:#fff}
 .faixa .brand small{color:#D6E8F5}
 .brand{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-weight:700;font-size:1.5rem;margin-right:auto;line-height:1.1}
@@ -75,7 +75,7 @@ td.txt{text-align:left;white-space:normal}
 <body>
 <div class="faixa"><div class="in">
   <div class="brand">Armação · SAA Rio Grande<small>Painel de acompanhamento · somente leitura</small></div>
-  <img src="logo-heca.webp" alt="Heca Construtora">
+  <img src="logo-prumo.png" alt="Prumo">
 </div></div>
 <div class="wrap">
   <header class="top">
@@ -118,21 +118,40 @@ function consertaCod(c){ const s=String(c??""); let m,mes,ano;
   if((m=s.match(/^(\d{4})-(\d{2})-\d{2}$/))){ ano=+m[1]; mes=MESES[+m[2]-1]; } else if((m=s.match(/^[A-Z][a-z]{2} ([A-Z][a-z]{2}) \d{2} (\d{4}) /))){ ano=+m[2]; mes=m[1].toUpperCase(); } else return s;
   const n=ano>=2000&&ano<2030?ano-2000:ano>=1930&&ano<2000?ano-1900:ano; return mes+"-"+String(n).padStart(4,"0"); }
 
-// endereço e chave de leitura vêm no link: painel.html#u=...&k=...
-const H=new URLSearchParams(location.hash.slice(1)), URLD=H.get("u"), CHAVE=H.get("k");
+// endereço e chave de leitura vêm no link (painel.html#u=...&k=... ou ?u=...&k=...);
+// ficam guardados neste navegador para abrir depois só com painel.html
+const guardado=(()=>{ try{ return JSON.parse(localStorage.getItem("painel:acesso")||"{}"); }catch{ return {}; } })();
+const H=new URLSearchParams(location.hash.slice(1)), Q=new URLSearchParams(location.search);
+const URLD=H.get("u")||Q.get("u")||guardado.u, CHAVE=H.get("k")||Q.get("k")||guardado.k;
+if(URLD&&CHAVE){ try{ localStorage.setItem("painel:acesso",JSON.stringify({u:URLD,k:CHAVE})); }catch{} }
 let D=null, EMP="", SEM=null;
 
 async function carregar(){
-  if(!URLD||!CHAVE){ erro("Este link está incompleto. Peça o link do painel para quem usa o app (Ajustes → Acompanhamento sem o app)."); return; }
+  if(!URLD||!CHAVE){ pedirAcesso(); return; }
   $("#status").textContent="Atualizando…";
   try{
     const r=await fetch(`${URLD}?k=${encodeURIComponent(CHAVE)}`); const j=await r.json();
     if(!j.ok) throw new Error(j.erro||"Erro ao ler os dados.");
     preparar(j); $("#erro").hidden=true; $("#conteudo").hidden=false; render();
     $("#status").textContent=`Dados de ${new Date(j.agora).toLocaleString("pt-BR")} · atualiza sozinho a cada 10 minutos`;
-  }catch(e){ erro(e.message==="Failed to fetch"?"Sem conexão com o Google. Tente de novo em instantes.":e.message); }
+  }catch(e){
+    if(/Chave de leitura/.test(e.message)){ try{ localStorage.removeItem("painel:acesso"); }catch{} pedirAcesso(); return; }
+    erro(e.message==="Failed to fetch"?"Sem conexão com o Google. Tente de novo em instantes.":e.message); }
 }
 function erro(m){ const b=$("#erro"); b.hidden=false; b.textContent=m; $("#status").textContent=""; }
+// link sem endereço/chave: permite colar o link completo do painel
+function pedirAcesso(){
+  const b=$("#erro"); b.hidden=false; $("#status").textContent="";
+  const inp=el("input",{type:"text",placeholder:"Cole aqui o link completo do painel (termina com …&k=…)","aria-label":"Link do painel",style:"width:100%;min-height:42px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;background:var(--surface);color:var(--ink)"});
+  const ok=el("button",{type:"button",text:"Abrir painel"});
+  ok.onclick=()=>{ const s=inp.value.trim(), i=s.indexOf("#"), q=s.indexOf("?"), p=new URLSearchParams(i>=0?s.slice(i+1):q>=0?s.slice(q+1):"");
+    if(!p.get("u")||!p.get("k")){ msg.textContent="Esse link não tem o endereço e a chave. Copie o link inteiro em Ajustes → Acompanhamento sem o app."; return; }
+    try{ localStorage.setItem("painel:acesso",JSON.stringify({u:p.get("u"),k:p.get("k")})); }catch{}
+    location.hash=`u=${encodeURIComponent(p.get("u"))}&k=${p.get("k")}`; location.reload(); };
+  const msg=el("p",{class:"info"});
+  b.replaceChildren(el("b",{text:"Falta o endereço de acesso."}), el("p",{class:"info",text:"O link do painel precisa terminar com a parte “#u=…&k=…”. Peça o link para quem usa o app (Ajustes → Acompanhamento sem o app → Enviar link do painel) ou cole-o abaixo. Depois disso este navegador lembra o acesso."}),
+    el("div",{style:"display:grid;gap:8px;margin-top:8px"}, inp, ok, msg));
+}
 
 function preparar(j){
   const itens=j.itens.map(r=>{ const qp=num(r[9]),kp=num(r[11]); return {c:consertaCod(r[0]),emp:String(r[1]),est:String(r[2]),loc:String(r[8]||""),qp,kp,ppb:qp?kp/qp:0}; });

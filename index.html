@@ -463,6 +463,16 @@ canvas.qr{display:block;width:min(260px,100%);height:auto;image-rendering:pixela
 .ft-selo.rd-dentro{background:var(--good-bg);color:var(--good)}
 .rd-acoes{position:sticky;bottom:0;background:var(--bg);padding:8px 0 calc(8px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--line)}
 .chipbtn:disabled{opacity:.6;cursor:default}
+/* conferência do romaneio: uma linha por OS */
+.cf-os{display:grid;gap:8px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+.cf-os.ok{border-color:var(--good);background:var(--good-bg)}
+.cf-top{display:flex;flex-wrap:wrap;gap:2px 12px;align-items:baseline}
+.cf-top b{font-size:1rem}
+.cf-bts{display:flex;flex-wrap:wrap;gap:6px}
+.cf-bts .chipbtn{min-height:40px}
+.cf-bts .chipbtn.on{background:var(--good);border-color:var(--good);color:var(--surface)}
+.cf-peso{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
+.cf-peso input{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 10px;min-height:44px;width:100%;color:var(--ink)}
 .rd-voz{border-color:var(--accent)}
 .rd-voz textarea{min-height:110px}
 .btn.rd-rec{background:var(--bad);border-color:var(--bad);color:#fff}
@@ -548,6 +558,15 @@ canvas.qr{display:block;width:min(260px,100%);height:auto;image-rendering:pixela
     <img class="tela-logo" src="logo-wila.png" alt="WILA">
   </div></header>
   <div class="tela-corpo" id="sup-ped"></div>
+</section>
+
+<!-- ================= Suprimentos › Aço › Conferência do romaneio ================= -->
+<section id="tela-sup-conf" class="tela" aria-label="Conferência do romaneio" hidden>
+  <header class="tela-topo compacto"><div class="in">
+    <button class="tela-voltar" type="button" data-voltar><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>Aço</button>
+    <img class="tela-logo" src="logo-wila.png" alt="WILA">
+  </div></header>
+  <div class="tela-corpo" id="sup-conf"></div>
 </section>
 
 <!-- ================= Ponto e efetivo ================= -->
@@ -1693,7 +1712,7 @@ $("#tema").addEventListener("click", e=>{ const b=e.target.closest("button[data-
   renderTema(); });
 renderTema();
 
-const VERSAO_APP = "v51"; // igual ao número em sw.js (armacao-v51)
+const VERSAO_APP = "v54"; // igual ao número em sw.js (armacao-v54)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -3234,10 +3253,10 @@ const SERVICOS=[
 ];
 
 // --- navegação entre telas: início → produtividade → aço (o app de armação) ---
-const TELAS={inicio:"#inicio", prod:"#tela-prod", sup:"#tela-sup", supaco:"#tela-sup-aco", supped:"#tela-sup-pedido", ponto:"#tela-ponto", fotos:"#tela-fotos",
+const TELAS={inicio:"#inicio", prod:"#tela-prod", sup:"#tela-sup", supaco:"#tela-sup-aco", supped:"#tela-sup-pedido", supconf:"#tela-sup-conf", ponto:"#tela-ponto", fotos:"#tela-fotos",
   producao:"#tela-producao", login:"#tela-login", rdo:"#tela-rdo", conc:"#tela-conc", reg:"#tela-reg", acessos:"#tela-acessos"};
 // módulo exigido por cada tela (o cargo precisa ter acesso)
-const TELA_MOD={prod:"prod", aco:"prod", sup:"sup", supaco:"sup", supped:"sup", ponto:"ponto", fotos:"fotos", producao:"producao", rdo:"rdo", conc:"prod"};
+const TELA_MOD={prod:"prod", aco:"prod", sup:"sup", supaco:"sup", supped:"sup", supconf:"sup", ponto:"ponto", fotos:"fotos", producao:"producao", rdo:"rdo", conc:"prod"};
 function abrirTela(t, empilhar=true, forcar=false){
   if(!liberado() && t!=="login") t="login"; // sem login ou sem liberação: só a tela de entrada/espera
   if(!forcar && TELA_MOD[t] && !pode(TELA_MOD[t])){ toast("Seu cargo não tem acesso a esta parte do app."); t="inicio"; }
@@ -3245,7 +3264,7 @@ function abrirTela(t, empilhar=true, forcar=false){
   for(const [k,s] of Object.entries(TELAS)) $(s).hidden = t!==k;
   document.body.style.overflow = t==="aco" ? "" : "hidden";
   if(t==="inicio") renderInicio(); if(t==="prod") renderProdMenu();
-  if(t==="sup") renderSupMenu(); if(t==="supaco") renderSupAco(); if(t==="supped") renderSupPedido();
+  if(t==="sup") renderSupMenu(); if(t==="supaco") renderSupAco(); if(t==="supped") renderSupPedido(); if(t==="supconf") renderSupConf();
   if(t==="ponto") renderPonto(); if(t!=="ponto") $("#ef-modal").hidden=true;
   if(t==="fotos") renderFotos(); if(t==="producao") renderProducao(); if(t==="login") renderLogin(); if(t==="rdo") renderRdo(); if(t==="conc") renderConc(); if(t==="reg") renderReg2(); if(t==="acessos") renderAcessos();
   if(empilhar) history.pushState({tela:t},"");
@@ -3363,6 +3382,7 @@ const MATERIAIS=[
   {id:"areia",  nome:"Areia",        desc:"Cargas e volumes",          c:["#E2B65C","#B0832A"], ativo:true},
 ];
 // Romaneios da Aços Campinas (PDFs da pasta "00. Romaneio aços"). O número da remessa é o (1)…(4) do nome do arquivo.
+// 02/10/2026: 004742, 004743 e 004768 atualizados pelas revisões dos PDFs; 004829 (remessa 5) novo.
 // O recebimento é confirmado no app (fica na aba Config da planilha como ACO_REC_<remessa>).
 // Pedidos novos são gerados no app e ficam na aba Config como ACO_PEDIDO_<remessa>; não precisam ser lançados aqui.
 const REMESSAS_ACO={
@@ -3370,6 +3390,7 @@ const REMESSAS_ACO={
   2:{est:"DECANTADORES", entregue:true},
   3:{est:"DECANTADORES", ini:"2026-10-06", fim:"2026-10-08"},
   4:{est:"ELEVATÓRIA AT", ini:"2026-10-15", fim:"2026-10-20"},
+  5:{est:"POÇO DE SUCÇÃO", ini:"2026-10-27", fim:"2026-10-27"}, // pedido feito fora do app (Tanque Pulmão / Poço de Sucção, Alto Recalque)
 };
 // Posições (códigos da base) que vieram nos romaneios das remessas 3 e 4: "CÓDIGO" = posição inteira, "CÓDIGO:n" = n barras.
 // Cruzamento feito pelos PDFs (folha + posição + bitola + elemento). As remessas 1 e 2 estão na coluna PEDIDO da planilha.
@@ -3388,15 +3409,16 @@ const ROMANEIOS=[
   {n:"004403", rem:2, desc:"Arranques parede",                 emit:"2026-08-18", kg:22410.09, b:{6.3:87.39, 10:736.46, 12.5:18334.29, 16:3251.95}, els:"PAR2 · PAR5A/5B · PAR6 · PAR7A/7B"},
   {n:"004404", rem:2, desc:"Arranques parede / laje de fundo", emit:"2026-08-18", kg:19237.96, b:{10:296.16, 12.5:16707.34, 16:2234.46}, els:"Laje de fundo (parte) · PAR3 · PAR9"},
   {n:"004405", rem:2, desc:"Laje de fundo",                    emit:"2026-08-18", kg:21801.76, b:{12.5:21801.76}, els:"Laje de fundo"},
-  {n:"004742", rem:3, desc:"Paredes (rom. 1)",                 emit:"2026-09-21", kg:14350.04, b:{10:3327.48, 12.5:9172.10, 16:250.91, 20:1599.55}, els:"PAR2 · PAR3 a PAR9B · PAR4 a PAR8B · PAR10 · PAR11=PAR12"},
-  {n:"004743", rem:3, desc:"Lajes / paredes (rom. 2)",         emit:"2026-09-22", kg:14540.45, b:{8:68.57, 10:3055.35, 12.5:11183.30, 16:233.23}, els:"Lajes 796,75 · 798,50 · 800,30 · PAR13 · V1"},
+  {n:"004742", rem:3, desc:"Paredes (rom. 1)",                 emit:"2026-09-21", kg:14081.50, b:{10:4171.41, 12.5:8027.67, 16:250.91, 20:1631.51}, els:"PAR2=PAR2A=PAR2B · PAR10=PAR10A=PAR10B"},
+  {n:"004743", rem:3, desc:"Lajes / paredes (rom. 2)",         emit:"2026-09-22", kg:14507.63, b:{8:68.57, 10:3055.35, 12.5:11150.48, 16:233.23}, els:"V1 · PAR13 a PAR13E · lajes 796,75 e 800,30"},
   {n:"004749", rem:3, desc:"Paredes / escada (rom. 3)",        emit:"2026-09-21", kg:13853.15, b:{6.3:28.61, 10:976.64, 12.5:10996.32, 16:767.13, 20:1084.45}, els:"PAR1 · PAR4 a PAR8B · PAR14 · PAR15 a PAR20 · escada"},
   {n:"004753", rem:3, desc:"Paredes (rom. 4)",                 emit:"2026-09-21", kg:13292.21, b:{10:338.22, 12.5:11297.88, 16:1656.11}, els:"PAR3 a PAR9B · PAR5 a PAR7B"},
   {n:"004755", rem:3, desc:"Paredes / placas (rom. 5)",        emit:"2026-09-22", kg:14034.45, b:{6.3:241.08, 8:430.17, 10:707.80, 12.5:11099.78, 16:839.50, 20:716.12}, els:"PAR1 · PAR2 e console · PAR4 a PAR8 · PAR5 a PAR7B · placas PL1/PL2 · reforços DN200/DN600"},
   {n:"004767", rem:4, desc:"Lajes de fundo (rom. 1)",          emit:"2026-09-23", kg:23737.24, b:{12.5:23737.24}, els:"Lajes de fundo EL. 790,35 · 791,55 · 793,55"},
-  {n:"004768", rem:4, desc:"Reservatório / elevatória (rom. 2)", emit:"2026-09-25", kg:20980.52, b:{6.3:258.59, 8:292.46, 10:2484.56, 12.5:10520.07, 16:6455.71, 20:969.13}, els:"Parede 2 (reservatório) · parede 3 · laje de fundo da sala de painéis · reforços DN100/DN500"},
+  {n:"004768", rem:4, desc:"Reservatório / elevatória (rom. 2)", emit:"2026-09-25", kg:20992.37, b:{6.3:258.59, 8:292.46, 10:2496.41, 12.5:10520.07, 16:6455.71, 20:969.13}, els:"Parede 2 (reservatório) · parede 3 · laje de fundo da sala de painéis · reforços DN100/DN500"},
   {n:"004769", rem:4, desc:"Paredes / passarela (rom. 3)",     emit:"2026-09-25", kg:22339.00, b:{8:1176.57, 10:1996.61, 12.5:10517.16, 16:8258.05, 20:390.61}, els:"Paredes 3 e 4 · passarela EL. 791,65 · escadas"},
   {n:"004770", rem:4, desc:"Paredes / lajes / vigas (rom. 4)", emit:"2026-09-25", kg:23192.58, b:{6.3:1343.54, 8:7997.60, 10:2369.03, 12.5:7420.46, 16:3174.93, 20:887.02}, els:"Paredes 4, 8 e 9 · laje EL. 800,20 · laje cob. painéis · vigas · pilares · cintas · sapatas · extravasor"},
+  {n:"004829", rem:5, desc:"Poço de sucção",                   emit:"2026-10-01", kg:31984.16, b:{6.3:126.29, 10:1779.44, 12.5:27124.25, 16:2110.80, 20:843.38}, els:"Laje de fundo do poço · paredes 1, 6 a 8 e 10 a 12 · viga V1 · corte AA"},
 ];
 // confere se a soma das bitolas bate com o peso total de cada romaneio (pega erro de digitação)
 ROMANEIOS.forEach(x=>console.assert(Math.abs(Object.values(x.b).reduce((s,v)=>s+v,0)-x.kg)<0.05, "Romaneio com bitolas diferentes do total:", x.n));
@@ -3435,7 +3457,7 @@ function remessas(){
 }
 const somaRec = l => l.reduce((s,R)=>s+R.kgRec,0);
 // "06 a 08/10" no mesmo mês; "28/10 a 02/11" quando vira o mês
-const janela = R => R.ini.slice(5,7)===R.fim.slice(5,7) ? `${R.ini.slice(8,10)} a ${ddmm(R.fim)}` : `${ddmm(R.ini)} a ${ddmm(R.fim)}`;
+const janela = R => R.ini===R.fim ? ddmm(R.ini) : R.ini.slice(5,7)===R.fim.slice(5,7) ? `${R.ini.slice(8,10)} a ${ddmm(R.fim)}` : `${ddmm(R.ini)} a ${ddmm(R.fim)}`;
 function statusRemessa(R){
   if(R.rec) return {cls:"ok", txt: R.rec==="sim" ? "Entregue" : `Recebida em ${ddmm(R.rec)}`};
   if(R.nRomRec) return {cls:"and", txt:`Parcial · ${R.nRomRec} de ${R.roms.length} romaneios`};
@@ -3468,10 +3490,15 @@ function controleRomaneio(x, R){
 function romaneioItem(x, R){
   const bits=Object.entries(x.b).sort((a,b)=>a[0]-b[0]);
   const chip = R && !R.fixo && x.rec ? el("span",{class:"chip ok",style:"margin-left:0",text:`✓ ${ddmm(x.rec)}`}) : null;
+  const cf = R && x.rec ? confDe(x.n) : null;
+  const chipCf = cf?.ok ? el("span",{class:"chip ok",style:"margin-left:0",text:"Conferido"}) : cf?.nOk ? el("span",{class:"chip and",style:"margin-left:0",text:`Conferência ${cf.nOk}/${cf.n}`}) : null;
   return el("details",{class:"item rom"},
-    el("summary",{}, el("b",{text:`C.AGUA.${x.n}`}), " ", el("span",{class:"loc",text:x.desc}), el("span",{class:"rom-kg",text:`${t(x.kg)} t`}), chip),
+    el("summary",{}, el("b",{text:`C.AGUA.${x.n}`}), " ", el("span",{class:"loc",text:x.desc}), el("span",{class:"rom-kg",text:`${t(x.kg)} t`}), chip, chipCf),
     el("p",{class:"i-sub",text:`Emitido em ${ddmm(x.emit)} · ${x.els}`}),
     R ? controleRomaneio(x, R) : null,
+    // depois que chegou: conferência das peças, OS por OS
+    cf ? el("div",{class:"row"}, el("button",{class:"btn"+(cf.ok?"":" pri"),type:"button",text:cf.ok?"Ver conferência e relatório":cf.nOk?"Continuar a conferência":"Conferir as peças",
+      onclick:()=>{ CF.rom=x.n; abrirTela("supconf"); }})) : null,
     el("div",{class:"tbl"}, el("table",{},
       el("thead",{}, el("tr",{}, el("th",{text:"Bitola (mm)"}), el("th",{text:"Peso (kg)"}))),
       el("tbody",{}, ...bits.map(([d,kg])=>el("tr",{}, el("td",{text:bitola(d)}), el("td",{text:nf1.format(kg)})))))));
@@ -3535,6 +3562,131 @@ function renderSupAco(){
         el("thead",{}, el("tr",{}, el("th",{text:"Bitola (mm)"}), el("th",{text:"Recebido"}), el("th",{text:"A receber"}), el("th",{text:"Total"}))),
         el("tbody",{}, ...linhas)))),
     el("p",{class:"rodape-ini",text:"Pesos conforme romaneios do fornecedor. Datas de entrega informadas pela obra."}));
+}
+
+// --- Conferência do romaneio: OS por OS (veio, quantidade de barras, comprimento) e pesagem da carreta ---
+// As OS vêm de romaneios-os.json (lidas dos PDFs da Aços Campinas): {romaneio: [[elemento, [[OS, folha, posição, bitola, barras, compr. cm, kg], …]], …]}.
+// O resultado fica na aba Config como ACO_CONF_<romaneio> = JSON {m:{OS:"111"}, cheia, vazia, obs, n, nOk, por, em, ok, okPor}
+// (m: 3 marcas por OS na ordem veio / quantidade / comprimento; "1" = conferido).
+const CF={rom:null, lista:null};
+async function carregarOsRom(){
+  if(!CF.lista){ try{ CF.lista=await (await fetch("romaneios-os.json")).json(); }catch{ CF.lista=null; } }
+  return CF.lista;
+}
+function confDe(n){ try{ const c=JSON.parse(cfgv("ACO_CONF_"+n,"")||"null"); return c&&typeof c==="object" ? {m:{}, ...c} : {m:{}}; }catch{ return {m:{}}; } }
+function salvarConf(n, c, oss){
+  c.n=oss.length; c.nOk=oss.filter(o=>c.m[o[0]]==="111").length; c.por=U?.nome||""; c.em=new Date().toISOString();
+  S.pendCfg["ACO_CONF_"+n]=JSON.stringify(c); savePendExtra(); scheduleSync();
+}
+const CF_MARCAS=["Veio","Quantidade","Comprimento"];
+const kgF = v => `${nf1.format(v)} kg`, cmF = v => `${String(v).replace(".",",")} cm`;
+// peso real pela balança: carreta cheia − vazia, comparado ao peso do romaneio
+function pesagem(c, kgRom){
+  const ch=num(c.cheia), vz=num(c.vazia);
+  if(!(ch>0) || !(vz>=0) || ch<=vz) return null;
+  const real=ch-vz, dif=real-kgRom;
+  return {real, dif, p: kgRom ? dif/kgRom : 0};
+}
+async function renderSupConf(){
+  const box=$("#sup-conf"); if(!box) return;
+  const n=CF.rom, x=ROMANEIOS.find(r=>r.n===n), L=await carregarOsRom(), grupos=L?.[n];
+  if(!x){ abrirTela("supaco",false); return; }
+  const topo=el("p",{class:"saud"}, `Conferência · C.AGUA.${n}`, el("small",{text:`${x.desc} · remessa ${x.rem}`}));
+  if(!grupos) return repor(box, topo, el("div",{class:"vazio",text:L ? "A lista de OS deste romaneio ainda não está no app." : "Não foi possível abrir a lista de OS. Abra uma vez com internet."}));
+  const c=confDe(n), trav=!!c.ok, oss=grupos.flatMap(([,l])=>l);
+  const kgRom=oss.reduce((s,o)=>s+o[6],0), nOk=oss.filter(o=>c.m[o[0]]==="111").length;
+  const salvar=()=>{ salvarConf(n, c, oss); renderSupConf(); };
+  // pesagem
+  const iCh=el("input",{type:"number",inputMode:"decimal",min:0,step:10,value:c.cheia??"",disabled:trav,"aria-label":"Peso da carreta cheia (kg)"});
+  const iVz=el("input",{type:"number",inputMode:"decimal",min:0,step:10,value:c.vazia??"",disabled:trav,"aria-label":"Peso da carreta vazia (kg)"});
+  iCh.onchange=()=>{ c.cheia=iCh.value; salvar(); }; iVz.onchange=()=>{ c.vazia=iVz.value; salvar(); };
+  const pz=pesagem(c, kgRom);
+  const resPeso = pz ? el("p",{class:Math.abs(pz.p)>0.02?"aviso":"okmsg",text:`Peso real ${kgF(pz.real)} · romaneio ${kgF(kgRom)} · diferença ${pz.dif>=0?"+":""}${kgF(pz.dif)} (${pz.dif>=0?"+":""}${pct(pz.p)})${Math.abs(pz.p)>0.02?" · acima de 2%: confira":""}`})
+    : el("p",{class:"info",text:`Peso do romaneio: ${kgF(kgRom)}. Pese a carreta cheia (antes de descarregar) e vazia (depois).`});
+  // uma linha por OS: três marcas + "Tudo certo"
+  const linha=o=>{
+    const [os,folha,pos,bit,q,cm,kg]=o, v=(c.m[os]||"000").padEnd(3,"0"), ok=v==="111";
+    const marca=(i,rot)=>el("button",{type:"button",class:"chipbtn"+(v[i]==="1"?" on":""),text:(v[i]==="1"?"✓ ":"")+rot,disabled:trav,"aria-pressed":String(v[i]==="1"),
+      "aria-label":`${CF_MARCAS[i]} certo: OS ${os}`,onclick:()=>{ const a=v.split(""); a[i]=a[i]==="1"?"0":"1"; c.m[os]=a.join(""); salvar(); }});
+    return el("div",{class:"cf-os"+(ok?" ok":"")},
+      el("div",{class:"cf-top"}, el("b",{text:`OS ${os}`}), el("span",{text:`Pos. ${pos}`}), el("span",{text:bitola(bit)+" mm"}), el("span",{class:"info",text:`folha ${folha} · ${kgF(kg)}`})),
+      el("div",{class:"cf-bts"}, marca(0,"Veio"), marca(1,`${nf0.format(q)} barras`), marca(2,cmF(cm)),
+        !trav && !ok ? el("button",{type:"button",class:"chipbtn",text:"Tudo certo",onclick:()=>{ c.m[os]="111"; salvar(); }}) : null));
+  };
+  const iObs=el("textarea",{rows:3,maxLength:1000,value:c.obs||"",disabled:trav,placeholder:"Ex.: OS 12 veio com 98 barras; feixe da OS 30 amassado.","aria-label":"Observações da conferência"});
+  iObs.onchange=()=>{ c.obs=iObs.value.trim(); salvar(); };
+  const acoes = trav
+    ? el("div",{class:"card"}, el("p",{class:"okmsg",text:`Conferido por ${c.okPor||"?"} em ${new Date(c.ok).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"})}.`}),
+        el("div",{class:"row"}, el("button",{class:"btn pri",type:"button",text:"📄 Relatório do romaneio conferido",onclick:e=>pdfConf(n,e.currentTarget)}),
+          el("button",{class:"btn",type:"button",text:"Reabrir conferência",onclick:()=>{ if(!confirm("Reabrir a conferência para corrigir?")) return; delete c.ok; delete c.okPor; salvar(); }})))
+    : el("div",{class:"row"}, el("button",{class:"btn pri",type:"button",text:"Concluir e gerar relatório",onclick:e=>{
+        const falta=oss.length-nOk;
+        if(falta && !confirm(`${falta} OS não estão com as três marcas. Elas vão no relatório como divergência. Concluir assim?`)) return;
+        if(!pesagem(c,kgRom) && !confirm("A pesagem da carreta não foi preenchida. Concluir mesmo assim?")) return;
+        c.ok=new Date().toISOString(); c.okPor=U?.nome||""; salvarConf(n,c,oss); renderSupConf(); pdfConf(n,e.currentTarget); }}));
+  repor(box, topo,
+    el("div",{class:"kpis"}, kpi("OS conferidas", `${nOk} de ${oss.length}`, trav?"conferência concluída":"marque as três em cada OS"), kpi("Peso do romaneio", kgF(kgRom), `${oss.length} OS`)),
+    barra(oss.length?nOk/oss.length:0),
+    el("div",{class:"card"}, el("h3",{text:"Pesagem da carreta"}),
+      el("div",{class:"cf-peso"}, el("label",{class:"campo"}, "Cheia, antes de descarregar (kg)", iCh), el("label",{class:"campo"}, "Vazia, depois (kg)", iVz)), resPeso),
+    !trav ? el("div",{class:"row"}, el("p",{class:"info",style:"flex:1",text:"Em cada OS, marque o que conferiu: se veio, a quantidade de barras e o comprimento."}),
+      nOk<oss.length ? el("button",{class:"btn",type:"button",text:"Marcar todas como certas",onclick:()=>{ if(!confirm(`Marcar as ${oss.length} OS como certas (veio, quantidade e comprimento)?`)) return; for(const o of oss) c.m[o[0]]="111"; salvar(); }}) : null) : null,
+    ...grupos.map(([elem,l])=>{ const k=l.filter(o=>c.m[o[0]]==="111").length;
+      return el("div",{class:"card"}, el("div",{class:"i-top"}, el("h3",{text:elem||"Sem elemento"}), el("span",{class:"chip"+(k===l.length?" ok":""),text:`${k}/${l.length}`})),
+        el("div",{class:"lista"}, ...l.map(linha))); }),
+    el("div",{class:"card"}, el("h3",{text:"Observações"}), iObs),
+    acoes);
+}
+async function pdfConf(n, btn){
+  const L=await carregarOsRom(), grupos=L?.[n], x=ROMANEIOS.find(r=>r.n===n);
+  if(!grupos || !x) return toast("Lista de OS indisponível.");
+  const txt=btn?.textContent; if(btn){ btn.disabled=true; btn.textContent="Gerando PDF…"; }
+  try{
+    const c=confDe(n), oss=grupos.flatMap(([e,l])=>l.map(o=>[e,...o])), kgRom=oss.reduce((s,o)=>s+o[7],0);
+    const R=remessas().find(r=>r.n===x.rem), xr=R?.roms.find(r=>r.n===n);
+    const doc=await novoPdf(`Romaneio conferido — C.AGUA.${n}`, `${nomeObra()} · ${x.desc} · remessa ${x.rem} (${R?.est||""})`), M=12, AZ=PDF_AZ, VD=[29,122,72], VM=[180,35,24];
+    let y=38;
+    const sim=(v,i)=>v[i]==="1"?"Sim":"Não";
+    const div=oss.filter(o=>c.m[o[1]]!=="111"), pz=pesagem(c,kgRom);
+    doc.setFontSize(9);
+    const linhas=[
+      ["Chegada", !xr?.rec ? "—" : xr.rec==="sim" ? "Entregue" : dataBR(xr.rec)],
+      ["Conferido por", c.ok ? `${c.okPor||"?"} em ${new Date(c.ok).toLocaleString("pt-BR")}` : "Conferência não concluída"],
+      ["OS conferidas", `${oss.length-div.length} de ${oss.length}`+(div.length?` · ${div.length} com divergência`:" · sem divergência")],
+      ["Peso do romaneio", kgF(kgRom)],
+      ["Carreta cheia / vazia", c.cheia||c.vazia ? `${c.cheia?kgF(num(c.cheia)):"—"} / ${c.vazia?kgF(num(c.vazia)):"—"}` : "não pesada"],
+      ["Peso real (balança)", pz ? `${kgF(pz.real)} · diferença ${pz.dif>=0?"+":""}${kgF(pz.dif)} (${pz.dif>=0?"+":""}${pct(pz.p)})` : "—"]];
+    doc.autoTable({startY:y, body:linhas, theme:"plain", margin:{left:M,right:M}, styles:{fontSize:9,cellPadding:1.2,textColor:20},
+      columnStyles:{0:{fontStyle:"bold",cellWidth:45}},
+      didParseCell:d=>{ if(d.row.index===5 && d.column.index===1 && pz && Math.abs(pz.p)>0.02) d.cell.styles.textColor=VM; if(d.row.index===2 && d.column.index===1) d.cell.styles.textColor=div.length?VM:VD; }});
+    y=doc.lastAutoTable.finalY+6;
+    if(div.length){
+      doc.setFont("helvetica","bold"); doc.setFontSize(11); doc.setTextColor(...VM); doc.text("Divergências",M,y); y+=3; doc.setTextColor(20);
+      doc.autoTable({startY:y, head:[["OS","Elemento","Pos.","Ø (mm)","Barras","Compr. (cm)","Veio","Qtd.","Compr."]],
+        body:div.map(o=>[o[1],o[0],o[3],String(o[4]).replace(".",","),nf0.format(o[5]),String(o[6]).replace(".",","),sim(c.m[o[1]]||"000",0),sim(c.m[o[1]]||"000",1),sim(c.m[o[1]]||"000",2)]),
+        margin:{left:M,right:M}, styles:{fontSize:8,cellPadding:1.3,textColor:20}, headStyles:{fillColor:VM,textColor:255,fontStyle:"bold"},
+        didParseCell:d=>{ if(d.section==="body" && d.column.index>=6 && d.cell.raw==="Não") d.cell.styles.textColor=VM; }});
+      y=doc.lastAutoTable.finalY+6;
+    }
+    doc.setFont("helvetica","bold"); doc.setFontSize(11); doc.setTextColor(...AZ); doc.text("Todas as OS",M,y); y+=3; doc.setTextColor(20); doc.setFont("helvetica","normal");
+    doc.autoTable({startY:y, head:[["OS","Elemento","Folha","Pos.","Ø (mm)","Barras","Compr. (cm)","Peso (kg)","Veio","Qtd.","Compr."]],
+      body:oss.map(o=>{ const v=(c.m[o[1]]||"000").padEnd(3,"0"); return [o[1],o[0],o[2],o[3],String(o[4]).replace(".",","),nf0.format(o[5]),String(o[6]).replace(".",","),nf1.format(o[7]),sim(v,0),sim(v,1),sim(v,2)]; }),
+      foot:[["","Total","","","","","",nf1.format(kgRom),"","",""]],
+      margin:{left:M,right:M}, styles:{fontSize:7.5,cellPadding:1.1,textColor:20}, headStyles:{fillColor:AZ,textColor:255,fontStyle:"bold"},
+      footStyles:{fillColor:[236,240,245],textColor:20,fontStyle:"bold"}, alternateRowStyles:{fillColor:[244,246,249]},
+      columnStyles:{5:{halign:"right"},6:{halign:"right"},7:{halign:"right"}},
+      didParseCell:d=>{ if(d.section==="body" && d.column.index>=8) d.cell.styles.textColor = d.cell.raw==="Sim" ? VD : VM; }});
+    y=doc.lastAutoTable.finalY+8;
+    if(c.obs){ if(y>255){ doc.addPage(); y=16; } doc.setFont("helvetica","bold"); doc.setFontSize(10); doc.text("Observações",M,y); y+=5; doc.setFont("helvetica","normal"); doc.setFontSize(9);
+      const ls=doc.splitTextToSize(c.obs,210-2*M); doc.text(ls,M,y); y+=ls.length*4.5+4; }
+    if(y>255){ doc.addPage(); y=20; }
+    y=Math.max(y+14,262); doc.setDrawColor(120); doc.setFontSize(8);
+    doc.line(M,y,M+80,y); doc.text("Conferido por"+(c.okPor?` (${c.okPor})`:""),M,y+4);
+    doc.line(210-M-80,y,210-M,y); doc.text("Recebido / almoxarifado",210-M-80,y+4);
+    rodapePdf(doc, (p,t)=>`C.AGUA.${n} · Página ${p} de ${t}`);
+    await entregarPdf(doc, `Romaneio_${n}_conferido.pdf`, `Romaneio ${n} conferido`);
+  }catch(e){ toast("Erro ao gerar o PDF: "+e.message); }
+  finally{ if(btn){ btn.disabled=false; btn.textContent=txt; } }
 }
 
 // --- Pedido de aço: o que falta pedir de cada estrutura, dividido em caminhões ---

@@ -976,6 +976,7 @@ const TODOS_MODULOS="producao ponto fotos rdo prod obras rel sup qual seg med eq
 // (módulos novos) equip-edit, seg-edit, qual-edit, med-edit, obras-edit, sup-edit: criar e alterar registros naquele módulo
 const TUDO="producao-edit ponto-ger rdo-edit rdo-fechar equip-edit seg-edit qual-edit med-edit obras-edit sup-edit";
 const CARGOS={
+  "Gerente de projeto":       {m:TODOS_MODULOS, x:TUDO},
   "Gerente de obra":          {m:TODOS_MODULOS, x:TUDO},
   "Engenheiro de produção":   {m:TODOS_MODULOS, x:TUDO},
   "Engenheiro de qualidade":  {m:"producao qual fotos rdo obras rel prod", x:"qual-edit"},
@@ -1692,7 +1693,7 @@ $("#tema").addEventListener("click", e=>{ const b=e.target.closest("button[data-
   renderTema(); });
 renderTema();
 
-const VERSAO_APP = "v50"; // igual ao número em sw.js (armacao-v50)
+const VERSAO_APP = "v51"; // igual ao número em sw.js (armacao-v51)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");

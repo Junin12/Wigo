@@ -1659,7 +1659,7 @@ $("#tema").addEventListener("click", e=>{ const b=e.target.closest("button[data-
   renderTema(); });
 renderTema();
 
-const VERSAO_APP = "v47"; // igual ao número em sw.js (armacao-v47)
+const VERSAO_APP = "v48"; // igual ao número em sw.js (armacao-v48)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -3383,13 +3383,25 @@ function remessas(){
     L.push({n:Number(n), est:R.est, ini:R.ini, fim:R.fim, fixo:!!R.entregue, roms, kg:somaKg(roms), b:roms.reduce((o,x)=>somaBit(o,x.b),{})});
   }
   for(const p of pedidosApp()) L.push({n:p.n, est:p.est, ini:p.ini, fim:p.fim, data:p.data, cam:p.cam||[], kg:Number(p.kg)||0, b:p.b||{}, app:true});
-  for(const R of L) R.rec = R.fixo ? "sim" : cfgv("ACO_REC_"+R.n, "");
+  for(const R of L){
+    // recebimento da remessa inteira (ACO_REC_<n>) ou romaneio a romaneio (ACO_REC_ROM_<número>)
+    R.recRem = R.fixo ? "sim" : cfgv("ACO_REC_"+R.n, "");
+    R.roms = (R.roms||[]).map(x=>({...x, rec: R.recRem || cfgv("ACO_REC_ROM_"+x.n, ""), recSo: !R.recRem && !!cfgv("ACO_REC_ROM_"+x.n, "")}));
+    const rRec = R.roms.filter(x=>x.rec);
+    // todos os romaneios confirmados = remessa recebida (na data do último)
+    R.rec = R.recRem || (R.roms.length && rRec.length===R.roms.length ? rRec.map(x=>x.rec).sort().pop() : "");
+    R.kgRec = R.rec ? R.kg : somaKg(rRec);
+    R.bRec = R.rec ? R.b : rRec.reduce((o,x)=>somaBit(o,x.b),{});
+    R.nRomRec = rRec.length;
+  }
   return L.sort((a,b)=>a.n-b.n);
 }
+const somaRec = l => l.reduce((s,R)=>s+R.kgRec,0);
 // "06 a 08/10" no mesmo mês; "28/10 a 02/11" quando vira o mês
 const janela = R => R.ini.slice(5,7)===R.fim.slice(5,7) ? `${R.ini.slice(8,10)} a ${ddmm(R.fim)}` : `${ddmm(R.ini)} a ${ddmm(R.fim)}`;
 function statusRemessa(R){
   if(R.rec) return {cls:"ok", txt: R.rec==="sim" ? "Entregue" : `Recebida em ${ddmm(R.rec)}`};
+  if(R.nRomRec) return {cls:"and", txt:`Parcial · ${R.nRomRec} de ${R.roms.length} romaneios`};
   if(!R.ini || !R.fim) return {cls:"", txt: R.data ? `Pedida em ${ddmm(R.data)}` : "Aguardando entrega"};
   const h=hojeISO(), jan=janela(R);
   if(h>R.fim) return {cls:"bad", txt:`Atrasada · prevista ${jan}`};
@@ -3399,16 +3411,30 @@ function statusRemessa(R){
 // grava na aba Config (sincroniza quando houver internet) e redesenha a tela de remessas
 function gravarCfg(k, v){ S.pendCfg[k]=String(v); savePendExtra(); scheduleSync(); renderSupAco(); }
 function renderSupMenu(){
-  const L=remessas(), tot=somaKg(L), rec=somaKg(L.filter(R=>R.rec));
+  const L=remessas(), tot=somaKg(L), rec=somaRec(L);
   $("#mods-sup").replaceChildren(...MATERIAIS.map((m,k)=>moduloBtn({...m, acao: m.id==="aco" ? ()=>abrirTela("supaco") : MAT2[m.id] ? ()=>{ RG.tipo.sup=m.id; abrirModulo("sup"); } : null}, k,
     m.id==="aco" ? (b,ic)=>{ anelProgresso(ic, tot?rec/tot:0); b.append(el("span",{class:"num",text:`${t(rec)} de ${t(tot)} t recebidas`})); } : null)));
 }
 const bitola = d => `Ø ${String(d).replace(".",",")}`;
-function romaneioItem(x){
+// chegada de um romaneio sozinho (quando a remessa vem em mais de um caminhão)
+function controleRomaneio(x, R){
+  if(R.fixo || R.recRem) return null;
+  if(x.recSo) return el("div",{class:"row"}, el("button",{class:"btn",type:"button",text:"Desfazer chegada",
+    onclick:()=>{ if(confirm(`Desfazer a chegada do romaneio ${x.n}?`)) gravarCfg("ACO_REC_ROM_"+x.n, ""); }}));
+  const d=el("input",{type:"date",value:hojeISO(),max:hojeISO(),"aria-label":`Data em que o romaneio ${x.n} chegou`});
+  return el("div",{class:"row rec"}, el("span",{class:"info",text:"Chegou em"}), d,
+    el("button",{class:"btn",type:"button",text:"Confirmar este romaneio",onclick:()=>{
+      if(!d.value) return toast("Informe a data em que chegou.");
+      if(d.value>hojeISO()) return toast("A data não pode ser no futuro.");
+      gravarCfg("ACO_REC_ROM_"+x.n, d.value); toast(`Romaneio ${x.n} recebido em ${ddmm(d.value)}.`); }}));
+}
+function romaneioItem(x, R){
   const bits=Object.entries(x.b).sort((a,b)=>a[0]-b[0]);
+  const chip = R && !R.fixo && x.rec ? el("span",{class:"chip ok",style:"margin-left:0",text:`✓ ${ddmm(x.rec)}`}) : null;
   return el("details",{class:"item rom"},
-    el("summary",{}, el("b",{text:`C.AGUA.${x.n}`}), " ", el("span",{class:"loc",text:x.desc}), el("span",{class:"rom-kg",text:`${t(x.kg)} t`})),
+    el("summary",{}, el("b",{text:`C.AGUA.${x.n}`}), " ", el("span",{class:"loc",text:x.desc}), el("span",{class:"rom-kg",text:`${t(x.kg)} t`}), chip),
     el("p",{class:"i-sub",text:`Emitido em ${ddmm(x.emit)} · ${x.els}`}),
+    R ? controleRomaneio(x, R) : null,
     el("div",{class:"tbl"}, el("table",{},
       el("thead",{}, el("tr",{}, el("th",{text:"Bitola (mm)"}), el("th",{text:"Peso (kg)"}))),
       el("tbody",{}, ...bits.map(([d,kg])=>el("tr",{}, el("td",{text:bitola(d)}), el("td",{text:nf1.format(kg)})))))));
@@ -3417,11 +3443,12 @@ const kpi=(rot,val,sub)=>el("div",{class:"kpi"}, el("span",{text:rot}), el("b",{
 const barra=frac=>el("div",{class:"bar"}, el("i",{style:`width:${(Math.min(1,frac)*100).toFixed(1)}%`}));
 function controleRecebimento(R){
   if(R.fixo) return null;
-  if(R.rec) return el("div",{class:"row"}, el("button",{class:"btn",type:"button",text:"Desfazer recebimento",
+  if(R.recRem) return el("div",{class:"row"}, el("button",{class:"btn",type:"button",text:"Desfazer recebimento",
     onclick:()=>{ if(confirm(`Desfazer o recebimento da remessa ${R.n}?`)) gravarCfg("ACO_REC_"+R.n, ""); }}));
+  if(R.rec) return el("p",{class:"info",text:"Todos os romaneios chegaram. Para desfazer, abra o romaneio."});
   const d=el("input",{type:"date",value:hojeISO(),max:hojeISO(),"aria-label":`Data em que a remessa ${R.n} chegou`});
   return el("div",{class:"row rec"}, el("span",{class:"info",text:"Chegou em"}), d,
-    el("button",{class:"btn pri",type:"button",text:"Confirmar recebimento",onclick:()=>{
+    el("button",{class:"btn pri",type:"button",text:R.roms?.length>1?"Confirmar remessa inteira":"Confirmar recebimento",onclick:()=>{
       if(!d.value) return toast("Informe a data em que chegou.");
       if(d.value>hojeISO()) return toast("A data não pode ser no futuro.");
       gravarCfg("ACO_REC_"+R.n, d.value); toast(`Remessa ${R.n} recebida em ${ddmm(d.value)}.`); }}));
@@ -3434,15 +3461,17 @@ function remessaBloco(R){
       onclick:()=>{ if(confirm(`Cancelar o pedido ${R.n}? As posições voltam a aparecer como "falta pedir".`)) gravarCfg("ACO_PEDIDO_"+R.n, ""); }})));
   }
   return [el("div",{class:"i-top"}, el("b",{text:`Remessa ${R.n} · ${R.app?"pedido do app":R.roms.length+" romaneios"} · ${t(R.kg)} t`}), el("span",{class:"chip "+s.cls,text:s.txt})),
-    controleRecebimento(R), ...caps, R.roms?.length ? el("div",{class:"lista"}, ...R.roms.map(romaneioItem)) : null];
+    controleRecebimento(R), ...caps,
+    R.roms?.length>1 && !R.rec && !R.fixo ? el("p",{class:"info",text:"Chegou só uma parte? Abra o romaneio e confirme só ele."}) : null,
+    R.roms?.length ? el("div",{class:"lista"}, ...R.roms.map(x=>romaneioItem(x, R))) : null];
 }
 function renderSupAco(){
-  const L=remessas(), tot=somaKg(L), rec=somaKg(L.filter(R=>R.rec)), pend=L.filter(R=>!R.rec);
+  const L=remessas(), tot=somaKg(L), rec=somaRec(L), pend=L.filter(R=>!R.rec);
   const prox=pend.filter(R=>R.ini).sort((a,b)=>a.ini<b.ini?-1:1)[0];
 
   // um cartão por estrutura, com as remessas dentro
   const cards=[...new Set(L.map(R=>R.est))].map(est=>{
-    const rs=L.filter(R=>R.est===est), tE=somaKg(rs), rE=somaKg(rs.filter(R=>R.rec));
+    const rs=L.filter(R=>R.est===est), tE=somaKg(rs), rE=somaRec(rs);
     return el("div",{class:"card"},
       el("div",{class:"i-top"}, el("h3",{text:est}), el("span",{class:"kg",text:`${t(rE)} de ${t(tE)} t recebidas`})), barra(tE?rE/tE:0),
       ...rs.flatMap(remessaBloco));
@@ -3450,7 +3479,7 @@ function renderSupAco(){
 
   // resumo por bitola: recebido x a receber
   const pb=new Map();
-  for(const R of L) for(const [d,kg] of Object.entries(R.b)){ const o=pb.get(d)||{rec:0,pend:0}; o[R.rec?"rec":"pend"]+=kg; pb.set(d,o); }
+  for(const R of L) for(const [d,kg] of Object.entries(R.b)){ const o=pb.get(d)||{rec:0,pend:0}, r=R.bRec[d]||0; o.rec+=r; o.pend+=kg-r; pb.set(d,o); }
   const linhas=[...pb].sort((a,b)=>a[0]-b[0]).map(([d,o])=>el("tr",{}, el("td",{text:bitola(d)}), el("td",{text:t(o.rec)}), el("td",{text:t(o.pend)}), el("td",{text:t(o.rec+o.pend)})));
 
   repor($("#sup-aco"),

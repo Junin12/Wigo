@@ -1072,7 +1072,12 @@ async function post(body){
     r = await fetch(S.cfg.url, {method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"},
       body: JSON.stringify({token:S.cfg.token, aparelho:APARELHO, usuario:U?{nome:U.nome, cargo:U.cargo}:null, ...body})});
   }catch{ throw new Error("Sem conexão com o Google."); }
-  let j; try{ j = await r.json(); }catch{ throw new Error("Resposta inválida do Google. Confira o endereço /exec e se a implantação está como “Qualquer pessoa”."); }
+  const txt = await r.text().catch(()=>"");
+  let j; try{ j = JSON.parse(txt); }catch{
+    // o Google devolveu uma página de erro (HTML): mostra o texto dela para saber a causa
+    let g=""; try{ g=(new DOMParser().parseFromString(txt,"text/html").body?.innerText||"").replace(/\s+/g," ").trim().slice(0,200); }catch{}
+    throw new Error("Resposta inválida do Google"+(g?`: “${g}”`:"")+". Confira o endereço /exec e se a implantação está como “Qualquer pessoa”.");
+  }
   // o Google diz se este celular está liberado; se deixou de estar, volta para a tela de espera
   if(j.acesso && body.acao!=="acesso" && body.acao!=="dev") acessoMudou(j.acesso);
   if(!j.ok) throw new Error(j.erro||"Erro no Google Apps Script.");
@@ -1687,7 +1692,7 @@ $("#tema").addEventListener("click", e=>{ const b=e.target.closest("button[data-
   renderTema(); });
 renderTema();
 
-const VERSAO_APP = "v49"; // igual ao número em sw.js (armacao-v49)
+const VERSAO_APP = "v50"; // igual ao número em sw.js (armacao-v50)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");

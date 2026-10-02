@@ -637,7 +637,7 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
     <div class="card"><h3>Produtividade (kg por armador por dia)</h3><div class="chart" id="ch-prod"></div><p class="info" id="prod-nota"></p></div>
     <div class="card"><h3>Meta × realizado por semana</h3><div class="chart" id="ch-meta"></div><div class="tbl" id="t-meta"></div><p class="info" id="meta-nota"></p></div>
     <div class="card"><h3>Curva S e previsão de término (obra inteira)</h3><div class="kpis" id="k-prev"></div><div class="chart" id="ch-s"></div><p class="info" id="s-nota"></p></div>
-    <div class="card"><h3>Produtividade por equipe</h3><div class="tbl" id="t-eq"></div><p class="info">kg/arm/dia da equipe = aço da equipe na semana ÷ (armadores da equipe × dias trabalhados da semana).</p></div>
+    <div class="card"><h3>Produtividade por equipe</h3><div class="tbl" id="t-eq"></div><p class="info">kg/arm/dia = aço da equipe ÷ (armadores × dias).</p></div>
     <div class="card"><h3>Ocorrências por semana</h3><div class="tbl" id="t-oc"></div></div>
     <div class="card"><h3>Avanço por estrutura</h3><div class="tbl" id="t-est"></div></div>
     <div class="card"><h3>Avanço por diâmetro</h3><div class="tbl" id="t-bit"></div></div>
@@ -652,9 +652,9 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
         <label class="campo" for="cf-dias">Dias trabalhados por semana (previsão)<input type="number" id="cf-dias" min="1" max="7" step="1" inputmode="numeric"></label>
         <label class="campo" for="cf-prazo">Prazo para terminar a armação (opcional)<input type="date" id="cf-prazo"></label>
       </div>
-      <p class="info">Meta da semana = meta × armadores × dias trabalhados. As semanas futuras usam os armadores das equipes ativas e os dias previstos.</p>
+      <p class="info">Meta da semana = meta × armadores × dias.</p>
     </div>
-    <p class="info">Informe quantos armadores trabalharam e os dias trabalhados. A produtividade por armador usa esses números.</p>
+    <p class="info">Informe os armadores e os dias trabalhados de cada semana.</p>
     <div class="card"><div class="tbl" id="t-sem"></div></div>
     <div class="row"><button class="btn" id="add-sem" type="button">Adicionar próxima semana</button></div>
 
@@ -685,14 +685,14 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
           <label class="campo" for="eq-arm">Armadores<input type="number" id="eq-arm" min="1" step="1" inputmode="numeric" value="3"></label>
         </div>
         <div class="row"><button class="btn pri" id="eq-add" type="button">Adicionar equipe</button></div>
-        <p class="info">As frentes de cada equipe são definidas no cartão dela, depois de criada.</p>
+        <p class="info">As frentes são definidas no cartão da equipe.</p>
       </details>
     </div>
   </section>
 
   <section class="view" id="v-frentes" hidden>
     <h2>Frentes de serviço</h2>
-    <p class="info">Cada elemento é a estrutura + o local do levantamento. Marque <b>aço entregue</b> (e <b>concreto magro pronto</b>, nos elementos de fundo) para liberar a armação. Depois de armado, faça o <b>checklist</b> para liberar a concretagem: paredes em <b>arranque → lance 1 → lance 2 → lance 3</b> (cada etapa só libera com a anterior concretada); lajes de cobertura e passarelas só no <b>lance 3</b>; fundos, lajes de piso e demais, concretagem única. Errou? Use <b>Voltar</b>.</p>
+    <p class="info">Marque <b>aço entregue</b> (e <b>concreto magro</b>, nos fundos) para liberar a armação. Depois de armado, o <b>checklist</b> libera a concretagem. Errou? Use <b>Voltar</b>.</p>
     <button class="btn" id="fr-voltar" type="button" hidden>↩ Voltar</button>
     <div class="card" id="fr-amanha"></div>
     <div class="filtros">
@@ -731,7 +731,7 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
     </div>
     <div class="card">
       <h3>Versão do app</h3>
-      <p class="info">Esta tela está na versão <b id="versao-app"></b>. Depois de subir arquivos novos no GitHub, espere 1 a 2 minutos e toque abaixo (com internet).</p>
+      <p class="info">Versão <b id="versao-app"></b>. Depois de publicar uma atualização, toque abaixo (com internet).</p>
       <div class="row"><button class="btn" id="buscar-versao" type="button">Buscar atualização agora</button><span class="info" id="versao-msg"></span></div>
     </div>
     <div class="card">
@@ -753,12 +753,12 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
     </div>
     <div class="card">
       <h3>Exportar</h3>
-      <p class="info">O Excel sai no formato da aba “Prod. Semanal” (quantidades por semana, acumulado, status) com as abas de semanas e resumo por estrutura. O backup .json guarda tudo, inclusive o que ainda não sincronizou.</p>
+      <p class="info">Excel no formato da “Prod. Semanal”. O backup .json guarda tudo, inclusive o que ainda não sincronizou.</p>
       <div class="row"><button class="btn pri" id="exportar" type="button">Exportar Excel</button><button class="btn" id="backup" type="button">Baixar backup .json</button></div>
     </div>
     <div class="card">
       <h3>Planilha de medição</h3>
-      <p class="info">Gera o Excel da medição com as abas Resumo e Barras Armadas. As medições já fechadas são descontadas em ordem cronológica desde o início da obra (semana e ordem de lançamento); o que sobra é a medição atual.</p>
+      <p class="info">Excel com as abas Resumo e Barras Armadas. As medições já fechadas são descontadas em ordem.</p>
       <label class="campo" for="med-fechadas">Medições já fechadas, em kg e em ordem (separe com ;)<input type="text" id="med-fechadas" inputmode="decimal" autocomplete="off" placeholder="Ex.: 27061; 27589,34"></label>
       <div class="form-oc">
         <label class="campo" for="med-mes">Mês do resumo<input type="month" id="med-mes" style="min-width:0"></label>
@@ -770,7 +770,7 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
     </div>
     <div class="card">
       <h3>Atualizar base pela planilha</h3>
-      <p class="info">Escolha o arquivo PRODUTIVIDADE_ARMADORES.xlsx. O app lê as abas “Prod. Semanal” e “D_Semanas” e grava no Google Drive. Precisa de internet.</p>
+      <p class="info">Escolha o PRODUTIVIDADE_ARMADORES.xlsx (abas “Prod. Semanal” e “D_Semanas”). Precisa de internet.</p>
       <input type="file" id="arq" accept=".xlsx,.xlsm" aria-label="Arquivo da planilha">
       <label class="chk"><input type="checkbox" id="imp-exec"> Importar também as semanas e quantidades executadas (substitui os lançamentos do banco)</label>
       <div id="imp-area"></div>
@@ -1489,7 +1489,7 @@ $("#cfg-ok").addEventListener("click", async ()=>{
 // links de leitura: painel HTML e tabelas do Power BI
 function renderAcomp(){
   const box=$("#acomp"), k=S.leitura||LS.get("leitura");
-  if(!S.cfg?.url || !k){ box.replaceChildren(el("p",{class:"info",text:"Disponível depois de atualizar o script do Google (versão 9) e sincronizar."})); return; }
+  if(!S.cfg?.url || !k){ box.replaceChildren(el("p",{class:"info",text:"Disponível depois de atualizar o Code.gs e sincronizar."})); return; }
   const base=location.href.replace(/[#?].*$/,"").replace(/index\.html$/,"");
   const painel=`${base}painel.html#u=${encodeURIComponent(S.cfg.url)}&k=${k}`;
   const linha=(rot,url)=>{ const i=el("input",{type:"text",readOnly:true,value:url,"aria-label":rot});
@@ -1521,7 +1521,7 @@ $("#tema").addEventListener("click", e=>{ const b=e.target.closest("button[data-
   renderTema(); });
 renderTema();
 
-const VERSAO_APP = "v30"; // igual ao número em sw.js (armacao-v30)
+const VERSAO_APP = "v43"; // igual ao número em sw.js (armacao-v43)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -2269,7 +2269,7 @@ function renderFotos(){
     tirar, cam, gal,
     el("label",{class:"campo"}, "O que é a foto? (opcional)", leg),
     el("button",{class:"btn",type:"button",text:"Escolher fotos da galeria do celular",onclick:()=>gal.click()}),
-    !S.cfg?.url ? el("p",{class:"info",text:"As fotos ficam no celular até o banco ser configurado (Produtividade › Aço › Ajustes)."}) : null,
+    !S.cfg?.url ? el("p",{class:"info",text:"As fotos ficam no celular até o banco ser configurado."}) : null,
     ...(blocos.length ? blocos : [el("div",{class:"vazio",text:"Nenhuma foto ainda. Toque em Tirar foto."})]));
 }
 
@@ -2551,7 +2551,7 @@ function renderFrentes(){
     el("h3",{text:`Para a próxima jornada — ${eqAtual()}${eq?.encarregado?" ("+eq.encarregado+")":""}`}),
     lista.length ? el("div",{class:"regs"}, ...lista.map(e=>{ const b=el("button",{class:"btn",type:"button",text:"Lançar"}); b.onclick=()=>lancarElemento(e);
         return el("div",{class:"reg",style:"grid-template-columns:1fr auto;align-items:center"}, el("div",{}, el("b",{text:e.loc}), el("div",{class:"info",text:`${e.est} · ${pct(e.pct)} armado · saldo ${t(e.kp-e.ke)} t`})), b); }))
-      : el("p",{class:"info",text:"Nenhum elemento liberado para armar. Marque aço entregue (e concreto magro pronto, nos fundos) nos elementos abaixo."}),
+      : el("p",{class:"info",text:"Nenhum elemento liberado para armar."}),
     el("p",{class:"info",text: daEquipe.length ? (outros?`+ ${outros} elemento(s) liberado(s) fora das frentes desta equipe.`:"") : (prontos.length?"Nenhum liberado nas frentes desta equipe; mostrando os liberados de toda a obra.":"")}));
   // filtros e lista
   FR.emp=opts($("#fr-emp"), uniq(els.map(e=>e.emp)), "Todos os empreendimentos", FR.emp);
@@ -3067,7 +3067,7 @@ function contar(elm, alvo, fmt, ms=900){
 }
 function renderIndicadores(){
   const box=$("#ind-ini"); if(!box) return; numProd();
-  if(!S.items.length){ box.replaceChildren(el("div",{class:"ind"}, el("span",{text:"Primeiro acesso"}), el("b",{text:"Conecte o banco"}), el("small",{text:"Produtividade › Aço › Ajustes"}))); return; }
+  if(!S.items.length){ box.replaceChildren(el("div",{class:"ind"}, el("span",{text:"Primeiro acesso"}), el("b",{text:"Conecte o banco"}), el("small",{text:"Toque em ⚙ Configurar o banco, abaixo dos módulos"}))); return; }
   const r=resumoAco(), w=r.w, meta=w?metaSemana(w):0;
   const i1=el("b"), i2=el("b"), i3=el("b",{text:$("#sync").textContent});
   box.replaceChildren(
@@ -3780,7 +3780,7 @@ function editarEmpresa(E){
   const iVin=el("select",{}, el("option",{value:"Próprio",text:"Próprio (consórcio)"}), el("option",{value:"Terceirizado",text:"Terceirizado"})); iVin.value=E.vinculo||"Terceirizado";
   efModal("Editar empresa",
     [campoEf("Nome da empresa",iNome,true), campoEf("Vínculo",iVin),
-     el("p",{class:"info full",text:"Vale para todas as funções da empresa. Para juntar duas empresas (ex.: grafias diferentes), dê a esta o mesmo nome da outra."})],
+     el("p",{class:"info full",text:"Vale para todas as funções. Para juntar duas empresas, use o mesmo nome nas duas."})],
     [el("button",{class:"btn pri",type:"button",text:"Salvar",onclick:()=>{
       const nome=iNome.value.trim(); if(!nome) return toast("Informe o nome da empresa.");
       for(const f of E.fs) setFun(f.id,{empresa:nome, vinculo:iVin.value});
@@ -3934,18 +3934,18 @@ function previaNomes(){
   const marca=(conj,id,rot)=>{ const c=el("input",{type:"checkbox",checked:!conj.has(id)}); c.onchange=()=>{ c.checked?conj.delete(id):conj.add(id); }; return el("label",{class:"chk"}, c, rot); };
   return el("div",{class:"card"},
     el("h3",{text:`Lista lida: ${P.total} nomes (aba “${P.aba}”)`}),
-    el("p",{class:"info",text:"Confira para qual função do quadro vai cada cargo. A sugestão compara as palavras (abreviações, acentos e erros de digitação)."+(P.dup?` ${P.dup} nome(s) repetido(s) na lista foram ignorados.`:"")}),
+    el("p",{class:"info",text:"Confira a função de cada cargo."+(P.dup?` ${P.dup} nome(s) repetido(s) na lista foram ignorados.`:"")}),
     ...P.grupos.map(g=>el("div",{class:"ef-fun",style:"border-top:1px solid var(--line);padding-top:8px"},
       el("div",{}, el("b",{text:`${g.emp} · ${g.cargo}`}), el("span",{class:"info",text:` — ${g.pes.length} nome${g.pes.length>1?"s":""}`})),
       el("small",{class:"i-sub",text:g.pes.map(p=>p.nome).join(" · ")}),
       g.empate && g.alvo==="novo" ? el("small",{class:"i-sub",style:"color:var(--warn)",text:`Pode ser ${g.empate.join(" ou ")}; sem saber qual, a sugestão é criar uma função nova. Escolha abaixo se preferir.`}) : null,
       selAlvo(g))),
     funs.length ? el("div",{class:"ef-fun"}, el("b",{text:"Desativar estas funções (ninguém da lista está nelas)"}),
-      el("small",{class:"i-sub",text:"Sem isso, elas continuam no dia a dia contadas por número, junto com os nomes. Desmarque o que deve continuar."}),
+      el("small",{class:"i-sub",text:"Desmarque o que deve continuar contado por número."}),
       ...funs.map(f=>marca(P.manterFun, f.id, `${f.empresa} · ${f.funcao}`))) : null,
     pes.length ? el("div",{class:"ef-fun"}, el("b",{text:"Desativar estes nomes (não estão na lista)"}),
       ...pes.map(p=>marca(P.manterPes, p.id, p.nome))) : null,
-    el("p",{class:"info",text:"Empresas que não estão na lista continuam como estão, contadas por número. Os dias já lançados não mudam: a contagem pelos nomes vale a partir do próximo dia aberto (no dia de hoje, a partir da primeira chegada marcada em cada função)."}),
+    el("p",{class:"info",text:"Empresas fora da lista e dias já lançados não mudam."}),
     el("div",{class:"row"}, el("button",{class:"btn pri",type:"button",text:"Atualizar o efetivo",onclick:confirmarNomes}),
       el("button",{class:"btn",type:"button",text:"Cancelar",onclick:()=>{ EF.impNomes=null; renderPonto(); }})));
 }
@@ -4191,7 +4191,7 @@ function equipesSemNomes(d, fs){
     setDia(d,f.id,v); renderPonto();
   };
   return [el("h2",{class:"tela-tit",text:"Equipes sem lista de nomes"}),
-    el("p",{class:"info",text:"Para empresas que só informam a quantidade: use − e + para dizer quantos vieram."}),
+    el("p",{class:"info",text:"Use − e + para dizer quantos vieram."}),
     ...empresas(sem).map(E=>el("div",{class:"ps-grupo"}, ...E.fs.map(f=>{ const v=vals[f.id]||valorInicial(d,f,vAnt);
       return el("div",{class:"ps-linha"},
         el("div",{class:"ps-nome"}, el("b",{text:f.funcao}), el("small",{text:`${E.nome} · de ${v[0]} no quadro`})),
@@ -4313,7 +4313,7 @@ function efDiaTela(){
       ...comNomes);
   });
   return [nav, kpis, ps.length?busca:null, ...cards,
-    el("p",{class:"info",text:"Total do dia = 1ª turma − faltas − atestado − folga + empreiteiros. Nas funções com nomes, quem não foi marcado conta como falta."})];
+    el("p",{class:"info",text:"Total = turma − faltas − atestado − folga + empreiteiros. Com nomes, quem não foi marcado conta como falta."})];
 }
 function efQuadro(){
   const fs=funcoes(), arq=el("input",{type:"file",accept:".xls,.xlsx,.xlsm",style:"display:none"}); arq.onchange=()=>importarEf(arq);
@@ -4332,7 +4332,7 @@ function efQuadro(){
     el("div",{class:"row"}, el("button",{class:"btn",type:"button",text:"+ Função",onclick:()=>editarFuncao(null,E.nome)}),
       el("button",{class:"btn",type:"button",text:"Editar empresa",onclick:()=>editarEmpresa(E)}))));
   return [
-    el("p",{class:"info",text:"O quadro é a lista de empresas e funções do efetivo diário. Desative o que saiu da obra para manter o histórico; exclua só o que foi cadastrado por engano."}),
+    el("p",{class:"info",text:"Desative o que saiu da obra (o histórico fica). Exclua só cadastro feito por engano."}),
     el("div",{class:"row"}, el("button",{class:"btn pri",type:"button",text:"+ Nova empresa ou função",onclick:()=>editarFuncao(null)}),
       el("button",{class:"btn",type:"button",text:"Importar planilha de efetivo",onclick:()=>arq.click()}), arq),
     imp, ...(cards.length ? cards : [el("div",{class:"vazio",text:"Nenhuma função cadastrada ainda."})])];
@@ -4353,7 +4353,7 @@ function efNomes(){
   });
   const arq=el("input",{type:"file",accept:".xlsx,.xls,.xlsm",style:"display:none"}); arq.onchange=()=>importarNomes(arq);
   return [
-    el("p",{class:"info",text:"Nomes são opcionais. Uma função com nomes passa a ser contada pela chegada de cada pessoa na aba Chegada do dia. Quem saiu da obra: desmarque Ativo (o histórico fica)."}),
+    el("p",{class:"info",text:"Nomes são opcionais: com eles, a função é contada pela presença de cada um. Quem saiu da obra: desmarque Ativo."}),
     el("div",{class:"row"}, el("button",{class:"btn pri",type:"button",text:"+ Adicionar nome",onclick:()=>editarPessoa(null)}),
       el("button",{class:"btn",type:"button",text:"Colar lista de nomes",onclick:colarNomes}),
       el("button",{class:"btn",type:"button",text:"Importar lista de nomes (Excel)",onclick:()=>arq.click()}), arq),
@@ -4370,14 +4370,14 @@ function efHist(){
       el("td",{text:r.turma}), el("td",{text:r.f}), el("td",{text:r.at+r.fo}), el("td",{}, el("b",{text:r.tot})), el("td",{text:r.prop}), el("td",{text:r.terc})); });
   return [
     el("div",{class:"card"}, el("h3",{text:"Exportar Excel (modelo da obra)"}),
-      el("p",{class:"info",text:"Uma aba por dia, no mesmo formato da planilha de efetivo diário, mais o resumo e as chegadas por nome."}),
+      el("p",{class:"info",text:"Uma aba por dia no formato da planilha da obra, com resumo e chegadas por nome."}),
       el("div",{class:"form-oc"}, campoEf("De",de), campoEf("Até",ate)),
       el("div",{class:"row"}, el("button",{class:"btn pri",type:"button",text:"Exportar Excel",onclick:e=>{ if(!de.value||!ate.value||de.value>ate.value) return toast("Confira o período."); exportarEf(de.value,ate.value,e.currentTarget); }}))),
     dias.length ? el("div",{class:"card"}, el("h3",{text:`Últimos ${dias.length} dias lançados`}),
       el("div",{class:"tbl ef-hist"}, el("table",{},
         el("thead",{}, el("tr",{}, el("th",{text:"Dia"}), el("th",{text:"Turma"}), el("th",{text:"Faltas"}), el("th",{text:"Atest./folga"}), el("th",{text:"Na obra"}), el("th",{text:"Próprio"}), el("th",{text:"Terceiros"}))),
         el("tbody",{}, ...linhas))),
-      el("p",{class:"info",text:"O app guarda os últimos 45 dias; o histórico inteiro fica na aba EfetivoDia da planilha."}))
+      el("p",{class:"info",text:"O app mostra 45 dias; o histórico completo fica na planilha."}))
     : el("div",{class:"vazio",text:"Nenhum dia lançado ainda."})];
 }
 
@@ -4582,8 +4582,8 @@ function renderProducao(){
   const concl=lista.filter(a=>a.status==="Concluída");
   const kp=(n,rot,cls,alvo)=>el("button",{class:cls,type:"button",onclick:()=>$(alvo)?.scrollIntoView({behavior:"smooth"})}, el("b",{text:n}), el("span",{text:rot}));
   repor(box,
-    el("p",{class:"saud"}, "Produção", el("small",{text:`${dataLonga(h)} · atualiza sozinho a cada 30 s`})),
-    !ed ? el("p",{class:"info",text:`Seu cargo (${U?.cargo}) só acompanha: quem distribui as atividades é o mestre, o apontador, o planejamento ou a engenharia.`}) : null,
+    el("p",{class:"saud"}, "Produção", el("small",{text:`${dataLonga(h)} · atualiza sozinho`})),
+    !ed ? el("p",{class:"info",text:`Só leitura para o seu cargo.`}) : null,
     el("div",{class:"ps-cont"}, kp(pres.length,"Na obra","ok","#pr-ativ"), kp(pres.length-livres.length,"Trabalhando","","#pr-ativ"), kp(livres.length,"Sem atividade","bad","#pr-livres")),
     ed ? el("button",{class:"btn pri ps-novo",type:"button",text:"+ Nova atividade",onclick:()=>editarAtividade(null)}) : null,
     !pres.length ? el("p",{class:"aviso"}, el("b",{text:"Ninguém com OK hoje ainda. "}), "A chegada é marcada em Ponto e efetivo (botão OK); quem for marcado aparece aqui em até 30 segundos.") : null,
@@ -4741,7 +4741,7 @@ function renderRdo(){
 
   repor(box,
     el("p",{class:"saud"}, "Diário de obra", el("small",{text:"SAA Rio Grande · Uberaba/MG"})),
-    !pode("rdo-edit") ? el("p",{class:"info",text:`Seu cargo (${U?.cargo}) consulta o RDO e gera o PDF; quem preenche é o mestre, o apontador, o planejamento ou a engenharia.`}) : null,
+    !pode("rdo-edit") ? el("p",{class:"info",text:`Só leitura para o seu cargo: dá para ver e gerar o PDF.`}) : null,
     topo, estado,
     ed ? vozCard(d) : null,
     sec("1. Horário e clima",
@@ -4837,7 +4837,7 @@ function vozCard(d){
   ta.oninput=()=>{ V.texto=ta.value; }; V.ta=ta;
   return el("div",{class:"card rd-voz"},
     el("h3",{text:"🎤 Ditar o RDO"}),
-    el("p",{class:"info",text:"Fale como se estivesse contando o dia. O texto aparece aqui, dá para corrigir, e depois o app separa em clima, atividades, equipamentos, ocorrências e visitas."}),
+    el("p",{class:"info",text:"Fale sobre o dia, confira o texto e toque em Organizar."}),
     el("div",{class:"row"},
       SR ? el("button",{class:"btn "+(V.gravando?"rd-rec":"pri"),type:"button",text:V.gravando?"⏹ Parar":"🎤 Gravar",onclick:()=>V.gravando?pararVoz():iniciarVoz()}) : null,
       V.gravando ? el("span",{class:"rd-ouvindo",text:"Ouvindo…"}) : null),
@@ -4855,7 +4855,7 @@ function previaVoz(d){
   return el("div",{class:"card rd-voz"},
     el("h3",{text:"✨ O que vai entrar no RDO"}),
     aviso ? el("p",{class:"aviso"}, el("b",{text:"Organização simples (sem IA): "}), `${aviso}. Só o clima e os equipamentos foram separados; o relato inteiro vai em "Outros serviços".`)
-      : el("p",{class:"info",text:"Organizado pela IA a partir do que foi falado. Desmarque o que não estiver certo."}),
+      : el("p",{class:"info",text:"Organizado pela IA. Desmarque o que não estiver certo."}),
     vazio ? el("p",{class:"info",text:"Não deu para tirar nenhuma informação do relato."}) : null,
     grupo("Clima e horário", [cl&&item("clima",cl), res.condicao&&item("cond",`Obra: ${res.condicao}`), (res.inicio||res.fim)&&item("hora",`Expediente: ${res.inicio||"?"} às ${res.fim||"?"}`)].filter(Boolean)),
     grupo("Atividades da Produção", res.atividades.map((a,k)=>item("at"+k,`${nomeAt.get(a.id)||"Atividade"}: ${a.observacao}`))),
@@ -5190,7 +5190,7 @@ function editarConc(c){
   efModal(nova?"Nova concretagem":"Editar concretagem",
     [campoEf("Data",iData), campoEf("Volume previsto (m³)",iVol), campoEf("Estrutura",iEst,true), boxEstO, campoEf("Elemento / lance",iLoc,true),
      el("div",{class:"campo full"}, "PDF da forma (pasta Projetos do Drive)", busca, iPdf,
-       !PJ.lista.length ? el("small",{class:"i-sub",text:"A lista de PDFs está vazia: toque em Atualizar lista de projetos na tela anterior."}) : null),
+       !PJ.lista.length ? el("small",{class:"i-sub",text:"Lista de PDFs vazia: toque em Atualizar lista de projetos."}) : null),
      campoEf("Observação",iObs,true)],
     [el("button",{class:"btn pri",type:"button",text:nova?"Programar concretagem":"Salvar",onclick:salvar}),
      nova ? null : el("button",{class:"btn",type:"button",text:"Excluir",style:"color:var(--bad);margin-left:auto",onclick:()=>{
@@ -5223,7 +5223,7 @@ function renderConc(){
   const abertas=L.filter(c=>c.status!=="Concluída").sort((a,b)=>ord(b)-ord(a) || a.data.localeCompare(b.data)), feitas=L.filter(c=>c.status==="Concluída").sort((a,b)=>b.data.localeCompare(a.data));
   repor(box,
     el("p",{class:"saud"}, "Concreto", el("small",{text:"Concretagens: forma da estrutura, caminhões e área concretada por cada um"})),
-    el("div",{class:"card"}, el("h3",{text:"Levantamento de volumes"}), el("p",{class:"info",text:"Em breve: o previsto × executado por estrutura entra aqui quando a planilha de concreto for carregada."})),
+    el("div",{class:"card"}, el("h3",{text:"Levantamento de volumes"}), el("p",{class:"info",text:"Em breve: previsto × executado, quando a planilha de concreto chegar."})),
     ed ? el("button",{class:"btn pri ps-novo",type:"button",text:"+ Nova concretagem",onclick:()=>editarConc(null)}) : null,
     S.cfg?.url ? el("div",{class:"row"}, el("button",{class:"btn",type:"button",text:"Atualizar lista de projetos (PDFs)",onclick:async e=>{
       e.currentTarget.disabled=true; try{ await carregarProjetos(); toast(`${PJ.lista.length} PDFs na pasta Projetos`); }catch(x){ toast(x.message); } renderConc(); }}),

@@ -416,6 +416,7 @@ canvas.qr{display:block;width:min(260px,100%);height:auto;image-rendering:pixela
 .lg-cargo{border:2px solid var(--line);background:var(--surface);color:var(--ink);border-radius:12px;min-height:52px;padding:8px 10px;font-weight:600;text-align:left}
 .lg-cargo.on{border-color:var(--accent);background:var(--accent);color:var(--on-accent)}
 .lg-cargo.dev{border-style:dashed}
+#bt-acessos{width:100%;margin-top:8px}
 .lg-chip{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:4px 10px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:6px 12px;font-size:.88rem}
 .ps-por{font-size:.7rem!important;font-weight:400!important;opacity:.85}
 /* Produção */
@@ -565,6 +566,15 @@ canvas.qr{display:block;width:min(260px,100%);height:auto;image-rendering:pixela
     <div class="tela-obra"><small>Obra</small><b>SAA Rio Grande</b><span>Uberaba / MG</span></div>
   </div></header>
   <div class="tela-corpo" id="login"></div>
+</section>
+
+<!-- ================= Acessos (só o desenvolvedor) ================= -->
+<section id="tela-acessos" class="tela" aria-label="Acessos" hidden>
+  <header class="tela-topo compacto"><div class="in">
+    <button class="tela-voltar" type="button" data-voltar><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>Início</button>
+    <img class="tela-logo" src="logo-wila.png" alt="WILA">
+  </div></header>
+  <div class="tela-corpo" id="acessos"></div>
 </section>
 
 <!-- ================= Produção (mestre de obras) ================= -->
@@ -939,7 +949,7 @@ function baixar(nome, blob){ const a=el("a",{href:URL.createObjectURL(blob),down
 const S = { items:[], byCode:new Map(), meta:null, weeks:LS.get("weeks2")||{}, pend:LS.get("pend")||{}, W:[], acum:new Map(),
             eqs:LS.get("equipes")||[], pendEq:LS.get("pendEq")||{}, eq:LS.get("eq")||"",
             regs:LS.get("regs")||[], pendReg:LS.get("pendReg")||[], pendDel:LS.get("pendDel")||[],
-            els:LS.get("elementos")||[], pendEl:LS.get("pendEl")||{}, cfgObra:LS.get("cfgObra")||{}, pendCfg:LS.get("pendCfg")||{},
+            els:LS.get("elementos")||[], pendEl:LS.get("pendEl")||{}, cfgObra:LS.get("cfgObra")||{}, pendCfg:LS.get("pendCfg")||{}, acessos:LS.get("acessos")||[],
             cur:null, cfg:LS.get("cfg"), syncing:false, err:"", lastSync:LS.get("lastSync"), limit:60 };
 // efetivo: quadro (empresa + função), dias, nomes e chegadas; pendEf = fila offline do efetivo
 Object.assign(S, { ef:LS.get("ef")||[], efDia:LS.get("efDia")||{}, pes:LS.get("pes")||[], presEf:LS.get("presEf")||{},
@@ -996,9 +1006,19 @@ const ehDev = nome => cyrb53(String(nome||"").toUpperCase().replace(/\s+/g,""))=
 let U=LS.get("usuario"); if(U && (!CARGOS[U.cargo] || (CARGOS[U.cargo].dev && !ehDev(U.nome)))) U=null;
 const quemSou = () => U ? `${U.nome} (${U.cargo})` : "sem login";
 const pode = k => { const c=CARGOS[U?.cargo]; return !!c && (c.m.split(" ").includes(k) || c.x.split(" ").includes(k)); };
+// ---------- liberação de acesso: o desenvolvedor libera cada celular (nome + cargo) ----------
+// APARELHO = código aleatório deste celular; AC = última resposta do Google {status: pendente|liberado|recusado|novo, nome, cargo, motivo}
+const APARELHO = (()=>{ let a=LS.get("aparelho");
+  if(!a){ const b=new Uint8Array(12); crypto.getRandomValues(b); a=[...b].map(x=>x.toString(16).padStart(2,"0")).join(""); LS.set("aparelho",a); }
+  return a; })();
+let AC = LS.get("acesso");
+const MSG_RECUSA = "Você precisa entrar na sua função específica na obra.";
+const liberado = () => !!U && AC?.status==="liberado" && AC.nome===U.nome && AC.cargo===U.cargo;
+const souDev = () => liberado() && !!CARGOS[U.cargo]?.dev;
+function setAcesso(a){ AC=a; LS.set("acesso",a); }
 
 const K = (cod, eq) => cod+"|"+eq;
-const SCRIPT_MIN = 16; // versão do Code.gs que este app espera
+const SCRIPT_MIN = 17; // versão do Code.gs que este app espera
 // O Planilhas converte "DEC-0001" em data (dez/2001). Reconstrói o código se ele chegar como data.
 const MESES=["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
 function consertaCod(c){
@@ -1050,11 +1070,18 @@ async function post(body){
   try{
     // text/plain evita a checagem CORS extra que o Apps Script não responde
     r = await fetch(S.cfg.url, {method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"},
-      body: JSON.stringify({token:S.cfg.token, usuario:U?{nome:U.nome, cargo:U.cargo}:null, ...body})});
+      body: JSON.stringify({token:S.cfg.token, aparelho:APARELHO, usuario:U?{nome:U.nome, cargo:U.cargo}:null, ...body})});
   }catch{ throw new Error("Sem conexão com o Google."); }
   let j; try{ j = await r.json(); }catch{ throw new Error("Resposta inválida do Google. Confira o endereço /exec e se a implantação está como “Qualquer pessoa”."); }
+  // o Google diz se este celular está liberado; se deixou de estar, volta para a tela de espera
+  if(j.acesso && body.acao!=="acesso" && body.acao!=="dev") acessoMudou(j.acesso);
   if(!j.ok) throw new Error(j.erro||"Erro no Google Apps Script.");
   return j;
+}
+function acessoMudou(a){
+  const antes=liberado(); setAcesso(a);
+  if(antes && !liberado()){ toast(a.status==="recusado" ? "Seu acesso foi bloqueado." : "Este celular precisa de nova liberação."); abrirTela("login");
+    if(a.status!=="recusado" && !CARGOS[U.cargo]?.dev) setTimeout(()=>pedirAcesso(), 0); } // já envia o pedido
 }
 function applyServer(j){
   MEMO_EF.clear();
@@ -1080,6 +1107,7 @@ function applyServer(j){
   if(j.concretagens){ S.cc=j.concretagens; LS.set("cc",S.cc); }
   if(j.registros2){ S.reg2=j.registros2; LS.set("reg2",S.reg2); }
   if(j.leitura){ S.leitura=j.leitura; LS.set("leitura",j.leitura); }
+  if(j.acessos){ S.acessos=j.acessos; LS.set("acessos",j.acessos); }
   S.lastSync=j.agora; LS.set("lastSync",j.agora);
 }
 
@@ -1108,7 +1136,7 @@ let syncT;
 function scheduleSync(ms=800){ S.mut=(S.mut||0)+1; clearTimeout(syncT); syncT=setTimeout(sync, ms); setSync(); }
 async function sync(){
   clearTimeout(syncT);
-  if(!S.cfg?.url || S.syncing) return setSync();
+  if(!S.cfg?.url || S.syncing || !liberado()) return setSync(); // celular sem liberação não lê nem grava
   S.syncing=true; setSync();
   const m0=S.mut;
   const snap = JSON.parse(JSON.stringify(S.pend));
@@ -1659,7 +1687,7 @@ $("#tema").addEventListener("click", e=>{ const b=e.target.closest("button[data-
   renderTema(); });
 renderTema();
 
-const VERSAO_APP = "v48"; // igual ao número em sw.js (armacao-v48)
+const VERSAO_APP = "v49"; // igual ao número em sw.js (armacao-v49)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -3201,18 +3229,19 @@ const SERVICOS=[
 
 // --- navegação entre telas: início → produtividade → aço (o app de armação) ---
 const TELAS={inicio:"#inicio", prod:"#tela-prod", sup:"#tela-sup", supaco:"#tela-sup-aco", supped:"#tela-sup-pedido", ponto:"#tela-ponto", fotos:"#tela-fotos",
-  producao:"#tela-producao", login:"#tela-login", rdo:"#tela-rdo", conc:"#tela-conc", reg:"#tela-reg"};
+  producao:"#tela-producao", login:"#tela-login", rdo:"#tela-rdo", conc:"#tela-conc", reg:"#tela-reg", acessos:"#tela-acessos"};
 // módulo exigido por cada tela (o cargo precisa ter acesso)
 const TELA_MOD={prod:"prod", aco:"prod", sup:"sup", supaco:"sup", supped:"sup", ponto:"ponto", fotos:"fotos", producao:"producao", rdo:"rdo", conc:"prod"};
 function abrirTela(t, empilhar=true, forcar=false){
-  if(!U && t!=="login") t="login";
+  if(!liberado() && t!=="login") t="login"; // sem login ou sem liberação: só a tela de entrada/espera
   if(!forcar && TELA_MOD[t] && !pode(TELA_MOD[t])){ toast("Seu cargo não tem acesso a esta parte do app."); t="inicio"; }
+  if(t==="acessos" && !souDev()) t="inicio";
   for(const [k,s] of Object.entries(TELAS)) $(s).hidden = t!==k;
   document.body.style.overflow = t==="aco" ? "" : "hidden";
   if(t==="inicio") renderInicio(); if(t==="prod") renderProdMenu();
   if(t==="sup") renderSupMenu(); if(t==="supaco") renderSupAco(); if(t==="supped") renderSupPedido();
   if(t==="ponto") renderPonto(); if(t!=="ponto") $("#ef-modal").hidden=true;
-  if(t==="fotos") renderFotos(); if(t==="producao") renderProducao(); if(t==="login") renderLogin(); if(t==="rdo") renderRdo(); if(t==="conc") renderConc(); if(t==="reg") renderReg2();
+  if(t==="fotos") renderFotos(); if(t==="producao") renderProducao(); if(t==="login") renderLogin(); if(t==="rdo") renderRdo(); if(t==="conc") renderConc(); if(t==="reg") renderReg2(); if(t==="acessos") renderAcessos();
   if(empilhar) history.pushState({tela:t},"");
 }
 addEventListener("popstate", e=>{ if(e.state?.tela) abrirTela(e.state.tela,false); });
@@ -3283,9 +3312,11 @@ function anelProgresso(ic, frac){
 function renderInicio(){
   saudacao(); renderIndicadores();
   // usuário logado e troca de usuário
+  const nPed=(S.acessos||[]).filter(a=>a.status==="pendente").length;
   repor($("#usuario-ini"), U ? el("div",{class:"lg-chip"},
     el("span",{}, "👤 ", el("b",{text:U.nome}), ` · ${U.cargo}`),
-    el("button",{class:"linkbtn",type:"button",text:"Trocar usuário",onclick:()=>abrirTela("login")})) : null);
+    el("button",{class:"linkbtn",type:"button",text:"Trocar usuário",onclick:()=>abrirTela("login")})) : null,
+    souDev() ? el("button",{class:"btn"+(nPed?" pri":""),id:"bt-acessos",type:"button",text:nPed?`🔑 Acessos · ${nPed} aguardando liberação`:"🔑 Acessos",onclick:()=>abrirTela("acessos")}) : null);
   const mods=MODULOS.filter(m=>pode(m.id)).map(m=>({...m, acao: ["prod","sup","ponto","fotos","producao","rdo"].includes(m.id) ? ()=>abrirTela(m.id) : MOD2[m.id] ? ()=>abrirModulo(m.id) : null}));
   document.querySelectorAll(".tela-obra").forEach(o=>{ o.querySelector("b").textContent=nomeObra(); o.querySelector("span").textContent=cidadeObra(); });
   const hoje=resumoEfDia(hojeISO());
@@ -4559,30 +4590,166 @@ function efHist(){
     : el("div",{class:"vazio",text:"Nenhum dia lançado ainda."})];
 }
 
-// ================= Login por cargo =================
+// ================= Login por cargo (com liberação do desenvolvedor) =================
+// LG.escolher = mostrar o formulário mesmo com pedido em espera; LG.criar = criar a senha do desenvolvedor; LG.erro = última falha
+const LG={escolher:false, criar:false, erro:"", enviando:false};
+const bemVindo = () => toast(`Bem-vindo, ${U.nome.split(" ")[0]}!`);
+// o pedido precisa do banco: link/QR do desenvolvedor ou endereço + senha do app
+function blocoBanco(depois){
+  const iU=el("input",{type:"url",placeholder:"https://script.google.com/macros/s/…/exec",autocomplete:"off",spellcheck:false,"aria-label":"Endereço do banco"});
+  const iT=el("input",{type:"password",autocomplete:"off","aria-label":"Senha do app"});
+  return el("div",{class:"card"}, el("h3",{text:"Conecte o banco"}),
+    el("p",{class:"info",text:"Abra o link ou leia o QR que o desenvolvedor enviou. Ou cole o endereço e a senha do app:"}),
+    el("label",{class:"campo"}, "Endereço (/exec)", iU), el("label",{class:"campo"}, "Senha do app", iT),
+    el("div",{class:"row"}, el("button",{class:"btn",type:"button",text:"Conectar",onclick:()=>{
+      const url=iU.value.trim(), token=iT.value.trim();
+      if(!/^https:\/\/script\.google(usercontent)?\.com\/.+\/exec$/.test(url)) return toast("O endereço termina em /exec.");
+      if(!token) return toast("Informe a senha do app.");
+      S.cfg={url,token}; LS.set("cfg",S.cfg); $("#cfg-url").value=url; $("#cfg-tok").value=token; depois(); }})));
+}
+// envia (ou consulta) o pedido de acesso deste celular
+async function pedirAcesso(deNovo){
+  if(!U || CARGOS[U.cargo]?.dev || !S.cfg?.url || LG.enviando) return renderLogin();
+  LG.enviando=true; LG.erro=""; renderLogin();
+  try{
+    const j=await post({acao:"acesso", pedirDeNovo:!!deNovo});
+    if(j.acesso) setAcesso(j.acesso);
+    else { setAcesso({status:"liberado", nome:U.nome, cargo:U.cargo, semControle:true}); applyServer(j); } // Code.gs antigo (sem controle de acesso)
+  }catch(e){ LG.erro=e.message; }
+  LG.enviando=false;
+  if(liberado()){ LG.escolher=false; abrirTela("inicio"); toast("Acesso liberado!"); scheduleSync(100); } else renderLogin();
+}
+// desenvolvedor: entra com a senha; na primeira vez, cria a senha (depois ninguém mais cria)
+async function entrarDev(nome, senha, criar){
+  if(!S.cfg?.url) return toast("Conecte o banco primeiro.");
+  LG.enviando=true; renderLogin();
+  let ok=false;
+  try{
+    const j=await post({acao:"dev", senha, criar:!!criar, usuario:{nome, cargo:"Desenvolvedor"}});
+    if(j.acesso?.status==="semSenha"){ LG.criar=true; toast("Crie a senha do desenvolvedor."); }
+    else {
+      U={nome, cargo:"Desenvolvedor"}; LS.set("usuario",U);
+      if(j.acesso) setAcesso(j.acesso); else { setAcesso({status:"liberado", nome, cargo:U.cargo, semControle:true}); applyServer(j); }
+      if(j.acessos){ S.acessos=j.acessos; LS.set("acessos",j.acessos); }
+      ok=true;
+    }
+  }catch(e){ toast(e.message); }
+  LG.enviando=false;
+  if(ok){ LG.criar=LG.escolher=false; EF.gerenciar=false; abrirTela("inicio"); bemVindo(); if(criar) toast("Senha criada. Guarde bem: só ela libera a entrada como Desenvolvedor."); scheduleSync(100); }
+  else renderLogin();
+}
 function renderLogin(){
   const box=$("#login"); if(!box) return;
+  if(U && !liberado() && !LG.escolher && !CARGOS[U.cargo]?.dev) return renderEspera(box);
   const iNome=el("input",{type:"text",maxLength:80,autocomplete:"name",placeholder:"Seu nome",value:U?.nome||""}); iNome.setAttribute("list","dl-login");
   let cargo=U?.cargo||"";
+  const iSenha=el("input",{type:"password",maxLength:64,autocomplete:LG.criar?"new-password":"current-password","aria-label":"Senha do desenvolvedor"});
+  const iSenha2=el("input",{type:"password",maxLength:64,autocomplete:"new-password","aria-label":"Repita a senha"});
+  const campoSenha=el("div",{}, el("label",{class:"campo"}, LG.criar?"Crie a senha do desenvolvedor (mínimo 6)":"Senha do desenvolvedor", iSenha),
+    LG.criar ? el("label",{class:"campo"}, "Repita a senha", iSenha2) : null,
+    LG.criar ? el("p",{class:"aviso",text:"Esta senha é criada uma única vez. Depois dela, ninguém mais entra como Desenvolvedor sem ela."}) : null);
   const bts=el("div",{class:"lg-cargos",role:"group","aria-label":"Cargo"}, ...Object.keys(CARGOS).map(c=>el("button",{type:"button",class:"lg-cargo"+(c===cargo?" on":"")+(CARGOS[c].dev?" dev":""),text:c,"aria-pressed":String(c===cargo),
-    onclick:e=>{ cargo=c; bts.querySelectorAll("button").forEach(x=>{ const on=x===e.currentTarget; x.classList.toggle("on",on); x.setAttribute("aria-pressed",String(on)); }); }})));
+    onclick:e=>{ cargo=c; bts.querySelectorAll("button").forEach(x=>{ const on=x===e.currentTarget; x.classList.toggle("on",on); x.setAttribute("aria-pressed",String(on)); }); campoSenha.hidden=!CARGOS[c].dev; }})));
   // o cargo Desenvolvedor só aparece quando o nome digitado é o do desenvolvedor
-  const verDev=()=>{ const ok=ehDev(iNome.value); bts.querySelectorAll(".dev").forEach(b=>b.hidden=!ok); if(!ok && CARGOS[cargo]?.dev){ cargo=""; bts.querySelectorAll(".dev").forEach(b=>b.classList.remove("on")); } };
+  const verDev=()=>{ const ok=ehDev(iNome.value); bts.querySelectorAll(".dev").forEach(b=>b.hidden=!ok); if(!ok && CARGOS[cargo]?.dev){ cargo=""; bts.querySelectorAll(".dev").forEach(b=>b.classList.remove("on")); } campoSenha.hidden=!CARGOS[cargo]?.dev; };
   iNome.addEventListener("input", verDev); verDev();
   const entrar=()=>{
     const nome=iNome.value.trim().replace(/\s+/g," ");
     if(nome.length<3) return toast("Escreva seu nome.");
     if(!cargo) return toast("Toque no seu cargo.");
-    if(CARGOS[cargo].dev && !ehDev(nome)) return toast("Cargo não disponível para este nome.");
-    U={nome, cargo}; LS.set("usuario",U); EF.gerenciar=false;
-    abrirTela("inicio"); toast(`Bem-vindo, ${nome.split(" ")[0]}!`);
+    if(CARGOS[cargo].dev){
+      if(!ehDev(nome)) return toast("Cargo não disponível para este nome.");
+      if(!iSenha.value) return toast("Digite a senha do desenvolvedor.");
+      if(LG.criar && iSenha.value.length<6) return toast("A senha precisa ter pelo menos 6 caracteres.");
+      if(LG.criar && iSenha.value!==iSenha2.value) return toast("As duas senhas não são iguais.");
+      return entrarDev(nome, iSenha.value, LG.criar);
+    }
+    const mesmo = U && U.nome===nome && U.cargo===cargo;
+    U={nome, cargo}; LS.set("usuario",U); EF.gerenciar=false; LG.escolher=false;
+    if(liberado()){ abrirTela("inicio"); return bemVindo(); }
+    if(!mesmo) setAcesso({status:"novo", nome, cargo});
+    pedirAcesso();
   };
   repor(box,
-    el("p",{class:"saud"}, "Quem está usando o app?", el("small",{text:"Escolha seu cargo: o app mostra só o que é da sua função. Seu nome fica registrado em tudo o que você alterar."})),
+    el("p",{class:"saud"}, "Quem está usando o app?", el("small",{text:"Escolha seu cargo: o app mostra só o que é da sua função. O desenvolvedor libera cada celular. Seu nome fica registrado em tudo o que você alterar."})),
     el("label",{class:"campo"}, "Seu nome", iNome), el("datalist",{id:"dl-login"}, ...pessoas().filter(p=>p.ativo).map(p=>el("option",{value:p.nome}))),
     el("div",{class:"campo"}, "Seu cargo", bts),
-    el("button",{class:"btn pri ps-novo",type:"button",text:"Entrar",onclick:entrar}),
-    U ? el("button",{class:"btn",type:"button",text:"Cancelar",onclick:()=>abrirTela("inicio")}) : null);
+    campoSenha,
+    liberado() ? el("p",{class:"info",text:"Trocar o nome ou o cargo pede uma nova liberação ao desenvolvedor."}) : null,
+    !S.cfg?.url ? blocoBanco(()=>renderLogin()) : null,
+    el("button",{class:"btn pri ps-novo",type:"button",text:LG.enviando?"Aguarde…":LG.criar?"Criar senha e entrar":"Entrar",disabled:LG.enviando,onclick:entrar}),
+    U ? el("button",{class:"btn",type:"button",text:"Cancelar",onclick:()=>{ LG.escolher=LG.criar=false; abrirTela("inicio"); }}) : null);
+}
+// pedido enviado: espera, recusa ou falta de conexão
+function renderEspera(box){
+  const outro=el("button",{class:"btn",type:"button",text:"Trocar nome ou cargo",onclick:()=>{ LG.escolher=true; renderLogin(); }});
+  const quem=el("p",{class:"info"}, el("b",{text:U.nome}), ` · ${U.cargo}`);
+  if(!S.cfg?.url) return repor(box, el("p",{class:"saud"}, "Falta conectar o banco", el("small",{text:"Depois disso o pedido vai para o desenvolvedor."})), quem, blocoBanco(()=>pedirAcesso()), outro);
+  const st=AC?.nome===U.nome && AC?.cargo===U.cargo ? AC.status : "novo";
+  if(st==="recusado") return repor(box,
+    el("p",{class:"saud"}, "Acesso recusado", el("small",{text:"O desenvolvedor não liberou este cargo."})), quem,
+    el("p",{class:"aviso",text:AC.motivo||MSG_RECUSA}),
+    el("button",{class:"btn pri ps-novo",type:"button",text:"Escolher minha função",onclick:()=>{ LG.escolher=true; renderLogin(); }}),
+    el("button",{class:"btn",type:"button",text:"Pedir de novo neste cargo",onclick:()=>pedirAcesso(true)}));
+  const enviado = st==="pendente";
+  repor(box,
+    el("p",{class:"saud"}, enviado ? "Aguardando liberação" : "Pedido de acesso",
+      el("small",{text: enviado ? "Seu pedido foi enviado ao desenvolvedor. Esta tela abre sozinha quando ele liberar." : LG.enviando ? "Enviando o pedido…" : "O pedido ainda não chegou ao desenvolvedor."})),
+    quem,
+    LG.erro ? el("p",{class:"msg",text:LG.erro}) : null,
+    el("button",{class:"btn pri ps-novo",type:"button",text:LG.enviando?"Aguarde…":enviado?"Verificar agora":"Enviar pedido",disabled:LG.enviando,onclick:()=>pedirAcesso()}),
+    outro);
+}
+// com a tela de espera aberta, confere a cada 20 s se já foi liberado
+setInterval(()=>{ if(document.visibilityState==="visible" && !$("#tela-login").hidden && U && !liberado() && !LG.escolher && !LG.enviando
+  && S.cfg?.url && !CARGOS[U.cargo]?.dev && AC?.status==="pendente") pedirAcesso(); }, 20000);
+
+// ================= Acessos: o desenvolvedor libera ou recusa cada celular =================
+const RECUSANDO=new Set(); // pedidos com o campo de motivo aberto
+async function decidirAcesso(a, status, motivo, botao){
+  if(botao) botao.disabled=true;
+  try{
+    const j=await post({acao:"acessoDecidir", alvo:a.aparelho, status, motivo});
+    S.acessos=j.acessos; LS.set("acessos",j.acessos); RECUSANDO.delete(a.aparelho);
+    toast(status==="liberado" ? `${a.nome} liberado como ${a.cargo}.` : status==="recusado" ? `${a.nome}: acesso recusado.` : "Pedido apagado.");
+  }catch(e){ toast(e.message); }
+  renderAcessos();
+}
+async function atualizarAcessos(b){
+  if(b) b.disabled=true;
+  try{ const j=await post({acao:"acessos"}); S.acessos=j.acessos; LS.set("acessos",j.acessos); }catch(e){ toast(e.message); }
+  renderAcessos();
+}
+function renderAcessos(){
+  const box=$("#acessos"); if(!box) return;
+  const L=S.acessos||[], quando=s=>s?new Date(s).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}):"";
+  const cartao=a=>{
+    const eu=a.aparelho===APARELHO, acoes=[];
+    if(a.status==="pendente"||a.status==="recusado") acoes.push(el("button",{class:"btn pri",type:"button",text:"Liberar",onclick:e=>decidirAcesso(a,"liberado","",e.currentTarget)}));
+    if(!eu && a.status!=="recusado") acoes.push(el("button",{class:"btn",type:"button",text:a.status==="liberado"?"Bloquear":"Recusar",onclick:()=>{ RECUSANDO.add(a.aparelho); renderAcessos(); }}));
+    if(a.status==="recusado") acoes.push(el("button",{class:"btn",type:"button",text:"Apagar",onclick:e=>{ if(confirm(`Apagar o pedido de ${a.nome}?`)) decidirAcesso(a,"apagar","",e.currentTarget); }}));
+    let motivo=null;
+    if(RECUSANDO.has(a.aparelho)){
+      const iM=el("input",{type:"text",maxLength:200,value:MSG_RECUSA,"aria-label":"Mensagem para quem pediu"});
+      motivo=el("div",{}, el("label",{class:"campo"}, "Mensagem que a pessoa vai ver", iM),
+        el("div",{class:"row"}, el("button",{class:"btn pri",type:"button",text:a.status==="liberado"?"Confirmar bloqueio":"Confirmar recusa",onclick:e=>decidirAcesso(a,"recusado",iM.value.trim(),e.currentTarget)}),
+          el("button",{class:"btn",type:"button",text:"Cancelar",onclick:()=>{ RECUSANDO.delete(a.aparelho); renderAcessos(); }})));
+    }
+    const sub = a.status==="pendente" ? `Pediu em ${quando(a.pedidoEm)}`
+      : a.status==="liberado" ? (eu ? "Este celular" : `Liberado por ${a.decididoPor} em ${quando(a.decididoEm)}`)
+      : `Recusado em ${quando(a.decididoEm)} · “${a.motivo||MSG_RECUSA}”`;
+    return el("div",{class:"card"},
+      el("div",{class:"i-top"}, el("b",{text:a.nome}), el("span",{class:"chip "+(a.status==="liberado"?"ok":a.status==="pendente"?"and":"bad"),text:a.cargo})),
+      el("p",{class:"i-sub",text:sub}),
+      motivo || (acoes.length ? el("div",{class:"row"}, ...acoes) : null));
+  };
+  const grupo=(tit, st)=>{ const l=L.filter(a=>a.status===st).sort((a,b)=>(b.pedidoEm||"").localeCompare(a.pedidoEm||"")); return l.length ? [el("h2",{class:"tela-tit",text:`${tit} · ${l.length}`}), ...l.map(cartao)] : []; };
+  const pend=L.filter(a=>a.status==="pendente").length;
+  repor(box,
+    el("p",{class:"saud"}, "Acessos", el("small",{text:"Cada celular só entra depois que você liberar o nome e o cargo."})),
+    el("div",{class:"row"}, el("button",{class:"btn",type:"button",text:"Atualizar lista",onclick:e=>atualizarAcessos(e.currentTarget)})),
+    !pend ? el("div",{class:"vazio",text:"Nenhum pedido aguardando."}) : null,
+    ...grupo("Aguardando", "pendente"), ...grupo("Liberados", "liberado"), ...grupo("Recusados", "recusado"));
 }
 
 // ================= Produção (mestre de obras) =================
@@ -5870,6 +6037,8 @@ function renderRelatorios(box){
   }
   navigator.storage?.persist?.().catch(()=>{});
   history.replaceState({tela:"inicio"},""); abrirTela(U?"inicio":"login",false);
+  // pedido de acesso em aberto: confere ao abrir o app
+  if(U && !liberado() && S.cfg?.url && !CARGOS[U.cargo]?.dev && AC?.status!=="recusado") pedirAcesso();
   // tempo real: com a Produção ou a Presença aberta, busca as novidades a cada 30 s
   setInterval(()=>{ if(document.visibilityState==="visible" && S.cfg?.url && !S.syncing && (!$("#tela-producao").hidden || !$("#tela-ponto").hidden)) sync(); }, 30000);
   // app aberto depois da meia-noite: quem estava no dia de ontem (o "hoje" de antes) passa para o dia novo

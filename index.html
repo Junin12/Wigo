@@ -167,7 +167,7 @@ tr.cur td{background:var(--surface2)}
 .campo{display:grid;gap:4px;font-weight:500}
 .campo input{width:100%}
 .confirma{border:1px solid var(--warn);background:var(--warn-bg);border-radius:var(--r);padding:12px;display:grid;gap:8px}
-.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--tabs) + 14px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:600;z-index:9;max-width:calc(100% - 32px);text-align:center}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--tabs) + 14px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:600;z-index:40;max-width:calc(100% - 32px);text-align:center}
 @media (prefers-reduced-motion:no-preference){.bar i{transition:width .25s}}
 
 /* equipe, elemento, registros */
@@ -220,6 +220,24 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
 
 /* projetos */
 .btn.prancha{padding-inline:10px;font-size:.85rem}
+.btn.tudo:not(:disabled){border-color:var(--accent);color:var(--accent);font-weight:700}
+.f-mais summary{cursor:pointer;min-height:44px;display:flex;align-items:center;font-weight:600;color:var(--muted)}
+.f-mais[open] summary{margin-bottom:8px}
+/* módulos novos (motor genérico) */
+.r2-card{display:grid;gap:6px;width:100%;text-align:left;font:inherit;color:inherit;cursor:pointer}
+.r2-card .i-top b{font-size:1rem}
+.r2-dupla{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;min-width:0}
+.r2-dupla>*,.r2-dupla select{min-width:0;max-width:100%}
+.r2-check{display:grid;gap:6px}
+.r2-ck{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px;padding:6px 0;border-bottom:1px solid var(--line)}
+.r2-ck>span{flex:1 1 180px}
+.r2-ck .chipbtn.on.ok{background:var(--good);border-color:var(--good);color:#fff}
+.r2-ck .chipbtn.on.bad{background:var(--bad);border-color:var(--bad);color:#fff}
+.r2-itens{display:grid;gap:6px}
+.r2-item{flex-wrap:nowrap}
+.r2-item input:first-child{flex:1;min-width:0}
+.cfg-link summary{cursor:pointer;min-height:44px;display:flex;align-items:center;font-weight:600}
+canvas.qr{display:block;width:min(260px,100%);height:auto;image-rendering:pixelated;margin:8px 0;border-radius:8px}
 .projs{display:grid;gap:8px}
 .proj{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px;display:grid;grid-template-columns:1fr auto;gap:4px 12px;align-items:center}
 .proj b{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-size:1.15rem;font-weight:600;line-height:1.15}
@@ -294,7 +312,7 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
 .mod:hover,.mod:focus-visible{transform:translateY(-4px);box-shadow:0 10px 24px -10px rgba(0,79,128,.45);border-color:var(--marca-claro)}
 .mod:hover::before,.mod:focus-visible::before{opacity:1}
 .mod:active{transform:translateY(-1px) scale(.97)}
-.mod .ic{width:64px;height:64px;border-radius:20px;display:grid;place-items:center;color:#fff;background:linear-gradient(145deg,var(--c1,var(--marca-claro)),var(--c2,var(--marca)));
+.mod .ic{position:relative;width:64px;height:64px;border-radius:20px;display:grid;place-items:center;color:#fff;background:linear-gradient(145deg,var(--c1,var(--marca-claro)),var(--c2,var(--marca)));
   box-shadow:0 8px 18px -8px var(--c2,var(--marca));transition:transform .35s cubic-bezier(.3,1.6,.5,1)}
 .mod .ic svg{width:34px;height:34px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
 .mod:hover .ic,.mod:focus-visible .ic{transform:translateY(-3px) rotate(-6deg) scale(1.06)}
@@ -303,7 +321,6 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
 .mod .selo{position:absolute;top:8px;right:8px;font-size:.6rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:2px 7px;border-radius:999px;background:var(--idle-bg);color:var(--idle)}
 .mod .selo.ok{background:var(--good-bg);color:var(--good)}
 .mod.ativo .ic::after{content:"";position:absolute;width:64px;height:64px;border-radius:20px;border:2px solid var(--marca-claro);animation:pulso 2.4s ease-out infinite}
-.mod .ic{position:relative}
 @keyframes pulso{0%{transform:scale(1);opacity:.8}100%{transform:scale(1.45);opacity:0}}
 .mod .anel{position:absolute;inset:-6px;width:76px;height:76px}
 .mod .anel circle{fill:none;stroke-width:4}
@@ -323,7 +340,6 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
 .tela-topo{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48'%3E%3Cpath d='M0 24H48M24 0V48' stroke='%23ffffff' stroke-opacity='.09' stroke-width='3'/%3E%3Ccircle cx='24' cy='24' r='3.4' fill='%23ffffff' fill-opacity='.14'/%3E%3C/svg%3E");background-size:48px 48px;animation:malha 40s linear infinite}
 @keyframes malha{to{background-position:48px 48px}}
 @media (prefers-reduced-motion:reduce){.tela-topo{animation:none}}
-.toast{z-index:40!important}
 /* carimbo das fotos (fica acima das telas e dos modais) */
 .modal.cb{z-index:35}
 .cb-prev{width:100%;max-height:52vh;object-fit:contain;background:#14181D;border-radius:10px;display:block}
@@ -586,6 +602,15 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
   <div class="tela-corpo" id="fotos"></div>
 </section>
 
+<!-- ================= Módulos novos (motor genérico: equipamentos, segurança, qualidade, medições, obra, relatórios…) ================= -->
+<section id="tela-reg" class="tela" aria-label="Módulo" hidden>
+  <header class="tela-topo compacto"><div class="in">
+    <button class="tela-voltar" type="button" data-voltar><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>Voltar</button>
+    <img class="tela-logo" src="logo-prumo.png" alt="Prumo">
+  </div></header>
+  <div class="tela-corpo" id="reg2"></div>
+</section>
+
 <div class="modal ef" id="ef-modal" role="dialog" aria-modal="true" aria-labelledby="ef-m-tit" hidden>
   <div class="modal-box">
     <div class="modal-top"><h2 id="ef-m-tit"></h2><button class="btn" id="ef-m-fechar" type="button">Fechar</button></div>
@@ -611,16 +636,21 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
   <section class="view" id="v-coleta">
     <div class="resumo" id="resumo-sem"></div>
     <label class="campo eqsel" for="f-eq">Lançando como<select id="f-eq"></select></label>
-    <div class="modo" role="group" aria-label="Unidade do lançamento"><span class="info">Lançar em</span>
-      <button class="chipbtn" type="button" data-m="pct">% do total da posição</button><button class="chipbtn" type="button" data-m="bar">barras</button></div>
     <div class="eq-info" id="eq-info"></div>
     <div class="filtros">
-      <select id="f-emp" aria-label="Empreendimento"></select>
       <select id="f-est" aria-label="Estrutura"></select>
-      <select id="f-pr" aria-label="Prancha"></select>
-      <select id="f-loc" aria-label="Local ou elemento"></select>
-      <input id="f-busca" type="search" placeholder="Buscar posição, código, local…" aria-label="Buscar">
-      <label class="chk"><input type="checkbox" id="f-pend"> Esconder concluídas</label>
+      <input id="f-busca" type="search" placeholder="Buscar posição, local…" aria-label="Buscar">
+      <!-- filtros menos usados ficam recolhidos; abrem sozinhos quando algum está em uso -->
+      <details class="f-mais full" id="f-mais"><summary id="f-mais-tit">Mais filtros</summary>
+        <div class="filtros">
+          <select id="f-emp" aria-label="Empreendimento"></select>
+          <select id="f-pr" aria-label="Prancha"></select>
+          <select id="f-loc" aria-label="Local ou elemento"></select>
+          <label class="chk"><input type="checkbox" id="f-pend"> Esconder concluídas</label>
+          <div class="modo" role="group" aria-label="Unidade do lançamento"><span class="info">Lançar em</span>
+            <button class="chipbtn" type="button" data-m="pct">% da posição</button><button class="chipbtn" type="button" data-m="bar">barras</button></div>
+        </div>
+      </details>
     </div>
     <p class="info" id="lista-info"></p>
     <div class="elem" id="elem" hidden></div>
@@ -741,6 +771,7 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
       <label class="campo" for="cfg-tok">Senha do app<input type="password" id="cfg-tok" autocomplete="off"></label>
       <div class="row"><button class="btn pri" id="cfg-ok" type="button">Conectar e sincronizar</button></div>
       <p id="cfg-msg" class="info"></p>
+      <div id="cfg-link"></div>
     </div>
     <div class="card">
       <h3>Acompanhamento sem o app</h3>
@@ -918,25 +949,33 @@ Object.assign(S, { ativ:LS.get("ativ")||[], pendAt:LS.get("pendAt")||{}, pendAtD
 Object.assign(S, { rdo:LS.get("rdo")||{}, pendRdo:LS.get("pendRdo")||{} });
 // concretagens (servidor + fila) e traços pintados ainda não enviados: id -> traço, ou {del:true} para apagar
 Object.assign(S, { cc:LS.get("cc")||[], pendCc:LS.get("pendCc")||{}, pendCcDel:LS.get("pendCcDel")||[], pendTr:LS.get("pendTr")||{} });
+// módulos novos (motor genérico, aba Registros2): servidor + fila do aparelho
+Object.assign(S, { reg2:LS.get("reg2")||[], pendReg2:LS.get("pendReg2")||{}, pendReg2Del:LS.get("pendReg2Del")||[] });
+// Memória curta das listas do efetivo e da produção: montadas uma vez por renderização, não para cada linha.
+// Esquece sozinha no fim da tarefa atual (microtask), ao gravar uma fila e ao chegar dado do Google.
+// Quem usa não deve alterar as listas devolvidas.
+const MEMO_EF = new Map();
+const memoEf = (k, f) => { if(!MEMO_EF.size) queueMicrotask(()=>MEMO_EF.clear()); if(!MEMO_EF.has(k)) MEMO_EF.set(k, f()); return MEMO_EF.get(k); };
 
 // ---------- login por cargo (sem senha) ----------
 // Cada cargo vê só os módulos da sua função. O nome vai junto em toda alteração (aba Historico da planilha).
 // m = módulos que aparecem no início; x = permissões extras (producao-edit: mexer nas atividades; ponto-ger: Gerenciar do efetivo;
 // rdo-edit: preencher o RDO; rdo-fechar: fechar e reabrir o RDO)
 const TODOS_MODULOS="producao ponto fotos rdo prod obras rel sup qual seg med equip";
-const TUDO="producao-edit ponto-ger rdo-edit rdo-fechar";
+// (módulos novos) equip-edit, seg-edit, qual-edit, med-edit, obras-edit, sup-edit: criar e alterar registros naquele módulo
+const TUDO="producao-edit ponto-ger rdo-edit rdo-fechar equip-edit seg-edit qual-edit med-edit obras-edit sup-edit";
 const CARGOS={
   "Gerente de obra":          {m:TODOS_MODULOS, x:TUDO},
   "Engenheiro de produção":   {m:TODOS_MODULOS, x:TUDO},
-  "Engenheiro de qualidade":  {m:"producao qual fotos rdo obras rel prod", x:""},
+  "Engenheiro de qualidade":  {m:"producao qual fotos rdo obras rel prod", x:"qual-edit"},
   "Técnico de planejamento":  {m:"producao prod ponto med rel obras fotos rdo sup", x:TUDO},
   "Engenheiro ambiental":     {m:"fotos rdo rel obras qual seg", x:""},
-  "Técnico de segurança":     {m:"seg ponto producao fotos rdo rel", x:""},
+  "Técnico de segurança":     {m:"seg ponto producao fotos rdo rel", x:"seg-edit"},
   "Assistente técnico":       {m:"producao prod ponto med rel obras fotos rdo sup", x:TUDO},
   "Mestre de obras":          {m:"producao ponto fotos rdo prod", x:"producao-edit rdo-edit"},
   "Apontador":                {m:"ponto producao fotos rdo prod", x:"producao-edit rdo-edit"},
-  "Almoxarife":               {m:"sup equip fotos", x:""},
-  "Suprimentos":              {m:"sup med rel fotos", x:""},
+  "Almoxarife":               {m:"sup equip fotos", x:"sup-edit equip-edit"},
+  "Suprimentos":              {m:"sup equip med rel fotos", x:"sup-edit equip-edit"},
   "Recursos humanos":         {m:"ponto rel fotos", x:"ponto-ger"},
   "Assistente social":        {m:"ponto rel fotos rdo", x:""},
   // perfil do desenvolvedor do app: acesso a tudo. Só aparece no login quando o nome digitado é a palavra combinada.
@@ -958,7 +997,7 @@ const quemSou = () => U ? `${U.nome} (${U.cargo})` : "sem login";
 const pode = k => { const c=CARGOS[U?.cargo]; return !!c && (c.m.split(" ").includes(k) || c.x.split(" ").includes(k)); };
 
 const K = (cod, eq) => cod+"|"+eq;
-const SCRIPT_MIN = 15; // versão do Code.gs que este app espera
+const SCRIPT_MIN = 16; // versão do Code.gs que este app espera
 // O Planilhas converte "DEC-0001" em data (dez/2001). Reconstrói o código se ele chegar como data.
 const MESES=["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
 function consertaCod(c){
@@ -1017,6 +1056,7 @@ async function post(body){
   return j;
 }
 function applyServer(j){
+  MEMO_EF.clear();
   if(j.itens) for(const r of j.itens) r[0]=consertaCod(r[0]);
   for(const l of j.lanc||[]) l[1]=consertaCod(l[1]);
   for(const r of j.registros||[]) if(r.cod) r.cod=consertaCod(r.cod);
@@ -1037,6 +1077,7 @@ function applyServer(j){
   if(j.atividades){ S.ativ=j.atividades; LS.set("ativ",S.ativ); }
   if(j.rdo){ S.rdo=j.rdo; LS.set("rdo",S.rdo); }
   if(j.concretagens){ S.cc=j.concretagens; LS.set("cc",S.cc); }
+  if(j.registros2){ S.reg2=j.registros2; LS.set("reg2",S.reg2); }
   if(j.leitura){ S.leitura=j.leitura; LS.set("leitura",j.leitura); }
   S.lastSync=j.agora; LS.set("lastSync",j.agora);
 }
@@ -1048,7 +1089,7 @@ function pendOps(p, n){
   for(const [k,qtd] of Object.entries(p.raw||{})){ const [cod,equipe]=k.split("|"); ops.push({t:"lanc", sem:+n, cod, equipe, qtd}); }
   return ops;
 }
-function savePendExtra(){ LS.set("pendEq",S.pendEq); LS.set("pendReg",S.pendReg); LS.set("pendDel",S.pendDel); LS.set("pendEl",S.pendEl); LS.set("pendCfg",S.pendCfg); }
+function savePendExtra(){ MEMO_EF.clear(); LS.set("pendEq",S.pendEq); LS.set("pendReg",S.pendReg); LS.set("pendDel",S.pendDel); LS.set("pendEl",S.pendEl); LS.set("pendCfg",S.pendCfg); }
 // fotos esperando envio ficam no Cache do aparelho (o localStorage é pequeno demais)
 const FOTOS="armacao-fotos";
 async function fotoLocal(id){ try{ const r=await (await caches.open(FOTOS)).match("foto/"+id); return r ? await r.blob() : null; }catch{ return null; } }
@@ -1079,7 +1120,9 @@ async function sync(){
   const snapAt = JSON.parse(JSON.stringify(S.pendAt)), snapAtDel = [...S.pendAtDel];
   const snapRdo = JSON.parse(JSON.stringify(S.pendRdo));
   const snapCc = JSON.parse(JSON.stringify(S.pendCc)), snapCcDel = [...S.pendCcDel], snapTr = JSON.parse(JSON.stringify(S.pendTr));
+  const snapR2 = JSON.parse(JSON.stringify(S.pendReg2)), snapR2Del = [...S.pendReg2Del];
   const ops = [
+    ...Object.entries(snapR2).map(([id,x])=>({t:"reg2", id, ...x})), ...snapR2Del.map(id=>({t:"reg2Del", id})),
     ...Object.entries(snapCc).map(([id,x])=>({t:"conc", id, ...x})),
     ...Object.entries(snapTr).map(([id,x])=> x.del ? {t:"ccTracoDel", id} : {t:"ccTraco", id, ...x}),
     ...snapCcDel.map(id=>({t:"concDel", id})),
@@ -1125,7 +1168,7 @@ async function sync(){
       if(ok && JSON.stringify(S.pendEl[ch])===JSON.stringify(p)) delete S.pendEl[ch];
     }
     for(const [k,v] of Object.entries(snapCfg)) if(j.config && String(j.config[k])===String(v) && S.pendCfg[k]===v) delete S.pendCfg[k];
-    limparPendEf(snapEf, j); limparPendAt(snapAt, snapAtDel, j); limparPendRdo(snapRdo, j); limparPendCc(snapCc, snapCcDel, snapTr, j);
+    limparPendEf(snapEf, j); limparPendAt(snapAt, snapAtDel, j); limparPendRdo(snapRdo, j); limparPendCc(snapCc, snapCcDel, snapTr, j); limparPendReg2(snapR2, snapR2Del, j);
     savePend(); savePendExtra();
     await enviarFotos();
     S.err=""; afterData(); renderData();
@@ -1142,7 +1185,7 @@ $("#sync").addEventListener("click", ()=>{ if(!S.cfg?.url) show("dados"); else s
 function pendCount(){ let c=Object.keys(S.pendEq).length+S.pendReg.length+S.pendDel.length+Object.keys(S.pendEl).length+Object.keys(S.pendCfg).length
     +Object.values(S.pendEf).reduce((s,x)=>s+(Array.isArray(x)?x.length:Object.keys(x).length),0)
     +Object.keys(S.pendAt).length+S.pendAtDel.length+Object.keys(S.pendRdo).length
-    +Object.keys(S.pendCc).length+S.pendCcDel.length+Object.keys(S.pendTr).length; for(const p of Object.values(S.pend)){ c+=Object.keys(p.raw||{}).length + (p.arm!=null) + (p.dias!=null) + (p.novo?1:0); } return c; }
+    +Object.keys(S.pendCc).length+S.pendCcDel.length+Object.keys(S.pendTr).length+Object.keys(S.pendReg2).length+S.pendReg2Del.length; for(const p of Object.values(S.pend)){ c+=Object.keys(p.raw||{}).length + (p.arm!=null) + (p.dias!=null) + (p.novo?1:0); } return c; }
 function setSync(){
   const e=$("#sync"), c=pendCount();
   $("#aviso").hidden = !(S.scriptVelho && S.cfg?.url);
@@ -1214,6 +1257,11 @@ function renderFiltros(){
   const c = b.filter(i=>!F.pr||i.pr===F.pr);
   F.loc = opts($("#f-loc"), uniq(c.map(i=>i.loc).filter(Boolean)), "Todos os locais / elementos", F.loc);
   $("#f-busca").value=F.q; $("#f-pend").checked=F.pend;
+  // um empreendimento só: não precisa do filtro
+  $("#f-emp").hidden = $("#f-emp").options.length<=2 && !F.emp;
+  const nMais=[F.emp,F.pr,F.loc,F.pend].filter(Boolean).length;
+  $("#f-mais-tit").textContent = "Mais filtros" + (nMais ? ` (${nMais})` : "") + ` · lançar em ${S.modo==="bar"?"barras":"%"}`;
+  if(nMais) $("#f-mais").open=true;
   const eqs=eqAtivas(), s=$("#f-eq");
   s.replaceChildren(...eqs.map(e=>el("option",{value:e.nome,text:`${e.nome}${e.encarregado?" – "+e.encarregado:""} (${e.arm} armadores)`}))); s.value=eqAtual();
   renderEqInfo();
@@ -1241,15 +1289,15 @@ function statusOf(ac,qp){ return ac<=0 ? ["NÃO INICIADO",""] : ac>=qp ? ["CONCL
 S.modo = LS.get("modo") || "pct";
 const nfp = new Intl.NumberFormat("pt-BR",{maximumFractionDigits:1});
 const emPct = i => S.modo==="pct" && i.qp>0;
-function renderModo(){ document.querySelectorAll(".modo button").forEach(b=>b.classList.toggle("on", b.dataset.m===S.modo)); }
-document.querySelector(".modo").addEventListener("click", e=>{ const b=e.target.closest("button[data-m]"); if(!b) return;
-  S.modo=b.dataset.m; LS.set("modo",S.modo); renderModo(); refreshRows(); toast(S.modo==="pct"?"Lançando em % do total de cada posição":"Lançando em barras"); });
+function renderModo(){ document.querySelectorAll("#v-coleta .modo button").forEach(b=>b.classList.toggle("on", b.dataset.m===S.modo)); }
+document.querySelector("#v-coleta .modo").addEventListener("click", e=>{ const b=e.target.closest("button[data-m]"); if(!b) return;
+  S.modo=b.dataset.m; LS.set("modo",S.modo); renderModo(); refreshRows(); renderFiltros(); toast(S.modo==="pct"?"Lançando em % do total de cada posição":"Lançando em barras"); });
 renderModo();
 function buildRow(i){
   const inp = el("input",{type:"text",inputMode:"decimal",autocomplete:"off",id:"q-"+i.c});
   const card = el("article",{class:"item","data-c":i.c},
     el("div",{class:"i-top"}, el("span",{class:"pos",text:i.pos}), el("span",{class:"bit",text:bitLabel(i.bit)}), el("span",{class:"loc",text:i.loc}), el("span",{class:"chip"})),
-    el("div",{class:"i-sub",text:`${i.est} · ${i.pr} · item ${i.it} · ${i.tp} · ${i.c}`}),
+    el("div",{class:"i-sub",text:`${i.est} · ${i.pr.replace(/^.*?-DE-/,"DE-")} · item ${i.it} · ${i.tp} · ${i.c}`,title:i.pr}),
     el("div",{class:"i-prog"}, el("div",{class:"bar"},el("i")), el("span",{class:"acc"})),
     el("div",{class:"i-in"},
       el("div",{class:"step"}, el("button",{class:"menos",type:"button",text:"−"}), inp, el("span",{class:"unid"}), el("button",{class:"mais",type:"button",text:"+"})),
@@ -1274,7 +1322,7 @@ function fillRow(card,i){
   card.querySelector(".menos").setAttribute("aria-label", P ? "Menos 5%" : "Menos uma barra");
   card.querySelector(".mais").setAttribute("aria-label", P ? "Mais 5%" : "Mais uma barra");
   card.querySelector(".kg").textContent = `${eqAtual()} nesta semana: ` + (P && wq ? `${nfp.format(wq/i.qp*100)}% = ${nf0.format(wq)} barras · ` : `${nf0.format(wq)} barras · `) + `${nf1.format(wq*i.ppb)} kg`;
-  const nr=regsAll().filter(r=>r.cod===i.c).length, rb=card.querySelector(".regbtn");
+  const nr=memoEf("regsCod", ()=>{ const m=new Map(); for(const r of regsAll()) m.set(r.cod,(m.get(r.cod)||0)+1); return m; }).get(i.c)||0, rb=card.querySelector(".regbtn");
   rb.textContent = nr ? `Fotos/obs (${nr})` : "Foto/obs"; rb.setAttribute("aria-label",`Fotos e observações da posição ${i.pos}`);
   const tudo=card.querySelector(".tudo"); tudo.disabled = wq>=max; tudo.textContent = max-wq>0 ? `Completar (+${emU(max-wq)}${P?"%":""})` : "Completo";
   const pr=card.querySelector(".prancha"), m=pjFind(i.pr);
@@ -1498,19 +1546,108 @@ function renderAcomp(){
     return el("label",{class:"campo"}, rot, el("div",{class:"row",style:"flex-wrap:nowrap"}, i, b)); };
   const bi=["posicoes","lancamentos","semanas","equipes","ocorrencias","elementos"];
   const env=el("button",{class:"btn pri",type:"button",text:"Enviar link do painel"});
-  env.onclick=async()=>{ try{ await navigator.share({title:"Painel da armação — SAA Rio Grande",url:painel}); }catch{ try{ await navigator.clipboard.writeText(painel); toast("Link copiado"); }catch{} } };
+  env.onclick=async()=>{ try{ await navigator.share({title:`Painel da armação — ${nomeObra()}`,url:painel}); }catch{ try{ await navigator.clipboard.writeText(painel); toast("Link copiado"); }catch{} } };
   box.replaceChildren(linha("Painel (abre em qualquer navegador)",painel), el("div",{class:"row"},env),
     el("details",{}, el("summary",{text:"Endereços para o Power BI"}), el("p",{class:"info",text:"No Power BI: Obter dados → Web → cole o endereço. Veja o passo a passo no LEIA-ME."}),
       ...bi.map(tb=>linha(tb,`${S.cfg.url}?k=${k}&tabela=${tb}`))));
 }
+// ---------- QR code (modo byte, correção L, versões 1 a 20), desenhado no próprio app ----------
+// Segue a norma ISO 18004 (mesma lógica do gerador de Nayuki). Devolve a matriz de módulos (true = escuro).
+function qrMatriz(texto){
+  const dados=[...new TextEncoder().encode(texto)];
+  const ECC=[0,7,10,15,20,26,18,20,24,30,18,20,24,26,30,22,24,28,30,28,28], BLOCOS=[0,1,1,1,1,1,2,2,2,2,4,4,4,4,4,6,6,6,6,7,8];
+  const brutos=v=>{ let r=(16*v+128)*v+64; if(v>=2){ const na=Math.floor(v/7)+2; r-=(25*na-10)*na-55; if(v>=7) r-=36; } return r; };
+  const capac=v=>Math.floor(brutos(v)/8)-ECC[v]*BLOCOS[v];
+  let ver=1; while(ver<=20 && 4+(ver<10?8:16)+dados.length*8 > capac(ver)*8) ver++;
+  if(ver>20) throw new Error("Texto grande demais para o QR code.");
+  // bits: modo byte (0100), tamanho, dados, terminador e enchimento
+  const bits=[]; const por=(v,n)=>{ for(let i=n-1;i>=0;i--) bits.push((v>>>i)&1); };
+  por(4,4); por(dados.length, ver<10?8:16); dados.forEach(b=>por(b,8));
+  const cap=capac(ver)*8; por(0, Math.min(4, cap-bits.length)); por(0, (8-bits.length%8)%8);
+  for(let p=0xEC; bits.length<cap; p^=0xEC^0x11) por(p,8);
+  const cw=[]; for(let i=0;i<bits.length;i+=8) cw.push(parseInt(bits.slice(i,i+8).join(""),2));
+  // Reed-Solomon em GF(256)
+  const mul=(x,y)=>{ let z=0; for(let i=7;i>=0;i--){ z=(z<<1)^((z>>>7)*0x11D); z^=((y>>>i)&1)*x; } return z&255; };
+  const grau=ECC[ver], div=new Array(grau).fill(0); div[grau-1]=1;
+  for(let i=0,raiz=1;i<grau;i++){ for(let j=0;j<grau;j++){ div[j]=mul(div[j],raiz); if(j+1<grau) div[j]^=div[j+1]; } raiz=mul(raiz,2); }
+  const resto=d=>{ const r=new Array(grau).fill(0); for(const b of d){ const f=b^r.shift(); r.push(0); div.forEach((c,i)=>r[i]^=mul(c,f)); } return r; };
+  const nb=BLOCOS[ver], tot=Math.floor(brutos(ver)/8), curtos=nb-tot%nb, lenCurto=Math.floor(tot/nb), blocos=[];
+  for(let i=0,k=0;i<nb;i++){ const n=lenCurto-grau+(i<curtos?0:1), d=cw.slice(k,k+n); k+=n; const e=resto(d); if(i<curtos) d.push(0); blocos.push(d.concat(e)); }
+  const fim=[]; for(let i=0;i<blocos[0].length;i++) blocos.forEach((b,j)=>{ if(i!==lenCurto-grau || j>=curtos) fim.push(b[i]); });
+  // matriz e padrões fixos
+  const N=ver*4+17, M=[...Array(N)].map(()=>new Array(N).fill(false)), FX=[...Array(N)].map(()=>new Array(N).fill(false));
+  const pos=(x,y,v)=>{ M[y][x]=v; FX[y][x]=true; };
+  for(let i=0;i<N;i++){ pos(6,i,i%2===0); pos(i,6,i%2===0); }
+  for(const [cx,cy] of [[3,3],[N-4,3],[3,N-4]]) for(let dy=-4;dy<=4;dy++) for(let dx=-4;dx<=4;dx++){ const x=cx+dx, y=cy+dy, d=Math.max(Math.abs(dx),Math.abs(dy)); if(x>=0&&x<N&&y>=0&&y<N) pos(x,y,d!==2&&d!==4); }
+  if(ver>1){ const na=Math.floor(ver/7)+2, passo=Math.ceil((ver*4+4)/(na*2-2))*2, al=[6]; for(let p=N-7; al.length<na; p-=passo) al.splice(1,0,p);
+    al.forEach((a,i)=>al.forEach((b,j)=>{ if((i===0&&j===0)||(i===0&&j===na-1)||(i===na-1&&j===0)) return; for(let dy=-2;dy<=2;dy++) for(let dx=-2;dx<=2;dx++) pos(a+dx,b+dy,Math.max(Math.abs(dx),Math.abs(dy))!==1); })); }
+  const formato=mask=>{ const d=(1<<3)|mask; let r=d; for(let i=0;i<10;i++) r=(r<<1)^((r>>>9)*0x537); const b=((d<<10)|r)^0x5412, bit=i=>((b>>>i)&1)===1;
+    for(let i=0;i<=5;i++) pos(8,i,bit(i)); pos(8,7,bit(6)); pos(8,8,bit(7)); pos(7,8,bit(8)); for(let i=9;i<15;i++) pos(14-i,8,bit(i));
+    for(let i=0;i<8;i++) pos(N-1-i,8,bit(i)); for(let i=8;i<15;i++) pos(8,N-15+i,bit(i)); pos(8,N-8,true); };
+  formato(0);
+  if(ver>=7){ let r=ver; for(let i=0;i<12;i++) r=(r<<1)^((r>>>11)*0x1F25); const b=(ver<<12)|r;
+    for(let i=0;i<18;i++){ const v=((b>>>i)&1)===1, a=N-11+i%3, c=Math.floor(i/3); pos(a,c,v); pos(c,a,v); } }
+  // dados em zigue-zague
+  for(let dir=N-1, i=0; dir>=1; dir-=2){ if(dir===6) dir=5;
+    for(let v=0;v<N;v++) for(let j=0;j<2;j++){ const x=dir-j, sobe=((dir+1)&2)===0, y=sobe?N-1-v:v;
+      if(!FX[y][x] && i<fim.length*8){ M[y][x]=((fim[i>>>3]>>>(7-(i&7)))&1)===1; i++; } } }
+  // máscara: escolhe a de menor penalidade (regras de sequência, blocos 2×2 e equilíbrio)
+  const MASC=[(x,y)=>(x+y)%2===0,(x,y)=>y%2===0,x=>x%3===0,(x,y)=>(x+y)%3===0,(x,y)=>(Math.floor(x/3)+Math.floor(y/2))%2===0,
+    (x,y)=>x*y%2+x*y%3===0,(x,y)=>(x*y%2+x*y%3)%2===0,(x,y)=>((x+y)%2+x*y%3)%2===0];
+  const aplicar=k=>{ for(let y=0;y<N;y++) for(let x=0;x<N;x++) if(!FX[y][x] && MASC[k](x,y)) M[y][x]=!M[y][x]; };
+  const pena=()=>{ let p=0, esc=0;
+    for(let a=0;a<N;a++){ let ch=null,cv=null,nh=0,nv=0;
+      for(let b=0;b<N;b++){ const h=M[a][b], v=M[b][a]; if(h)esc++;
+        if(h===ch){ nh++; if(nh===5)p+=3; else if(nh>5)p++; } else { ch=h; nh=1; }
+        if(v===cv){ nv++; if(nv===5)p+=3; else if(nv>5)p++; } else { cv=v; nv=1; } } }
+    for(let y=0;y<N-1;y++) for(let x=0;x<N-1;x++){ const c=M[y][x]; if(c===M[y][x+1]&&c===M[y+1][x]&&c===M[y+1][x+1]) p+=3; }
+    return p + Math.floor(Math.abs(esc*20-N*N*10)/(N*N))*10; };
+  let melhor=0, menor=Infinity;
+  for(let k=0;k<8;k++){ aplicar(k); formato(k); const p=pena(); if(p<menor){ menor=p; melhor=k; } aplicar(k); }
+  aplicar(melhor); formato(melhor);
+  return M;
+}
+function qrCanvas(texto, px=6){
+  const M=qrMatriz(texto), N=M.length, q=4, c=el("canvas",{width:(N+2*q)*px,height:(N+2*q)*px,class:"qr"}), g=c.getContext("2d");
+  g.fillStyle="#fff"; g.fillRect(0,0,c.width,c.height); g.fillStyle="#000";
+  M.forEach((l,y)=>l.forEach((v,x)=>{ if(v) g.fillRect((x+q)*px,(y+q)*px,px,px); }));
+  return c;
+}
+// ---------- link de configuração do banco: #cfg=… no fim do endereço (o fragmento não vai para o GitHub) ----------
+const b64url = s => btoa(unescape(encodeURIComponent(s))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+const deB64url = s => decodeURIComponent(escape(atob(s.replace(/-/g,"+").replace(/_/g,"/"))));
+const linkCfg = () => location.href.replace(/[#?].*$/,"").replace(/index\.html$/,"") + "#cfg=" + b64url(JSON.stringify({u:S.cfg.url, t:S.cfg.token}));
+function renderCfgLink(){
+  const box=$("#cfg-link"); if(!box) return;
+  if(!S.cfg?.url){ box.replaceChildren(); return; }
+  const corpo=el("div",{});
+  const d=el("details",{class:"cfg-link"}, el("summary",{text:"Configurar outro celular (link ou QR)"}), corpo);
+  d.ontoggle=()=>{ if(!d.open || corpo.childElementCount) return;
+    const url=linkCfg(), env=el("button",{class:"btn",type:"button",text:"Enviar link"});
+    env.onclick=async()=>{ try{ await navigator.share({title:"Configurar o Prumo",url}); }catch{ try{ await navigator.clipboard.writeText(url); toast("Link copiado"); }catch{ toast("Não foi possível copiar."); } } };
+    let qr; try{ qr=qrCanvas(url); }catch(e){ qr=el("p",{class:"msg",text:e.message}); }
+    repor(corpo, el("p",{class:"aviso"}, el("b",{text:"Atenção: "}), "este link e o QR dão acesso de gravação na planilha. Mostre ou envie só para quem trabalha na obra."),
+      el("p",{class:"info",text:"No outro celular: aponte a câmera para o QR (ou abra o link) e confirme."}), qr, el("div",{class:"row"}, env)); };
+  box.replaceChildren(d);
+}
+// abriu o app por um link de configuração: pergunta e configura
+function lerLinkCfg(){
+  const m=location.hash.match(/^#cfg=([\w-]+)/); if(!m) return;
+  history.replaceState(null,"",location.href.replace(/#.*$/,""));
+  let o; try{ o=JSON.parse(deB64url(m[1])); }catch{ o=null; }
+  if(!o || !/^https:\/\/script\.google(usercontent)?\.com\/.+\/exec$/.test(o.u||"") || !o.t){ toast("Link de configuração inválido."); return; }
+  if(S.cfg?.url===o.u && S.cfg?.token===o.t){ toast("Este celular já está ligado a este banco."); return; }
+  const curto=o.u.replace(/^https:\/\/script\.google\.com\/macros\/s\//,"…/");
+  if(!confirm(`Conectar a este banco?\n\n${curto.length>40 ? curto.slice(0,40)+"…" : curto}\n\nO app passa a ler e gravar nesta planilha.`)) return;
+  S.cfg={url:o.u, token:o.t}; LS.set("cfg",S.cfg); $("#cfg-url").value=o.u; $("#cfg-tok").value=o.t; toast("Banco configurado. Sincronizando…");
+}
 function renderDados(){
-  renderAcomp();
+  renderAcomp(); renderCfgLink();
   const m=S.meta;
   $("#base-info").textContent = m ? `${nf0.format(S.items.length)} posições · ${S.W.length} semanas · última sincronização ${S.lastSync?new Date(S.lastSync).toLocaleString("pt-BR"):"–"}.` : "Nenhuma base carregada.";
 }
 
-// ---------- importar / exportar ----------
-// ---------- versão do app e atualização manual ----------
+// ---------- tema, versão do app e atualização manual ----------
 function renderTema(){
   const t=LS.get("tema")||"system";
   $("#tema").querySelectorAll("button").forEach(b=>{ const on=b.dataset.t===t; b.classList.toggle("on",on); b.setAttribute("aria-pressed",on); });
@@ -1521,7 +1658,7 @@ $("#tema").addEventListener("click", e=>{ const b=e.target.closest("button[data-
   renderTema(); });
 renderTema();
 
-const VERSAO_APP = "v43"; // igual ao número em sw.js (armacao-v43)
+const VERSAO_APP = "v45"; // igual ao número em sw.js (armacao-v45)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -1536,8 +1673,12 @@ $("#buscar-versao").addEventListener("click", async ()=>{
 });
 
 // ---------- relatório semanal em PDF ----------
-const carregarScript = src => new Promise((res,rej)=>{ if(document.querySelector(`script[src="${src}"]`)) return res();
-  const s=document.createElement("script"); s.src=src; s.onload=res; s.onerror=()=>rej(new Error("Não consegui carregar o gerador de PDF. Abra o app uma vez com internet.")); document.head.append(s); });
+// carrega cada biblioteca uma vez só; se falhar (sem internet), a próxima tentativa carrega de novo
+const SCRIPTS = new Map();
+const carregarScript = src => { if(!SCRIPTS.has(src)) SCRIPTS.set(src, new Promise((res,rej)=>{
+  const s=document.createElement("script"); s.src=src; s.onload=res;
+  s.onerror=()=>{ s.remove(); SCRIPTS.delete(src); rej(new Error("Não consegui carregar o gerador de PDF. Abra o app uma vez com internet.")); }; document.head.append(s); }));
+  return SCRIPTS.get(src); };
 const blobDataURL = b => new Promise((res,rej)=>{ const fr=new FileReader(); fr.onload=()=>res(fr.result); fr.onerror=rej; fr.readAsDataURL(b); });
 const imgDims = src => new Promise(res=>{ const im=new Image(); im.onload=()=>res([im.naturalWidth,im.naturalHeight]); im.onerror=()=>res([4,3]); im.src=src; });
 async function fotoParaRelatorio(r){
@@ -1548,12 +1689,8 @@ async function fotoParaRelatorio(r){
 $("#rel-pdf").addEventListener("click", async ()=>{
   const btn=$("#rel-pdf"), msg=$("#rel-msg"); btn.disabled=true; msg.textContent="Montando o relatório…";
   try{
-    await carregarScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js");
-    await carregarScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js");
-    const blob=await montarRelatorio(m=>msg.textContent=m);
-    const w=curW(), nome=`Relatorio_Armacao_Semana_${w.n}_${w.ini}.pdf`, file=new File([blob],nome,{type:"application/pdf"});
-    if(navigator.canShare?.({files:[file]})){ try{ await navigator.share({files:[file],title:`Relatório da armação — semana ${w.n}`}); }catch(e){ if(e.name!=="AbortError") baixar(nome,blob); } }
-    else baixar(nome,blob);
+    const blob=await montarRelatorio(m=>msg.textContent=m), w=curW();
+    await entregarArquivo(blob, `Relatorio_Armacao_Semana_${w.n}_${w.ini}.pdf`, `Relatório da armação — semana ${w.n}`);
     msg.textContent="Relatório gerado.";
   }catch(e){ msg.textContent=e.message||"Não foi possível gerar o relatório."; }
   finally{ btn.disabled=false; }
@@ -1574,10 +1711,45 @@ async function logoRelatorio(){
     LOGO={src:o.toDataURL("image/png"), w, h}; return LOGO;
   }catch{ return null; }
 }
+// ---------- PDFs: cabeçalho, rodapé e entrega iguais em todos os relatórios ----------
+// Nome da obra nos relatórios: vem da configuração da obra (aba Config: OBRA_NOME, OBRA_CIDADE); sem ela, o padrão.
+const nomeObra = () => S.cfgObra?.OBRA_NOME || S.pendCfg?.OBRA_NOME || "SAA Rio Grande";
+const cidadeObra = () => S.cfgObra?.OBRA_CIDADE || S.pendCfg?.OBRA_CIDADE || "Uberaba/MG";
+const PDF_AZ=[31,58,95]; // #1F3A5F, azul-marinho do Prumo
+async function carregarJsPdf(){
+  await carregarScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js");
+  await carregarScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js");
+}
+// A4 com a faixa azul, a logo à direita e até três linhas: título, subtítulo e linha pequena (padrão: "Gerado em …")
+async function novoPdf(titulo, sub, linha3){
+  await carregarJsPdf();
+  const {jsPDF}=window.jspdf, doc=new jsPDF({unit:"mm",format:"a4"}), W=210, M=12, HB=30;
+  doc.setFillColor(...PDF_AZ); doc.rect(0,0,W,HB,"F");
+  const logo=await logoRelatorio();
+  if(logo){ const lw=Math.min(52,14*logo.w/logo.h), lh=lw*logo.h/logo.w; doc.addImage(logo.src,"PNG",W-M-lw,(HB-lh)/2,lw,lh,undefined,"FAST"); }
+  doc.setTextColor(255); doc.setFont("helvetica","bold"); doc.setFontSize(15); doc.text(titulo,M,11);
+  doc.setFont("helvetica","normal"); doc.setFontSize(10); if(sub) doc.text(sub,M,18.5);
+  doc.setFontSize(8); doc.text(linha3 ?? `Gerado em ${new Date().toLocaleString("pt-BR")}`,M,24.5);
+  doc.setTextColor(20);
+  return doc;
+}
+// numeração em todas as páginas; antes(p) desenha algo a mais em cada página (ex.: marca-d'água)
+function rodapePdf(doc, texto=(p,n)=>`Página ${p} de ${n}`, {centro=false, cor=[120,120,120], antes}={}){
+  const n=doc.getNumberOfPages();
+  for(let p=1;p<=n;p++){ doc.setPage(p); antes?.(p); doc.setFontSize(7); doc.setTextColor(...cor); doc.text(texto(p,n), centro?105:198, 292, {align:centro?"center":"right"}); }
+}
+// no celular abre o compartilhar (WhatsApp, e-mail); no computador baixa o arquivo
+async function entregarArquivo(blob, nome, titulo, compartilhar=true){
+  const file=new File([blob],nome,{type:blob.type||"application/pdf"});
+  if(compartilhar && navigator.canShare?.({files:[file]})){ try{ await navigator.share({files:[file],title:titulo}); }catch(e){ if(e.name!=="AbortError") baixar(nome,blob); } }
+  else baixar(nome,blob);
+}
+const entregarPdf = (doc, nome, titulo, compartilhar) => entregarArquivo(doc.output("blob"), nome, titulo, compartilhar);
 async function montarRelatorio(aviso){
-  const {jsPDF}=window.jspdf, doc=new jsPDF({unit:"mm",format:"a4"}), W=210, M=12;
   const w=curW(); if(!w) throw new Error("Escolha uma semana.");
-  const AZ=[31,58,95], /* #1F3A5F, azul-marinho do Prumo */ CINZA=[90,102,116], LINHA=[211,218,226], AMAR=[242,176,40];
+  const doc=await novoPdf(`Relatório semanal de armação — ${nomeObra()}`,
+    `Semana ${w.n}: ${fmtData(new Date(w.ini+"T12:00:00"))} a ${fmtData(new Date(w.fim+"T12:00:00"))}  ·  ${w.arm} armadores × ${w.dias} dias`), W=210, M=12;
+  const AZ=PDF_AZ, CINZA=[90,102,116], LINHA=[211,218,226], AMAR=[242,176,40];
   const ate=w.n, Wate=S.W.filter(x=>x.n<=ate), ac=new Map();
   for(const x of Wate) for(const [c,q] of Object.entries(x.exec)) ac.set(c,(ac.get(c)||0)+q);
   const exe=i=>Math.min(ac.get(i.c)||0,i.qp)*i.ppb, P=S.items.reduce((s,i)=>s+i.kp,0), E=S.items.reduce((s,i)=>s+exe(i),0);
@@ -1585,15 +1757,7 @@ async function montarRelatorio(aviso){
   let y=0;
   const novaPagina=h=>{ if(y+h>285){ doc.addPage(); y=16; } };
   const titulo=txt=>{ novaPagina(14); doc.setFont("helvetica","bold"); doc.setFontSize(12); doc.setTextColor(...AZ); doc.text(txt,M,y); y+=5; doc.setTextColor(20); };
-  // cabeçalho (faixa azul-escura com a logo)
-  const HB=30; doc.setFillColor(...AZ); doc.rect(0,0,W,HB,"F");
-  const logo=await logoRelatorio();
-  if(logo){ const lw=Math.min(52,14*logo.w/logo.h), lh=lw*logo.h/logo.w; doc.addImage(logo.src,"PNG",W-M-lw,(HB-lh)/2,lw,lh,undefined,"FAST"); }
-  doc.setTextColor(255); doc.setFont("helvetica","bold"); doc.setFontSize(15);
-  doc.text("Relatório semanal de armação — SAA Rio Grande",M,11); doc.setFont("helvetica","normal"); doc.setFontSize(10);
-  doc.text(`Semana ${w.n}: ${fmtData(new Date(w.ini+"T12:00:00"))} a ${fmtData(new Date(w.fim+"T12:00:00"))}  ·  ${w.arm} armadores × ${w.dias} dias`,M,18.5);
-  doc.setFontSize(8); doc.text(`Gerado em ${new Date().toLocaleString("pt-BR")}`,M,24.5);
-  y=38; doc.setTextColor(20);
+  y=38;
   // indicadores
   const kpis=[["Aço armado na semana",`${t(w.kg)} t`, meta?`meta ${t(meta)} t · ${pct(w.kg/meta)}`:""],["Produtividade",`${nf0.format(w.prod)} kg`,`por armador/dia · meta ${nf0.format(META())}`],
     ["Acumulado",`${t(E)} t`,`${pct(P?E/P:0)} de ${t(P)} t`],["Término previsto",prev.fimReal?fmtData(prev.fimReal):"–",`ritmo real · na meta: ${prev.fimMeta?fmtData(prev.fimMeta):"–"}`]];
@@ -1677,8 +1841,7 @@ async function montarRelatorio(aviso){
     if(col) y+=cw+12;
   }
   // rodapé com páginas
-  const np=doc.getNumberOfPages();
-  for(let p=1;p<=np;p++){ doc.setPage(p); doc.setFontSize(7); doc.setTextColor(...CINZA); doc.text(`Armação SAA Rio Grande · semana ${w.n} · página ${p} de ${np}`,W/2,292,{align:"center"}); }
+  rodapePdf(doc, (p,n)=>`Armação ${nomeObra()} · semana ${w.n} · página ${p} de ${n}`, {centro:true, cor:CINZA});
   return doc.output("blob");
 }
 
@@ -2194,7 +2357,7 @@ $("#reg-foto").addEventListener("change", async e=>{
   const f=e.target.files[0]; e.target.value=""; if(!f) return;
   try{
     const r={...baseReg(), tipo:"foto", texto:$("#reg-txt").value.trim()}, i=S.byCode.get(REG.cod);
-    const blob=await carimbarFoto(f, i ? `SAA Rio Grande · ${i.est} · ${i.pos} ${bitLabel(i.bit)} · ${i.loc}` : "SAA Rio Grande"); if(!blob) return;
+    const blob=await carimbarFoto(f, i ? `${nomeObra()} · ${i.est} · ${i.pos} ${bitLabel(i.bit)} · ${i.loc}` : nomeObra()); if(!blob) return;
     await (await caches.open(FOTOS)).put("foto/"+r.id, new Response(blob,{headers:{"Content-Type":"image/jpeg"}}));
     addReg(r); $("#reg-txt").value=""; renderRegLista(); toast(`Foto salva (${nf0.format(blob.size/1024)} KB)`);
   }catch{ toast("Não foi possível salvar a foto. Tente de novo."); }
@@ -2209,7 +2372,7 @@ const fotosGaleria = () => regsAll().filter(r=>r.tipo==="foto" && r.cod===COD_GA
   .sort((a,b)=>String(b.data).localeCompare(String(a.data)));
 async function guardarFoto(f){
   const legenda=FT.legenda.trim(), hoje=hojeISO();
-  const blob=await carimbarFoto(f, "SAA Rio Grande"+(legenda?" · "+legenda:"")); if(!blob) return false;
+  const blob=await carimbarFoto(f, nomeObra()+(legenda?" · "+legenda:"")); if(!blob) return false;
   const r={id:uid(), data:hoje, sem:semanaDaData(hoje), equipe:"", tipo:"foto", cod:COD_GALERIA, texto:legenda};
   await (await caches.open(FOTOS)).put("foto/"+r.id, new Response(blob,{headers:{"Content-Type":"image/jpeg"}}));
   addReg(r); return true;
@@ -2350,7 +2513,7 @@ function renderEqInfo(){
   const fr=(e.frentes||[]);
   repor(box,
     e.encarregado ? el("span",{}, "Encarregado: ", el("b",{text:e.encarregado})) : null,
-    fr.length ? el("span",{text:"Frentes:"}) : el("span",{text:"Sem frentes definidas (aba Semanas)."}),
+    fr.length ? el("span",{text:"Frentes:"}) : null,
     ...fr.map(f=>{ const b=el("button",{class:"chipbtn"+(F.est===f.est?" on":""),type:"button",text:frenteTxt(f)});
       b.onclick=()=>{ const i=S.items.find(x=>x.est===f.est); F.emp=i?.emp||""; F.est=f.est; F.pr=""; F.loc=""; F.q="";
         $("#f-emp").value=F.emp; LS.set("filtros",F); S.limit=60; renderFiltros(); renderLista(); };
@@ -2645,7 +2808,7 @@ $("#ck-foto").addEventListener("change", async ev=>{
   const f=ev.target.files[0]; ev.target.value=""; if(!f||!CK.e) return;
   try{
     const r={id:uid(),data:hojeISO(),sem:S.cur,equipe:eqAtual(),tipo:"foto",cod:"EL:"+CK.e.chave,texto:`Checklist do ${nomeLance(CK.L)} · ${CK.e.loc}`};
-    const blob=await carimbarFoto(f, `SAA Rio Grande · ${CK.e.est} · ${CK.e.loc} · ${nomeLance(CK.L)}`); if(!blob) return;
+    const blob=await carimbarFoto(f, `${nomeObra()} · ${CK.e.est} · ${CK.e.loc} · ${nomeLance(CK.L)}`); if(!blob) return;
     await (await caches.open(FOTOS)).put("foto/"+r.id, new Response(blob,{headers:{"Content-Type":"image/jpeg"}}));
     addReg(r); renderCkFotos(); toast("Foto salva");
   }catch{ toast("Não foi possível salvar a foto."); }
@@ -2982,6 +3145,7 @@ function renderData(){
   if(!$("#tela-producao").hidden && $("#ef-modal").hidden) renderProducao();
   if(!$("#tela-rdo").hidden && !document.activeElement?.closest?.("#rdo")) renderRdo();
   if(!$("#tela-conc").hidden && $("#ef-modal").hidden) renderConc();
+  if(!$("#tela-reg").hidden && $("#ef-modal").hidden && !document.activeElement?.closest?.("#reg2")) renderReg2();
   if(CC.conc && !$("#viewer").hidden && !CC.atual) renderCcBar();
   setSync();
 }
@@ -3019,24 +3183,24 @@ const MODULOS=[
   {id:"fotos", nome:"Fotos",            desc:"Tirar e guardar fotos da obra",  c:["#E25C8A","#A8305C"], ativo:true},
   {id:"rdo",   nome:"RDO",              desc:"Diário de obra",                 c:["#3C8DD8","#1F5FA8"], ativo:true},
   {id:"prod",  nome:"Produtividade",    desc:"Aço · forma · concreto · escavação", c:["#1A9BDC","#0067A6"], ativo:true},
-  {id:"obras", nome:"Obras e projetos", desc:"Estruturas, etapas e pranchas",  c:["#4F7CE8","#2747B0"]},
-  {id:"rel",   nome:"Relatórios",       desc:"PDF semanal e painéis",          c:["#8A6BE0","#5A3FB0"]},
+  {id:"obras", nome:"Obras e projetos", desc:"Estruturas, etapas e pranchas",  c:["#4F7CE8","#2747B0"], ativo:true},
+  {id:"rel",   nome:"Relatórios",       desc:"PDF semanal e painéis",          c:["#8A6BE0","#5A3FB0"], ativo:true},
   {id:"sup",   nome:"Suprimentos",      desc:"Pedidos e recebimento",          c:["#F2AE3D","#D27D1F"], ativo:true},
-  {id:"qual",  nome:"Qualidade",        desc:"Fichas de verificação (FVS)",    c:["#36B37E","#1D7A48"]},
-  {id:"seg",   nome:"Segurança",        desc:"DDS, inspeções e SST",           c:["#F2783A","#C9461A"]},
-  {id:"med",   nome:"Medições",         desc:"Boletins e avanço físico",       c:["#45A1D6","#22709F"]},
-  {id:"equip", nome:"Equipamentos",     desc:"Máquinas e horímetros",          c:["#7D8B99","#4A5866"]},
+  {id:"qual",  nome:"Qualidade",        desc:"Fichas de verificação (FVS)",    c:["#36B37E","#1D7A48"], ativo:true},
+  {id:"seg",   nome:"Segurança",        desc:"DDS, inspeções e SST",           c:["#F2783A","#C9461A"], ativo:true},
+  {id:"med",   nome:"Medições",         desc:"Boletins e avanço físico",       c:["#45A1D6","#22709F"], ativo:true},
+  {id:"equip", nome:"Equipamentos",     desc:"Máquinas e horímetros",          c:["#7D8B99","#4A5866"], ativo:true},
 ];
 const SERVICOS=[
   {id:"aco",   nome:"Aço",       desc:"Armação: coleta, frentes e produtividade", c:["#1A9BDC","#0067A6"], ativo:true},
-  {id:"forma", nome:"Forma",     desc:"Montagem e desforma",                       c:["#D49A5A","#9C6430"]},
+  {id:"forma", nome:"Forma",     desc:"Montagem e desforma",                       c:["#D49A5A","#9C6430"], ativo:true},
   {id:"conc",  nome:"Concreto",  desc:"Concretagens: forma e caminhões",           c:["#98A5B3","#5F6B78"], ativo:true},
-  {id:"esc",   nome:"Escavação", desc:"Cortes, aterros e reaterros",               c:["#D2A03C","#946A1E"]},
+  {id:"esc",   nome:"Escavação", desc:"Cortes, aterros e reaterros",               c:["#D2A03C","#946A1E"], ativo:true},
 ];
 
 // --- navegação entre telas: início → produtividade → aço (o app de armação) ---
 const TELAS={inicio:"#inicio", prod:"#tela-prod", sup:"#tela-sup", supaco:"#tela-sup-aco", supped:"#tela-sup-pedido", ponto:"#tela-ponto", fotos:"#tela-fotos",
-  producao:"#tela-producao", login:"#tela-login", rdo:"#tela-rdo", conc:"#tela-conc"};
+  producao:"#tela-producao", login:"#tela-login", rdo:"#tela-rdo", conc:"#tela-conc", reg:"#tela-reg"};
 // módulo exigido por cada tela (o cargo precisa ter acesso)
 const TELA_MOD={prod:"prod", aco:"prod", sup:"sup", supaco:"sup", supped:"sup", ponto:"ponto", fotos:"fotos", producao:"producao", rdo:"rdo", conc:"prod"};
 function abrirTela(t, empilhar=true, forcar=false){
@@ -3047,7 +3211,7 @@ function abrirTela(t, empilhar=true, forcar=false){
   if(t==="inicio") renderInicio(); if(t==="prod") renderProdMenu();
   if(t==="sup") renderSupMenu(); if(t==="supaco") renderSupAco(); if(t==="supped") renderSupPedido();
   if(t==="ponto") renderPonto(); if(t!=="ponto") $("#ef-modal").hidden=true;
-  if(t==="fotos") renderFotos(); if(t==="producao") renderProducao(); if(t==="login") renderLogin(); if(t==="rdo") renderRdo(); if(t==="conc") renderConc();
+  if(t==="fotos") renderFotos(); if(t==="producao") renderProducao(); if(t==="login") renderLogin(); if(t==="rdo") renderRdo(); if(t==="conc") renderConc(); if(t==="reg") renderReg2();
   if(empilhar) history.pushState({tela:t},"");
 }
 addEventListener("popstate", e=>{ if(e.state?.tela) abrirTela(e.state.tela,false); });
@@ -3121,7 +3285,8 @@ function renderInicio(){
   repor($("#usuario-ini"), U ? el("div",{class:"lg-chip"},
     el("span",{}, "👤 ", el("b",{text:U.nome}), ` · ${U.cargo}`),
     el("button",{class:"linkbtn",type:"button",text:"Trocar usuário",onclick:()=>abrirTela("login")})) : null);
-  const mods=MODULOS.filter(m=>pode(m.id)).map(m=>({...m, acao: ["prod","sup","ponto","fotos","producao","rdo"].includes(m.id) ? ()=>abrirTela(m.id) : null}));
+  const mods=MODULOS.filter(m=>pode(m.id)).map(m=>({...m, acao: ["prod","sup","ponto","fotos","producao","rdo"].includes(m.id) ? ()=>abrirTela(m.id) : MOD2[m.id] ? ()=>abrirModulo(m.id) : null}));
+  document.querySelectorAll(".tela-obra").forEach(o=>{ o.querySelector("b").textContent=nomeObra(); o.querySelector("span").textContent=cidadeObra(); });
   const hoje=resumoEfDia(hojeISO());
   $("#mods").replaceChildren(...mods.map((m,k)=>moduloBtn(m,k, m.id==="prod" ? (b)=>{ b.append(el("span",{class:"num",id:"num-prod"})); }
     : m.id==="ponto" && hoje ? (b)=>{ b.append(el("span",{class:"num",text:`${hoje.tot} na obra hoje`})); }
@@ -3146,18 +3311,18 @@ function renderInicio(){
 }
 function renderProdMenu(){
   const r=S.items.length ? resumoAco() : null;
-  $("#mods-prod").replaceChildren(...SERVICOS.map((m,k)=>moduloBtn({...m, acao: m.id==="aco" ? ()=>{ abrirTela("aco"); show(LS.get("aba")||"coleta"); } : m.id==="conc" ? ()=>abrirTela("conc") : null}, k,
+  $("#mods-prod").replaceChildren(...SERVICOS.map((m,k)=>moduloBtn({...m, acao: m.id==="aco" ? ()=>{ abrirTela("aco"); show(LS.get("aba")||"coleta"); } : m.id==="conc" ? ()=>abrirTela("conc") : MOD2[m.id] ? ()=>abrirModulo(m.id) : null}, k,
     m.id==="aco" && r ? (b,ic)=>{ anelProgresso(ic, r.pct); b.append(el("span",{class:"num",text:`${t(r.E)} de ${t(r.P)} t · ${pct(r.pct)}`})); } : null)));
 }
 // --- Suprimentos ---
 const MATERIAIS=[
   {id:"aco",    nome:"Aço",          desc:"Romaneios de armadura",     c:["#1A9BDC","#0067A6"], ativo:true},
-  {id:"conc",   nome:"Concreto",     desc:"Usinado: pedidos e notas",  c:["#98A5B3","#5F6B78"]},
-  {id:"forma",  nome:"Formas",       desc:"Chapas, madeira e escoras", c:["#D49A5A","#9C6430"]},
-  {id:"rachao", nome:"Rachão",       desc:"Cargas e volumes",          c:["#A08C78","#6E5B48"]},
-  {id:"bica",   nome:"Bica corrida", desc:"Cargas e volumes",          c:["#C9A15A","#8E6A2C"]},
-  {id:"bgs",    nome:"BGS",          desc:"Brita graduada simples",    c:["#8B98A8","#566373"]},
-  {id:"areia",  nome:"Areia",        desc:"Cargas e volumes",          c:["#E2B65C","#B0832A"]},
+  {id:"conc",   nome:"Concreto",     desc:"Usinado: pedidos e notas",  c:["#98A5B3","#5F6B78"], ativo:true},
+  {id:"forma",  nome:"Formas",       desc:"Chapas, madeira e escoras", c:["#D49A5A","#9C6430"], ativo:true},
+  {id:"rachao", nome:"Rachão",       desc:"Cargas e volumes",          c:["#A08C78","#6E5B48"], ativo:true},
+  {id:"bica",   nome:"Bica corrida", desc:"Cargas e volumes",          c:["#C9A15A","#8E6A2C"], ativo:true},
+  {id:"bgs",    nome:"BGS",          desc:"Brita graduada simples",    c:["#8B98A8","#566373"], ativo:true},
+  {id:"areia",  nome:"Areia",        desc:"Cargas e volumes",          c:["#E2B65C","#B0832A"], ativo:true},
 ];
 // Romaneios da Aços Campinas (PDFs da pasta "00. Romaneio aços"). O número da remessa é o (1)…(4) do nome do arquivo.
 // O recebimento é confirmado no app (fica na aba Config da planilha como ACO_REC_<remessa>).
@@ -3234,7 +3399,7 @@ function statusRemessa(R){
 function gravarCfg(k, v){ S.pendCfg[k]=String(v); savePendExtra(); scheduleSync(); renderSupAco(); }
 function renderSupMenu(){
   const L=remessas(), tot=somaKg(L), rec=somaKg(L.filter(R=>R.rec));
-  $("#mods-sup").replaceChildren(...MATERIAIS.map((m,k)=>moduloBtn({...m, acao: m.id==="aco" ? ()=>abrirTela("supaco") : null}, k,
+  $("#mods-sup").replaceChildren(...MATERIAIS.map((m,k)=>moduloBtn({...m, acao: m.id==="aco" ? ()=>abrirTela("supaco") : MAT2[m.id] ? ()=>{ RG.tipo.sup=m.id; abrirModulo("sup"); } : null}, k,
     m.id==="aco" ? (b,ic)=>{ anelProgresso(ic, tot?rec/tot:0); b.append(el("span",{class:"num",text:`${t(rec)} de ${t(tot)} t recebidas`})); } : null)));
 }
 const bitola = d => `Ø ${String(d).replace(".",",")}`;
@@ -3582,16 +3747,9 @@ async function gerarArquivoPedido(tipo, btn){
       XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(bit),"Por bitola");
       baixar(nome+".xlsx", new Blob([XLSX.write(wb,{type:"array",bookType:"xlsx"})],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}));
     } else {
-      await carregarScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js");
-      await carregarScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js");
-      const {jsPDF}=window.jspdf, doc=new jsPDF({unit:"mm",format:"a4"}), W=210, M=12, AZ=[31,58,95];
-      doc.setFillColor(...AZ); doc.rect(0,0,W,30,"F");
-      const logo=await logoRelatorio();
-      if(logo){ const lw=Math.min(52,14*logo.w/logo.h), lh=lw*logo.h/logo.w; doc.addImage(logo.src,"PNG",W-M-lw,(30-lh)/2,lw,lh,undefined,"FAST"); }
-      doc.setTextColor(255); doc.setFont("helvetica","bold"); doc.setFontSize(15); doc.text("Pedido de aço cortado e dobrado — SAA Rio Grande",M,11);
-      doc.setFont("helvetica","normal"); doc.setFontSize(10); doc.text(`${PD.est} · ${modo}`,M,18.5);
-      doc.setFontSize(8); doc.text(`Gerado em ${new Date().toLocaleString("pt-BR")} · limite de ${nf1.format(PD.lim)} t por caminhão`+(PD.ini&&PD.fim?` · entrega desejada ${ddmm(PD.ini)} a ${ddmm(PD.fim)}`:""),M,24.5);
-      let y=38; doc.setTextColor(20);
+      const doc=await novoPdf(`Pedido de aço cortado e dobrado — ${nomeObra()}`, `${PD.est} · ${modo}`,
+        `Gerado em ${new Date().toLocaleString("pt-BR")} · limite de ${nf1.format(PD.lim)} t por caminhão`+(PD.ini&&PD.fim?` · entrega desejada ${ddmm(PD.ini)} a ${ddmm(PD.fim)}`:"")), M=12, AZ=PDF_AZ;
+      let y=38;
       const tab=(head,body,opts={})=>{ doc.autoTable({startY:y,head:[head],body,margin:{left:M,right:M},styles:{fontSize:7.5,cellPadding:1.4,textColor:20},
         headStyles:{fillColor:AZ,textColor:255,fontStyle:"bold"},alternateRowStyles:{fillColor:[244,246,249]},...opts}); y=doc.lastAutoTable.finalY+8; };
       const tit=s=>{ if(y>270){ doc.addPage(); y=16; } doc.setFont("helvetica","bold"); doc.setFontSize(11); doc.setTextColor(...AZ); doc.text(s,M,y); y+=4; doc.setTextColor(20); doc.setFont("helvetica","normal"); };
@@ -3604,8 +3762,8 @@ async function gerarArquivoPedido(tipo, btn){
         tab(["Elemento (local)","Prancha","Pos.","Ø (mm)","Comp. (m)","Barras","Peso (kg)"],
           c.ls.map(l=>[l.i.loc,l.i.pr.replace(/^.*?-DE-/,"DE-"),l.i.pos,String(l.i.bit).replace(".",","),nf1.format(l.i.cu),nf0.format(l.q),nf1.format(l.kg)]),
           {columnStyles:{3:dir,4:dir,5:dir,6:dir},foot:[["","","","","Total",nf0.format(c.ls.reduce((s,l)=>s+l.q,0)),nf1.format(c.kg)]],footStyles:{fillColor:[230,236,242],textColor:20,fontStyle:"bold"}}); });
-      const n=doc.getNumberOfPages(); for(let p=1;p<=n;p++){ doc.setPage(p); doc.setFontSize(7); doc.setTextColor(120); doc.text(`Página ${p} de ${n}`,W-M,292,{align:"right"}); }
-      baixar(nome+".pdf", doc.output("blob"));
+      rodapePdf(doc);
+      await entregarPdf(doc, nome+".pdf", "Pedido de aço", false);
     }
   }catch(e){ toast(e.message||"Não foi possível gerar o arquivo."); }
   finally{ btn.disabled=false; }
@@ -3619,7 +3777,7 @@ const EF_SIT={P:"Chegou",F:"Falta",AT:"Atestado",FO:"Folga"};
 const EF_COLS=["1ª TURMA","FALTAS","ATESTADO","FOLGA","EMPREITEIROS"];
 const EF={aba:LS.get("efAba")||"dia", data:hojeISO(), busca:"", imp:null, abertos:new Set()};
 const EF_DIAS_EDICAO=30; // dias para trás que podem ser lançados ou corrigidos no app
-const savePendEf = () => LS.set("pendEf", S.pendEf);
+const savePendEf = () => { MEMO_EF.clear(); LS.set("pendEf", S.pendEf); };
 const efId = () => uid().slice(0,10);
 const normTxt = s => String(s??"").normalize("NFD").replace(/[̀-ͯ]/g,"").toUpperCase().replace(/\s+/g," ").trim();
 const somaDias = (iso,n) => { const x=new Date(iso+"T12:00"); x.setDate(x.getDate()+n); return new Date(x.getTime()-x.getTimezoneOffset()*6e4).toISOString().slice(0,10); };
@@ -3635,19 +3793,19 @@ function mesclar(lista, pend, del){
   for(const id of del) m.delete(id);
   return [...m.values()];
 }
-const funcoes = () => mesclar(S.ef, S.pendEf.fun, S.pendEf.funDel).sort((a,b)=>(a.ordem||0)-(b.ordem||0));
-const pessoas = () => mesclar(S.pes, S.pendEf.pes, S.pendEf.pesDel).sort((a,b)=>a.nome.localeCompare(b.nome,"pt-BR"));
+const funcoes = () => memoEf("fun", ()=>mesclar(S.ef, S.pendEf.fun, S.pendEf.funDel).sort((a,b)=>(a.ordem||0)-(b.ordem||0)));
+const pessoas = () => memoEf("pes", ()=>mesclar(S.pes, S.pendEf.pes, S.pendEf.pesDel).sort((a,b)=>a.nome.localeCompare(b.nome,"pt-BR")));
 // valores de um dia (servidor + fila); chave da fila = "data|id", valor vazio apaga
 function doDia(base, pend, d){
   const o={...(base[d]||{})};
   for(const [k,v] of Object.entries(pend)){ const i=k.indexOf("|"); if(k.slice(0,i)!==d) continue; if(v) o[k.slice(i+1)]=v; else delete o[k.slice(i+1)]; }
   return o;
 }
-const diaVals = d => doDia(S.efDia, S.pendEf.dia, d);
-const presDia = d => doDia(S.presEf, S.pendEf.pres, d);
+const diaVals = d => memoEf("dia|"+d, ()=>doDia(S.efDia, S.pendEf.dia, d));
+const presDia = d => memoEf("pres|"+d, ()=>doDia(S.presEf, S.pendEf.pres, d));
 const diaAberto = d => Object.keys(diaVals(d)).length>0;
 const datasEf = () => [...new Set([...Object.keys(S.efDia), ...Object.keys(S.pendEf.dia).map(k=>k.split("|")[0])])].filter(diaAberto).sort();
-const nomesDa = fid => pessoas().filter(p=>p.fid===fid && p.ativo);
+const nomesDa = fid => memoEf("porFun", ()=>{ const m=new Map(); for(const p of pessoas()) if(p.ativo) (m.get(p.fid)||m.set(p.fid,[]).get(p.fid)).push(p); return m; }).get(fid) || [];
 function empresas(lista){
   const m=new Map();
   for(const f of lista){ const k=normTxt(f.empresa); if(!m.has(k)) m.set(k,{nome:f.empresa, vinculo:f.vinculo, fs:[]}); m.get(k).fs.push(f); }
@@ -3745,6 +3903,7 @@ function efModal(tit, campos, acoes){
 const fecharEf = () => { $("#ef-modal").hidden=true;
   if(CC.conc && !$("#viewer").hidden){ renderCcBar(); mudou(0); }
   if(!$("#tela-conc").hidden) renderConc();
+  else if(!$("#tela-reg").hidden) renderReg2();
   else if(!$("#tela-producao").hidden) renderProducao(); else if(!$("#tela-fotos").hidden) renderFotos(); else renderPonto(); };
 $("#ef-m-fechar").onclick=fecharEf;
 $("#ef-modal").addEventListener("click", e=>{ if(e.target.id==="ef-modal") fecharEf(); });
@@ -3921,7 +4080,7 @@ function confirmarNomes(){
   // (ou, no dia de hoje, quando marcar a primeira chegada da função)
   for(const f of funs) if(!P.manterFun.has(f.id)) setFun(f.id,{ativo:false});
   for(const p of pes) if(!P.manterPes.has(p.id)) setPes(p.id,{ativo:false});
-  const marcadas=new Set(Object.keys(presDia(h)).map(id=>pessoas().find(p=>p.id===id)?.fid));
+  const fidDe=new Map(pessoas().map(p=>[p.id,p.fid])), marcadas=new Set(Object.keys(presDia(h)).map(id=>fidDe.get(id)));
   recontar(h, alvos.filter(id=>marcadas.has(id)));
   EF.impNomes=null; toast(`${n} nomes no efetivo.`); renderPonto();
 }
@@ -4128,16 +4287,8 @@ async function pdfEfetivoDia(d, btn){
   if(!Object.keys(vals).length && !Object.keys(pr).length) return toast("Nenhuma marcação neste dia ainda.");
   const txt=btn.textContent; btn.disabled=true; btn.textContent="Gerando PDF…";
   try{
-    await carregarScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js");
-    await carregarScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js");
-    const {jsPDF}=window.jspdf, doc=new jsPDF({unit:"mm",format:"a4"}), W=210, M=12, AZ=[31,58,95], VD=[29,122,72], VM=[180,35,24];
-    doc.setFillColor(...AZ); doc.rect(0,0,W,30,"F");
-    const logo=await logoRelatorio();
-    if(logo){ const lw=Math.min(52,14*logo.w/logo.h), lh=lw*logo.h/logo.w; doc.addImage(logo.src,"PNG",W-M-lw,(30-lh)/2,lw,lh,undefined,"FAST"); }
-    doc.setTextColor(255); doc.setFont("helvetica","bold"); doc.setFontSize(15); doc.text("Efetivo do dia — SAA Rio Grande",M,11);
-    doc.setFont("helvetica","normal"); doc.setFontSize(10); doc.text(dataLonga(d)+" · "+dataBR(d),M,18.5);
-    doc.setFontSize(8); doc.text(`Gerado em ${new Date().toLocaleString("pt-BR")}`,M,24.5);
-    let y=38; doc.setTextColor(20);
+    const doc=await novoPdf(`Efetivo do dia — ${nomeObra()}`, dataLonga(d)+" · "+dataBR(d)), W=210, M=12, AZ=PDF_AZ, VD=[29,122,72], VM=[180,35,24];
+    let y=38;
     const tit=(s,cor=AZ)=>{ if(y>265){ doc.addPage(); y=16; } doc.setFont("helvetica","bold"); doc.setFontSize(11); doc.setTextColor(...cor); doc.text(s,M,y); y+=4; doc.setTextColor(20); doc.setFont("helvetica","normal"); };
     const tab=(head,body,opts={})=>{ doc.autoTable({startY:y,head:[head],body,margin:{left:M,right:M},styles:{fontSize:8,cellPadding:1.5,textColor:20},
       headStyles:{fillColor:opts.cor||AZ,textColor:255,fontStyle:"bold"},alternateRowStyles:{fillColor:[244,246,249]},...opts}); y=doc.lastAutoTable.finalY+8; };
@@ -4171,11 +4322,8 @@ async function pdfEfetivoDia(d, btn){
     if(ok.length){ tit(`OK — vieram (${ok.length})`,VD); tab(["Nome","Empresa","Função","Chegada"], linhas(ok), {cor:VD}); }
     if(fal.length){ tit(`Faltaram (${fal.length})`,VM); tab(["Nome","Empresa","Função","Motivo"], linhas(fal), {cor:VM}); }
     if(sem.length){ tit(`Sem marcação (${sem.length})`,[90,102,116]); tab(["Nome","Empresa","Função",""], linhas(sem), {cor:[90,102,116]}); }
-    const n=doc.getNumberOfPages(); for(let p=1;p<=n;p++){ doc.setPage(p); doc.setFontSize(7); doc.setTextColor(120); doc.text(`Página ${p} de ${n}`,W-M,292,{align:"right"}); }
-    const nome=`Efetivo_${d}.pdf`, blob=doc.output("blob"), file=new File([blob],nome,{type:"application/pdf"});
-    // no celular abre o compartilhar (WhatsApp, e-mail); no computador baixa
-    if(navigator.canShare?.({files:[file]})){ try{ await navigator.share({files:[file],title:`Efetivo do dia ${dataBR(d)}`}); }catch(e){ if(e.name!=="AbortError") baixar(nome,blob); } }
-    else baixar(nome,blob);
+    rodapePdf(doc);
+    await entregarPdf(doc, `Efetivo_${d}.pdf`, `Efetivo do dia ${dataBR(d)}`);
   }catch(e){ toast(e.message||"Não foi possível gerar o PDF."); }
   finally{ btn.disabled=false; btn.textContent=txt; }
 }
@@ -4325,7 +4473,7 @@ function efQuadro(){
       el("button",{class:"btn",type:"button",text:"Cancelar",onclick:()=>{ EF.imp=null; renderPonto(); }}))) : null;
   const cards=empresas(fs).map(E=>el("div",{class:"card"},
     el("div",{class:"i-top"}, el("h3",{text:E.nome}), el("span",{class:"chip"+(E.vinculo==="Próprio"?" ok":""),text:E.vinculo})),
-    el("div",{}, ...E.fs.map(f=>{ const n=pessoas().filter(p=>p.fid===f.id && p.ativo).length;
+    el("div",{}, ...E.fs.map(f=>{ const n=nomesDa(f.id).length;
       return el("div",{class:"ef-lin"+(f.ativo?"":" inativa")}, el("span",{class:"nm",text:f.funcao}),
         el("span",{class:"info",text:`quadro ${f.quadro||0}`+(n?` · ${n} nome${n>1?"s":""}`:"")+(f.ativo?"":" · inativa")}),
         el("button",{class:"linkbtn",type:"button",text:"Editar","aria-label":`Editar ${f.funcao}`,onclick:()=>editarFuncao(f)})); })),
@@ -4415,9 +4563,10 @@ const AT_PADRAO=["Armação","Forma: montagem","Desforma","Concretagem","Escoram
 const AT_STATUS=["A fazer","Em andamento","Parada","Concluída"];
 const AT_COR={"A fazer":"","Em andamento":"and","Parada":"bad","Concluída":"ok"};
 const PR_HIST=new Set(); // históricos abertos na tela
-const savePendAt = () => { LS.set("pendAt",S.pendAt); LS.set("pendAtDel",S.pendAtDel); };
+const savePendAt = () => { MEMO_EF.clear(); LS.set("pendAt",S.pendAt); LS.set("pendAtDel",S.pendAtDel); };
 // atividades: servidor + fila do aparelho (as entradas novas do histórico aparecem com "a enviar")
-function ativs(){
+const ativs = () => memoEf("ativ", montarAtivs);
+function montarAtivs(){
   const m=new Map(S.ativ.map(a=>[a.id,{...a}]));
   for(const [id,p] of Object.entries(S.pendAt)){
     const {logs, ...c}=p, a={id, status:"A fazer", progresso:0, equipes:{}, obs:"", local:"", hist:[], ...m.get(id), ...c};
@@ -4448,12 +4597,14 @@ function limparPendAt(snap, snapDel, j){
 // equipes guardadas por dia: só os últimos 10 dias
 const aparar = eq => Object.fromEntries(Object.entries(eq||{}).filter(([d,ids])=>d>=somaDias(hojeISO(),-10) && ids.length).sort());
 const presentesHoje = () => { const pr=presDia(hojeISO()); return pessoas().filter(p=>p.ativo && situacao(pr,p.id)==="veio"); };
-const nomePessoa = id => pessoas().find(p=>p.id===id)?.nome || "?";
+const nomePessoa = id => memoEf("pesId", ()=>new Map(pessoas().map(p=>[p.id,p.nome]))).get(id) || "?";
 // nome curto: primeiro + último ("JAILSON DOS SANTOS CRUZ" → "JAILSON CRUZ")
 const primeiroNome = n => { const p=String(n).trim().split(/\s+/); return p.length>2 ? p[0]+" "+p[p.length-1] : p.join(" "); };
 const quandoTxt = iso => { try{ const d=new Date(iso), hoje=new Date().toDateString()===d.toDateString();
   return (hoje?"hoje":d.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"}))+" às "+d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}); }catch{ return ""; } };
-const estruturasObra = () => [...new Set([...S.items.map(i=>i.est).filter(Boolean), "CANTEIRO DE OBRAS"])].sort((a,b)=>a.localeCompare(b,"pt-BR"));
+// estruturas da base de aço + as cadastradas em Obras e projetos (as marcadas como Inativa saem das listas)
+const estruturasObra = () => memoEf("estObra", ()=>{ const cad=regs2De("obras","est"), fora=new Set(cad.filter(r=>r.status==="Inativa").map(r=>r.dados.nome));
+  return [...new Set([...S.items.map(i=>i.est).filter(Boolean), "CANTEIRO DE OBRAS", ...cad.map(r=>r.dados.nome).filter(Boolean)])].filter(e=>!fora.has(e)).sort((a,b)=>a.localeCompare(b,"pt-BR")); });
 const ondeTxt = a => [a.estrutura, a.local].filter(Boolean).join(" · ");
 // põe estas pessoas na atividade hoje; quem estava em outra atividade sai de lá (cada um fica numa só por dia)
 function definirEquipe(a, ids){
@@ -4633,6 +4784,8 @@ function numeroRdo(d){
   return base + Object.keys(S.pendRdo).filter(x=>x<d && !S.rdo[x]).length + 1;
 }
 function setRdo(d, fn, log, status){
+  // a planilha numera os RDOs pela data: criar um dia que ficou para trás muda o número dos dias seguintes
+  if(!rdoDe(d) && Object.keys(S.rdo).some(x=>x>d) && !confirm(`Criar o RDO de ${dataBR(d)}?\n\nJá existem RDOs depois deste dia: eles passam a ter o número seguinte.`)) { renderRdo(); return; }
   const dados=JSON.parse(JSON.stringify(rdoDe(d)?.dados||{}));
   fn(dados);
   const p=(S.pendRdo[d] ??= {}); p.dados=dados; if(status) p.status=status; if(log) p.log=log;
@@ -4663,7 +4816,8 @@ function renderRdo(){
   // cabeçalho
   const topo=el("div",{class:"ps-dia"},
     el("button",{class:"btn",type:"button",text:"‹","aria-label":"Dia anterior",disabled:d<=min,onclick:()=>ir(somaDias(d,-1))}),
-    el("div",{}, el("b",{text:`RDO nº ${r?.numero||numeroRdo(d)}`}), el("small",{text:dataLonga(d)})),
+    // número do dia novo é estimado no celular até a planilha confirmar
+    el("div",{}, el("b",{text:`RDO nº ${r?.numero||numeroRdo(d)}`}, S.rdo[d]?.numero ? null : el("span",{class:"off",text:" (a confirmar)"})), el("small",{text:dataLonga(d)})),
     el("button",{class:"btn",type:"button",text:"›","aria-label":"Próximo dia",disabled:d>=h,onclick:()=>ir(somaDias(d,1))}),
     d!==h ? el("button",{class:"btn",type:"button",text:"Hoje",onclick:()=>ir(h)}) : null);
   const estado = !r ? el("p",{class:"info",text: ed ? "Ainda não iniciado. Comece pelo clima: o RDO é salvo sozinho a cada alteração." : "RDO deste dia ainda não iniciado."})
@@ -4711,6 +4865,13 @@ function renderRdo(){
       : el("p",{class:"info",text:"Nenhum equipamento informado."}),
     ed ? el("div",{class:"pr-chips"}, ...EQUIP_PADRAO.filter(n=>!eqs.some(q=>q.nome===n)).map(n=>el("button",{class:"chipbtn",type:"button",text:"+ "+n,onclick:()=>addEq(n)}))) : null,
     ed ? el("div",{class:"row"}, outroEq, el("button",{class:"btn",type:"button",text:"Adicionar",onclick:()=>addEq(outroEq.value)})) : null];
+  // apontamentos do módulo Equipamentos no dia: soma por equipamento (quantidade e horas); o que já está no RDO não muda
+  const apEq=new Map(); for(const r of regs2De("equip","apont").filter(r=>r.data===d && r.dados.equip)){ const a=apEq.get(r.dados.equip)||{qtd:0,horas:0}; a.qtd++; a.horas+=num(r.dados.horas); apEq.set(r.dados.equip,a); }
+  const novosEq=[...apEq].filter(([n])=>!eqs.some(q=>normTxt(q.nome)===normTxt(n)));
+  if(ed && novosEq.length) equipamentos.push(el("div",{class:"row"}, el("button",{class:"btn",type:"button",text:`🚜 Trazer dos Equipamentos (${novosEq.length})`,onclick:()=>{
+    setRdo(d,x=>{ x.equip ??= []; for(const [nome,a] of novosEq) x.equip.push({nome, qtd:a.qtd, horas:a.horas||null}); }, `Equipamentos do dia: ${novosEq.map(([n])=>n).join(", ")}`); renderRdo(); }})));
+  // ocorrências de segurança do dia (módulo Segurança)
+  const ocSeg=regs2De("seg","ocor").filter(r=>r.data===d);
 
   // 6. fotos do dia (módulo Fotos e fotos da armação); toque tira ou põe no RDO
   const fts=fotosDoDia(d), sem=new Set(dados.semFoto||[]);
@@ -4740,7 +4901,7 @@ function renderRdo(){
       setRdo(d,x=>{ delete x.snap; }, "RDO reaberto", "Rascunho"); toast("RDO reaberto."); renderRdo(); }}) : null);
 
   repor(box,
-    el("p",{class:"saud"}, "Diário de obra", el("small",{text:"SAA Rio Grande · Uberaba/MG"})),
+    el("p",{class:"saud"}, "Diário de obra", el("small",{text:`${nomeObra()} · ${cidadeObra()}`})),
     !pode("rdo-edit") ? el("p",{class:"info",text:`Só leitura para o seu cargo: dá para ver e gerar o PDF.`}) : null,
     topo, estado,
     ed ? vozCard(d) : null,
@@ -4752,6 +4913,7 @@ function renderRdo(){
     sec("3. Atividades executadas", ...atividades, el("label",{class:"campo"},"Outros serviços executados", area("servicos","Outros serviços","Serviços que não estão na Produção (opcional)"))),
     sec("4. Equipamentos na obra", ...equipamentos),
     sec("5. Ocorrências e observações",
+      ...ocSeg.map(o=>el("div",{class:"reg"}, el("div",{class:"meta"}, el("span",{class:"cat",text:o.dados.classe||"Segurança"}), el("span",{text:`(Segurança${o.status?" · "+o.status:""})`})), el("div",{text:[o.dados.local,o.dados.desc].filter(Boolean).join(": ")}))),
       ...ocAco.map(o=>el("div",{class:"reg"}, el("div",{class:"meta"}, el("span",{class:"cat",text:o.cat||"Ocorrência"}), o.horas?el("span",{text:`${nf1.format(o.horas)} h perdidas`}):null, el("span",{text:"(registrada na armação)"})), o.texto?el("div",{text:o.texto}):null)),
       area("ocorr","Ocorrências","Paralisações, acidentes, falta de material, problemas de projeto…")),
     sec("Visitas e fiscalização", area("visitas","Visitas","Visitas da fiscalização, do cliente, de fornecedores…")),
@@ -4875,16 +5037,9 @@ async function pdfRdo(d, btn){
   const r=rdoDe(d), dados=r?.dados||{}, fechado=r?.status==="Fechado", ret=fechado && dados.snap ? dados.snap : retratoDia(d);
   const txt=btn.textContent; btn.disabled=true; btn.textContent="Gerando PDF…";
   try{
-    await carregarScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js");
-    await carregarScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js");
-    const {jsPDF}=window.jspdf, doc=new jsPDF({unit:"mm",format:"a4"}), W=210, M=12, AZ=[31,58,95];
-    doc.setFillColor(...AZ); doc.rect(0,0,W,30,"F");
-    const logo=await logoRelatorio();
-    if(logo){ const lw=Math.min(52,14*logo.w/logo.h), lh=lw*logo.h/logo.w; doc.addImage(logo.src,"PNG",W-M-lw,(30-lh)/2,lw,lh,undefined,"FAST"); }
-    doc.setTextColor(255); doc.setFont("helvetica","bold"); doc.setFontSize(15); doc.text(`Relatório Diário de Obra — RDO nº ${r?.numero||numeroRdo(d)}`,M,11);
-    doc.setFont("helvetica","normal"); doc.setFontSize(10); doc.text(`SAA Rio Grande · Uberaba/MG · ${dataLonga(d)} · ${dataBR(d)}`,M,18.5);
-    doc.setFontSize(8); doc.text(fechado ? `Fechado por ${r.fechadoPor||"—"}${r.fechadoEm?" em "+new Date(r.fechadoEm).toLocaleString("pt-BR"):""}` : "RASCUNHO — RDO ainda não fechado", M, 24.5);
-    let y=38; doc.setTextColor(20);
+    const doc=await novoPdf(`Relatório Diário de Obra — RDO nº ${r?.numero||numeroRdo(d)}`, `${nomeObra()} · ${cidadeObra()} · ${dataLonga(d)} · ${dataBR(d)}`,
+      fechado ? `Fechado por ${r.fechadoPor||"—"}${r.fechadoEm?" em "+new Date(r.fechadoEm).toLocaleString("pt-BR"):""}` : "RASCUNHO — RDO ainda não fechado"), W=210, M=12, AZ=PDF_AZ;
+    let y=38;
     const tit=s=>{ if(y>262){ doc.addPage(); y=16; } doc.setFont("helvetica","bold"); doc.setFontSize(11); doc.setTextColor(...AZ); doc.text(s,M,y); y+=4; doc.setTextColor(20); doc.setFont("helvetica","normal"); };
     const tab=(head,body,opts={})=>{ doc.autoTable({startY:y,head:[head],body,margin:{left:M,right:M},styles:{fontSize:8.5,cellPadding:1.6,textColor:20},
       headStyles:{fillColor:AZ,textColor:255,fontStyle:"bold"},alternateRowStyles:{fillColor:[244,246,249]},...opts}); y=doc.lastAutoTable.finalY+7; };
@@ -4912,7 +5067,9 @@ async function pdfRdo(d, btn){
     tit("5. Ocorrências e observações");
     const ocAco=regsAll().filter(x=>x.tipo==="ocorrencia" && x.data===d);
     for(const o of ocAco) paragrafo(`• ${o.cat||"Ocorrência"}${o.horas?` (${nf1.format(o.horas)} h perdidas)`:""}: ${o.texto||""}`);
-    paragrafo(dados.ocorr?.trim() || (ocAco.length ? "" : "Sem ocorrências."));
+    const ocSeg=regs2De("seg","ocor").filter(x=>x.data===d);
+    for(const o of ocSeg) paragrafo(`• Segurança · ${o.dados.classe||"Ocorrência"}${o.dados.local?" · "+o.dados.local:""}: ${o.dados.desc||""}${o.status?` (${o.status})`:""}`);
+    paragrafo(dados.ocorr?.trim() || (ocAco.length||ocSeg.length ? "" : "Sem ocorrências."));
     tit("Visitas e fiscalização"); paragrafo(dados.visitas?.trim() || "Sem visitas registradas.");
     // fotos: 2 por linha, até 12
     const sem=new Set(dados.semFoto||[]), fts=fotosDoDia(d).filter(f=>!sem.has(f.id)).slice(0,12);
@@ -4939,13 +5096,9 @@ async function pdfRdo(d, btn){
       const x=M+k*(cwA+16); doc.setDrawColor(120); doc.setLineWidth(0.3); doc.line(x,y,x+cwA,y);
       doc.setFontSize(8); doc.setTextColor(60); doc.text(rot,x,y+4); if(nome) doc.text(nome,x,y+8); });
     // marca d'água e numeração
-    const n=doc.getNumberOfPages();
-    for(let p=1;p<=n;p++){ doc.setPage(p);
-      if(!fechado){ doc.saveGraphicsState(); doc.setGState(new doc.GState({opacity:0.12})); doc.setFontSize(64); doc.setTextColor(180,35,24); doc.text("RASCUNHO",W/2,170,{align:"center",angle:35}); doc.restoreGraphicsState(); }
-      doc.setFontSize(7); doc.setTextColor(120); doc.text(`RDO nº ${r?.numero||numeroRdo(d)} · ${dataBR(d)} · página ${p} de ${n}`,W-M,292,{align:"right"}); }
-    const nome=`RDO_${String(r?.numero||numeroRdo(d)).padStart(3,"0")}_${d}.pdf`, blob=doc.output("blob"), file=new File([blob],nome,{type:"application/pdf"});
-    if(navigator.canShare?.({files:[file]})){ try{ await navigator.share({files:[file],title:`RDO ${dataBR(d)}`}); }catch(e){ if(e.name!=="AbortError") baixar(nome,blob); } }
-    else baixar(nome,blob);
+    rodapePdf(doc, (p,n)=>`RDO nº ${r?.numero||numeroRdo(d)} · ${dataBR(d)} · página ${p} de ${n}`, {antes: fechado ? null : ()=>{
+      doc.saveGraphicsState(); doc.setGState(new doc.GState({opacity:0.12})); doc.setFontSize(64); doc.setTextColor(180,35,24); doc.text("RASCUNHO",W/2,170,{align:"center",angle:35}); doc.restoreGraphicsState(); }});
+    await entregarPdf(doc, `RDO_${String(r?.numero||numeroRdo(d)).padStart(3,"0")}_${d}.pdf`, `RDO ${dataBR(d)}`);
   }catch(e){ toast(e.message||"Não foi possível gerar o PDF."); }
   finally{ btn.disabled=false; btn.textContent=txt; }
 }
@@ -5238,16 +5391,9 @@ async function relatorioConc(c, btn){
   const txt=btn.textContent; btn.disabled=true; btn.textContent="Gerando…";
   try{
     await buscarTracos(c.id);
-    await carregarScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js");
-    await carregarScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js");
-    const {jsPDF}=window.jspdf, doc=new jsPDF({unit:"mm",format:"a4"}), W=210, M=12, AZ=[31,58,95];
-    doc.setFillColor(...AZ); doc.rect(0,0,W,30,"F");
-    const logo=await logoRelatorio();
-    if(logo){ const lw=Math.min(52,14*logo.w/logo.h), lh=lw*logo.h/logo.w; doc.addImage(logo.src,"PNG",W-M-lw,(30-lh)/2,lw,lh,undefined,"FAST"); }
-    doc.setTextColor(255); doc.setFont("helvetica","bold"); doc.setFontSize(15); doc.text("Relatório de concretagem — SAA Rio Grande",M,11);
-    doc.setFont("helvetica","normal"); doc.setFontSize(10); doc.text(`${c.estrutura}${c.local?" · "+c.local:""} · ${dataBR(c.data)} · ${c.status}`,M,18.5);
-    doc.setFontSize(8); doc.text(`Gerado em ${new Date().toLocaleString("pt-BR")} por ${quemSou()}`,M,24.5);
-    let y=38; doc.setTextColor(20);
+    const doc=await novoPdf(`Relatório de concretagem — ${nomeObra()}`, `${c.estrutura}${c.local?" · "+c.local:""} · ${dataBR(c.data)} · ${c.status}`,
+      `Gerado em ${new Date().toLocaleString("pt-BR")} por ${quemSou()}`), W=210, M=12, AZ=PDF_AZ;
+    let y=38;
     const lanc=volLancado(c);
     doc.autoTable({startY:y, margin:{left:M,right:M}, theme:"plain", styles:{fontSize:9,cellPadding:1.2},
       body:[["Volume lançado",`${nf1.format(lanc)} m³`,"Previsto",c.volPrev?`${nf1.format(c.volPrev)} m³`:"—"],["Caminhões",String(c.cams.length),"Forma",c.pdfNome?pjTitulo(c.pdfNome):"—"]],
@@ -5278,12 +5424,402 @@ async function relatorioConc(c, btn){
       }
       pdf.destroy();
     } else { doc.setFontSize(9); doc.text("Nenhuma área pintada na forma.",M,y); y+=8; }
-    const n=doc.getNumberOfPages(); for(let p=1;p<=n;p++){ doc.setPage(p); doc.setFontSize(7); doc.setTextColor(120); doc.text(`Página ${p} de ${n}`,W-M,292,{align:"right"}); }
-    const nome=`Concretagem_${c.estrutura.replace(/\W+/g,"_")}_${c.data}.pdf`, blob=doc.output("blob"), file=new File([blob],nome,{type:"application/pdf"});
-    if(navigator.canShare?.({files:[file]})){ try{ await navigator.share({files:[file],title:`Concretagem ${c.estrutura}`}); }catch(e){ if(e.name!=="AbortError") baixar(nome,blob); } }
-    else baixar(nome,blob);
+    rodapePdf(doc);
+    await entregarPdf(doc, `Concretagem_${c.estrutura.replace(/\W+/g,"_")}_${c.data}.pdf`, `Concretagem ${c.estrutura}`);
   }catch(e){ toast(e.message||"Não foi possível gerar o relatório."); }
   finally{ btn.disabled=false; btn.textContent=txt; }
+}
+
+// ================= Módulos novos: motor genérico de registros (aba Registros2) =================
+// Cada módulo é um esquema: tipos de registro, cada um com seus campos. O motor monta a lista (filtro por período e busca),
+// o formulário (efModal), a edição e exclusão com confirmação, quem criou/alterou e o PDF com o cabeçalho padrão.
+const savePendReg2 = () => { MEMO_EF.clear(); LS.set("pendReg2",S.pendReg2); LS.set("pendReg2Del",S.pendReg2Del); };
+const regs2 = () => memoEf("reg2", ()=>{
+  const m=new Map(S.reg2.map(r=>[r.id,r]));
+  for(const [id,p] of Object.entries(S.pendReg2)){ const {log, ...c}=p; m.set(id,{id, dados:{}, status:"", ...m.get(id), ...c, pend:true}); }
+  for(const id of S.pendReg2Del) m.delete(id);
+  return [...m.values()].sort((a,b)=>String(b.data).localeCompare(String(a.data)) || String(b.criadoEm||"").localeCompare(String(a.criadoEm||"")));
+});
+const regs2De = (mod, tipo) => regs2().filter(r=>r.modulo===mod && (!tipo || r.tipo===tipo));
+function setReg2(id, campos, log){ const p=(S.pendReg2[id] ??= {}); Object.assign(p, campos); if(log) p.log=log; savePendReg2(); scheduleSync(); }
+function delReg2(id){ delete S.pendReg2[id]; if(S.reg2.some(r=>r.id===id)) S.pendReg2Del.push(id); savePendReg2(); scheduleSync(); }
+// tira da fila só o que o Google devolveu igual
+function limparPendReg2(snap, snapDel, j){
+  if(!j.registros2) return; // Code.gs antigo: fica tudo na fila até atualizar
+  const srv=new Map(j.registros2.map(r=>[r.id,r])), igual=(a,b)=>JSON.stringify(a??null)===JSON.stringify(b??null), corte=somaDias(hojeISO(),-115);
+  for(const [id,x] of Object.entries(snap)){
+    const s=srv.get(id), {log, ...c}=x;
+    // registro antigo e fechado: o Google grava, mas não devolve mais (fica só na planilha)
+    const ok = s ? Object.entries(c).every(([k,v])=> k==="dados" ? igual(s.dados,v) : String(s[k]??"")===String(v??"")) : !!(x.data && x.data<corte);
+    if(ok && igual(S.pendReg2[id],x)) delete S.pendReg2[id];
+  }
+  S.pendReg2Del=S.pendReg2Del.filter(id=>!(snapDel.includes(id) && !srv.has(id)));
+  savePendReg2();
+}
+// fotos de um registro: ficam nos Registros (código "R2:<id>") e vão para a pasta Fotos, como as outras
+const fotosReg2 = id => regsAll().filter(r=>r.tipo==="foto" && r.cod==="R2:"+id);
+async function fotoReg2(id, legenda, input){
+  const f=input.files[0]; input.value=""; if(!f) return false;
+  try{
+    const blob=await carimbarFoto(f, nomeObra()+(legenda?" · "+legenda:"")); if(!blob) return false;
+    const h=hojeISO(), r={id:uid(), data:h, sem:semanaDaData(h), equipe:"", tipo:"foto", cod:"R2:"+id, texto:legenda||""};
+    await (await caches.open(FOTOS)).put("foto/"+r.id, new Response(blob,{headers:{"Content-Type":"image/jpeg"}}));
+    addReg(r); toast("Foto guardada"); return true;
+  }catch{ toast("Não foi possível salvar a foto. Tente de novo."); return false; }
+}
+
+// --- campos do formulário: t = txt, area, num (un), data, hora, sel (ops), pessoa, pessoas, est, equip, check (itens), itens ---
+const CK_VALS=[["C","Conforme","ok"],["NC","Não conforme","bad"],["NA","Não se aplica",""]];
+const nomesPessoas = () => pessoas().filter(p=>p.ativo).map(p=>p.nome);
+const equipsCadastrados = () => regs2De("equip","cad").filter(r=>r.status!=="Inativo").map(r=>r.dados.nome).filter(Boolean).sort((a,b)=>a.localeCompare(b,"pt-BR"));
+function campoReg2(c, v, ctx){
+  const ops = typeof c.ops==="function" ? c.ops(ctx) : (c.ops||[]);
+  if(c.t==="area"){ const i=el("textarea",{rows:3,maxLength:2000,value:v??"",placeholder:c.dica||""}); return {elm:campoEf(c.rot,i,true), ler:()=>i.value.trim()}; }
+  if(c.t==="num"){ const i=el("input",{type:"text",inputMode:"decimal",autocomplete:"off",value:v!=null&&v!==""?String(v).replace(".",","):"",placeholder:c.dica||""});
+    return {elm:campoEf(c.rot+(c.un?` (${c.un})`:""),i), ler:()=>i.value.trim()==="" ? "" : num(i.value), inp:i}; }
+  if(c.t==="data"||c.t==="hora"){ const i=el("input",{type:c.t==="data"?"date":"time",value:v||""}); return {elm:campoEf(c.rot,i), ler:()=>i.value}; }
+  if(c.t==="sel"||c.t==="equip"||c.t==="est"){
+    const lista = c.t==="equip" ? equipsCadastrados() : c.t==="est" ? estruturasObra() : ops;
+    const i=el("select",{}, el("option",{value:"",text:"Escolha…"}), ...lista.map(o=>el("option",{value:o,text:o})), el("option",{value:"__outro",text:"✎ Outro…"}));
+    const outro=el("input",{type:"text",maxLength:120,placeholder:"Escreva"}), boxO=campoEf("Qual?",outro);
+    if(v && !lista.includes(v)){ i.value="__outro"; outro.value=v; } else i.value=v||"";
+    const aj=()=>{ boxO.hidden=i.value!=="__outro"; }; i.onchange=()=>{ aj(); c.mudou?.(i.value, ctx); }; aj();
+    return {elm:el("div",{class:"full r2-dupla"}, campoEf(c.rot,i), boxO), ler:()=>i.value==="__outro" ? outro.value.trim() : i.value, sel:i}; }
+  if(c.t==="pessoa"){ const id="dl-"+uid().slice(0,6), i=el("input",{type:"text",maxLength:120,value:v||"",placeholder:"Nome",autocomplete:"off"}); i.setAttribute("list",id);
+    return {elm:el("div",{class:"campo"}, campoEf(c.rot,i), listaDatalist(id, nomesPessoas())), ler:()=>i.value.trim()}; }
+  if(c.t==="pessoas"){
+    // quem deu OK na presença no dia (e quem já estava marcado); dá para escrever outros nomes
+    const marc=new Set(Array.isArray(v)?v:[]), pres=presentesHoje().map(p=>p.nome), nomes=[...new Set([...marc, ...pres])].sort((a,b)=>a.localeCompare(b,"pt-BR"));
+    const caixas=nomes.map(n=>el("input",{type:"checkbox",value:n,checked:marc.has(n),"aria-label":n}));
+    const extra=el("input",{type:"text",maxLength:300,placeholder:"Outros nomes, separados por vírgula"});
+    const todos=el("button",{class:"linkbtn",type:"button",text:"Marcar todos",onclick:()=>caixas.forEach(x=>x.checked=true)});
+    return {elm:el("div",{class:"campo full"}, `${c.rot} (quem deu OK hoje)`, nomes.length ? el("div",{class:"pr-escolha"}, ...caixas.map(x=>el("label",{class:"chk pr-pessoa"}, x, el("span",{text:x.value})))) : el("p",{class:"info",text:"Ninguém com OK na presença hoje."}),
+      nomes.length>3 ? todos : null, extra),
+      ler:()=>[...caixas.filter(x=>x.checked).map(x=>x.value), ...extra.value.split(",").map(s=>s.trim()).filter(Boolean)]}; }
+  if(c.t==="check"){
+    const itens=(typeof c.itens==="function" ? c.itens(ctx) : c.itens)||[], val={...(v||{})}, box=el("div",{class:"r2-check"});
+    const desenhar=lista=>repor(box, ...lista.map(it=>el("div",{class:"r2-ck"}, el("span",{text:it}),
+      el("div",{class:"pr-bts"}, ...CK_VALS.map(([k,rot,cls])=>{ const b=el("button",{class:"chipbtn "+(val[it]===k?"on "+cls:""),type:"button",text:k==="C"?"✓ C":k==="NC"?"✗ NC":"N/A","aria-label":`${it}: ${rot}`,"aria-pressed":String(val[it]===k)});
+        b.onclick=()=>{ val[it] = val[it]===k ? "" : k; if(!val[it]) delete val[it]; desenhar(lista); }; return b; })))));
+    desenhar(itens); ctx.recheck = l => { for(const k of Object.keys(val)) if(!l.includes(k)) delete val[k]; desenhar(l); };
+    return {elm:el("div",{class:"campo full"}, c.rot, el("small",{class:"info",text:"C = conforme · NC = não conforme · N/A = não se aplica"}), box), ler:()=>({...val})}; }
+  if(c.t==="itens"){
+    // tabela simples: serviço, unidade, quantidade, valor unitário
+    const linhas=(Array.isArray(v)?v:[]).map(x=>({...x})), box=el("div",{class:"r2-itens"});
+    const desenhar=()=>repor(box, ...linhas.map((x,k)=>{ const f=(cp,ph,w,dec)=>{ const i=el("input",{type:"text",value:x[cp]!=null?String(x[cp]).replace(".",","):"",placeholder:ph,style:`width:${w}`,inputMode:dec?"decimal":"text"}); i.oninput=()=>{ x[cp]=dec?num(i.value):i.value; }; return i; };
+      return el("div",{class:"row r2-item"}, f("serv","Serviço","100%"), f("un","Un.","4.5em"), f("qtd","Qtd.","5em",true), f("vu","R$ unit.","6em",true),
+        el("button",{class:"linkbtn del",type:"button",text:"✕","aria-label":"Tirar item",onclick:()=>{ linhas.splice(k,1); desenhar(); }})); }),
+      el("button",{class:"btn",type:"button",text:"+ Item",onclick:()=>{ linhas.push({serv:"",un:"",qtd:"",vu:""}); desenhar(); }}));
+    desenhar();
+    return {elm:el("div",{class:"campo full"}, c.rot, box), ler:()=>linhas.filter(x=>String(x.serv||"").trim()).map(x=>({serv:String(x.serv).trim(), un:String(x.un||"").trim(), qtd:num(x.qtd), vu:num(x.vu)}))}; }
+  const i=el("input",{type:"text",maxLength:c.max||200,value:v??"",placeholder:c.dica||""}); if(ops.length){ const id="dl-"+uid().slice(0,6); i.setAttribute("list",id); return {elm:el("div",{class:"campo"+(c.full?" full":"")}, campoEf(c.rot,i), listaDatalist(id,ops)), ler:()=>i.value.trim()}; }
+  return {elm:campoEf(c.rot,i,c.full), ler:()=>i.value.trim()};
+}
+// valor de um campo em texto curto (cartões e PDF)
+function fmtVal(c, v){
+  if(v==null || v==="" || (Array.isArray(v)&&!v.length)) return "";
+  if(c.t==="num") return nf1.format(v).replace(/,0$/,"")+(c.un?" "+c.un:"");
+  if(c.t==="data") return dataBR(v);
+  if(c.t==="pessoas") return v.length>4 ? `${v.length} pessoas` : v.join(", ");
+  if(c.t==="check"){ const n=k=>Object.values(v).filter(x=>x===k).length, nc=n("NC"); return `${n("C")} C · ${nc} NC`+(nc?` (${Object.entries(v).filter(([,x])=>x==="NC").map(([k])=>k).join(", ")})`:""); }
+  if(c.t==="itens") return `${v.length} ite${v.length>1?"ns":"m"} · R$ ${nf1.format(v.reduce((s,x)=>s+(x.qtd||0)*(x.vu||0),0))}`;
+  return String(v);
+}
+const tituloReg2 = (T, r) => T.titulo ? T.titulo(r.dados, r) : fmtVal(T.campos[0], r.dados[T.campos[0].k]) || T.nome;
+
+// --- formulário de um registro (novo, editar ou só ver) ---
+function formReg2(mod, tipo, r, pre){
+  const M=MOD2[mod], T=M.tipos.find(x=>x.id===tipo), nova=!r, id=r?.id||uid().slice(0,12), ed=pode(M.edit);
+  const dados={...(pre||{}), ...(r?.dados||{})}, ctx={data:r?.data||hojeISO(), dados, nova};
+  const iData = T.semData ? null : el("input",{type:"date",value:ctx.data,max:hojeISO()});
+  const cs=T.campos.map(c=>({c, ...campoReg2(c, dados[c.k] ?? (nova && c.padrao!=null ? (typeof c.padrao==="function"?c.padrao(ctx):c.padrao) : undefined), ctx)}));
+  const iSt = T.status ? el("div",{class:"pr-bts"}) : null; let st=r?.status || T.status?.[0] || "";
+  const desSt=()=>iSt && repor(iSt, ...T.status.map(s=>el("button",{class:"chipbtn"+(st===s?" on":""),type:"button",text:s,"aria-pressed":String(st===s),onclick:()=>{ st=s; desSt(); }})));
+  desSt();
+  // fotos (só quando o tipo pede): a foto vai para a fila na hora; o registro guarda só a ligação pelo id
+  const boxF=el("div",{class:"full"});
+  const desF=()=>{ if(!T.fotos) return; const n=fotosReg2(id).length, cam=el("input",{type:"file",accept:"image/*",hidden:true}); cam.setAttribute("capture","environment");
+    cam.onchange=async()=>{ if(await fotoReg2(id, tituloReg2(T,{dados:lerDados()}), cam)) desF(); };
+    repor(boxF, el("div",{class:"row"}, ed ? el("button",{class:"btn",type:"button",text:`📷 ${T.fotos}`,onclick:()=>cam.click()}) : null, el("span",{class:"info",text:n?`${n} foto${n>1?"s":""}`:"Sem fotos"})), cam); };
+  const lerDados=()=>{ const d={}; for(const x of cs){ const v=x.ler(); if(v!=="" && !(Array.isArray(v)&&!v.length) && !(typeof v==="object"&&!Array.isArray(v)&&!Object.keys(v).length)) d[x.c.k]=v; } T.calc?.(d); return d; };
+  desF();
+  const salvar=()=>{
+    const d=lerDados(), falta=T.campos.filter(c=>c.obrig && (d[c.k]==null||d[c.k]==="")).map(c=>c.rot);
+    if(falta.length) return toast(`Preencha: ${falta.join(", ")}.`);
+    const data=iData?.value || r?.data || hojeISO();
+    if(data>hojeISO()) return toast("A data não pode ser depois de hoje.");
+    setReg2(id, {modulo:mod, tipo, data, dados:d, status:st}, nova?`Criou: ${tituloReg2(T,{dados:d})}`:`Alterou: ${tituloReg2(T,{dados:d})}`);
+    toast(nova?"Registro criado.":"Registro salvo."); fecharEf();
+  };
+  const quem = r ? el("p",{class:"info full",text:`Criado por ${r.criadoPor||quemSou()}${r.criadoEm?" em "+quandoTxt(r.criadoEm):""}`+(r.atualizadoPor&&r.atualizadoEm?` · última alteração: ${r.atualizadoPor}, ${quandoTxt(r.atualizadoEm)}`:"")+(r.pend?" · a enviar":"")}) : null;
+  efModal(`${nova?"Novo":ed?"Editar":"Ver"}: ${T.nome}`,
+    [iData ? campoEf("Data",iData) : null, ...cs.map(x=>x.elm), iSt ? el("div",{class:"campo full"}, "Situação", iSt) : null, boxF, quem],
+    ed ? [el("button",{class:"btn pri",type:"button",text:nova?"Criar":"Salvar",onclick:salvar}),
+      nova ? null : el("button",{class:"btn",type:"button",text:"Excluir",style:"color:var(--bad);margin-left:auto",onclick:()=>{
+        if(!confirm(`Excluir este registro (${T.nome})? A exclusão fica registrada no Histórico da planilha.`)) return;
+        delReg2(id); toast("Registro excluído."); fecharEf(); }})] : []);
+  if(!ed) $("#ef-m-corpo").querySelectorAll("input,select,textarea,button.chipbtn").forEach(x=>x.disabled=true);
+}
+
+// --- tela do módulo: lista com período, busca, + novo, PDF ---
+const RG={mod:null, tipo:{}, dias:LS.get("rgDias")??30, busca:""};
+function abrirModulo(mod){
+  const M=MOD2[mod]; if(!M) return;
+  if(!pode(M.acesso||mod)) return toast("Seu cargo não tem acesso a esta parte do app.");
+  RG.mod=mod; RG.busca=""; abrirTela("reg");
+}
+function listaReg2(){
+  const M=MOD2[RG.mod], T=M.tipos.find(x=>x.id===RG.tipo[RG.mod]) || M.tipos[0], q=normTxt(RG.busca), desde=T.semData||!RG.dias ? "" : somaDias(hojeISO(),-RG.dias);
+  return {M, T, lista: regs2De(RG.mod, T.id).filter(r=>(!desde || r.data>=desde) && (!q || normTxt(tituloReg2(T,r)+" "+T.campos.map(c=>fmtVal(c,r.dados[c.k])).join(" ")+" "+r.status).includes(q)))};
+}
+function cardReg2(r, T){
+  const linhas=T.campos.filter(c=>!c.semCard).map(c=>[c, fmtVal(c, r.dados[c.k])]).filter(([,v])=>v).slice(1,4), nf=T.fotos?fotosReg2(r.id).length:0;
+  const cor = /conforme$|resolvid|ativo|trabalhando|conclu/i.test(r.status) && !/não/i.test(r.status) ? "ok" : /não conforme|aberta|parado|manuten|acidente/i.test(r.status) ? "bad" : "";
+  return el("button",{class:"card r2-card",type:"button",onclick:()=>formReg2(RG.mod, T.id, r)},
+    el("div",{class:"i-top"}, el("b",{text:tituloReg2(T,r)}), r.status ? el("span",{class:"chip "+cor,text:r.status}) : null),
+    el("div",{class:"i-sub",text:[T.semData?"":dataBR(r.data), ...linhas.map(([c,v])=>`${c.rot}: ${v}`)].filter(Boolean).join(" · ")}),
+    nf || r.pend ? el("div",{class:"info"}, nf?`📷 ${nf}`:"", r.pend?el("span",{style:"color:var(--warn)",text:" · a enviar"}):null) : null);
+}
+function renderReg2(){
+  const box=$("#reg2"); if(!box || !RG.mod) return;
+  const {M, T, lista}=listaReg2(), ed=pode(M.edit);
+  if(M.render) return M.render(box); // telas especiais (Relatórios)
+  const busca=el("input",{type:"search",placeholder:"Buscar",value:RG.busca,"aria-label":"Buscar"});
+  let bT; busca.oninput=()=>{ clearTimeout(bT); bT=setTimeout(()=>{ RG.busca=busca.value; renderReg2(); $("#reg2 input[type=search]")?.focus(); },300); };
+  const per=T.semData ? null : el("select",{"aria-label":"Período",onchange:e=>{ RG.dias=+e.target.value; LS.set("rgDias",RG.dias); renderReg2(); }},
+    ...[[7,"Últimos 7 dias"],[30,"Últimos 30 dias"],[120,"Últimos 120 dias"],[0,"Todos"]].map(([v,t])=>el("option",{value:v,text:t,selected:RG.dias===v})));
+  repor(box,
+    el("p",{class:"saud"}, M.titulo?.(T)||M.nome, el("small",{text:M.desc})),
+    !ed ? el("p",{class:"info",text:"Só leitura para o seu cargo."}) : null,
+    M.tipos.length>1 && !M.semAbas ? el("div",{class:"modo",role:"group","aria-label":"Tipo de registro"}, ...M.tipos.map(x=>el("button",{class:"chipbtn"+(x===T?" on":""),type:"button",text:x.nome,"aria-pressed":String(x===T),
+      onclick:()=>{ RG.tipo[RG.mod]=x.id; RG.busca=""; renderReg2(); }}))) : null,
+    ...(M.topo?.(T, lista)||[]),
+    ed && !T.semNovo ? el("button",{class:"btn pri ps-novo",type:"button",text:`+ ${T.novo||"Novo registro"}`,onclick:()=>formReg2(RG.mod, T.id, null, T.pre?.())}) : null,
+    el("div",{class:"filtros"}, per, busca),
+    el("h2",{class:"tela-tit",text:`${T.nome} · ${lista.length}`}),
+    ...(lista.length ? lista.slice(0,200).map(r=>cardReg2(r,T)) : [el("div",{class:"vazio",text:ed&&!T.semNovo?`Nada registrado${T.semData?"":" no período"}. Toque em + ${T.novo||"Novo registro"}.`:"Nada registrado."})]),
+    lista.length ? el("div",{class:"row"}, el("button",{class:"btn",type:"button",text:"📄 PDF da lista",onclick:e=>pdfReg2(T, lista, e.target)})) : null,
+    ...(M.rodape?.(T, lista)||[]));
+}
+async function pdfReg2(T, lista, btn, mod=RG.mod, perTxt){
+  const M=MOD2[mod], txt=btn.textContent; btn.disabled=true; btn.textContent="Gerando PDF…";
+  try{
+    const per = perTxt || (T.semData ? "cadastro" : RG.dias ? `${dataBR(somaDias(hojeISO(),-RG.dias))} a ${dataBR(hojeISO())}` : "todos os registros");
+    const doc=await novoPdf(`${M.titulo?.(T)||M.nome} — ${T.nome}`, `${nomeObra()} · ${per} · ${lista.length} registro${lista.length>1?"s":""}`), M2=12;
+    const cols=T.campos.filter(c=>!c.semPdf).slice(0,6);
+    doc.autoTable({startY:38, margin:{left:M2,right:M2}, head:[[...(T.semData?[]:["Data"]), ...cols.map(c=>c.rot), ...(T.status?["Situação"]:[])]],
+      body:lista.map(r=>[...(T.semData?[]:[dataBR(r.data)]), ...cols.map(c=>fmtVal(c,r.dados[c.k])), ...(T.status?[r.status]:[])]),
+      styles:{fontSize:8,cellPadding:1.5,textColor:20}, headStyles:{fillColor:PDF_AZ,textColor:255,fontStyle:"bold"}, alternateRowStyles:{fillColor:[244,246,249]}});
+    M.pdfExtra?.(doc, T, lista);
+    rodapePdf(doc);
+    const arq = s => s.normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/\W+/g,"_");
+    await entregarPdf(doc, `${arq(M.titulo?.(T)||M.nome)}_${arq(T.nome)}_${hojeISO()}.pdf`, `${M.titulo?.(T)||M.nome} — ${T.nome}`);
+  }catch(e){ toast(e.message||"Não foi possível gerar o PDF."); }
+  finally{ btn.disabled=false; btn.textContent=txt; }
+}
+
+// --- esquemas dos módulos ---
+const CHECK_SEG=["EPI em uso (capacete, bota, luva, óculos)","Cinto e linha de vida em altura","Andaimes e escadas","Escavações escoradas e sinalizadas",
+  "Máquinas e equipamentos em ordem","Instalações elétricas provisórias","Organização e limpeza","Sinalização e isolamento de área","Extintores e primeiros socorros"];
+const FVS_PADRAO={
+  "Armação":["Bitolas conforme projeto","Quantidade e espaçamento das barras","Comprimento de traspasse e ancoragem","Cobrimento (espaçadores)","Amarração e limpeza das barras"],
+  "Forma":["Dimensões e prumo","Nível e alinhamento","Estanqueidade (sem frestas)","Escoramento e travamento","Limpeza e desmoldante"],
+  "Concretagem":["Forma e armação liberadas","Slump conferido","Lançamento e adensamento","Juntas de concretagem","Cura iniciada"],
+  "Alvenaria":["Prumo e nível","Amarração dos blocos","Juntas uniformes","Vergas e contravergas","Limpeza"],
+  "Impermeabilização":["Superfície preparada","Primer aplicado","Demãos / sobreposição","Arremates em ralos e cantos","Teste de estanqueidade"],
+  "Escavação e reaterro":["Cotas e dimensões","Escoramento","Compactação por camadas","Controle de umidade","Limpeza do fundo"]};
+const itensFvs = serv => { const m=regs2De("qual","modelo").find(r=>r.dados.servico===serv); return m ? String(m.dados.itens||"").split("\n").map(s=>s.trim()).filter(Boolean) : (FVS_PADRAO[serv]||[]); };
+const MAT2={ conc:{nome:"Concreto",un:"m³"}, forma:{nome:"Formas",un:"m²"}, rachao:{nome:"Rachão",un:"m³"}, bica:{nome:"Bica corrida",un:"m³"}, bgs:{nome:"BGS",un:"m³"}, areia:{nome:"Areia",un:"m³"} };
+const UNIDADES=["m³","m²","t","kg","un","viagem"];
+// total por mês (Suprimentos) e por dia (Forma/Escavação)
+const porMes = (lista, val) => { const m=new Map(); for(const r of lista){ const k=r.data.slice(0,7); m.set(k,(m.get(k)||0)+val(r)); } return [...m].sort((a,b)=>b[0].localeCompare(a[0])); };
+const mesTxt = ym => new Date(ym+"-15T12:00").toLocaleDateString("pt-BR",{month:"long",year:"numeric"});
+function tabelaSimples(cab, linhas){ return el("div",{class:"tbl"}, el("table",{}, el("thead",{}, el("tr",{}, ...cab.map(c=>el("th",{text:c})))), el("tbody",{}, ...linhas.map(l=>el("tr",{}, ...l.map(v=>el("td",{text:String(v)}))))))); }
+// equipe do dia vinda da Produção (atividades cujo nome combina), para Forma e Escavação
+const equipeProducao = re => { const h=hojeISO(), ids=new Set(); for(const a of ativs()) if(re.test(a.atividade)) for(const id of a.equipes?.[h]||[]) ids.add(id); return [...ids].map(nomePessoa).filter(n=>n!=="?"); };
+const supMat = mat => ({ id:mat, nome:`Recebimento`, novo:"Novo recebimento", fotos:"Foto da nota",
+  campos:[{k:"forn",rot:"Fornecedor",t:"txt",obrig:true,ops:()=>[...new Set(regs2De("sup",mat).map(r=>r.dados.forn).filter(Boolean))]},{k:"nf",rot:"Nota fiscal",t:"txt"},
+    {k:"qtd",rot:"Quantidade",t:"num",obrig:true},{k:"un",rot:"Unidade",t:"sel",ops:UNIDADES,padrao:MAT2[mat].un},{k:"placa",rot:"Placa",t:"txt",max:10},{k:"obs",rot:"Observação",t:"area"}],
+  titulo:d=>`${d.forn||"Fornecedor"} · ${fmtVal({t:"num"},d.qtd)} ${d.un||""}` });
+
+const MOD2={
+  equip:{nome:"Equipamentos", desc:"Cadastro e apontamento diário", edit:"equip-edit", tipos:[
+    {id:"apont", nome:"Apontamentos", novo:"Novo apontamento", status:["Trabalhando","Parado","Em manutenção"],
+      campos:[{k:"equip",rot:"Equipamento",t:"equip",obrig:true},{k:"hi",rot:"Horímetro inicial",t:"num",un:"h"},{k:"hf",rot:"Horímetro final",t:"num",un:"h"},
+        {k:"horas",rot:"Horas trabalhadas",t:"num",un:"h",dica:"Ou deixe em branco: conta pelo horímetro"},{k:"operador",rot:"Operador",t:"pessoa"},{k:"obs",rot:"Observação",t:"area"}],
+      calc:d=>{ if(d.horas==null && d.hi!=null && d.hf!=null && d.hf>=d.hi) d.horas=Math.round((d.hf-d.hi)*10)/10; },
+      titulo:d=>d.equip||"Equipamento"},
+    {id:"cad", nome:"Cadastro", novo:"Novo equipamento", semData:true, status:["Ativo","Inativo"],
+      campos:[{k:"nome",rot:"Nome",t:"txt",obrig:true,dica:"Ex.: Escavadeira 01"},{k:"tipo",rot:"Tipo",t:"txt",ops:EQUIP_PADRAO},{k:"ident",rot:"Identificação / placa",t:"txt"},
+        {k:"posse",rot:"Próprio ou locado",t:"sel",ops:["Próprio","Locado"]},{k:"empresa",rot:"Empresa",t:"txt"}]}],
+    topo:(T)=>T.id==="apont" && !equipsCadastrados().length ? [el("p",{class:"aviso",text:"Cadastre os equipamentos primeiro (aba Cadastro)."})] : []},
+  seg:{nome:"Segurança", desc:"DDS, inspeções e ocorrências", edit:"seg-edit", tipos:[
+    {id:"dds", nome:"DDS", novo:"Novo DDS", fotos:"Foto do DDS",
+      campos:[{k:"tema",rot:"Tema",t:"txt",obrig:true,full:true},{k:"part",rot:"Participantes",t:"pessoas"},{k:"resp",rot:"Quem conduziu",t:"pessoa",padrao:()=>U?.nome||""},{k:"obs",rot:"Observação",t:"area"}],
+      titulo:d=>d.tema},
+    {id:"insp", nome:"Inspeções", novo:"Nova inspeção", fotos:"Foto", status:["Aberta","Resolvida"],
+      campos:[{k:"local",rot:"Local",t:"est",obrig:true},{k:"ck",rot:"Checklist",t:"check",itens:CHECK_SEG},{k:"prazo",rot:"Prazo de correção",t:"data"},
+        {k:"resp",rot:"Responsável pela correção",t:"pessoa"},{k:"obs",rot:"O que precisa corrigir",t:"area"}],
+      titulo:d=>`Inspeção · ${d.local||""}`},
+    {id:"ocor", nome:"Ocorrências", novo:"Nova ocorrência", fotos:"Foto", status:["Aberta","Resolvida"],
+      campos:[{k:"classe",rot:"Tipo",t:"sel",ops:["Incidente","Quase-acidente","Acidente"],obrig:true},{k:"local",rot:"Local",t:"est"},{k:"desc",rot:"O que aconteceu",t:"area",obrig:true},
+        {k:"env",rot:"Envolvidos",t:"pessoas"},{k:"acao",rot:"Ação tomada",t:"area"}],
+      titulo:d=>`${d.classe||"Ocorrência"}${d.local?" · "+d.local:""}`}]},
+  qual:{nome:"Qualidade", desc:"Fichas de verificação (FVS)", edit:"qual-edit", tipos:[
+    {id:"fvs", nome:"FVS", novo:"Nova FVS", fotos:"Foto", status:["Conforme","Não conforme","Reinspecionada"],
+      campos:[{k:"servico",rot:"Serviço",t:"sel",ops:()=>[...new Set([...Object.keys(FVS_PADRAO), ...regs2De("qual","modelo").map(r=>r.dados.servico)])],obrig:true,mudou:(v,ctx)=>ctx.recheck?.(itensFvs(v))},
+        {k:"local",rot:"Local (estrutura)",t:"est",obrig:true},{k:"det",rot:"Detalhe do local",t:"txt",dica:"Ex.: parede 3"},
+        {k:"ck",rot:"Itens verificados",t:"check",itens:ctx=>itensFvs(ctx.dados.servico)},{k:"resp",rot:"Responsável",t:"pessoa",padrao:()=>U?.nome||""},
+        {k:"reinsp",rot:"Reinspeção em",t:"data"},{k:"obs",rot:"Observação",t:"area"}],
+      titulo:d=>`${d.servico||"FVS"} · ${[d.local,d.det].filter(Boolean).join(" ")}`},
+    {id:"modelo", nome:"Itens por serviço", novo:"Novo modelo", semData:true,
+      campos:[{k:"servico",rot:"Serviço",t:"txt",obrig:true,ops:Object.keys(FVS_PADRAO)},{k:"itens",rot:"Itens (um por linha)",t:"area",obrig:true}],
+      pre:()=>({}), titulo:d=>`${d.servico} · ${String(d.itens||"").split("\n").filter(s=>s.trim()).length} itens`}],
+    topo:T=>T.id==="modelo" ? [el("p",{class:"info",text:"Sem modelo, a FVS usa os itens padrão do serviço. Para mudar, crie um modelo com o mesmo nome do serviço."})] : [],
+    rodape:T=>{ if(T.id!=="fvs") return [];
+      // consulta: checklists de concretagem das Frentes (aço)
+      const ls=[]; for(const e of S.els) for(const [L,x] of Object.entries(e.lances||{})) if(x?.data) ls.push([x.data, e.est, e.loc, L, x.resp||"", x.conc?"concretado "+ddmm(x.conc):"liberado"]);
+      ls.sort((a,b)=>b[0].localeCompare(a[0]));
+      return [el("details",{class:"card"}, el("summary",{class:"pr-sum",text:`Checklists de concretagem das Frentes · ${ls.length}`}),
+        ls.length ? tabelaSimples(["Data","Estrutura","Local","Lance","Responsável","Situação"], ls.slice(0,60).map(l=>[ddmm(l[0]),...l.slice(1)])) : el("p",{class:"info",text:"Nenhum checklist de concretagem ainda (aba Frentes do aço)."}))]; }},
+  med:{nome:"Medições", desc:"Boletins e avanço físico", edit:"med-edit", tipos:[
+    {id:"bol", nome:"Boletins", novo:"Novo boletim", status:["Rascunho","Fechado"],
+      campos:[{k:"num",rot:"Número",t:"txt",obrig:true,padrao:()=>String(regs2De("med","bol").length+1)},{k:"ini",rot:"Período: de",t:"data",obrig:true},{k:"fim",rot:"até",t:"data",obrig:true,padrao:()=>hojeISO()},
+        {k:"itens",rot:"Itens medidos (manuais)",t:"itens",semCard:false},{k:"obs",rot:"Observação",t:"area"}],
+      titulo:d=>`Boletim nº ${d.num||"?"} · ${d.ini?ddmm(d.ini):"?"} a ${d.fim?ddmm(d.fim):"?"}`}],
+    topo:()=>[el("div",{class:"row"}, el("button",{class:"btn",type:"button",text:"Planilha de medição do aço (Ajustes)",onclick:()=>{ abrirTela("aco"); show("dados"); setTimeout(()=>$("#med-fechadas")?.scrollIntoView({behavior:"smooth"}),200); }}))],
+    rodape:(T, lista)=>lista.length ? [el("p",{class:"info",text:"No PDF de cada boletim sai também o avanço físico do aço por estrutura até a data final."}),
+      el("div",{class:"row"}, ...lista.slice(0,3).map(r=>el("button",{class:"btn",type:"button",text:`📄 Boletim ${r.dados.num} (PDF)`,onclick:e=>pdfBoletim(r,e.target)}),),
+        el("button",{class:"btn",type:"button",text:"Excel dos boletins",onclick:e=>excelBoletins(lista,e.target)}))] : []},
+  obras:{nome:"Obras e projetos", desc:"Dados da obra, estruturas e pranchas", edit:"obras-edit", tipos:[
+    {id:"est", nome:"Estruturas", novo:"Nova estrutura", semData:true, status:["Ativa","Inativa"],
+      campos:[{k:"nome",rot:"Estrutura",t:"txt",obrig:true},{k:"emp",rot:"Empreendimento",t:"txt",ops:()=>[...new Set(S.items.map(i=>i.emp))]},{k:"obs",rot:"Observação",t:"area"}],
+      titulo:d=>d.nome}],
+    topo:()=>[cardObra()],
+    rodape:()=>[cardEstruturasBase(), cardProjetos()]},
+  rel:{nome:"Relatórios", desc:"Todos os relatórios num lugar", acesso:"rel", edit:"__nenhum", tipos:[{id:"x",nome:"",campos:[]}], render:box=>renderRelatorios(box)},
+  sup:{nome:"Suprimentos", desc:"Recebimento: fornecedor, nota, quantidade e placa", edit:"sup-edit", acesso:"sup", semAbas:true, tipos:Object.keys(MAT2).map(supMat),
+    titulo:T=>`Suprimentos › ${MAT2[T.id].nome}`,
+    topo:(T, lista)=>{ const tot=porMes(regs2De("sup",T.id), r=>num(r.dados.qtd));
+      return [tot.length ? el("div",{class:"card"}, el("h3",{text:"Total por mês"}), tabelaSimples(["Mês","Quantidade"], tot.slice(0,6).map(([m,q])=>[mesTxt(m), nf1.format(q)+" "+MAT2[T.id].un]))) : null].filter(Boolean); },
+    rodape:T=>{ if(T.id!=="conc") return [];
+      const cams=concs().flatMap(c=>(c.cams||[]).map(k=>[c.data, c.estrutura, `C${k.n}`, k.usina||"", k.nf||"", nf1.format(+k.vol||0)])).sort((a,b)=>b[0].localeCompare(a[0]));
+      return [el("details",{class:"card"}, el("summary",{class:"pr-sum",text:`Caminhões lançados nas concretagens · ${cams.length}`}),
+        cams.length ? tabelaSimples(["Data","Estrutura","Caminhão","Concreteira","NF","m³"], cams.slice(0,80).map(l=>[ddmm(l[0]),...l.slice(1)])) : el("p",{class:"info",text:"Nenhum caminhão lançado ainda (Produtividade › Concreto)."}))]; }},
+  forma:{nome:"Forma", desc:"Montagem e desforma por dia", edit:"producao-edit", acesso:"prod", tipos:[
+    {id:"apont", nome:"Apontamentos", novo:"Novo apontamento",
+      campos:[{k:"est",rot:"Estrutura",t:"est",obrig:true},{k:"det",rot:"Detalhe",t:"txt",dica:"Ex.: parede 3"},{k:"mont",rot:"Montado",t:"num",un:"m²"},{k:"desm",rot:"Desmontado",t:"num",un:"m²"},
+        {k:"equipe",rot:"Equipe",t:"pessoas",padrao:()=>equipeProducao(/forma|desforma|escoramento/i),semCard:true},{k:"obs",rot:"Observação",t:"area"}],
+      calc:d=>{ const n=(d.equipe||[]).length, m=(d.mont||0)+(d.desm||0); d.n=n; d.prod = n&&m ? Math.round(m/n*10)/10 : ""; if(d.prod==="") delete d.prod; },
+      titulo:d=>`${d.est||"Forma"}${d.det?" · "+d.det:""} · ${nf1.format((d.mont||0)+(d.desm||0))} m²`+(d.prod?` · ${nf1.format(d.prod)} m²/pessoa`:"")}],
+    topo:(T,lista)=>resumoProd(lista, r=>(r.dados.mont||0)+(r.dados.desm||0), "m²")},
+  esc:{nome:"Escavação", desc:"Volume por local e equipamento", edit:"producao-edit", acesso:"prod", tipos:[
+    {id:"apont", nome:"Apontamentos", novo:"Novo apontamento",
+      campos:[{k:"local",rot:"Local",t:"est",obrig:true},{k:"det",rot:"Detalhe",t:"txt"},{k:"vol",rot:"Volume",t:"num",un:"m³",obrig:true},{k:"equip",rot:"Equipamento",t:"equip"},
+        {k:"equipe",rot:"Equipe",t:"pessoas",padrao:()=>equipeProducao(/escava|reaterro|compacta/i),semCard:true},{k:"obs",rot:"Observação",t:"area"}],
+      calc:d=>{ const n=(d.equipe||[]).length; d.n=n; if(n && d.vol) d.prod=Math.round(d.vol/n*10)/10; else delete d.prod; },
+      titulo:d=>`${d.local||"Escavação"}${d.det?" · "+d.det:""} · ${nf1.format(d.vol||0)} m³`+(d.prod?` · ${nf1.format(d.prod)} m³/pessoa`:"")}],
+    topo:(T,lista)=>resumoProd(lista, r=>r.dados.vol||0, "m³")},
+};
+// produtividade do período: total, pessoas-dia e média por pessoa por dia
+function resumoProd(lista, qtd, un){
+  if(!lista.length) return [];
+  const tot=lista.reduce((s,r)=>s+qtd(r),0), pd=lista.reduce((s,r)=>s+(r.dados.n||0),0);
+  return [el("div",{class:"kpis"}, kpi("No período",`${nf1.format(tot)} ${un}`,`${lista.length} apontamentos`), kpi("Por pessoa/dia", pd?`${nf1.format(tot/pd)} ${un}`:"–", pd?`${pd} pessoas-dia`:"marque a equipe"))];
+}
+// --- Obras: dados da obra (aba Config), estruturas da base e PDFs da pasta Projetos ---
+const CFG_OBRA=[["OBRA_NOME","Nome da obra","SAA Rio Grande"],["OBRA_CIDADE","Cidade","Uberaba/MG"],["OBRA_CLIENTE","Cliente",""],["OBRA_CONTRATO","Contrato",""],["OBRA_INICIO","Início","",true],["OBRA_FIM","Término previsto","",true]];
+function cardObra(){
+  const ed=pode("obras-edit"), v=k=>cfgv(k,"");
+  const ins=CFG_OBRA.map(([k,rot,pad,dt])=>[k, el("input",{type:dt?"date":"text",maxLength:120,value:v(k),placeholder:pad,disabled:!ed})]);
+  const logo=v("OBRA_LOGO"), arq=el("input",{type:"file",accept:"image/*",hidden:true});
+  arq.onchange=async()=>{ const f=arq.files[0]; arq.value=""; if(!f) return;
+    try{ const b=await createImageBitmap(f), s=Math.min(1,240/b.width), c=el("canvas",{width:Math.round(b.width*s),height:Math.round(b.height*s)}); const g=c.getContext("2d"); g.fillStyle="#fff"; g.fillRect(0,0,c.width,c.height); g.drawImage(b,0,0,c.width,c.height);
+      setCfg("OBRA_LOGO", c.toDataURL("image/jpeg",0.85)); toast("Logo guardada."); renderReg2(); }catch{ toast("Não foi possível ler a imagem."); } };
+  return el("div",{class:"card"}, el("h3",{text:"Dados da obra"}),
+    el("div",{class:"filtros"}, ...ins.map(([k,i],n)=>campoEf(CFG_OBRA[n][1],i))),
+    el("div",{class:"row"}, logo ? el("img",{src:logo,alt:"Logo da construtora",style:"max-height:48px;background:#fff;border-radius:6px;padding:4px"}) : el("span",{class:"info",text:"Sem logo da construtora"}),
+      ed ? el("button",{class:"btn",type:"button",text:logo?"Trocar logo":"Pôr logo",onclick:()=>arq.click()}) : null, arq),
+    ed ? el("div",{class:"row"}, el("button",{class:"btn pri",type:"button",text:"Salvar dados da obra",onclick:()=>{
+      let n=0; for(const [k,i] of ins) if(i.value.trim()!==v(k)){ setCfg(k, i.value.trim()); n++; }
+      toast(n?"Dados da obra salvos. Os relatórios passam a usar o nome novo.":"Nada mudou."); renderInicio(); renderReg2(); }})) : null,
+    el("p",{class:"info",text:"O nome e a cidade aparecem nos relatórios em PDF, no RDO e no carimbo das fotos."}));
+}
+function cardEstruturasBase(){
+  const m=new Map(); for(const i of S.items){ const r=m.get(i.est)||{p:0,e:0,emp:i.emp}; r.p+=i.kp; r.e+=Math.min(S.acum.get(i.c)||0,i.qp)*i.ppb; m.set(i.est,r); }
+  return el("details",{class:"card"}, el("summary",{class:"pr-sum",text:`Estruturas da base de aço · ${m.size}`}),
+    m.size ? tabelaSimples(["Estrutura","Empreendimento","Aço previsto (t)","Avanço"], [...m].map(([e,r])=>[e,r.emp,t(r.p),pct(r.p?r.e/r.p:0)])) : el("p",{class:"info",text:"Base de aço ainda não carregada."}),
+    el("p",{class:"info",text:"As estruturas cadastradas acima (aba Estruturas) se somam a estas nas listas do app. Marque Inativa para tirar uma estrutura das listas."}));
+}
+function cardProjetos(){
+  const ls=PJ.lista||[];
+  return el("details",{class:"card"}, el("summary",{class:"pr-sum",text:`Pranchas e projetos (pasta Projetos) · ${ls.length}`}),
+    ...ls.slice(0,150).map(f=>el("button",{class:"btn pr-opcao",type:"button",onclick:()=>abrirPdf(f,1)}, el("b",{text:pjTitulo(f.nome)}), el("small",{text:f.nome}))),
+    el("div",{class:"row"}, el("button",{class:"btn",type:"button",text:"Atualizar lista de projetos",onclick:async e=>{ e.target.disabled=true; try{ await carregarProjetos(); renderReg2(); }catch(x){ toast(x.message||"Sem conexão."); e.target.disabled=false; } }}),
+      el("button",{class:"btn",type:"button",text:"Abrir a aba Projetos do aço",onclick:()=>irAco("projetos")})));
+}
+// --- Medições: avanço do aço por estrutura até uma data, PDF e Excel do boletim ---
+function avancoAco(ate){
+  const ac=new Map(); for(const w of S.W) if(w.ini && w.ini<=ate) for(const [c,q] of Object.entries(w.exec)) ac.set(c,(ac.get(c)||0)+q);
+  const m=new Map(); for(const i of S.items){ const r=m.get(i.est)||{est:i.est,p:0,e:0}; r.p+=i.kp; r.e+=Math.min(ac.get(i.c)||0,i.qp)*i.ppb; m.set(i.est,r); }
+  return [...m.values()].sort((a,b)=>b.p-a.p);
+}
+async function pdfBoletim(r, btn){
+  const d=r.dados, txt=btn.textContent; btn.disabled=true; btn.textContent="Gerando…";
+  try{
+    const doc=await novoPdf(`Boletim de medição nº ${d.num} — ${nomeObra()}`, `Período: ${dataBR(d.ini)} a ${dataBR(d.fim)} · ${r.status}`), M=12;
+    let y=38; const it=d.itens||[], tot=it.reduce((s,x)=>s+(x.qtd||0)*(x.vu||0),0);
+    const tit=s=>{ doc.setFont("helvetica","bold"); doc.setFontSize(11); doc.setTextColor(...PDF_AZ); doc.text(s,M,y); y+=4; doc.setTextColor(20); doc.setFont("helvetica","normal"); };
+    const tab=(head,body,o={})=>{ doc.autoTable({startY:y,head:[head],body,margin:{left:M,right:M},styles:{fontSize:8.5,cellPadding:1.5,textColor:20},headStyles:{fillColor:PDF_AZ,textColor:255},alternateRowStyles:{fillColor:[244,246,249]},...o}); y=doc.lastAutoTable.finalY+8; };
+    tit("1. Itens medidos");
+    if(it.length) tab(["Serviço","Un.","Quantidade","Valor unit. (R$)","Total (R$)"], it.map(x=>[x.serv,x.un,nf1.format(x.qtd||0),nf1.format(x.vu||0),nf1.format((x.qtd||0)*(x.vu||0))]),
+      {foot:[["Total","","","",nf1.format(tot)]],footStyles:{fillColor:[230,236,242],textColor:20,fontStyle:"bold"},columnStyles:{2:{halign:"right"},3:{halign:"right"},4:{halign:"right"}}});
+    else { doc.setFontSize(9); doc.text("Nenhum item manual.",M,y); y+=8; }
+    if(S.items.length){ tit(`2. Avanço físico do aço por estrutura até ${dataBR(d.fim)}`);
+      tab(["Estrutura","Previsto (t)","Executado (t)","Avanço"], avancoAco(d.fim).map(a=>[a.est,t(a.p),t(a.e),pct(a.p?a.e/a.p:0)]),{columnStyles:{1:{halign:"right"},2:{halign:"right"},3:{halign:"right"}}}); }
+    if(d.obs){ tit("Observação"); doc.setFontSize(9); for(const l of doc.splitTextToSize(d.obs,186)){ doc.text(l,M,y); y+=4.4; } }
+    rodapePdf(doc, (p,n)=>`Boletim nº ${d.num} · página ${p} de ${n}`);
+    await entregarPdf(doc, `Boletim_medicao_${d.num}_${d.fim}.pdf`, `Boletim de medição nº ${d.num}`);
+  }catch(e){ toast(e.message||"Não foi possível gerar o PDF."); }
+  finally{ btn.disabled=false; btn.textContent=txt; }
+}
+async function excelBoletins(lista, btn){
+  btn.disabled=true;
+  try{
+    await loadXLSX(); const wb=XLSX.utils.book_new();
+    const linhas=[["BOLETIM","DE","ATÉ","SITUAÇÃO","SERVIÇO","UN","QTD","VALOR UNIT","TOTAL"]];
+    for(const r of lista) for(const x of (r.dados.itens||[{}])) linhas.push([r.dados.num, r.dados.ini, r.dados.fim, r.status, x.serv||"", x.un||"", x.qtd||0, x.vu||0, (x.qtd||0)*(x.vu||0)]);
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(linhas), "Boletins");
+    const ult=lista[0]; if(ult && S.items.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["ESTRUTURA","PREVISTO KG","EXECUTADO KG","AVANCO"], ...avancoAco(ult.dados.fim).map(a=>[a.est,Math.round(a.p),Math.round(a.e),a.p?a.e/a.p:0])]), "Avanco aco");
+    baixar(`Boletins_medicao_${hojeISO()}.xlsx`, new Blob([XLSX.write(wb,{type:"array",bookType:"xlsx"})],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}));
+  }catch(e){ toast(e.message||"Não foi possível gerar o Excel."); }
+  finally{ btn.disabled=false; }
+}
+// --- Relatórios: todos os relatórios num lugar, com a data/período no topo ---
+const RL={ini:somaDias(hojeISO(),-6), fim:hojeISO()};
+function renderRelatorios(box){
+  const iIni=el("input",{type:"date",value:RL.ini,max:hojeISO(),onchange:e=>{ RL.ini=e.target.value; }}), iFim=el("input",{type:"date",value:RL.fim,max:hojeISO(),onchange:e=>{ RL.fim=e.target.value; }});
+  const bt=(rot, f, ok=true)=>ok ? el("button",{class:"btn pr-opcao",type:"button",onclick:e=>f(e.currentTarget)}, el("b",{text:rot[0]}), el("small",{text:rot[1]})) : null;
+  const pdfModulo=(mod,tipo)=>btn=>{ const T=MOD2[mod].tipos.find(x=>x.id===tipo), lista=regs2De(mod,tipo).filter(r=>r.data>=RL.ini && r.data<=RL.fim);
+    if(!lista.length) return toast("Nada registrado no período.");
+    pdfReg2(T, lista, btn, mod, `${dataBR(RL.ini)} a ${dataBR(RL.fim)}`); };
+  const cc=concs().filter(c=>c.data>=RL.ini && c.data<=RL.fim);
+  repor(box,
+    el("p",{class:"saud"}, "Relatórios", el("small",{text:"Escolha o período e o relatório"})),
+    el("div",{class:"filtros"}, campoEf("De",iIni), campoEf("Até (e dia dos relatórios diários)",iFim)),
+    el("h2",{class:"tela-tit",text:"Do dia (data em “Até”)"}),
+    bt(["📄 RDO do dia","Diário de obra em PDF"], b=>pdfRdo(RL.fim,b), pode("rdo")),
+    bt(["📄 Efetivo do dia","Quem veio, faltas e quadro por empresa"], b=>pdfEfetivoDia(RL.fim,b), pode("ponto")),
+    el("h2",{class:"tela-tit",text:"Aço"}),
+    bt(["📄 Relatório semanal do aço","Semana escolhida no topo do Painel"], ()=>irAco("painel"), pode("prod")),
+    bt(["📦 Pedido de aço","PDF ou Excel por estrutura"], ()=>abrirTela("supped"), pode("sup")),
+    bt(["📊 Exportar Excel do aço","Formato da Prod. Semanal"], ()=>{ abrirTela("aco"); show("dados"); setTimeout(()=>$("#exportar")?.scrollIntoView({behavior:"smooth"}),200); }, pode("prod")),
+    bt(["📊 Planilha de medição do aço","Resumo e barras armadas"], ()=>{ abrirTela("aco"); show("dados"); setTimeout(()=>$("#med-fechadas")?.scrollIntoView({behavior:"smooth"}),200); }, pode("prod")),
+    pode("prod") ? el("h2",{class:"tela-tit",text:`Concretagens no período · ${cc.length}`}) : null,
+    ...(pode("prod") ? cc.map(c=>bt([`📄 ${c.estrutura}${c.local?" · "+c.local:""}`, `${dataBR(c.data)} · ${c.status}`], b=>relatorioConc(c,b))) : []),
+    el("h2",{class:"tela-tit",text:"Módulos (registros no período)"}),
+    ...Object.entries(MOD2).filter(([k,M])=>!M.render && pode(M.acesso||k)).flatMap(([k,M])=>M.tipos.filter(T=>!T.semData).map(T=>
+      bt([`📄 ${M.nome}${k==="sup"?" › "+MAT2[T.id].nome:""} — ${T.nome}`, `${regs2De(k,T.id).filter(r=>r.data>=RL.ini && r.data<=RL.fim).length} no período`], pdfModulo(k,T.id)))));
 }
 
 // botão "início" no topo do módulo de aço
@@ -5292,6 +5828,7 @@ async function relatorioConc(c, btn){
 
 (function boot(){
   const cached=LS.get("base"); if(cached?.itens) setBase(cached.meta, cached.itens);
+  lerLinkCfg();
   afterData(); renderData(); show(LS.get("aba")||"coleta");
   if(S.cfg?.url){ sync(); carregarProjetos().catch(()=>{}); }
   if("serviceWorker" in navigator){
@@ -5305,6 +5842,13 @@ async function relatorioConc(c, btn){
   history.replaceState({tela:"inicio"},""); abrirTela(U?"inicio":"login",false);
   // tempo real: com a Produção ou a Presença aberta, busca as novidades a cada 30 s
   setInterval(()=>{ if(document.visibilityState==="visible" && S.cfg?.url && !S.syncing && (!$("#tela-producao").hidden || !$("#tela-ponto").hidden)) sync(); }, 30000);
+  // app aberto depois da meia-noite: quem estava no dia de ontem (o "hoje" de antes) passa para o dia novo
+  let diaApp=hojeISO();
+  const virouDia=()=>{ const h=hojeISO(); if(h===diaApp) return;
+    if(EF.data===diaApp) EF.data=h; if(RD.data===diaApp) RD.data=h; diaApp=h;
+    afterData(); renderData(); if(!$("#inicio").hidden) renderInicio(); };
+  document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="visible") virouDia(); });
+  setInterval(()=>{ if(document.visibilityState==="visible") virouDia(); }, 60000);
 })();
 </script>
 </body>

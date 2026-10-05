@@ -777,7 +777,9 @@ canvas.qr{display:block;width:min(260px,100%);height:auto;image-rendering:pixela
     <div class="row"><h2 style="margin-right:auto">Projetos</h2><button class="btn" id="pj-atualizar" type="button">Atualizar lista</button></div>
     <p class="info">PDFs da pasta <b>Projetos</b> no seu Google Drive. Os que você abrir ficam guardados no celular para ver sem internet.</p>
     <input id="pj-busca" type="search" placeholder="Filtrar: floculador, decantador, armadura, DE-038…" aria-label="Filtrar projetos">
-    <div class="row"><button class="btn" id="pj-todos" type="button">Baixar todos para usar offline</button><span id="pj-uso" class="info"></span></div>
+    <div class="row"><button class="btn" id="pj-todos" type="button">Baixar todos para usar offline</button>
+      <label class="btn" for="pj-local">📂 Abrir PDF do celular<input type="file" id="pj-local" accept="application/pdf,.pdf" hidden></label>
+      <span id="pj-uso" class="info"></span></div>
     <div class="projs" id="pj-lista"></div>
   </section>
 
@@ -1104,9 +1106,11 @@ async function post(body, prazo){
   }
   // o Google diz se este celular está liberado; se deixou de estar, volta para a tela de espera
   if(j.acesso && body.acao!=="acesso" && body.acao!=="dev") acessoMudou(j.acesso);
+  if(!j.ok && SENHA_ERRADA.test(j.erro||"")) throw new Error("Senha do app incorreta: a senha guardada neste celular não é a mesma do Google. Em Armação › Ajustes › Banco no Google Drive, cole a senha atual (Apps Script › Configurações do projeto › Propriedades do script › TOKEN) e toque em Conectar.");
   if(!j.ok) throw new Error(j.erro||"Erro no Google Apps Script.");
   return j;
 }
+const SENHA_ERRADA = /senha do app incorreta/i;
 function acessoMudou(a){
   const antes=liberado(); setAcesso(a);
   if(antes && !liberado()){ toast(a.status==="recusado" ? "Seu acesso foi bloqueado." : "Este celular precisa de nova liberação."); abrirTela("login");
@@ -1238,17 +1242,25 @@ async function sync(){
 addEventListener("online", ()=>scheduleSync(200));
 document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="visible") scheduleSync(200); });
 setInterval(()=>{ if(document.visibilityState==="visible" && !pendCount()) sync(); }, 120000);
-$("#sync").addEventListener("click", ()=>{ if(!S.cfg?.url) show("dados"); else sync(); });
+$("#sync").addEventListener("click", ()=>{
+  if(!S.cfg?.url) show("dados");
+  else if(SENHA_ERRADA.test(S.err||"")){ show("dados"); toast("Senha do app errada: cole a senha atual em Banco no Google Drive."); }
+  else sync(); });
 
 function pendCount(){ let c=Object.keys(S.pendEq).length+S.pendReg.length+S.pendDel.length+Object.keys(S.pendEl).length+Object.keys(S.pendCfg).length
     +Object.values(S.pendEf).reduce((s,x)=>s+(Array.isArray(x)?x.length:Object.keys(x).length),0)
     +Object.keys(S.pendAt).length+S.pendAtDel.length+Object.keys(S.pendRdo).length
     +Object.keys(S.pendCc).length+S.pendCcDel.length+Object.keys(S.pendTr).length+Object.keys(S.pendReg2).length+S.pendReg2Del.length; for(const p of Object.values(S.pend)){ c+=Object.keys(p.raw||{}).length + (p.arm!=null) + (p.dias!=null) + (p.novo?1:0); } return c; }
-function setSync(){
+// o cartão "Sincronização" da tela inicial repete o texto do botão de sincronizar
+function setSync(){ pintarSync(); const i=$("#ind-sync"); if(i) i.textContent=$("#sync").textContent; }
+function pintarSync(){
   const e=$("#sync"), c=pendCount();
   $("#aviso").hidden = !(S.scriptVelho && S.cfg?.url);
+  const av=$("#aviso-senha"); if(av) av.hidden=!(S.cfg?.url && SENHA_ERRADA.test(S.err||""));
   if(!S.cfg?.url){ e.className="pill warn"; e.textContent="Configurar banco"; return; }
   if(S.syncing){ e.className="pill"; e.textContent="Sincronizando…"; return; }
+  // senha errada não é falta de sinal: nada é gravado até corrigir em Ajustes
+  if(SENHA_ERRADA.test(S.err||"")){ e.className="pill bad"; e.textContent=(c?`${c} pendente${c>1?"s":""} · `:"")+"senha do app errada"; e.title=S.err; return; }
   if(c && S.err){ e.className="pill bad"; e.textContent=`${c} pendente${c>1?"s":""} · sem conexão`; e.title=S.err; return; }
   if(c){ e.className="pill warn"; e.textContent=`${c} a enviar`; return; }
   if(S.err){ e.className="pill bad"; e.textContent="Sem conexão"; e.title=S.err; return; }
@@ -1716,7 +1728,7 @@ $("#tema").addEventListener("click", e=>{ const b=e.target.closest("button[data-
   renderTema(); });
 renderTema();
 
-const VERSAO_APP = "v61"; // igual ao número em sw.js (armacao-v61)
+const VERSAO_APP = "v62"; // igual ao número em sw.js (armacao-v62)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -2873,7 +2885,10 @@ $("#ck-foto").addEventListener("change", async ev=>{
 });
 
 // ---------- projetos (PDFs da pasta Projetos no Drive) ----------
-const PJ = { lista:LS.get("projetos")||[], off:LS.get("pdfOff")||{} }; // off: id -> data da versão guardada no celular
+// off: id -> data da versão guardada no celular; nomes: id -> nome do arquivo guardado (acha a cópia quando o arquivo é trocado no Drive)
+const PJ = { lista:LS.get("projetos")||[], off:LS.get("pdfOff")||{}, nomes:LS.get("pdfNomes")||{} };
+// pede ao navegador para não apagar sozinho os PDFs e fotos guardados quando o celular fica com pouco espaço
+navigator.storage?.persist?.().catch(()=>{});
 const PDFCACHE = "armacao-pdfs";
 // código da prancha sem espaços e com 3 dígitos (a base às vezes traz "DE-42" em vez de "DE-042")
 const codigoDe = s => { const m=String(s).replace(/\s+/g,"").toUpperCase().match(/(PR-\d{3}-\d{3}-E\d+-PE-EST-DE-)(\d{1,3})/); return m ? m[1]+m[2].padStart(3,"0") : ""; };
@@ -2934,18 +2949,49 @@ async function pdfBaixar(f, prog){
   const u8=new Uint8Array(pedacos.reduce((s,p)=>s+p.length,0)); let o=0; for(const p of pedacos){ u8.set(p,o); o+=p.length; }
   if(j.total && u8.length!==j.total) throw new Error("O PDF chegou incompleto. Tente de novo.");
   const buf=u8.buffer;
+  await guardarPdf(f, buf, j.atualizado);
+  return buf;
+}
+async function guardarPdf(f, buf, atualizado){
   try{
     await (await caches.open(PDFCACHE)).put("pdf/"+f.id, new Response(buf.slice(0),{headers:{"Content-Type":"application/pdf"}}));
-    PJ.off[f.id]=j.atualizado; LS.set("pdfOff",PJ.off);
+    PJ.off[f.id]=atualizado; PJ.nomes[f.id]=f.nome; LS.set("pdfOff",PJ.off); LS.set("pdfNomes",PJ.nomes);
   }catch{ toast("Sem espaço para guardar o PDF no celular."); }
-  return buf;
+}
+// cópia guardada de outra revisão ou de um arquivo trocado no Drive (id novo): mesmo nome ou mesma prancha
+async function pdfParecido(f){
+  const cod=codigoDe(f.nome);
+  const ids=Object.keys(PJ.nomes).filter(id=>id!==f.id && (PJ.nomes[id]===f.nome || (cod && codigoDe(PJ.nomes[id])===cod)))
+    .sort((a,b)=>(PJ.nomes[a]===f.nome?-1:0)-(PJ.nomes[b]===f.nome?-1:0) || PJ.nomes[b].localeCompare(PJ.nomes[a]));
+  for(const id of ids){ const b=await pdfGuardado(id); if(b) return {buf:b, nome:PJ.nomes[id]}; }
+  return null;
 }
 async function obterPdf(f, prog){
   const local=await pdfGuardado(f.id);
   if(local && PJ.off[f.id]===f.atualizado) return local;
   try{ return await pdfBaixar(f, prog); }
-  catch(e){ if(local){ toast("Sem conexão: mostrando a cópia guardada"); return local; } throw e; }
+  catch(e){
+    const motivo = SENHA_ERRADA.test(e.message) ? "senha do app errada" : /conexão/i.test(e.message) ? "sem conexão" : "o Google não respondeu";
+    if(local){ toast(`Não deu para atualizar (${motivo}): mostrando a cópia guardada`); return local; }
+    const outra=await pdfParecido(f);
+    if(outra){ toast(`Não deu para baixar (${motivo}): mostrando a cópia guardada de ${outra.nome}`); return outra.buf; }
+    throw e;
+  }
 }
+// PDF que já está no celular (Downloads, WhatsApp…): abre no visualizador e guarda para as próximas vezes
+async function abrirPdfDoCelular(arq){
+  if(!arq) return;
+  if(!/\.pdf$/i.test(arq.name) && arq.type!=="application/pdf") return toast("Escolha um arquivo PDF.");
+  const buf=await arq.arrayBuffer(), cod=codigoDe(arq.name);
+  const f = PJ.lista.find(x=>x.nome===arq.name) || (cod && PJ.lista.filter(x=>codigoDe(x.nome)===cod).sort((a,b)=>b.nome.localeCompare(a.nome))[0])
+    || {id:"local-"+arq.name.replace(/\W+/g,"_").slice(0,80), nome:arq.name, tamanho:arq.size, atualizado:"local"};
+  // mesmo nome do Drive: vale como a versão atual; outra revisão da prancha: fica como cópia (com sinal, o app ainda baixa a atual)
+  if(f.nome!==arq.name) toast(`Guardado como cópia de ${pjTitulo(f.nome)}`);
+  await guardarPdf(f, buf, f.nome===arq.name ? f.atualizado : "local");
+  if(V.fid===f.id) V.fid=null; // força recarregar se este projeto já estava aberto
+  abrirPdf(f, 1);
+}
+$("#pj-local").addEventListener("change", ev=>{ const a=ev.target.files[0]; ev.target.value=""; abrirPdfDoCelular(a).catch(e=>toast(e.message||"Não foi possível abrir o PDF.")); });
 function renderProjetos(){
   const L=$("#pj-lista"), q=$("#pj-busca").value.trim().toLowerCase();
   if(!S.cfg?.url){ L.replaceChildren(el("div",{class:"vazio",text:"Conecte o app ao Google Drive em Ajustes."})); return; }
@@ -2960,14 +3006,28 @@ function renderProjetos(){
       el("div",{class:"acoes"},abrir));
   }));
   navigator.storage?.estimate?.().then(e=>{ $("#pj-uso").textContent=`Usando ${mb(e.usage||0)} no celular`; }).catch(()=>{});
+  // "NO CELULAR" só para o que de fato está guardado (o navegador pode ter apagado a cópia)
+  caches.open(PDFCACHE).then(c=>c.keys()).then(ks=>{
+    const tem=new Set(ks.map(r=>decodeURIComponent(r.url.split("/pdf/").pop())));
+    const sumiu=Object.keys(PJ.off).filter(id=>!tem.has(id));
+    if(!sumiu.length) return;
+    for(const id of sumiu){ delete PJ.off[id]; delete PJ.nomes[id]; }
+    LS.set("pdfOff",PJ.off); LS.set("pdfNomes",PJ.nomes); renderProjetos();
+  }).catch(()=>{});
 }
 $("#pj-todos").addEventListener("click", async ()=>{
   const b=$("#pj-todos"), fs=PJ.lista.filter(f=>PJ.off[f.id]!==f.atualizado);
   if(!fs.length){ toast("Todos os projetos já estão no celular"); return; }
   b.disabled=true;
+  // um arquivo com problema não para os outros; senha errada ou sem sinal param tudo
+  const falhas=[];
   try{
-    for(const [k,f] of fs.entries()){ b.textContent=`Baixando ${k+1} de ${fs.length}…`; await pdfBaixar(f); }
-    toast("Projetos guardados no celular");
+    for(const [k,f] of fs.entries()){
+      b.textContent=`Baixando ${k+1} de ${fs.length}…`;
+      try{ await pdfBaixar(f); }
+      catch(e){ if(SENHA_ERRADA.test(e.message) || /conexão/i.test(e.message)) throw e; falhas.push(pjTitulo(f.nome)); }
+    }
+    toast(falhas.length ? `${fs.length-falhas.length} de ${fs.length} guardados. Não baixaram: ${falhas.slice(0,3).join("; ")}${falhas.length>3?"…":""}` : "Projetos guardados no celular");
   }catch(e){ toast(e.message); }
   finally{ b.disabled=false; b.textContent="Baixar todos para usar offline"; renderProjetos(); }
 });
@@ -3009,7 +3069,7 @@ async function abrirPdf(f, pag, alvo, conc){
     await irPagina(Math.min(Math.max(1,pag||1), V.doc.numPages));
     const d=$("#v-dica"); d.hidden=false; setTimeout(()=>d.hidden=true, 4000);
     d.textContent = CC.conc ? "No modo Pintar: um dedo pinta · dois dedos movem e dão zoom" : "Pinça para zoom · arraste para mover · toque duplo aproxima";
-  }catch(e){ V.fid=null; vmsg((e.message||"Não foi possível abrir o PDF.")+(V.buf?DICA_FORA:"")); }
+  }catch(e){ V.fid=null; vmsg((e.message||"Não foi possível abrir o PDF.")+(V.buf?DICA_FORA:" Se este PDF já está no celular (Downloads, WhatsApp…), feche e toque em “📂 Abrir PDF do celular” na aba Projetos.")); }
 }
 function fecharViewer(){ $("#viewer").hidden=true; document.body.style.overflow=""; V.task?.cancel();
   if(CC.conc){ CC.conc=null; CC.atual=null; renderCcBar(); if(!$("#tela-conc").hidden) renderConc(); } }
@@ -3071,7 +3131,7 @@ $("#v-ajustar").onclick=ajustar;
 $("#v-pag").onchange=e=>irPagina(+e.target.value);
 $("#v-ant").onclick=()=>{ if(V.doc&&V.n>1) irPagina(V.n-1); };
 $("#v-prox").onclick=()=>{ if(V.doc&&V.n<V.doc.numPages) irPagina(V.n+1); };
-addEventListener("resize", ()=>{ if(!$("#viewer").hidden) mudou(); });
+addEventListener("resize", ()=>{ if(!$("#viewer").hidden) V.z>0 ? mudou() : ajustar(); }); // zoom 0: a tela não tinha tamanho ao abrir
 addEventListener("keydown", e=>{
   if($("#viewer").hidden) return;
   if(e.key==="Escape") $("#v-fechar").click();
@@ -3336,7 +3396,7 @@ function renderIndicadores(){
   const box=$("#ind-ini"); if(!box) return; numProd();
   if(!S.items.length){ box.replaceChildren(el("div",{class:"ind"}, el("span",{text:"Primeiro acesso"}), el("b",{text:"Conecte o banco"}), el("small",{text:"Toque em ⚙ Configurar o banco, abaixo dos módulos"}))); return; }
   const r=resumoAco(), w=r.w, meta=w?metaSemana(w):0;
-  const i1=el("b"), i2=el("b"), i3=el("b",{text:$("#sync").textContent});
+  const i1=el("b"), i2=el("b"), i3=el("b",{id:"ind-sync",text:$("#sync").textContent});
   box.replaceChildren(
     el("div",{class:"ind",style:"animation-delay:.05s"}, el("span",{text:"Aço armado"}), i1, el("small",{text:`de ${t(r.P)} t previstas`})),
     el("div",{class:"ind",style:"animation-delay:.12s"}, el("span",{text:w?`Semana ${w.n} · ${ddmm(w.ini)} a ${ddmm(w.fim)}`:"Semana"}), i2, el("small",{text:meta?`meta ${t(meta)} t · ${pct(w.kg/meta)} atingido`:"sem meta definida"})),
@@ -3389,7 +3449,10 @@ function renderInicio(){
   repor($("#usuario-ini"), U ? el("div",{class:"lg-chip"},
     el("span",{}, "👤 ", el("b",{text:U.nome}), ` · ${U.cargo}`),
     el("button",{class:"linkbtn",type:"button",text:"Trocar usuário",onclick:()=>abrirTela("login")})) : null,
-    souDev() ? el("button",{class:"btn"+(nPed?" pri":""),id:"bt-acessos",type:"button",text:nPed?`🔑 Acessos · ${nPed} aguardando liberação`:"🔑 Acessos",onclick:()=>abrirTela("acessos")}) : null);
+    souDev() ? el("button",{class:"btn"+(nPed?" pri":""),id:"bt-acessos",type:"button",text:nPed?`🔑 Acessos · ${nPed} aguardando liberação`:"🔑 Acessos",onclick:()=>abrirTela("acessos")}) : null,
+    el("button",{class:"btn",id:"aviso-senha",type:"button",hidden:true,style:"color:var(--bad)",text:"⚠ Senha do app errada: nada está sendo gravado nem baixado. Toque para corrigir.",
+      onclick:()=>{ irAco("dados"); $("#cfg-tok").focus(); }}));
+  setSync();
   const mods=MODULOS.filter(m=>pode(m.id)).map(m=>({...m, acao: ["prod","sup","ponto","fotos","producao","rdo"].includes(m.id) ? ()=>abrirTela(m.id) : MOD2[m.id] ? ()=>abrirModulo(m.id) : null}));
   document.querySelectorAll(".tela-obra").forEach(o=>{ o.querySelector("b").textContent=nomeObra(); o.querySelector("span").textContent=cidadeObra(); });
   const hoje=resumoEfDia(hojeISO());

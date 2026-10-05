@@ -1776,7 +1776,7 @@ $("#tema").addEventListener("click", e=>{ const b=e.target.closest("button[data-
   renderTema(); });
 renderTema();
 
-const VERSAO_APP = "v65"; // igual ao número em sw.js (armacao-v65)
+const VERSAO_APP = "v66"; // igual ao número em sw.js (armacao-v66)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -2640,6 +2640,23 @@ function renderEqInfo(){
 
 // ---------- meta, curva S e previsão de término ----------
 const cfgv = (k,def) => S.pendCfg[k] ?? S.cfgObra[k] ?? def;
+// ---------- nome nos relatórios: o login (ex.: VerasJr) ligado ao nome completo, guardado na aba Config (NOME_<login>) ----------
+const PARTICULAS = /^(de|da|do|das|dos|e|di|du|del)$/i;
+// primeiro nome + primeiro sobrenome: "Wiliam Silva Véras Júnior" → "Wiliam Silva"; "Ana de Souza Lima" → "Ana Souza"
+const nomeCurto = s => { const p=String(s||"").trim().split(/\s+/).filter(Boolean); if(p.length<2) return p[0]||""; return p[0]+" "+(p.slice(1).find(x=>!PARTICULAS.test(x))||p[1]); };
+const nomeCompletoDe = login => String(cfgv("NOME_"+String(login||"").trim(),"")||"").trim();
+// troca o login pelo nome curto; aceita "VerasJr" e "VerasJr (Gerente de obra)" (como fica gravado no histórico)
+const nomeRel = s => { const m=String(s||"").match(/^(.*?)(\s\([^()]*\))?$/), c=nomeCompletoDe(m[1]); return c ? nomeCurto(c)+(m[2]||"") : String(s||""); };
+function editarNomeRel(){
+  if(!U) return;
+  const atual=nomeCompletoDe(U.nome);
+  const v=prompt(`Seu nome completo para os relatórios (login: ${U.nome}).\nNos relatórios aparece só o primeiro nome e o primeiro sobrenome.\nDeixe vazio para usar o login.`, atual);
+  if(v==null) return;
+  const nome=v.replace(/\s+/g," ").trim().slice(0,100);
+  if(nome===atual) return;
+  S.pendCfg["NOME_"+U.nome.trim()]=nome; savePendExtra(); scheduleSync();
+  toast(nome ? `Nos relatórios: ${nomeCurto(nome)}` : "Nos relatórios: o login"); renderInicio();
+}
 const META = () => num(cfgv("META_KG_ARM_DIA",200)) || 200;
 const DIAS = () => num(cfgv("DIAS_SEMANA",6)) || 6;
 const metaSemana = w => META()*(+w.arm||0)*(+w.dias||0);
@@ -3495,7 +3512,8 @@ function renderInicio(){
   // usuário logado e troca de usuário
   const nPed=(S.acessos||[]).filter(a=>a.status==="pendente").length;
   repor($("#usuario-ini"), U ? el("div",{class:"lg-chip"},
-    el("span",{}, "👤 ", el("b",{text:U.nome}), ` · ${U.cargo}`),
+    el("span",{}, "👤 ", el("b",{text:U.nome}), nomeCompletoDe(U.nome) ? ` (${nomeCurto(nomeCompletoDe(U.nome))})` : "", ` · ${U.cargo}`),
+    el("button",{class:"linkbtn",type:"button",text:"Nome nos relatórios",title:"Ligar o seu login ao seu nome completo",onclick:editarNomeRel}),
     el("button",{class:"linkbtn",type:"button",text:"Trocar usuário",onclick:()=>abrirTela("login")})) : null,
     souDev() ? el("button",{class:"btn"+(nPed?" pri":""),id:"bt-acessos",type:"button",text:nPed?`🔑 Acessos · ${nPed} aguardando liberação`:"🔑 Acessos",onclick:()=>abrirTela("acessos")}) : null,
     el("button",{class:"btn",id:"aviso-senha",type:"button",hidden:true,style:"color:var(--bad)",text:"⚠ Senha do app errada: nada está sendo gravado nem baixado. Toque para corrigir.",
@@ -3737,7 +3755,7 @@ function salvarConf(n, c, oss){
   c.n=oss.length; c.nOk=oss.filter(o=>c.m[o[0]]==="111").length; c.por=U?.nome||""; c.em=new Date().toISOString();
   S.pendCfg["ACO_CONF_"+n]=JSON.stringify(c); savePendExtra(); scheduleSync();
 }
-const CF_MARCAS=["Veio","Quantidade","Comprimento"];
+const CF_MARCAS=["Entregue","Quantidade","Comprimento"];
 const kgF = v => `${nf1.format(v)} kg`, cmF = v => `${String(v).replace(".",",")} cm`;
 // peso real pela balança: carreta cheia − vazia, comparado ao peso do romaneio
 function pesagem(c, kgRom){
@@ -3769,13 +3787,13 @@ async function renderSupConf(){
       "aria-label":`${CF_MARCAS[i]} certo: OS ${os}`,onclick:()=>{ const a=v.split(""); a[i]=a[i]==="1"?"0":"1"; c.m[os]=a.join(""); salvar(); }});
     return el("div",{class:"cf-os"+(ok?" ok":"")},
       el("div",{class:"cf-top"}, el("b",{text:`OS ${os}`}), el("span",{text:`Pos. ${pos}`}), el("span",{text:bitola(bit)+" mm"}), el("span",{class:"info",text:`folha ${folha} · ${kgF(kg)}`})),
-      el("div",{class:"cf-bts"}, marca(0,"Veio"), marca(1,`${nf0.format(q)} barras`), marca(2,cmF(cm)),
+      el("div",{class:"cf-bts"}, marca(0,"Entregue"), marca(1,`${nf0.format(q)} barras`), marca(2,cmF(cm)),
         !trav && !ok ? el("button",{type:"button",class:"chipbtn",text:"Tudo certo",onclick:()=>{ c.m[os]="111"; salvar(); }}) : null));
   };
-  const iObs=el("textarea",{rows:3,maxLength:1000,value:c.obs||"",disabled:trav,placeholder:"Ex.: OS 12 veio com 98 barras; feixe da OS 30 amassado.","aria-label":"Observações da conferência"});
+  const iObs=el("textarea",{rows:3,maxLength:1000,value:c.obs||"",disabled:trav,placeholder:"Ex.: OS 12 entregue com 98 barras; feixe da OS 30 amassado.","aria-label":"Observações da conferência"});
   iObs.onchange=()=>{ c.obs=iObs.value.trim(); salvar(); };
   const acoes = trav
-    ? el("div",{class:"card"}, el("p",{class:"okmsg",text:`Conferido por ${c.okPor||"?"} em ${new Date(c.ok).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"})}.`}),
+    ? el("div",{class:"card"}, el("p",{class:"okmsg",text:`Conferido por ${nomeRel(c.okPor)||"?"} em ${new Date(c.ok).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"})}.`}),
         el("div",{class:"row"}, el("button",{class:"btn pri",type:"button",text:"📄 Relatório do romaneio conferido",onclick:e=>pdfConf(n,e.currentTarget)}),
           el("button",{class:"btn",type:"button",text:"Reabrir conferência",onclick:()=>{ if(!confirm("Reabrir a conferência para corrigir?")) return; delete c.ok; delete c.okPor; salvar(); }})))
     : el("div",{class:"row"}, el("button",{class:"btn pri",type:"button",text:"Concluir e gerar relatório",onclick:e=>{
@@ -3788,8 +3806,8 @@ async function renderSupConf(){
     barra(oss.length?nOk/oss.length:0),
     el("div",{class:"card"}, el("h3",{text:"Pesagem da carreta"}),
       el("div",{class:"cf-peso"}, el("label",{class:"campo"}, "Cheia, antes de descarregar (kg)", iCh), el("label",{class:"campo"}, "Vazia, depois (kg)", iVz)), resPeso),
-    !trav ? el("div",{class:"row"}, el("p",{class:"info",style:"flex:1",text:"Em cada OS, marque o que conferiu: se veio, a quantidade de barras e o comprimento."}),
-      nOk<oss.length ? el("button",{class:"btn",type:"button",text:"Marcar todas como certas",onclick:()=>{ if(!confirm(`Marcar as ${oss.length} OS como certas (veio, quantidade e comprimento)?`)) return; for(const o of oss) c.m[o[0]]="111"; salvar(); }}) : null) : null,
+    !trav ? el("div",{class:"row"}, el("p",{class:"info",style:"flex:1",text:"Em cada OS, marque o que conferiu: se foi entregue, a quantidade de barras e o comprimento."}),
+      nOk<oss.length ? el("button",{class:"btn",type:"button",text:"Marcar todas como certas",onclick:()=>{ if(!confirm(`Marcar as ${oss.length} OS como certas (entregue, quantidade e comprimento)?`)) return; for(const o of oss) c.m[o[0]]="111"; salvar(); }}) : null) : null,
     ...grupos.map(([elem,l])=>{ const k=l.filter(o=>c.m[o[0]]==="111").length;
       return el("div",{class:"card"}, el("div",{class:"i-top"}, el("h3",{text:elem||"Sem elemento"}), el("span",{class:"chip"+(k===l.length?" ok":""),text:`${k}/${l.length}`})),
         el("div",{class:"lista"}, ...l.map(linha))); }),
@@ -3805,12 +3823,13 @@ async function pdfConf(n, btn){
     const R=remessas().find(r=>r.n===x.rem), xr=R?.roms.find(r=>r.n===n);
     const doc=await novoPdf(`Romaneio conferido — C.AGUA.${n}`, `${nomeObra()} · ${x.desc} · remessa ${x.rem} (${R?.est||""})`), M=12, AZ=PDF_AZ, VD=[29,122,72], VM=[180,35,24];
     let y=38;
-    const sim=(v,i)=>v[i]==="1"?"Sim":"Não";
+    // Entregue: Sim/Não; Qntd e Compr.: OK/Não
+    const sim=(v,i)=>v[i]==="1" ? (i===0?"Sim":"OK") : "Não";
     const div=oss.filter(o=>c.m[o[1]]!=="111"), pz=pesagem(c,kgRom);
     doc.setFontSize(9);
     const linhas=[
       ["Chegada", !xr?.rec ? "—" : xr.rec==="sim" ? "Entregue" : dataBR(xr.rec)],
-      ["Conferido por", c.ok ? `${c.okPor||"?"} em ${new Date(c.ok).toLocaleString("pt-BR")}` : "Conferência não concluída"],
+      ["Conferido por", c.ok ? `${nomeRel(c.okPor)||"?"} em ${new Date(c.ok).toLocaleString("pt-BR")}` : "Conferência não concluída"],
       ["OS conferidas", `${oss.length-div.length} de ${oss.length}`+(div.length?` · ${div.length} com divergência`:" · sem divergência")],
       ["Peso do romaneio", kgF(kgRom)],
       ["Carreta cheia / vazia", c.cheia||c.vazia ? `${c.cheia?kgF(num(c.cheia)):"—"} / ${c.vazia?kgF(num(c.vazia)):"—"}` : "não pesada"],
@@ -3821,26 +3840,26 @@ async function pdfConf(n, btn){
     y=doc.lastAutoTable.finalY+6;
     if(div.length){
       doc.setFont("helvetica","bold"); doc.setFontSize(11); doc.setTextColor(...VM); doc.text("Divergências",M,y); y+=3; doc.setTextColor(20);
-      doc.autoTable({startY:y, head:[["OS","Elemento","Pos.","Ø (mm)","Barras","Compr. (cm)","Veio","Qtd.","Compr."]],
+      doc.autoTable({startY:y, head:[["OS","Elemento","Pos.","Ø (mm)","Barras","Compr. (cm)","Entregue","Qntd","Compr."]],
         body:div.map(o=>[o[1],o[0],o[3],String(o[4]).replace(".",","),nf0.format(o[5]),String(o[6]).replace(".",","),sim(c.m[o[1]]||"000",0),sim(c.m[o[1]]||"000",1),sim(c.m[o[1]]||"000",2)]),
         margin:{left:M,right:M}, styles:{fontSize:8,cellPadding:1.3,textColor:20}, headStyles:{fillColor:VM,textColor:255,fontStyle:"bold"},
         didParseCell:d=>{ if(d.section==="body" && d.column.index>=6 && d.cell.raw==="Não") d.cell.styles.textColor=VM; }});
       y=doc.lastAutoTable.finalY+6;
     }
     doc.setFont("helvetica","bold"); doc.setFontSize(11); doc.setTextColor(...AZ); doc.text("Todas as OS",M,y); y+=3; doc.setTextColor(20); doc.setFont("helvetica","normal");
-    doc.autoTable({startY:y, head:[["OS","Elemento","Folha","Pos.","Ø (mm)","Barras","Compr. (cm)","Peso (kg)","Veio","Qtd.","Compr."]],
+    doc.autoTable({startY:y, head:[["OS","Elemento","Folha","Pos.","Ø (mm)","Barras","Compr. (cm)","Peso (kg)","Entregue","Qntd","Compr."]],
       body:oss.map(o=>{ const v=(c.m[o[1]]||"000").padEnd(3,"0"); return [o[1],o[0],o[2],o[3],String(o[4]).replace(".",","),nf0.format(o[5]),String(o[6]).replace(".",","),nf1.format(o[7]),sim(v,0),sim(v,1),sim(v,2)]; }),
       foot:[["","Total","","","","","",nf1.format(kgRom),"","",""]],
       margin:{left:M,right:M}, styles:{fontSize:7.5,cellPadding:1.1,textColor:20}, headStyles:{fillColor:AZ,textColor:255,fontStyle:"bold"},
       footStyles:{fillColor:[236,240,245],textColor:20,fontStyle:"bold"}, alternateRowStyles:{fillColor:[244,246,249]},
       columnStyles:{5:{halign:"right"},6:{halign:"right"},7:{halign:"right"}},
-      didParseCell:d=>{ if(d.section==="body" && d.column.index>=8) d.cell.styles.textColor = d.cell.raw==="Sim" ? VD : VM; }});
+      didParseCell:d=>{ if(d.section==="body" && d.column.index>=8) d.cell.styles.textColor = d.cell.raw==="Não" ? VM : VD; }});
     y=doc.lastAutoTable.finalY+8;
     if(c.obs){ if(y>255){ doc.addPage(); y=16; } doc.setFont("helvetica","bold"); doc.setFontSize(10); doc.text("Observações",M,y); y+=5; doc.setFont("helvetica","normal"); doc.setFontSize(9);
       const ls=doc.splitTextToSize(c.obs,210-2*M); doc.text(ls,M,y); y+=ls.length*4.5+4; }
     if(y>255){ doc.addPage(); y=20; }
     y=Math.max(y+14,262); doc.setDrawColor(120); doc.setFontSize(8);
-    doc.line(M,y,M+80,y); doc.text("Conferido por"+(c.okPor?` (${c.okPor})`:""),M,y+4);
+    doc.line(M,y,M+80,y); doc.text("Conferido por"+(c.okPor?` (${nomeRel(c.okPor)})`:""),M,y+4);
     doc.line(210-M-80,y,210-M,y); doc.text("Recebido / almoxarifado",210-M-80,y+4);
     rodapePdf(doc, (p,t)=>`C.AGUA.${n} · Página ${p} de ${t}`);
     await entregarPdf(doc, `Romaneio_${n}_conferido.pdf`, `Romaneio ${n} conferido`);
@@ -5606,7 +5625,7 @@ async function pdfRdo(d, btn){
     // assinaturas
     if(y>255){ doc.addPage(); y=30; } else y+=14;
     const cwA=(W-2*M-16)/2;
-    [[`Responsável pelo preenchimento`, fechado ? (r.fechadoPor||"") : quemSou()],["Fiscalização / contratante",""]].forEach(([rot,nome],k)=>{
+    [[`Responsável pelo preenchimento`, nomeRel(fechado ? (r.fechadoPor||"") : quemSou())],["Fiscalização / contratante",""]].forEach(([rot,nome],k)=>{
       const x=M+k*(cwA+16); doc.setDrawColor(120); doc.setLineWidth(0.3); doc.line(x,y,x+cwA,y);
       doc.setFontSize(8); doc.setTextColor(60); doc.text(rot,x,y+4); if(nome) doc.text(nome,x,y+8); });
     // marca d'água e numeração
@@ -5906,7 +5925,7 @@ async function relatorioConc(c, btn){
   try{
     await buscarTracos(c.id);
     const doc=await novoPdf(`Relatório de concretagem — ${nomeObra()}`, `${c.estrutura}${c.local?" · "+c.local:""} · ${dataBR(c.data)} · ${c.status}`,
-      `Gerado em ${new Date().toLocaleString("pt-BR")} por ${quemSou()}`), W=210, M=12, AZ=PDF_AZ;
+      `Gerado em ${new Date().toLocaleString("pt-BR")} por ${nomeRel(quemSou())}`), W=210, M=12, AZ=PDF_AZ;
     let y=38;
     const lanc=volLancado(c);
     doc.autoTable({startY:y, margin:{left:M,right:M}, theme:"plain", styles:{fontSize:9,cellPadding:1.2},
@@ -6169,7 +6188,7 @@ const MOD2={
     topo:(T)=>T.id==="apont" && !equipsCadastrados().length ? [el("p",{class:"aviso",text:"Cadastre os equipamentos primeiro (aba Cadastro)."})] : []},
   seg:{nome:"Segurança", desc:"DDS, inspeções e ocorrências", edit:"seg-edit", tipos:[
     {id:"dds", nome:"DDS", novo:"Novo DDS", fotos:"Foto do DDS",
-      campos:[{k:"tema",rot:"Tema",t:"txt",obrig:true,full:true},{k:"part",rot:"Participantes",t:"pessoas"},{k:"resp",rot:"Quem conduziu",t:"pessoa",padrao:()=>U?.nome||""},{k:"obs",rot:"Observação",t:"area"}],
+      campos:[{k:"tema",rot:"Tema",t:"txt",obrig:true,full:true},{k:"part",rot:"Participantes",t:"pessoas"},{k:"resp",rot:"Quem conduziu",t:"pessoa",padrao:()=>nomeRel(U?.nome)},{k:"obs",rot:"Observação",t:"area"}],
       titulo:d=>d.tema},
     {id:"insp", nome:"Inspeções", novo:"Nova inspeção", fotos:"Foto", status:["Aberta","Resolvida"],
       campos:[{k:"local",rot:"Local",t:"est",obrig:true},{k:"ck",rot:"Checklist",t:"check",itens:CHECK_SEG},{k:"prazo",rot:"Prazo de correção",t:"data"},
@@ -6183,7 +6202,7 @@ const MOD2={
     {id:"fvs", nome:"FVS", novo:"Nova FVS", fotos:"Foto", status:["Conforme","Não conforme","Reinspecionada"],
       campos:[{k:"servico",rot:"Serviço",t:"sel",ops:()=>[...new Set([...Object.keys(FVS_PADRAO), ...regs2De("qual","modelo").map(r=>r.dados.servico)])],obrig:true,mudou:(v,ctx)=>ctx.recheck?.(itensFvs(v))},
         {k:"local",rot:"Local (estrutura)",t:"est",obrig:true},{k:"det",rot:"Detalhe do local",t:"txt",dica:"Ex.: parede 3"},
-        {k:"ck",rot:"Itens verificados",t:"check",itens:ctx=>itensFvs(ctx.dados.servico)},{k:"resp",rot:"Responsável",t:"pessoa",padrao:()=>U?.nome||""},
+        {k:"ck",rot:"Itens verificados",t:"check",itens:ctx=>itensFvs(ctx.dados.servico)},{k:"resp",rot:"Responsável",t:"pessoa",padrao:()=>nomeRel(U?.nome)},
         {k:"reinsp",rot:"Reinspeção em",t:"data"},{k:"obs",rot:"Observação",t:"area"}],
       titulo:d=>`${d.servico||"FVS"} · ${[d.local,d.det].filter(Boolean).join(" ")}`},
     {id:"modelo", nome:"Itens por serviço", novo:"Novo modelo", semData:true,

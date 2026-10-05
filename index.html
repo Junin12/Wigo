@@ -926,6 +926,7 @@ canvas.qr{display:block;width:min(260px,100%);height:auto;image-rendering:pixela
     <button id="v-menos" type="button" aria-label="Diminuir zoom">−</button>
     <button id="v-mais" type="button" aria-label="Aumentar zoom">+</button>
     <button id="v-ajustar" type="button">Ajustar</button>
+    <button id="v-fora" type="button" title="Abrir no leitor de PDF do celular" hidden>⤓ Abrir fora</button>
     <span id="v-alvo" class="v-alvo" hidden>
       <button id="v-mk-ant" type="button" aria-label="Marcação anterior">‹</button>
       <b id="v-mk-txt"></b>
@@ -1084,15 +1085,18 @@ const curW = () => S.W.find(w=>w.n===S.cur);
 
 // ---------- conversa com a planilha do Google ----------
 const api = ops => post({v:S.meta?.v||"", ops});
-async function post(body){
+// prazo (ms, opcional): desiste se o Google não responder a tempo
+async function post(body, prazo){
   if(!S.cfg?.url) throw new Error("Banco não configurado. Vá em Ajustes.");
-  let r;
+  let r, txt;
+  const ctl = prazo ? new AbortController() : null, tm = ctl ? setTimeout(()=>ctl.abort(), prazo) : 0;
   try{
     // text/plain evita a checagem CORS extra que o Apps Script não responde
-    r = await fetch(S.cfg.url, {method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"},
+    r = await fetch(S.cfg.url, {method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, signal:ctl?.signal,
       body: JSON.stringify({token:S.cfg.token, aparelho:APARELHO, usuario:U?{nome:U.nome, cargo:U.cargo}:null, ...body})});
-  }catch{ throw new Error("Sem conexão com o Google."); }
-  const txt = await r.text().catch(()=>"");
+    txt = await r.text();
+  }catch{ throw new Error(ctl?.signal.aborted ? "Sem conexão com o Google (demorou demais)." : "Sem conexão com o Google."); }
+  finally{ clearTimeout(tm); }
   let j; try{ j = JSON.parse(txt); }catch{
     // o Google devolveu uma página de erro (HTML): mostra o texto dela para saber a causa
     let g=""; try{ g=(new DOMParser().parseFromString(txt,"text/html").body?.innerText||"").replace(/\s+/g," ").trim().slice(0,200); }catch{}
@@ -1712,7 +1716,7 @@ $("#tema").addEventListener("click", e=>{ const b=e.target.closest("button[data-
   renderTema(); });
 renderTema();
 
-const VERSAO_APP = "v59"; // igual ao número em sw.js (armacao-v59)
+const VERSAO_APP = "v61"; // igual ao número em sw.js (armacao-v61)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -2901,19 +2905,19 @@ function b64Bytes(b64){ const bin=atob(b64), u8=new Uint8Array(bin.length); for(
 // O Google não entrega respostas grandes (devolve a página "Drive: Não foi possível abrir o arquivo").
 // Por isso o PDF vem em pedaços (Code.gs 19+): começa com 2 MB e, se o Google recusar, pede pedaços menores (até 256 KB).
 // O tamanho que funcionou fica guardado para os próximos. O Code.gs antigo ignora os pedaços e manda o arquivo inteiro.
-// prog(bytes recebidos, total) mostra o andamento.
+// prog(bytes recebidos, total, nota) mostra o andamento. Cada pedido tem até 2 min para responder.
 const PDF_TAM_MIN=262144;
 async function pdfBaixar(f, prog){
-  let tam=Math.max(PDF_TAM_MIN, Math.min(+LS.get("pdfTam")||2097152, 4194304)), j=null, total=f.tamanho||0, ini=0, falhas=0;
+  let tam=Math.max(PDF_TAM_MIN, Math.min(+LS.get("pdfTam2")||1048576, 4194304)), j=null, total=f.tamanho||0, ini=0, falhas=0, nota="";
   const pedacos=[];
   try{
     while(true){
-      prog?.(ini, total);
+      prog?.(ini, total, nota);
       let r;
-      try{ r=await post({acao:"pdf", id:f.id, ini, tam}); falhas=0; }
+      try{ r=await post({acao:"pdf", id:f.id, ini, tam}, 120000); falhas=0; nota=""; }
       catch(e){
-        if(/inválida/i.test(e.message) && tam>PDF_TAM_MIN && !(S.scriptVer && S.scriptVer<19)){ tam=Math.max(PDF_TAM_MIN, tam>>1); LS.set("pdfTam",tam); continue; } // pedaço grande demais: pede menor
-        if(/conexão|inválida/i.test(e.message) && ++falhas<=2) continue; // sinal fraco: tenta de novo o mesmo pedaço
+        if(/inválida/i.test(e.message) && tam>PDF_TAM_MIN && !(S.scriptVer && S.scriptVer<19)){ tam=Math.max(PDF_TAM_MIN, tam>>1); LS.set("pdfTam2",tam); nota="o Google recusou, pedindo pedaços menores"; continue; } // pedaço grande demais: pede menor
+        if(/conexão|inválida/i.test(e.message) && ++falhas<=2){ nota=`sem resposta, tentando de novo (${falhas} de 2)`; continue; } // sinal fraco: tenta de novo o mesmo pedaço
         throw e;
       }
       if(!r.b64) throw new Error("O Google não mandou o PDF. Toque em Atualizar lista e tente de novo.");
@@ -2924,7 +2928,7 @@ async function pdfBaixar(f, prog){
       if(ini>=total || !pedacos[pedacos.length-1].length) break;
     }
   }catch(e){
-    const velho = S.scriptVer && S.scriptVer<19 ? " Atualize o Code.gs no Apps Script (versão 19 ou mais nova) e publique uma Nova versão." : "";
+    const velho = S.scriptVer && S.scriptVer<20 ? ` O Code.gs publicado é a versão ${S.scriptVer}: cole o novo (versão 20) no Apps Script e publique uma Nova versão.` : "";
     throw new Error(`Não foi possível baixar "${pjTitulo(f.nome)}" (${mb(f.tamanho||0)}): ${e.message}${velho}`);
   }
   const u8=new Uint8Array(pedacos.reduce((s,p)=>s+p.length,0)); let o=0; for(const p of pedacos){ u8.set(p,o); o+=p.length; }
@@ -2979,8 +2983,11 @@ async function loadPdfjs(){
   pdfjsLib.GlobalWorkerOptions.workerSrc=URL.createObjectURL(js);
 }
 // V = vista desejada; R = vista que está desenhada no canvas atual. O CSS leva R até V enquanto redesenha.
-const V={doc:null,fid:null,page:null,n:1,z:1,tx:0,ty:0,fit:1,canvas:null,task:null,R:null,rT:null};
+const V={doc:null,fid:null,page:null,n:1,z:1,tx:0,ty:0,fit:1,canvas:null,task:null,R:null,rT:null,buf:null,nome:""};
 const stage=$("#v-stage"), vmsg=t=>{ $("#v-msg").textContent=t; $("#v-msg").hidden=!t; };
+const DICA_FORA=" Toque em ⤓ Abrir fora para ver no leitor de PDF do celular.";
+// plano B: entrega o PDF (já no celular) para o leitor de PDF do aparelho
+$("#v-fora").addEventListener("click", ()=>{ if(V.buf) baixar(V.nome||"projeto.pdf", new Blob([V.buf],{type:"application/pdf"})); });
 async function abrirPdf(f, pag, alvo, conc){
   MK.alvo=alvo||null; MK.marcando=false; stage.classList.remove("marcando");
   CC.conc=conc||null; CC.atual=null; renderCcBar(); // concretagem: barra de pintura só quando aberto por uma concretagem
@@ -2990,18 +2997,19 @@ async function abrirPdf(f, pag, alvo, conc){
   $("#v-tit").textContent=pjTitulo(f.nome);
   try{
     if(V.fid!==f.id){
-      vmsg("Carregando projeto…"); V.canvas?.remove(); V.canvas=null;
-      await loadPdfjs();
-      const buf=await obterPdf(f, (feito,total)=>vmsg(`Baixando projeto (${mb(f.tamanho||0)})… ${total?Math.min(99,Math.round(feito*100/total)):0}%`));
+      vmsg("Carregando projeto…"); V.canvas?.remove(); V.canvas=null; V.buf=null; $("#v-fora").hidden=true;
+      const buf=await obterPdf(f, (feito,total,nota)=>vmsg(`Baixando projeto (${mb(f.tamanho||0)})… ${total?Math.min(99,Math.round(feito*100/total)):0}%${nota?` · ${nota}`:""}`));
+      V.buf=buf.slice(0); V.nome=f.nome; $("#v-fora").hidden=false; // cópia: o leitor do app consome o original
       vmsg("Abrindo projeto…");
-      V.doc?.destroy(); V.doc=await pdfjsLib.getDocument({data:new Uint8Array(buf)}).promise; V.fid=f.id;
+      await loadPdfjs();
+      V.doc?.destroy(); V.doc=await pdfjsLib.getDocument({data:new Uint8Array(buf), isOffscreenCanvasSupported:false}).promise; V.fid=f.id;
       $("#v-pag").replaceChildren(...Array.from({length:V.doc.numPages},(_,k)=>el("option",{value:k+1,text:`Folha ${k+1}/${V.doc.numPages}`})));
       renderProjetos();
     }
     await irPagina(Math.min(Math.max(1,pag||1), V.doc.numPages));
     const d=$("#v-dica"); d.hidden=false; setTimeout(()=>d.hidden=true, 4000);
     d.textContent = CC.conc ? "No modo Pintar: um dedo pinta · dois dedos movem e dão zoom" : "Pinça para zoom · arraste para mover · toque duplo aproxima";
-  }catch(e){ V.fid=null; vmsg(e.message||"Não foi possível abrir o PDF."); }
+  }catch(e){ V.fid=null; vmsg((e.message||"Não foi possível abrir o PDF.")+(V.buf?DICA_FORA:"")); }
 }
 function fecharViewer(){ $("#viewer").hidden=true; document.body.style.overflow=""; V.task?.cancel();
   if(CC.conc){ CC.conc=null; CC.atual=null; renderCcBar(); if(!$("#tela-conc").hidden) renderConc(); } }
@@ -3010,9 +3018,11 @@ addEventListener("popstate", ()=>{ if(!$("#viewer").hidden) fecharViewer(); });
 
 async function irPagina(n){
   vmsg("Desenhando folha…");
-  V.n=n; $("#v-pag").value=n; V.page=await V.doc.getPage(n);
-  await carregarMarcas(); MK.lista=marcasDaFolha(); MK.k=0; avisoMarca();
-  if(MK.lista.length){ calcFit(); focarMarca(0); } else ajustar();
+  try{
+    V.n=n; $("#v-pag").value=n; V.page=await V.doc.getPage(n);
+    await carregarMarcas(); MK.lista=marcasDaFolha(); MK.k=0; avisoMarca();
+    if(MK.lista.length){ calcFit(); focarMarca(0); } else ajustar();
+  }catch(e){ vmsg(`Não foi possível abrir a folha ${n}: ${e?.message||e}.`+DICA_FORA); }
 }
 // zoom em que a folha inteira cabe na tela
 function calcFit(){ const {width:w,height:h}=stage.getBoundingClientRect(), vp=V.page.getViewport({scale:1}); V.fit=Math.min(w/vp.width, h/vp.height)*0.97; }
@@ -3037,8 +3047,14 @@ async function desenhar(){
   c.width=Math.round(w*dpr); c.height=Math.round(h*dpr); c.style.width=w+"px"; c.style.height=h+"px";
   const ctx=c.getContext("2d"), vp=V.page.getViewport({scale:snap.z*dpr});
   ctx.fillStyle="#fff"; ctx.fillRect(snap.tx*dpr, snap.ty*dpr, vp.width, vp.height); // folha branca, fundo escuro em volta
-  V.task=V.page.render({canvasContext:ctx, viewport:vp, transform:[1,0,0,1,snap.tx*dpr,snap.ty*dpr], background:"rgba(0,0,0,0)"});
-  try{ await V.task.promise; }catch(e){ return; } // cancelado por um novo desenho
+  const task=V.task=V.page.render({canvasContext:ctx, viewport:vp, transform:[1,0,0,1,snap.tx*dpr,snap.ty*dpr], background:"rgba(0,0,0,0)"});
+  // prancha pesada: depois de 15 s sem a primeira imagem, avisa e oferece o leitor do celular
+  const lento=setTimeout(()=>{ if(V.task===task && !V.canvas) vmsg("Ainda desenhando: esta prancha é muito pesada para o celular."+DICA_FORA); }, 15000);
+  try{ await task.promise; }
+  catch(e){ // cancelado por um novo desenho: normal. Outro erro: mostra (antes ficava parado em "Desenhando folha…")
+    if(e?.name!=="RenderingCancelledException" && V.task===task) vmsg(`Não foi possível desenhar a folha ${V.n}: ${e?.message||e}.`+DICA_FORA);
+    return;
+  }finally{ clearTimeout(lento); }
   desenharMarcas(ctx, vp, snap.tx*dpr, snap.ty*dpr, dpr);
   if(CC.conc) desenharPintura(ctx, vp, snap.tx*dpr, snap.ty*dpr, CC.conc, V.n, dpr);
   V.canvas?.remove(); stage.prepend(c); V.canvas=c; V.R=snap; aplicarCss(); vmsg("");

@@ -1114,7 +1114,7 @@ function applyServer(j){
   for(const l of j.lanc||[]) l[1]=consertaCod(l[1]);
   for(const r of j.registros||[]) if(r.cod) r.cod=consertaCod(r.cod);
   if(j.itens){ const meta={v:j.versao, fonte:"Google Drive", atualizado:j.agora}; setBase(meta, j.itens); LS.set("base",{meta,itens:j.itens}); }
-  S.scriptVelho = !(j.script >= SCRIPT_MIN);
+  S.scriptVelho = !(j.script >= SCRIPT_MIN); S.scriptVer = j.script || 0;
   const w={};
   // as datas vêm do texto do período ("21/09/26 a 27/09/26"), que não sofre com fuso horário
   for(const s of j.semanas){ const d=periodoISO(s.periodo); w[s.n]={...s, ...(d||{}), raw:{}}; }
@@ -1712,7 +1712,7 @@ $("#tema").addEventListener("click", e=>{ const b=e.target.closest("button[data-
   renderTema(); });
 renderTema();
 
-const VERSAO_APP = "v57"; // igual ao número em sw.js (armacao-v57)
+const VERSAO_APP = "v59"; // igual ao número em sw.js (armacao-v59)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -2896,14 +2896,39 @@ $("#pj-atualizar").addEventListener("click", async ()=>{
 $("#pj-busca").addEventListener("input", ()=>renderProjetos());
 
 async function pdfGuardado(id){ try{ const r=await (await caches.open(PDFCACHE)).match("pdf/"+id); return r ? await r.arrayBuffer() : null; }catch{ return null; } }
-async function pdfBaixar(f){
-  let j;
-  try{ j=await post({acao:"pdf", id:f.id}); }
-  catch(e){ throw new Error(`Não foi possível baixar "${pjTitulo(f.nome)}" (${mb(f.tamanho||0)}): ${e.message}`); }
-  if(!j.b64) throw new Error("O Google não mandou o PDF. Toque em Atualizar lista e tente de novo.");
-  // decodifica aos poucos (sem endereço data:, que falha com arquivos grandes em alguns celulares)
-  const bin=atob(j.b64), u8=new Uint8Array(bin.length);
-  for(let i=0;i<bin.length;i++) u8[i]=bin.charCodeAt(i);
+// base64 → bytes, sem endereço data: (que falha com arquivos grandes em alguns celulares)
+function b64Bytes(b64){ const bin=atob(b64), u8=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u8[i]=bin.charCodeAt(i); return u8; }
+// O Google não entrega respostas grandes (devolve a página "Drive: Não foi possível abrir o arquivo").
+// Por isso o PDF vem em pedaços (Code.gs 19+): começa com 2 MB e, se o Google recusar, pede pedaços menores (até 256 KB).
+// O tamanho que funcionou fica guardado para os próximos. O Code.gs antigo ignora os pedaços e manda o arquivo inteiro.
+// prog(bytes recebidos, total) mostra o andamento.
+const PDF_TAM_MIN=262144;
+async function pdfBaixar(f, prog){
+  let tam=Math.max(PDF_TAM_MIN, Math.min(+LS.get("pdfTam")||2097152, 4194304)), j=null, total=f.tamanho||0, ini=0, falhas=0;
+  const pedacos=[];
+  try{
+    while(true){
+      prog?.(ini, total);
+      let r;
+      try{ r=await post({acao:"pdf", id:f.id, ini, tam}); falhas=0; }
+      catch(e){
+        if(/inválida/i.test(e.message) && tam>PDF_TAM_MIN && !(S.scriptVer && S.scriptVer<19)){ tam=Math.max(PDF_TAM_MIN, tam>>1); LS.set("pdfTam",tam); continue; } // pedaço grande demais: pede menor
+        if(/conexão|inválida/i.test(e.message) && ++falhas<=2) continue; // sinal fraco: tenta de novo o mesmo pedaço
+        throw e;
+      }
+      if(!r.b64) throw new Error("O Google não mandou o PDF. Toque em Atualizar lista e tente de novo.");
+      if(j && r.atualizado!==j.atualizado) throw new Error("O PDF mudou no Drive durante o download. Tente de novo.");
+      j=j||r; pedacos.push(b64Bytes(r.b64));
+      if(r.ini==null) break; // Code.gs antigo: veio o arquivo inteiro
+      total=r.total; ini=r.ini+pedacos[pedacos.length-1].length;
+      if(ini>=total || !pedacos[pedacos.length-1].length) break;
+    }
+  }catch(e){
+    const velho = S.scriptVer && S.scriptVer<19 ? " Atualize o Code.gs no Apps Script (versão 19 ou mais nova) e publique uma Nova versão." : "";
+    throw new Error(`Não foi possível baixar "${pjTitulo(f.nome)}" (${mb(f.tamanho||0)}): ${e.message}${velho}`);
+  }
+  const u8=new Uint8Array(pedacos.reduce((s,p)=>s+p.length,0)); let o=0; for(const p of pedacos){ u8.set(p,o); o+=p.length; }
+  if(j.total && u8.length!==j.total) throw new Error("O PDF chegou incompleto. Tente de novo.");
   const buf=u8.buffer;
   try{
     await (await caches.open(PDFCACHE)).put("pdf/"+f.id, new Response(buf.slice(0),{headers:{"Content-Type":"application/pdf"}}));
@@ -2911,10 +2936,10 @@ async function pdfBaixar(f){
   }catch{ toast("Sem espaço para guardar o PDF no celular."); }
   return buf;
 }
-async function obterPdf(f){
+async function obterPdf(f, prog){
   const local=await pdfGuardado(f.id);
   if(local && PJ.off[f.id]===f.atualizado) return local;
-  try{ return await pdfBaixar(f); }
+  try{ return await pdfBaixar(f, prog); }
   catch(e){ if(local){ toast("Sem conexão: mostrando a cópia guardada"); return local; } throw e; }
 }
 function renderProjetos(){
@@ -2967,7 +2992,8 @@ async function abrirPdf(f, pag, alvo, conc){
     if(V.fid!==f.id){
       vmsg("Carregando projeto…"); V.canvas?.remove(); V.canvas=null;
       await loadPdfjs();
-      const buf=await obterPdf(f);
+      const buf=await obterPdf(f, (feito,total)=>vmsg(`Baixando projeto (${mb(f.tamanho||0)})… ${total?Math.min(99,Math.round(feito*100/total)):0}%`));
+      vmsg("Abrindo projeto…");
       V.doc?.destroy(); V.doc=await pdfjsLib.getDocument({data:new Uint8Array(buf)}).promise; V.fid=f.id;
       $("#v-pag").replaceChildren(...Array.from({length:V.doc.numPages},(_,k)=>el("option",{value:k+1,text:`Folha ${k+1}/${V.doc.numPages}`})));
       renderProjetos();

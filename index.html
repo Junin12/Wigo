@@ -1086,6 +1086,13 @@ function recompute(){
 const curW = () => S.W.find(w=>w.n===S.cur);
 
 // ---------- conversa com a planilha do Google ----------
+// resposta comprimida (Code.gs 21+): o Google não entrega respostas grandes, e comprimida ela fica ~8x menor.
+// Celular sem DecompressionStream (muito antigo) pede a resposta normal.
+const GZ = typeof DecompressionStream==="function";
+async function descomprimir(b64){
+  const bin=atob(b64), u8=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u8[i]=bin.charCodeAt(i);
+  return await new Response(new Blob([u8]).stream().pipeThrough(new DecompressionStream("gzip"))).text();
+}
 // sincronização: até 3 min por pedido (o Google às vezes demora; sem prazo o app ficava "Sincronizando…" para sempre)
 const PRAZO_SYNC = 180000;
 const api = (ops, ctl) => post({v:S.meta?.v||"", ops}, PRAZO_SYNC, ctl);
@@ -1097,14 +1104,18 @@ async function post(body, prazo, ctl=new AbortController()){
   try{
     // text/plain evita a checagem CORS extra que o Apps Script não responde
     r = await fetch(S.cfg.url, {method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, signal:ctl.signal,
-      body: JSON.stringify({token:S.cfg.token, aparelho:APARELHO, usuario:U?{nome:U.nome, cargo:U.cargo}:null, ...body})});
+      body: JSON.stringify({token:S.cfg.token, aparelho:APARELHO, usuario:U?{nome:U.nome, cargo:U.cargo}:null, gz:GZ?1:0, ...body})});
     txt = await r.text();
   }catch{ throw new Error(estourou ? "Sem conexão com o Google (demorou demais)." : ctl.signal.aborted ? "Pedido cancelado." : "Sem conexão com o Google."); }
   finally{ clearTimeout(tm); }
-  let j; try{ j = JSON.parse(txt); }catch{
+  let j; try{ j = JSON.parse(txt); if(j.gz) j = JSON.parse(await descomprimir(j.gz)); }catch{
     // o Google devolveu uma página de erro (HTML): mostra o texto dela para saber a causa
     let g=""; try{ g=(new DOMParser().parseFromString(txt,"text/html").body?.innerText||"").replace(/\s+/g," ").trim().slice(0,200); }catch{}
-    throw new Error("Resposta inválida do Google"+(g?`: “${g}”`:"")+". Confira o endereço /exec e se a implantação está como “Qualquer pessoa”.");
+    // "Drive: Não foi possível abrir o arquivo" = resposta grande demais (o Code.gs 21 manda comprimido)
+    const grande=/abrir o arquivo|unable to open the file/i.test(g);
+    throw new Error("Resposta inválida do Google"+(g?`: “${g.slice(0,grande?60:200)}”`:"")+(grande
+      ? ". A resposta ficou grande demais para o Google. Cole o Code.gs novo (versão 21) no Apps Script e publique: Implantar › Gerenciar implantações › lápis › Versão: Nova versão › Implantar."
+      : ". Confira o endereço /exec e se a implantação está como “Qualquer pessoa”."));
   }
   // o Google diz se este celular está liberado; se deixou de estar, volta para a tela de espera
   if(j.acesso && body.acao!=="acesso" && body.acao!=="dev") acessoMudou(j.acesso);
@@ -1751,7 +1762,7 @@ $("#tema").addEventListener("click", e=>{ const b=e.target.closest("button[data-
   renderTema(); });
 renderTema();
 
-const VERSAO_APP = "v63"; // igual ao número em sw.js (armacao-v63)
+const VERSAO_APP = "v64"; // igual ao número em sw.js (armacao-v64)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -2966,7 +2977,7 @@ async function pdfBaixar(f, prog){
       if(ini>=total || !pedacos[pedacos.length-1].length) break;
     }
   }catch(e){
-    const velho = S.scriptVer && S.scriptVer<20 ? ` O Code.gs publicado é a versão ${S.scriptVer}: cole o novo (versão 20) no Apps Script e publique uma Nova versão.` : "";
+    const velho = S.scriptVer && S.scriptVer<21 ? ` O Code.gs publicado é a versão ${S.scriptVer}: cole o novo (versão 21) no Apps Script e publique uma Nova versão.` : "";
     throw new Error(`Não foi possível baixar "${pjTitulo(f.nome)}" (${mb(f.tamanho||0)}): ${e.message}${velho}`);
   }
   const u8=new Uint8Array(pedacos.reduce((s,p)=>s+p.length,0)); let o=0; for(const p of pedacos){ u8.set(p,o); o+=p.length; }

@@ -130,11 +130,18 @@ async function carregar(){
   if(!URLD||!CHAVE){ pedirAcesso(); return; }
   $("#status").textContent="Atualizando…";
   try{
-    const r=await fetch(`${URLD}?k=${encodeURIComponent(CHAVE)}`), txt=await r.text();
-    let j; try{ j=JSON.parse(txt); }catch{
+    // gz=1: o Google manda comprimido (Code.gs 21+); resposta grande sem compressão volta como página de erro do Drive
+    const gz=typeof DecompressionStream==="function";
+    const r=await fetch(`${URLD}?k=${encodeURIComponent(CHAVE)}${gz?"&gz=1":""}`), txt=await r.text();
+    let j; try{ j=JSON.parse(txt);
+      if(j.gz){ const bin=atob(j.gz), u8=Uint8Array.from(bin,c=>c.charCodeAt(0));
+        j=JSON.parse(await new Response(new Blob([u8]).stream().pipeThrough(new DecompressionStream("gzip"))).text()); }
+    }catch{
       // o Google devolveu uma página de erro (HTML): mostra o texto dela
       const g=(new DOMParser().parseFromString(txt,"text/html").body?.innerText||"").replace(/\s+/g," ").trim().slice(0,240);
-      throw new Error("O Google não devolveu os dados"+(g?": “"+g+"”":".")+" Confira se o Code.gs foi salvo sem erro e publicado em Implantar → Gerenciar implantações → Nova versão, com acesso “Qualquer pessoa”.");
+      throw new Error("O Google não devolveu os dados"+(g?": “"+g+"”":".")+(/abrir o arquivo|unable to open the file/i.test(g)
+        ? " A resposta ficou grande demais: cole o Code.gs novo (versão 21) no Apps Script e publique em Implantar → Gerenciar implantações → lápis → Nova versão."
+        : " Confira se o Code.gs foi salvo sem erro e publicado em Implantar → Gerenciar implantações → Nova versão, com acesso “Qualquer pessoa”."));
     }
     if(!j.ok) throw new Error(j.erro||"Erro ao ler os dados.");
     preparar(j); $("#erro").hidden=true; $("#conteudo").hidden=false; render();

@@ -3,16 +3,16 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>WILA · gestão de obra</title>
+<title>WIGO · gestão de obra</title>
 <meta name="theme-color" content="#1F3A5F">
 <script>
 // aplica o tema salvo antes de desenhar a tela (evita piscar claro→escuro ao abrir)
 try{ const t=JSON.parse(localStorage.getItem("arm:tema")); if(t==="light"||t==="dark") document.documentElement.dataset.theme=t; }catch{}
 </script>
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="icon-wila-192.png">
-<link rel="apple-touch-icon" href="icon-wila-192.png">
-<meta name="apple-mobile-web-app-title" content="WILA">
+<link rel="icon" href="icon-wigo-192.png">
+<link rel="apple-touch-icon" href="icon-wigo-192.png">
+<meta name="apple-mobile-web-app-title" content="WIGO">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap">
 <style>
@@ -274,7 +274,7 @@ canvas.qr{display:block;width:min(260px,100%);height:auto;image-rendering:pixela
 .v-dica{position:absolute;left:50%;bottom:calc(12px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:rgba(0,0,0,.6);color:#fff;font-size:.78rem;padding:6px 10px;border-radius:8px;pointer-events:none}
 
 /* ================= tela inicial e menu de módulos ================= */
-/* marca WILA: azul-marinho + laranja */
+/* cores do app: azul-marinho + laranja */
 :root{ --marca:#1F3A5F; --marca-claro:#3E78B2; --marca-escuro:#16304F; --marca-laranja:#E07A1F; }
 .tela{position:fixed;inset:0;z-index:25;background:var(--bg);overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
 .tela-topo{position:relative;background:var(--marca);color:#fff;padding:calc(14px + env(safe-area-inset-top,0px)) 16px 34px;overflow:hidden}
@@ -505,7 +505,7 @@ canvas.qr{display:block;width:min(260px,100%);height:auto;image-rendering:pixela
 <!-- ================= tela inicial ================= -->
 <section id="inicio" class="tela" aria-label="Início">
   <header class="tela-topo"><div class="in">
-    <img class="tela-logo" src="logo-wila.png" alt="WILA">
+    <img class="tela-logo" src="logo-wigo.png" alt="WIGO">
     <div class="tela-obra"><small>Obra</small><b>SAA Rio Grande</b><span>Uberaba / MG</span></div>
   </div></header>
   <div class="tela-corpo">
@@ -514,7 +514,7 @@ canvas.qr{display:block;width:min(260px,100%);height:auto;image-rendering:pixela
     <div class="ind-ini" id="ind-ini"></div>
     <h2 class="tela-tit" id="tit-mods">Módulos</h2>
     <div class="mods" id="mods"></div>
-    <p class="rodape-ini">WILA · gestão de obra</p>
+    <p class="rodape-ini">WIGO · gestão de obra</p>
   </div>
 </section>
 
@@ -522,7 +522,7 @@ canvas.qr{display:block;width:min(260px,100%);height:auto;image-rendering:pixela
 <section id="tela-prod" class="tela" aria-label="Produtividade" hidden>
   <header class="tela-topo compacto"><div class="in">
     <button class="tela-voltar" type="button" data-voltar><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>Início</button>
-    <img class="tela-logo" src="logo-wila.png" alt="WILA">
+    <img class="tela-logo" src="logo-wigo.png" alt="WIGO">
   </div></header>
   <div class="tela-corpo">
     <p class="saud">Produtividade<small>Escolha o serviço para acompanhar</small></p>
@@ -534,7 +534,7 @@ canvas.qr{display:block;width:min(260px,100%);height:auto;image-rendering:pixela
 <section id="tela-sup" class="tela" aria-label="Suprimentos" hidden>
   <header class="tela-topo compacto"><div class="in">
     <button class="tela-voltar" type="button" data-voltar><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>Início</button>
-    <img class="tela-logo" src="logo-wila.png" alt="WILA">
+    <img class="tela-logo" src="logo-wigo.png" alt="WIGO">
   </div></header>
   <div class="tela-corpo">
     <p class="saud">Suprimentos<small>Pedidos e recebimento por material</small></p>
@@ -546,7 +546,7 @@ canvas.qr{display:block;width:min(260px,100%);height:auto;image-rendering:pixela
 <section id="tela-sup-aco" class="tela" aria-label="Suprimentos de aço" hidden>
   <header class="tela-topo compacto"><div class="in">
     <button class="tela-voltar" type="button" data-voltar><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>Suprimentos</button>
-    <img class="tela-logo" src="logo-wila.png" alt="WILA">
+    <img class="tela-logo" src="logo-wigo.png" alt="WIGO">
   </div></header>
   <div class="tela-corpo" id="sup-aco"></div>
 </section>
@@ -555,7 +555,7 @@ canvas.qr{display:block;width:min(260px,100%);height:auto;image-rendering:pixela
 <section id="tela-sup-pedido" class="tela" aria-label="Pedido de aço" hidden>
   <header class="tela-topo compacto"><div class="in">
     <button class="tela-voltar" type="button" data-voltar><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>Aço</button>
-    <img class="tela-logo" src="logo-wila.png" alt="WILA">
+    <img class="tela-logo" src="logo-wigo.png" alt="WIGO">
   </div></header>
   <div class="tela-corpo" id="sup-ped"></div>
 </section>
@@ -564,7 +564,7 @@ canvas.qr{display:block;width:min(260px,100%);height:auto;image-rendering:pixela
 <section id="tela-sup-conf" class="tela" aria-label="Conferência do romaneio" hidden>
   <header class="tela-topo compacto"><div class="in">
     <button class="tela-voltar" type="button" data-voltar><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>Aço</button>
-    <img class="tela-logo" src="logo-wila.png" alt="WILA">
+    <img class="tela-logo" src="logo-wigo.png" alt="WIGO">
   </div></header>
   <div class="tela-corpo" id="sup-conf"></div>
 </section>
@@ -573,7 +573,7 @@ canvas.qr{display:block;width:min(260px,100%);height:auto;image-rendering:pixela
 <section id="tela-ponto" class="tela" aria-label="Ponto e efetivo" hidden>
   <header class="tela-topo compacto"><div class="in">
     <button class="tela-voltar" type="button" data-voltar><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>Início</button>
-    <img class="tela-logo" src="logo-wila.png" alt="WILA">
+    <img class="tela-logo" src="logo-wigo.png" alt="WIGO">
   </div></header>
   <div class="tela-corpo" id="ponto"></div>
 </section>
@@ -581,7 +581,7 @@ canvas.qr{display:block;width:min(260px,100%);height:auto;image-rendering:pixela
 <!-- ================= Login por cargo ================= -->
 <section id="tela-login" class="tela" aria-label="Entrar no app" hidden>
   <header class="tela-topo"><div class="in">
-    <img class="tela-logo" src="logo-wila.png" alt="WILA">
+    <img class="tela-logo" src="logo-wigo.png" alt="WIGO">
     <div class="tela-obra"><small>Obra</small><b>SAA Rio Grande</b><span>Uberaba / MG</span></div>
   </div></header>
   <div class="tela-corpo" id="login"></div>
@@ -591,7 +591,7 @@ canvas.qr{display:block;width:min(260px,100%);height:auto;image-rendering:pixela
 <section id="tela-acessos" class="tela" aria-label="Acessos" hidden>
   <header class="tela-topo compacto"><div class="in">
     <button class="tela-voltar" type="button" data-voltar><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>Início</button>
-    <img class="tela-logo" src="logo-wila.png" alt="WILA">
+    <img class="tela-logo" src="logo-wigo.png" alt="WIGO">
   </div></header>
   <div class="tela-corpo" id="acessos"></div>
 </section>
@@ -600,7 +600,7 @@ canvas.qr{display:block;width:min(260px,100%);height:auto;image-rendering:pixela
 <section id="tela-producao" class="tela" aria-label="Produção" hidden>
   <header class="tela-topo compacto"><div class="in">
     <button class="tela-voltar" type="button" data-voltar><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>Início</button>
-    <img class="tela-logo" src="logo-wila.png" alt="WILA">
+    <img class="tela-logo" src="logo-wigo.png" alt="WIGO">
   </div></header>
   <div class="tela-corpo" id="producao"></div>
 </section>
@@ -609,7 +609,7 @@ canvas.qr{display:block;width:min(260px,100%);height:auto;image-rendering:pixela
 <section id="tela-conc" class="tela" aria-label="Concreto" hidden>
   <header class="tela-topo compacto"><div class="in">
     <button class="tela-voltar" type="button" data-voltar><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>Produtividade</button>
-    <img class="tela-logo" src="logo-wila.png" alt="WILA">
+    <img class="tela-logo" src="logo-wigo.png" alt="WIGO">
   </div></header>
   <div class="tela-corpo" id="conc"></div>
 </section>
@@ -618,7 +618,7 @@ canvas.qr{display:block;width:min(260px,100%);height:auto;image-rendering:pixela
 <section id="tela-rdo" class="tela" aria-label="Diário de obra" hidden>
   <header class="tela-topo compacto"><div class="in">
     <button class="tela-voltar" type="button" data-voltar><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>Início</button>
-    <img class="tela-logo" src="logo-wila.png" alt="WILA">
+    <img class="tela-logo" src="logo-wigo.png" alt="WIGO">
   </div></header>
   <div class="tela-corpo" id="rdo"></div>
 </section>
@@ -627,7 +627,7 @@ canvas.qr{display:block;width:min(260px,100%);height:auto;image-rendering:pixela
 <section id="tela-fotos" class="tela" aria-label="Fotos da obra" hidden>
   <header class="tela-topo compacto"><div class="in">
     <button class="tela-voltar" type="button" data-voltar><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>Início</button>
-    <img class="tela-logo" src="logo-wila.png" alt="WILA">
+    <img class="tela-logo" src="logo-wigo.png" alt="WIGO">
   </div></header>
   <div class="tela-corpo" id="fotos"></div>
 </section>
@@ -636,7 +636,7 @@ canvas.qr{display:block;width:min(260px,100%);height:auto;image-rendering:pixela
 <section id="tela-reg" class="tela" aria-label="Módulo" hidden>
   <header class="tela-topo compacto"><div class="in">
     <button class="tela-voltar" type="button" data-voltar><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>Voltar</button>
-    <img class="tela-logo" src="logo-wila.png" alt="WILA">
+    <img class="tela-logo" src="logo-wigo.png" alt="WIGO">
   </div></header>
   <div class="tela-corpo" id="reg2"></div>
 </section>
@@ -908,7 +908,7 @@ canvas.qr{display:block;width:min(260px,100%);height:auto;image-rendering:pixela
           <label class="chk"><input type="checkbox" id="cb-local"> Endereço</label>
           <label class="chk"><input type="checkbox" id="cb-coord"> Coordenadas GPS</label>
           <label class="chk"><input type="checkbox" id="cb-obra"> Obra e posição</label>
-          <label class="chk"><input type="checkbox" id="cb-logo"> Logo WILA</label>
+          <label class="chk"><input type="checkbox" id="cb-logo"> Logo WIGO</label>
         </div>
       </div>
     </div>
@@ -1678,7 +1678,7 @@ function renderCfgLink(){
   const d=el("details",{class:"cfg-link"}, el("summary",{text:"Configurar outro celular (link ou QR)"}), corpo);
   d.ontoggle=()=>{ if(!d.open || corpo.childElementCount) return;
     const url=linkCfg(), env=el("button",{class:"btn",type:"button",text:"Enviar link"});
-    env.onclick=async()=>{ try{ await navigator.share({title:"Configurar o WILA",url}); }catch{ try{ await navigator.clipboard.writeText(url); toast("Link copiado"); }catch{ toast("Não foi possível copiar."); } } };
+    env.onclick=async()=>{ try{ await navigator.share({title:"Configurar o WIGO",url}); }catch{ try{ await navigator.clipboard.writeText(url); toast("Link copiado"); }catch{ toast("Não foi possível copiar."); } } };
     let qr; try{ qr=qrCanvas(url); }catch(e){ qr=el("p",{class:"msg",text:e.message}); }
     repor(corpo, el("p",{class:"aviso"}, el("b",{text:"Atenção: "}), "este link e o QR dão acesso de gravação na planilha. Mostre ou envie só para quem trabalha na obra."),
       el("p",{class:"info",text:"No outro celular: aponte a câmera para o QR (ou abra o link) e confirme."}), qr, el("div",{class:"row"}, env)); };
@@ -1712,7 +1712,7 @@ $("#tema").addEventListener("click", e=>{ const b=e.target.closest("button[data-
   renderTema(); });
 renderTema();
 
-const VERSAO_APP = "v54"; // igual ao número em sw.js (armacao-v54)
+const VERSAO_APP = "v55"; // igual ao número em sw.js (armacao-v55)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -1749,12 +1749,12 @@ $("#rel-pdf").addEventListener("click", async ()=>{
   }catch(e){ msg.textContent=e.message||"Não foi possível gerar o relatório."; }
   finally{ btn.disabled=false; }
 });
-// logo do WILA (branca, para fundo escuro) no cabeçalho dos relatórios e no carimbo das fotos: corta as margens transparentes
+// logo do WIGO (selo branco) no cabeçalho dos relatórios e no carimbo das fotos: corta as margens transparentes
 let LOGO=null;
 async function logoRelatorio(){
   if(LOGO) return LOGO;
   try{
-    const b=await (await fetch("logo-wila.png")).blob(), url=URL.createObjectURL(b);
+    const b=await (await fetch("logo-wigo.png")).blob(), url=URL.createObjectURL(b);
     const img=await new Promise((res,rej)=>{ const i=new Image(); i.onload=()=>res(i); i.onerror=rej; i.src=url; });
     const c=document.createElement("canvas"); c.width=img.naturalWidth; c.height=img.naturalHeight; const g=c.getContext("2d"); g.drawImage(img,0,0);
     const d=g.getImageData(0,0,c.width,c.height).data; let x0=c.width,y0=c.height,x1=0,y1=0;
@@ -1769,7 +1769,7 @@ async function logoRelatorio(){
 // Nome da obra nos relatórios: vem da configuração da obra (aba Config: OBRA_NOME, OBRA_CIDADE); sem ela, o padrão.
 const nomeObra = () => S.cfgObra?.OBRA_NOME || S.pendCfg?.OBRA_NOME || "SAA Rio Grande";
 const cidadeObra = () => S.cfgObra?.OBRA_CIDADE || S.pendCfg?.OBRA_CIDADE || "Uberaba/MG";
-const PDF_AZ=[31,58,95]; // #1F3A5F, azul-marinho do WILA
+const PDF_AZ=[31,58,95]; // #1F3A5F, azul-marinho do WIGO
 async function carregarJsPdf(){
   await carregarScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js");
   await carregarScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js");
@@ -2897,8 +2897,14 @@ $("#pj-busca").addEventListener("input", ()=>renderProjetos());
 
 async function pdfGuardado(id){ try{ const r=await (await caches.open(PDFCACHE)).match("pdf/"+id); return r ? await r.arrayBuffer() : null; }catch{ return null; } }
 async function pdfBaixar(f){
-  const j=await post({acao:"pdf", id:f.id});
-  const buf=await (await fetch("data:application/pdf;base64,"+j.b64)).arrayBuffer();
+  let j;
+  try{ j=await post({acao:"pdf", id:f.id}); }
+  catch(e){ throw new Error(`Não foi possível baixar "${pjTitulo(f.nome)}" (${mb(f.tamanho||0)}): ${e.message}`); }
+  if(!j.b64) throw new Error("O Google não mandou o PDF. Toque em Atualizar lista e tente de novo.");
+  // decodifica aos poucos (sem endereço data:, que falha com arquivos grandes em alguns celulares)
+  const bin=atob(j.b64), u8=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) u8[i]=bin.charCodeAt(i);
+  const buf=u8.buffer;
   try{
     await (await caches.open(PDFCACHE)).put("pdf/"+f.id, new Response(buf.slice(0),{headers:{"Content-Type":"application/pdf"}}));
     PJ.off[f.id]=j.atualizado; LS.set("pdfOff",PJ.off);

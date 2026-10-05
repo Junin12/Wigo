@@ -1096,8 +1096,21 @@ async function descomprimir(b64){
 // sincronização: até 3 min por pedido (o Google às vezes demora; sem prazo o app ficava "Sincronizando…" para sempre)
 const PRAZO_SYNC = 180000;
 const api = (ops, ctl) => post({v:S.meta?.v||"", ops}, PRAZO_SYNC, ctl);
+// O Google às vezes devolve, ao acaso, a página "Drive: Não foi possível abrir o arquivo" mesmo com o script
+// tendo rodado certo (em testes, cerca de metade das vezes). Nesse caso tenta de novo na hora, até 5 vezes.
+// Repetir é seguro: os lançamentos são gravados pelo código (não somam) e a foto já gravada não é gravada de novo.
+const TENTATIVAS_DRIVE = 5;
 // prazo (ms, opcional): desiste se o Google não responder a tempo. ctl (opcional): permite cancelar o pedido de fora
 async function post(body, prazo, ctl=new AbortController()){
+  for(let k=1;;k++){
+    try{ return await post1(body, prazo, ctl); }
+    catch(e){
+      if(!e.drive || k>=TENTATIVAS_DRIVE || ctl.signal.aborted) throw e;
+      await new Promise(r=>setTimeout(r, 1000*k)); // 1 s, 2 s, 3 s…
+    }
+  }
+}
+async function post1(body, prazo, ctl){
   if(!S.cfg?.url) throw new Error("Banco não configurado. Vá em Ajustes.");
   let r, txt, estourou=false;
   const tm = prazo ? setTimeout(()=>{ estourou=true; ctl.abort(); }, prazo) : 0;
@@ -1111,11 +1124,12 @@ async function post(body, prazo, ctl=new AbortController()){
   let j; try{ j = JSON.parse(txt); if(j.gz) j = JSON.parse(await descomprimir(j.gz)); }catch{
     // o Google devolveu uma página de erro (HTML): mostra o texto dela para saber a causa
     let g=""; try{ g=(new DOMParser().parseFromString(txt,"text/html").body?.innerText||"").replace(/\s+/g," ").trim().slice(0,200); }catch{}
-    // "Drive: Não foi possível abrir o arquivo" = resposta grande demais (o Code.gs 21 manda comprimido)
-    const grande=/abrir o arquivo|unable to open the file/i.test(g);
-    throw new Error("Resposta inválida do Google"+(g?`: “${g.slice(0,grande?60:200)}”`:"")+(grande
-      ? ". A resposta ficou grande demais para o Google. Cole o Code.gs novo (versão 21) no Apps Script e publique: Implantar › Gerenciar implantações › lápis › Versão: Nova versão › Implantar."
+    // "Drive: Não foi possível abrir o arquivo": falha de entrega do Google (post tenta de novo)
+    const drive=/abrir o arquivo|unable to open the file/i.test(g);
+    const err=new Error("Resposta inválida do Google"+(g?`: “${g.slice(0,drive?60:200)}”`:"")+(drive
+      ? `. O Google falhou ao entregar a resposta ${TENTATIVAS_DRIVE} vezes seguidas. Tente de novo em alguns minutos.`
       : ". Confira o endereço /exec e se a implantação está como “Qualquer pessoa”."));
+    err.drive=drive; throw err;
   }
   // o Google diz se este celular está liberado; se deixou de estar, volta para a tela de espera
   if(j.acesso && body.acao!=="acesso" && body.acao!=="dev") acessoMudou(j.acesso);
@@ -1762,7 +1776,7 @@ $("#tema").addEventListener("click", e=>{ const b=e.target.closest("button[data-
   renderTema(); });
 renderTema();
 
-const VERSAO_APP = "v64"; // igual ao número em sw.js (armacao-v64)
+const VERSAO_APP = "v65"; // igual ao número em sw.js (armacao-v65)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");

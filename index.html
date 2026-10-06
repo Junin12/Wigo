@@ -317,14 +317,15 @@ canvas.qr{display:block;width:min(260px,100%);height:auto;image-rendering:pixela
 .tela-topo::after{content:"";position:absolute;left:0;right:0;bottom:0;height:22px;background:var(--bg);border-radius:22px 22px 0 0}
 @keyframes brilho{from{transform:translate(0,0) scale(1)}to{transform:translate(-18%,-12%) scale(1.15)}}
 .tela-topo .in{position:relative;z-index:1;max-width:1000px;margin-inline:auto;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 16px}
-.tela-logo{height:42px;width:auto;display:block}
+/* logo Heca / GCE (fundo branco): num quadro branco sobre o azul */
+.tela-logo{height:40px;width:auto;max-width:62vw;object-fit:contain;display:block;background:#fff;border-radius:10px;padding:4px 6px;box-shadow:0 4px 14px -6px rgba(0,0,0,.45)}
 .tela-obra{text-align:right;line-height:1.15}
 .tela-obra small{display:block;font-size:.68rem;letter-spacing:.12em;text-transform:uppercase;color:#CFE6F6}
 .tela-obra b{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-size:1.25rem;font-weight:600}
 .tela-obra span{display:block;font-size:.8rem;color:#CFE6F6}
 .tela-topo.compacto{padding-bottom:30px}
 .tela-topo.compacto .in{justify-content:flex-start}
-.tela-topo.compacto .tela-logo{height:32px;margin-left:auto}
+.tela-topo.compacto .tela-logo{height:32px;padding:3px 5px;border-radius:8px;margin-left:auto}
 .tela-voltar{border:1px solid rgba(255,255,255,.35);background:rgba(255,255,255,.12);color:#fff;border-radius:12px;min-height:44px;padding:0 14px;font-weight:600;display:inline-flex;align-items:center;gap:6px;transition:background .2s}
 .tela-voltar:hover{background:rgba(255,255,255,.22)}
 .tela-voltar svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
@@ -540,7 +541,7 @@ canvas.qr{display:block;width:min(260px,100%);height:auto;image-rendering:pixela
 <!-- ================= tela inicial ================= -->
 <section id="inicio" class="tela" aria-label="Início">
   <header class="tela-topo"><div class="in">
-    <img class="tela-logo" src="logo-wigo-escuro.png" alt="WIGO">
+    <img class="tela-logo" src="logo-relatorio.jpg" alt="Heca Construtora · GCE">
     <div class="tela-obra"><small>Obra</small><b>SAA Rio Grande</b><span>Uberaba / MG</span></div>
   </div></header>
   <div class="tela-corpo">
@@ -557,7 +558,7 @@ canvas.qr{display:block;width:min(260px,100%);height:auto;image-rendering:pixela
 <section id="tela-prod" class="tela" aria-label="Produtividade" hidden>
   <header class="tela-topo compacto"><div class="in">
     <button class="tela-voltar" type="button" data-voltar><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>Início</button>
-    <img class="tela-logo" src="logo-wigo-escuro.png" alt="WIGO">
+    <img class="tela-logo" src="logo-relatorio.jpg" alt="Heca Construtora · GCE">
   </div></header>
   <div class="tela-corpo">
     <p class="saud">Produtividade<small>Escolha o serviço para acompanhar</small></p>
@@ -569,7 +570,7 @@ canvas.qr{display:block;width:min(260px,100%);height:auto;image-rendering:pixela
 <section id="tela-sup" class="tela" aria-label="Suprimentos" hidden>
   <header class="tela-topo compacto"><div class="in">
     <button class="tela-voltar" type="button" data-voltar><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>Início</button>
-    <img class="tela-logo" src="logo-wigo-escuro.png" alt="WIGO">
+    <img class="tela-logo" src="logo-relatorio.jpg" alt="Heca Construtora · GCE">
   </div></header>
   <div class="tela-corpo">
     <p class="saud">Suprimentos<small>Pedidos e recebimento por material</small></p>
@@ -581,7 +582,7 @@ canvas.qr{display:block;width:min(260px,100%);height:auto;image-rendering:pixela
 <section id="tela-sup-aco" class="tela" aria-label="Suprimentos de aço" hidden>
   <header class="tela-topo compacto"><div class="in">
     <button class="tela-voltar" type="button" data-voltar><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>Suprimentos</button>
-    <img class="tela-logo" src="logo-wigo-escuro.png" alt="WIGO">
+    <img class="tela-logo" src="logo-relatorio.jpg" alt="Heca Construtora · GCE">
   </div></header>
   <div class="tela-corpo" id="sup-aco"></div>
 </section>
@@ -590,7 +591,7 @@ canvas.qr{display:block;width:min(260px,100%);height:auto;image-rendering:pixela
 <section id="tela-sup-pedido" class="tela" aria-label="Pedido de aço" hidden>
   <header class="tela-topo compacto"><div class="in">
     <button class="tela-voltar" type="button" data-voltar><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>Aço</button>
-    <img class="tela-logo" src="logo-wigo-escuro.png" alt="WIGO">
+    <img class="tela-logo" src="logo-relatorio.jpg" alt="Heca Construtora · GCE">
   </div></header>
   <div class="tela-corpo" id="sup-ped"></div>
 </section>
@@ -599,7 +600,7 @@ canvas.qr{display:block;width:min(260px,100%);height:auto;image-rendering:pixela
 <section id="tela-sup-conf" class="tela" aria-label="Conferência do romaneio" hidden>
   <header class="tela-topo compacto"><div class="in">
     <button class="tela-voltar" type="button" data-voltar><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>Aço</button>
-    <img class="tela-logo" src="logo-wigo-escuro.png" alt="WIGO">
+    <img class="tela-logo" src="logo-relatorio.jpg" alt="Heca Construtora · GCE">
   </div></header>
   <div class="tela-corpo" id="sup-conf"></div>
 </section>
@@ -608,7 +609,7 @@ canvas.qr{display:block;width:min(260px,100%);height:auto;image-rendering:pixela
 <section id="tela-ponto" class="tela" aria-label="Ponto e efetivo" hidden>
   <header class="tela-topo compacto"><div class="in">
     <button class="tela-voltar" type="button" data-voltar><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>Início</button>
-    <img class="tela-logo" src="logo-wigo-escuro.png" alt="WIGO">
+    <img class="tela-logo" src="logo-relatorio.jpg" alt="Heca Construtora · GCE">
   </div></header>
   <div class="tela-corpo" id="ponto"></div>
 </section>
@@ -616,7 +617,7 @@ canvas.qr{display:block;width:min(260px,100%);height:auto;image-rendering:pixela
 <!-- ================= Login por cargo ================= -->
 <section id="tela-login" class="tela" aria-label="Entrar no app" hidden>
   <header class="tela-topo"><div class="in">
-    <img class="tela-logo" src="logo-wigo-escuro.png" alt="WIGO">
+    <img class="tela-logo" src="logo-relatorio.jpg" alt="Heca Construtora · GCE">
     <div class="tela-obra"><small>Obra</small><b>SAA Rio Grande</b><span>Uberaba / MG</span></div>
   </div></header>
   <div class="tela-corpo" id="login"></div>
@@ -626,7 +627,7 @@ canvas.qr{display:block;width:min(260px,100%);height:auto;image-rendering:pixela
 <section id="tela-acessos" class="tela" aria-label="Acessos" hidden>
   <header class="tela-topo compacto"><div class="in">
     <button class="tela-voltar" type="button" data-voltar><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>Início</button>
-    <img class="tela-logo" src="logo-wigo-escuro.png" alt="WIGO">
+    <img class="tela-logo" src="logo-relatorio.jpg" alt="Heca Construtora · GCE">
   </div></header>
   <div class="tela-corpo" id="acessos"></div>
 </section>
@@ -635,7 +636,7 @@ canvas.qr{display:block;width:min(260px,100%);height:auto;image-rendering:pixela
 <section id="tela-producao" class="tela" aria-label="Produção" hidden>
   <header class="tela-topo compacto"><div class="in">
     <button class="tela-voltar" type="button" data-voltar><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>Início</button>
-    <img class="tela-logo" src="logo-wigo-escuro.png" alt="WIGO">
+    <img class="tela-logo" src="logo-relatorio.jpg" alt="Heca Construtora · GCE">
   </div></header>
   <div class="tela-corpo" id="producao"></div>
 </section>
@@ -644,7 +645,7 @@ canvas.qr{display:block;width:min(260px,100%);height:auto;image-rendering:pixela
 <section id="tela-conc" class="tela" aria-label="Concreto" hidden>
   <header class="tela-topo compacto"><div class="in">
     <button class="tela-voltar" type="button" data-voltar><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>Produtividade</button>
-    <img class="tela-logo" src="logo-wigo-escuro.png" alt="WIGO">
+    <img class="tela-logo" src="logo-relatorio.jpg" alt="Heca Construtora · GCE">
   </div></header>
   <div class="tela-corpo" id="conc"></div>
 </section>
@@ -653,7 +654,7 @@ canvas.qr{display:block;width:min(260px,100%);height:auto;image-rendering:pixela
 <section id="tela-rdo" class="tela" aria-label="Diário de obra" hidden>
   <header class="tela-topo compacto"><div class="in">
     <button class="tela-voltar" type="button" data-voltar><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>Início</button>
-    <img class="tela-logo" src="logo-wigo-escuro.png" alt="WIGO">
+    <img class="tela-logo" src="logo-relatorio.jpg" alt="Heca Construtora · GCE">
   </div></header>
   <div class="tela-corpo" id="rdo"></div>
 </section>
@@ -662,7 +663,7 @@ canvas.qr{display:block;width:min(260px,100%);height:auto;image-rendering:pixela
 <section id="tela-fotos" class="tela" aria-label="Fotos da obra" hidden>
   <header class="tela-topo compacto"><div class="in">
     <button class="tela-voltar" type="button" data-voltar><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>Início</button>
-    <img class="tela-logo" src="logo-wigo-escuro.png" alt="WIGO">
+    <img class="tela-logo" src="logo-relatorio.jpg" alt="Heca Construtora · GCE">
   </div></header>
   <div class="tela-corpo" id="fotos"></div>
 </section>
@@ -671,14 +672,14 @@ canvas.qr{display:block;width:min(260px,100%);height:auto;image-rendering:pixela
 <section id="tela-reg" class="tela" aria-label="Módulo" hidden>
   <header class="tela-topo compacto"><div class="in">
     <button class="tela-voltar" type="button" data-voltar><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>Voltar</button>
-    <img class="tela-logo" src="logo-wigo-escuro.png" alt="WIGO">
+    <img class="tela-logo" src="logo-relatorio.jpg" alt="Heca Construtora · GCE">
   </div></header>
   <div class="tela-corpo" id="reg2"></div>
 </section>
 <section id="tela-fpainel" class="tela" aria-label="Painel da forma" hidden>
   <header class="tela-topo compacto"><div class="in">
     <button class="tela-voltar" type="button" data-voltar><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>Voltar</button>
-    <img class="tela-logo" src="logo-wigo-escuro.png" alt="WIGO">
+    <img class="tela-logo" src="logo-relatorio.jpg" alt="Heca Construtora · GCE">
   </div></header>
   <div class="tela-corpo" id="fpainel"></div>
 </section>
@@ -952,7 +953,7 @@ canvas.qr{display:block;width:min(260px,100%);height:auto;image-rendering:pixela
           <label class="chk"><input type="checkbox" id="cb-local"> Endereço</label>
           <label class="chk"><input type="checkbox" id="cb-coord"> Coordenadas GPS</label>
           <label class="chk"><input type="checkbox" id="cb-obra"> Obra e posição</label>
-          <label class="chk"><input type="checkbox" id="cb-logo"> Logo WIGO</label>
+          <label class="chk"><input type="checkbox" id="cb-logo"> Logo Heca / GCE</label>
         </div>
       </div>
     </div>
@@ -1820,7 +1821,7 @@ $("#tema").addEventListener("click", e=>{ const b=e.target.closest("button[data-
   renderTema(); });
 renderTema();
 
-const VERSAO_APP = "v73"; // igual ao número em sw.js (armacao-v73)
+const VERSAO_APP = "v75"; // igual ao número em sw.js (armacao-v75)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -1857,21 +1858,12 @@ $("#rel-pdf").addEventListener("click", async ()=>{
   }catch(e){ msg.textContent=e.message||"Não foi possível gerar o relatório."; }
   finally{ btn.disabled=false; }
 });
-// logo do WIGO para fundo escuro (símbolo da treliça + nome, fundo transparente) no cabeçalho dos relatórios e no carimbo das fotos: corta as margens transparentes
-let LOGO=null;
-async function logoRelatorio(){
-  if(LOGO) return LOGO;
-  try{
-    const b=await (await fetch("logo-wigo-escuro.png")).blob(), url=URL.createObjectURL(b);
-    const img=await new Promise((res,rej)=>{ const i=new Image(); i.onload=()=>res(i); i.onerror=rej; i.src=url; });
-    const c=document.createElement("canvas"); c.width=img.naturalWidth; c.height=img.naturalHeight; const g=c.getContext("2d"); g.drawImage(img,0,0);
-    const d=g.getImageData(0,0,c.width,c.height).data; let x0=c.width,y0=c.height,x1=0,y1=0;
-    for(let y=0;y<c.height;y+=2) for(let x=0;x<c.width;x+=2) if(d[(y*c.width+x)*4+3]>20){ if(x<x0)x0=x; if(x>x1)x1=x; if(y<y0)y0=y; if(y>y1)y1=y; }
-    // reduz para no máximo 800 px de largura: o PDF guarda a imagem sem compressão e a logo original deixava o arquivo com ~6 MB
-    const w=Math.max(1,x1-x0+2), h=Math.max(1,y1-y0+2), k=Math.min(1,800/w), o=document.createElement("canvas"); o.width=Math.round(w*k); o.height=Math.round(h*k);
-    o.getContext("2d").drawImage(c,x0,y0,w,h,0,0,o.width,o.height); URL.revokeObjectURL(url);
-    LOGO={src:o.toDataURL("image/png"), w, h}; return LOGO;
-  }catch{ return null; }
+// logo das empresas (Heca Construtora + GCE) no cabeçalho dos relatórios em PDF e no carimbo das fotos (fundo branco: legível na faixa azul e sobre a foto)
+let LOGO_EMP=null;
+async function logoEmpresa(){
+  if(LOGO_EMP) return LOGO_EMP;
+  try{ const src=await blobDataURL(await (await fetch("logo-relatorio.jpg")).blob()), [w,h]=await imgDims(src); return LOGO_EMP={src, w, h}; }
+  catch{ return null; }
 }
 // ---------- PDFs: cabeçalho, rodapé e entrega iguais em todos os relatórios ----------
 // Nome da obra nos relatórios: vem da configuração da obra (aba Config: OBRA_NOME, OBRA_CIDADE); sem ela, o padrão.
@@ -1887,8 +1879,10 @@ async function novoPdf(titulo, sub, linha3, {paisagem=false}={}){
   await carregarJsPdf();
   const {jsPDF}=window.jspdf, doc=new jsPDF({unit:"mm",format:"a4",orientation:paisagem?"landscape":"portrait"}), W=paisagem?297:210, M=12, HB=30;
   doc.setFillColor(...PDF_AZ); doc.rect(0,0,W,HB,"F");
-  const logo=await logoRelatorio();
-  if(logo){ const lw=Math.min(52,14*logo.w/logo.h), lh=lw*logo.h/logo.w; doc.addImage(logo.src,"PNG",W-M-lw,(HB-lh)/2,lw,lh,undefined,"FAST"); }
+  const logo=await logoEmpresa();
+  if(logo){ const lw=Math.min(56,15*logo.w/logo.h), lh=lw*logo.h/logo.w, p=1.5;
+    doc.setFillColor(255,255,255); doc.roundedRect(W-M-lw-p,(HB-lh)/2-p,lw+2*p,lh+2*p,1.5,1.5,"F");
+    doc.addImage(logo.src,"JPEG",W-M-lw,(HB-lh)/2,lw,lh,undefined,"FAST"); }
   doc.setTextColor(255); doc.setFont("helvetica","bold"); doc.setFontSize(15); doc.text(titulo,M,11);
   doc.setFont("helvetica","normal"); doc.setFontSize(10); if(sub) doc.text(sub,M,18.5);
   doc.setFontSize(8); doc.text(linha3 ?? `Gerado em ${new Date().toLocaleString("pt-BR")}`,M,24.5);
@@ -2502,7 +2496,7 @@ async function carimbarFoto(file, contexto){
   return new Promise(res=>CB.res=res);
 }
 async function carregarLogoCarimbo(){
-  const lg=await logoRelatorio(); if(!lg) return;
+  const lg=await logoEmpresa(); if(!lg) return;
   const im=new Image(); im.onload=()=>{ CB.logo=im; desenharPrevia(); }; im.src=lg.src;
 }
 function fecharCarimbo(blob){ $("#cb").hidden=true; const r=CB.res; CB.res=null; CB.bmp=null; r?.(blob); }

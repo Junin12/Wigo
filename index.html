@@ -3780,7 +3780,7 @@ function renderSupAco(){
 
 // --- Conferência do romaneio: OS por OS (veio, quantidade de barras, comprimento) e pesagem da carreta ---
 // As OS vêm de romaneios-os.json (lidas dos PDFs da Aços Campinas): {romaneio: [[elemento, [[OS, folha, posição, bitola, barras, compr. cm, kg], …]], …]}.
-// O resultado fica na aba Config como ACO_CONF_<romaneio> = JSON {m:{OS:"111"}, cheia, vazia, tara, obs, n, nOk, por, em, ok, okPor}
+// O resultado fica na aba Config como ACO_CONF_<romaneio> = JSON {m:{OS:"111"}, cheia, real, tara, obs, n, nOk, por, em, ok, okPor}
 // (m: 3 marcas por OS na ordem veio / quantidade / comprimento; "1" = conferido).
 const CF={rom:null, lista:null};
 async function carregarOsRom(){
@@ -3794,12 +3794,15 @@ function salvarConf(n, c, oss){
 }
 const CF_MARCAS=["Entregue","Quantidade","Comprimento"];
 const kgF = v => `${nf1.format(v)} kg`, cmF = v => `${String(v).replace(".",",")} cm`;
-// peso real pela balança: carreta cheia − vazia (sem a vazia, usa a tara = peso do caminhão), comparado ao peso do romaneio
+// peso real de aço entregue (digitado; sem ele, cheia − tara) comparado ao peso do romaneio (ou soma dos romaneios da carreta):
+// diferença = real − romaneio → negativa quando veio menos, positiva quando veio mais
+// (conferências antigas guardavam a carreta vazia em vez do peso real: cheia − vazia)
 function pesagem(c, kgRom){
-  const ch=num(c.cheia), vz=num(c.vazia), ta=num(c.tara), base=vz>0 ? vz : ta;
-  if(!(ch>0) || !(base>0) || ch<=base) return null;
-  const real=ch-base, dif=real-kgRom;
-  return {real, dif, p: kgRom ? dif/kgRom : 0, pelaTara: !(vz>0), difTara: vz>0 && ta>0 ? vz-ta : null};
+  const ch=num(c.cheia), base=num(c.vazia)>0 ? num(c.vazia) : num(c.tara), dig=num(c.real)>0;
+  const real = dig ? num(c.real) : ch>0 && base>0 && ch>base ? ch-base : 0;
+  if(!(real>0)) return null;
+  const dif=real-kgRom;
+  return {real, dif, p: kgRom ? dif/kgRom : 0, pelaTara: !dig};
 }
 // --- Conferência em carreta: romaneios que chegaram no mesmo dia podem ser conferidos juntos (uma pesagem só) ---
 // Cada romaneio continua com o seu ACO_CONF_<n> (as marcas são por romaneio: o número da OS se repete entre romaneios).
@@ -3821,11 +3824,11 @@ function mudarCarreta(n, outro, entra){
   const antes=carretaDe(n), nova=(entra ? [...new Set([...antes, outro])] : antes.filter(k=>k!==outro)).sort(), base=confDe(n);
   for(const k of nova){
     const c=confDe(k);
-    if(nova.length>1){ c.junto=nova; for(const f of ["cheia","vazia","tara","obs"]) if(base[f]!=null) c[f]=base[f]; else delete c[f]; }
+    if(nova.length>1){ c.junto=nova; for(const f of ["cheia","vazia","real","tara","obs"]) if(base[f]!=null) c[f]=base[f]; else delete c[f]; }
     else delete c.junto;
     gravarConf(k, c);
   }
-  if(!entra){ const c=confDe(outro); delete c.junto; delete c.cheia; delete c.vazia; delete c.tara; delete c.obs; gravarConf(outro, c); }
+  if(!entra){ const c=confDe(outro); delete c.junto; delete c.cheia; delete c.vazia; delete c.real; delete c.tara; delete c.obs; gravarConf(outro, c); }
 }
 async function renderSupConf(){
   const box=$("#sup-conf"); if(!box) return;
@@ -3843,7 +3846,7 @@ async function renderSupConf(){
   const kgRom=todas.reduce((s,[,o])=>s+o[6],0), nOk=todas.filter(([k,o])=>C[k].m[o[0]]==="111").length;
   const salvar=()=>{
     for(const k of ns){ const c=C[k]; if(junto) c.junto=ns;
-      if(k!==n) for(const f of ["cheia","vazia","tara","obs","ok","okPor"]) if(c0[f]!=null) c[f]=c0[f]; else delete c[f];
+      if(k!==n) for(const f of ["cheia","vazia","real","tara","obs","ok","okPor"]) if(c0[f]!=null) c[f]=c0[f]; else delete c[f];
       salvarConf(k, c, OSS[k]); }
     renderSupConf(); };
   const rotPeso = junto ? `soma dos ${ns.length} romaneios` : "romaneio";
@@ -3858,13 +3861,13 @@ async function renderSupConf(){
           onclick:()=>{ mudarCarreta(n, r.n, !on); toast(on ? `C.AGUA.${r.n} saiu da carreta` : `C.AGUA.${r.n} entrou na carreta`); renderSupConf(); }}); }))) : null;
   // pesagem
   const iCh=el("input",{type:"number",inputMode:"decimal",min:0,step:10,value:c0.cheia??"",disabled:trav,"aria-label":"Peso da carreta cheia (kg)"});
-  const iVz=el("input",{type:"number",inputMode:"decimal",min:0,step:10,value:c0.vazia??"",disabled:trav,"aria-label":"Peso da carreta vazia (kg)"});
+  const iRe=el("input",{type:"number",inputMode:"decimal",min:0,step:10,value:c0.real??"",disabled:trav,"aria-label":"Peso real de aço entregue (kg)"});
   const iTa=el("input",{type:"number",inputMode:"decimal",min:0,step:10,value:c0.tara??"",disabled:trav,"aria-label":"Tara: peso do caminhão (kg)"});
-  iCh.onchange=()=>{ c0.cheia=iCh.value; salvar(); }; iVz.onchange=()=>{ c0.vazia=iVz.value; salvar(); }; iTa.onchange=()=>{ c0.tara=iTa.value; salvar(); };
-  const pz=pesagem(c0, kgRom);
-  const resPeso = pz ? el("p",{class:Math.abs(pz.p)>0.02?"aviso":"okmsg",text:`Peso real ${kgF(pz.real)}${pz.pelaTara?" (cheia − tara)":""} · ${rotPeso} ${kgF(kgRom)} · diferença ${pz.dif>=0?"+":""}${kgF(pz.dif)} (${pz.dif>=0?"+":""}${pct(pz.p)})${Math.abs(pz.p)>0.02?" · acima de 2%: confira":""}`})
-    : el("p",{class:"info",text:`Peso ${junto?"dos romaneios (soma)":"do romaneio"}: ${kgF(kgRom)}. Pese a carreta cheia (antes de descarregar) e vazia (depois). Sem a vazia, o peso real sai pela tara.`});
-  const resTara = pz?.difTara!=null ? el("p",{class:"info",text:`Vazia − tara: ${pz.difTara>=0?"+":""}${kgF(pz.difTara)}`}) : null;
+  iCh.onchange=()=>{ c0.cheia=iCh.value; salvar(); }; iRe.onchange=()=>{ c0.real=iRe.value; salvar(); }; iTa.onchange=()=>{ c0.tara=iTa.value; salvar(); };
+  const pz=pesagem(c0, kgRom), sg=v=>v>=0?"+":"";
+  if(pz?.pelaTara) iRe.placeholder=`${nf1.format(pz.real)} (cheia − tara)`;
+  const resPeso = pz ? el("p",{class:Math.abs(pz.p)>0.02?"aviso":"okmsg",text:`Peso real entregue ${kgF(pz.real)}${pz.pelaTara?" (cheia − tara)":""} − ${rotPeso} ${kgF(kgRom)} = ${sg(pz.dif)}${kgF(pz.dif)} (${sg(pz.p)}${pct(pz.p)}) · ${pz.dif<0?"veio menos":pz.dif>0?"veio mais":"igual ao romaneio"}${Math.abs(pz.p)>0.02?" · acima de 2%: confira":""}`})
+    : el("p",{class:"info",text:`Peso ${junto?"dos romaneios (soma)":"do romaneio"}: ${kgF(kgRom)}. Informe o peso real de aço entregue (ou a carreta cheia e a tara do caminhão).`});
   // uma linha por OS: três marcas + "Tudo certo"
   const linha=(k,o)=>{
     const c=C[k], [os,folha,pos,bit,q,cm,kg]=o, v=(c.m[os]||"000").padEnd(3,"0"), ok=v==="111";
@@ -3899,7 +3902,7 @@ async function renderSupConf(){
     barra(todas.length?nOk/todas.length:0),
     carreta,
     el("div",{class:"card"}, el("h3",{text:"Pesagem da carreta"}),
-      el("div",{class:"cf-peso"}, el("label",{class:"campo"}, "Cheia, antes de descarregar (kg)", iCh), el("label",{class:"campo"}, "Vazia, depois (kg)", iVz), el("label",{class:"campo"}, "Tara, peso do caminhão (kg)", iTa)), resPeso, resTara),
+      el("div",{class:"cf-peso"}, el("label",{class:"campo"}, "Cheia, antes de descarregar (kg)", iCh), el("label",{class:"campo"}, "Peso real de aço entregue (kg)", iRe), el("label",{class:"campo"}, "Tara, peso do caminhão (kg)", iTa)), resPeso),
     !trav ? el("div",{class:"row"}, el("p",{class:"info",style:"flex:1",text:"Em cada OS, marque o que conferiu: se foi entregue, a quantidade de barras e o comprimento."}),
       nOk<todas.length ? el("button",{class:"btn",type:"button",text:"Marcar todas como certas",onclick:()=>{ if(!confirm(`Marcar as ${todas.length} OS como certas (entregue, quantidade e comprimento)?`)) return; for(const [k,o] of todas) C[k].m[o[0]]="111"; salvar(); }}) : null) : null,
     ...blocos,
@@ -3929,12 +3932,12 @@ async function pdfConf(n, btn){
       ["Conferido por", c.ok ? `${nomeRel(c.okPor)||"?"} em ${new Date(c.ok).toLocaleString("pt-BR")}` : "Conferência não concluída"],
       ["OS conferidas", `${oss.length-div.length} de ${oss.length}`+(div.length?` · ${div.length} com divergência`:" · sem divergência")],
       [junto ? "Peso dos romaneios (soma)" : "Peso do romaneio", kgF(kgRom)],
-      ["Carreta cheia / vazia / tara", c.cheia||c.vazia||c.tara ? [c.cheia,c.vazia,c.tara].map(v=>v?kgF(num(v)):"—").join(" / ")+(pz?.difTara!=null?` (vazia − tara ${pz.difTara>=0?"+":""}${kgF(pz.difTara)})`:"") : "não pesada"],
-      ["Peso real (balança)", pz ? `${kgF(pz.real)}${pz.pelaTara?" (cheia − tara)":""} · diferença ${pz.dif>=0?"+":""}${kgF(pz.dif)} (${pz.dif>=0?"+":""}${pct(pz.p)})` : "—"]];
+      ["Carreta cheia / tara", c.cheia||c.tara ? [c.cheia,c.tara].map(v=>v?kgF(num(v)):"—").join(" / ") : "não pesada"],
+      ["Peso real entregue", pz ? `${kgF(pz.real)}${pz.pelaTara?" (cheia − tara)":""} · diferença ${pz.dif>=0?"+":""}${kgF(pz.dif)} (${pz.dif>=0?"+":""}${pct(pz.p)}) · ${pz.dif<0?"veio menos":pz.dif>0?"veio mais":"igual ao romaneio"}` : "—"]];
     doc.autoTable({startY:y, body:linhas, theme:"plain", margin:{left:M,right:M}, styles:{fontSize:9,cellPadding:1.2,textColor:20},
       columnStyles:{0:{fontStyle:"bold",cellWidth:45}},
       didParseCell:d=>{ if(d.column.index!==1) return; const rot=d.row.raw[0];
-        if(rot==="Peso real (balança)" && pz && Math.abs(pz.p)>0.02) d.cell.styles.textColor=VM;
+        if(rot==="Peso real entregue" && pz && Math.abs(pz.p)>0.02) d.cell.styles.textColor=VM;
         if(rot==="OS conferidas") d.cell.styles.textColor=div.length?VM:VD; }});
     y=doc.lastAutoTable.finalY+6;
     // carreta: coluna "Rom." no começo das tabelas

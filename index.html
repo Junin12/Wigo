@@ -388,6 +388,9 @@ canvas.qr{display:block;width:min(260px,100%);height:auto;image-rendering:pixela
 .cb-opcoes{display:grid;gap:10px;transition:opacity .2s}
 .cb-opcoes.desligado{opacity:.4;pointer-events:none}
 #cb-opac{width:100%;accent-color:var(--accent)}
+.cb-onde{margin-top:6px}
+.cb-bts{margin-top:6px}
+.cb-bts .btn{flex:1 1 200px;min-height:48px}
 .cb-escala{display:flex;justify-content:space-between;font-size:.75rem;color:var(--muted);font-weight:400}
 /* Ponto e efetivo */
 .modal.ef{z-index:30}
@@ -957,7 +960,13 @@ canvas.qr{display:block;width:min(260px,100%);height:auto;image-rendering:pixela
         </div>
       </div>
     </div>
-    <div class="row"><button class="btn pri" id="cb-salvar" type="button">Salvar foto</button></div>
+    <div class="campo cb-onde">Onde guardar a foto?
+      <div class="row cb-bts">
+        <button class="btn" id="cb-salvar-cel" type="button">📱 Salvar no app e no celular</button>
+        <button class="btn" id="cb-salvar" type="button">Salvar só no app</button>
+      </div>
+      <small class="info" id="cb-onde-dica"></small>
+    </div>
   </div>
 </div>
 
@@ -1821,7 +1830,7 @@ $("#tema").addEventListener("click", e=>{ const b=e.target.closest("button[data-
   renderTema(); });
 renderTema();
 
-const VERSAO_APP = "v75"; // igual ao número em sw.js (armacao-v75)
+const VERSAO_APP = "v76"; // igual ao número em sw.js (armacao-v76)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -2474,6 +2483,10 @@ function sincronizarControles(){
   for(const k of ["data","local","coord","obra","logo"]) $("#cb-"+k).checked=c[k];
   document.querySelectorAll("#cb-cantos button").forEach(b=>b.classList.toggle("on", b.dataset.c===c.canto));
   $("#cb-opcoes").classList.toggle("desligado", !c.ativo); $("#cb-opac-box").hidden=!c.fundo;
+  // a última escolha (app e celular, ou só app) fica em destaque
+  $("#cb-salvar-cel").classList.toggle("pri", !!c.celular); $("#cb-salvar").classList.toggle("pri", !c.celular);
+  $("#cb-onde-dica").textContent = ehIOS() ? "No celular: abre o compartilhar; toque em “Salvar imagem” para ir para o app Fotos."
+    : "No celular: a cópia vai para a pasta Downloads, que aparece na Galeria e no Google Fotos.";
 }
 function textoGps(){
   const i=CB.info, g=$("#cb-gps");
@@ -2501,7 +2514,26 @@ async function carregarLogoCarimbo(){
 }
 function fecharCarimbo(blob){ $("#cb").hidden=true; const r=CB.res; CB.res=null; CB.bmp=null; r?.(blob); }
 $("#cb-cancelar").onclick=()=>fecharCarimbo(null);
-$("#cb-salvar").onclick=()=>{ desenharPrevia(); $("#cb-prev").toBlob(b=>fecharCarimbo(b),"image/jpeg",0.8); };
+// cópia no celular: um app da web não grava direto na galeria. No Android vai para Downloads (aparece na Galeria e no Google Fotos);
+// no iPhone abre o compartilhar ("Salvar imagem" → Fotos). A cópia é feita na hora do toque: o iPhone só abre o compartilhar com o toque ainda "valendo".
+const ehIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform==="MacIntel" && navigator.maxTouchPoints>1);
+function copiarParaCelular(canvas, quando){
+  const url=canvas.toDataURL("image/jpeg",0.92), bin=atob(url.split(",")[1]), u8=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) u8[i]=bin.charCodeAt(i);
+  const d=quando||new Date(), p2=n=>String(n).padStart(2,"0");
+  const nome=`Foto_obra_${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}_${p2(d.getHours())}-${p2(d.getMinutes())}-${p2(d.getSeconds())}.jpg`;
+  const blob=new Blob([u8],{type:"image/jpeg"}), file=new File([blob],nome,{type:"image/jpeg"});
+  if(ehIOS() && navigator.canShare?.({files:[file]})) navigator.share({files:[file], title:"Foto da obra"}).catch(()=>{});
+  else baixar(nome, blob);
+}
+function salvarCarimbo(celular){
+  CB.cfg.celular=celular; salvarCfgCarimbo(); desenharPrevia();
+  const c=$("#cb-prev");
+  if(celular){ try{ copiarParaCelular(c, CB.info?.quando); }catch{ toast("Não foi possível salvar a cópia no celular. A foto fica no app."); } }
+  c.toBlob(b=>fecharCarimbo(b),"image/jpeg",0.8);
+}
+$("#cb-salvar").onclick=()=>salvarCarimbo(false);
+$("#cb-salvar-cel").onclick=()=>salvarCarimbo(true);
 $("#cb-ativo").onchange=e=>{ CB.cfg.ativo=e.target.checked; salvarCfgCarimbo(); sincronizarControles(); desenharPrevia(); };
 $("#cb-fundo").onchange=e=>{ CB.cfg.fundo=e.target.checked; salvarCfgCarimbo(); sincronizarControles(); desenharPrevia(); };
 $("#cb-opac").oninput=e=>{ CB.cfg.opac=+e.target.value; $("#cb-opac-v").textContent=`${CB.cfg.opac}%`; desenharPrevia(); };

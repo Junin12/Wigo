@@ -1754,7 +1754,7 @@ const deB64url = s => decodeURIComponent(escape(atob(s.replace(/-/g,"+").replace
 const linkCfg = () => location.href.replace(/[#?].*$/,"").replace(/index\.html$/,"") + "#cfg=" + b64url(JSON.stringify({u:S.cfg.url, t:S.cfg.token}));
 function renderCfgLink(){
   const box=$("#cfg-link"); if(!box) return;
-  if(!S.cfg?.url){ box.replaceChildren(); return; }
+  if(!podeConvidar()){ box.replaceChildren(); return; } // convidar outro celular: desenvolvedor e gerentes
   const corpo=el("div",{});
   const d=el("details",{class:"cfg-link"}, el("summary",{text:"Configurar outro celular (link ou QR)"}), corpo);
   d.ontoggle=()=>{ if(!d.open || corpo.childElementCount) return;
@@ -1772,9 +1772,11 @@ function lerLinkCfg(){
   let o; try{ o=JSON.parse(deB64url(m[1])); }catch{ o=null; }
   if(!o || !/^https:\/\/script\.google(usercontent)?\.com\/.+\/exec$/.test(o.u||"") || !o.t){ toast("Link de configuração inválido."); return; }
   if(S.cfg?.url===o.u && S.cfg?.token===o.t){ toast("Este celular já está ligado a este banco."); return; }
-  const curto=o.u.replace(/^https:\/\/script\.google\.com\/macros\/s\//,"…/");
-  if(!confirm(`Conectar a este banco?\n\n${curto.length>40 ? curto.slice(0,40)+"…" : curto}\n\nO app passa a ler e gravar nesta planilha.`)) return;
-  S.cfg={url:o.u, token:o.t}; LS.set("cfg",S.cfg); $("#cfg-url").value=o.u; $("#cfg-tok").value=o.t; toast("Banco configurado. Sincronizando…");
+  // celular novo (convite): conecta direto; celular já ligado a outro banco: pergunta antes de trocar
+  const novo=!S.cfg?.url, curto=o.u.replace(/^https:\/\/script\.google\.com\/macros\/s\//,"…/");
+  if(!novo && !confirm(`Conectar a este banco?\n\n${curto.length>40 ? curto.slice(0,40)+"…" : curto}\n\nO app passa a ler e gravar nesta planilha.`)) return;
+  S.cfg={url:o.u, token:o.t}; LS.set("cfg",S.cfg); $("#cfg-url").value=o.u; $("#cfg-tok").value=o.t;
+  if(novo) LG.convite=true; else toast("Banco configurado. Sincronizando…");
 }
 function renderDados(){
   renderAcomp(); renderCfgLink();
@@ -1793,7 +1795,7 @@ $("#tema").addEventListener("click", e=>{ const b=e.target.closest("button[data-
   renderTema(); });
 renderTema();
 
-const VERSAO_APP = "v71"; // igual ao número em sw.js (armacao-v71)
+const VERSAO_APP = "v72"; // igual ao número em sw.js (armacao-v72)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -3536,7 +3538,9 @@ function renderInicio(){
     el("span",{}, "👤 ", el("b",{text:U.nome}), nomeCompletoDe(U.nome) ? ` (${nomeCurto(nomeCompletoDe(U.nome))})` : "", ` · ${U.cargo}`),
     el("button",{class:"linkbtn",type:"button",text:"Nome nos relatórios",title:"Ligar o seu login ao seu nome completo",onclick:editarNomeRel}),
     el("button",{class:"linkbtn",type:"button",text:"Trocar usuário",onclick:()=>abrirTela("login")})) : null,
-    souDev() ? el("button",{class:"btn"+(nPed?" pri":""),id:"bt-acessos",type:"button",text:nPed?`🔑 Acessos · ${nPed} aguardando liberação`:"🔑 Acessos",onclick:()=>abrirTela("acessos")}) : null,
+    souDev()||podeConvidar() ? el("div",{class:"row"},
+      souDev() ? el("button",{class:"btn"+(nPed?" pri":""),id:"bt-acessos",type:"button",text:nPed?`🔑 Acessos · ${nPed} aguardando liberação`:"🔑 Acessos",onclick:()=>abrirTela("acessos")}) : null,
+      podeConvidar() ? el("button",{class:"btn",type:"button",text:"📲 Convidar colaborador",onclick:convidarQR}) : null) : null,
     el("button",{class:"btn",id:"aviso-senha",type:"button",hidden:true,style:"color:var(--bad)",text:"⚠ Senha do app errada: nada está sendo gravado nem baixado. Toque para corrigir.",
       onclick:()=>{ irAco("dados"); $("#cfg-tok").focus(); }}));
   setSync();
@@ -5102,6 +5106,7 @@ function renderLogin(){
     pedirAcesso();
   };
   repor(box,
+    LG.convite && !U ? el("p",{class:"okmsg",text:"✓ Celular conectado à obra. Agora escreva seu nome, escolha seu cargo e toque em Entrar para pedir acesso."}) : null,
     el("p",{class:"saud"}, "Quem está usando o app?", el("small",{text:"Escolha seu cargo: o app mostra só o que é da sua função. O desenvolvedor libera cada celular. Seu nome fica registrado em tudo o que você alterar."})),
     el("label",{class:"campo"}, "Seu nome", iNome), el("datalist",{id:"dl-login"}, ...pessoas().filter(p=>p.ativo).map(p=>el("option",{value:p.nome}))),
     el("div",{class:"campo"}, "Seu cargo", bts),
@@ -5129,7 +5134,9 @@ function renderEspera(box){
     quem,
     LG.erro ? el("p",{class:"msg",text:LG.erro}) : null,
     el("button",{class:"btn pri ps-novo",type:"button",text:LG.enviando?"Aguarde…":enviado?"Verificar agora":"Enviar pedido",disabled:LG.enviando,onclick:()=>pedirAcesso()}),
-    outro);
+    outro,
+    // quem chegou pelo QR está no navegador: dica para instalar o app (abre sem internet e fica com ícone)
+    !matchMedia("(display-mode: standalone)").matches ? el("p",{class:"info",text:"Enquanto espera: no menu do navegador (⋮ ou ⎙), toque em “Adicionar à tela inicial” para ter o WIGO como app no celular."}) : null);
 }
 // com a tela de espera aberta, confere a cada 20 s se já foi liberado
 setInterval(()=>{ if(document.visibilityState==="visible" && !$("#tela-login").hidden && U && !liberado() && !LG.escolher && !LG.enviando
@@ -5150,6 +5157,27 @@ async function atualizarAcessos(b){
   if(b) b.disabled=true;
   try{ const j=await post({acao:"acessos"}); S.acessos=j.acessos; LS.set("acessos",j.acessos); }catch(e){ toast(e.message); }
   renderAcessos();
+}
+// convite: QR/link que já liga o celular novo à obra; a pessoa diz nome e cargo e o pedido cai em Acessos.
+// Convidam o desenvolvedor e os gerentes; liberar continua só com o desenvolvedor.
+const podeConvidar = () => !!S.cfg?.url && liberado() && (souDev() || /^Gerente/.test(U.cargo));
+function convidarQR(){
+  if(!podeConvidar()) return toast("Só o desenvolvedor e os gerentes, com o banco conectado, convidam colaboradores.");
+  const url=linkCfg(); let qr;
+  try{ qr=qrCanvas(url,8); qr.style.cssText="width:100%;max-width:300px;height:auto;display:block;margin:0 auto;image-rendering:pixelated"; }
+  catch(e){ qr=el("p",{class:"msg",text:e.message}); }
+  const env=el("button",{class:"btn",type:"button",text:"Enviar o link (WhatsApp…)",onclick:async()=>{
+    try{ await navigator.share({title:`WIGO · ${nomeObra()}`,text:"Abra este link no celular para entrar no app da obra:",url}); }
+    catch{ try{ await navigator.clipboard.writeText(url); toast("Link copiado"); }catch{ toast("Não foi possível copiar."); } } }});
+  efModal("Convidar colaborador", [
+    el("p",{class:"info full",text:"Peça para a pessoa apontar a câmera do celular para o QR e tocar no link que aparecer."}),
+    el("div",{class:"full"}, qr),
+    el("ol",{class:"info full",style:"margin:0;padding-left:1.2em"},
+      el("li",{text:"O app abre já ligado à obra."}),
+      el("li",{text:"A pessoa escreve o nome, escolhe o cargo e toca em Entrar."}),
+      el("li",{text: souDev() ? "O pedido aparece aqui em 🔑 Acessos: é só liberar." : "O pedido vai para o desenvolvedor, que libera o acesso."})),
+    el("p",{class:"aviso full",text:"Mostre só para quem trabalha na obra. Mesmo com o QR, ninguém entra sem a liberação do desenvolvedor."})],
+    [env]);
 }
 function renderAcessos(){
   const box=$("#acessos"); if(!box) return;
@@ -5178,7 +5206,8 @@ function renderAcessos(){
   const pend=L.filter(a=>a.status==="pendente").length;
   repor(box,
     el("p",{class:"saud"}, "Acessos", el("small",{text:"Cada celular só entra depois que você liberar o nome e o cargo."})),
-    el("div",{class:"row"}, el("button",{class:"btn",type:"button",text:"Atualizar lista",onclick:e=>atualizarAcessos(e.currentTarget)})),
+    el("div",{class:"row"}, el("button",{class:"btn pri",type:"button",text:"📲 Convidar colaborador (QR)",onclick:convidarQR}),
+      el("button",{class:"btn",type:"button",text:"Atualizar lista",onclick:e=>atualizarAcessos(e.currentTarget)})),
     !pend ? el("div",{class:"vazio",text:"Nenhum pedido aguardando."}) : null,
     ...grupo("Aguardando", "pendente"), ...grupo("Liberados", "liberado"), ...grupo("Recusados", "recusado"));
 }

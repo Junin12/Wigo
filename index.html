@@ -143,6 +143,8 @@ section.view{padding-block:14px;display:grid;gap:14px}
 .vazio{padding:28px 16px;text-align:center;color:var(--muted);background:var(--surface);border:1px dashed var(--line);border-radius:var(--r);display:grid;gap:12px;justify-items:center}
 
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+/* módulos: indicadores sempre em 2 colunas no celular, para a ação principal ficar perto do topo */
+@media (max-width:520px){ #reg2 .kpis{grid-template-columns:1fr 1fr} #reg2 .kpi b{display:block;font-size:1.5rem} }
 .kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px}
 .kpi span{display:block;font-size:.72rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600}
 .kpi b{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-size:1.9rem;font-weight:600;line-height:1.1}
@@ -1776,7 +1778,7 @@ $("#tema").addEventListener("click", e=>{ const b=e.target.closest("button[data-
   renderTema(); });
 renderTema();
 
-const VERSAO_APP = "v67"; // igual ao número em sw.js (armacao-v67)
+const VERSAO_APP = "v69"; // igual ao número em sw.js (armacao-v69)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -6193,7 +6195,7 @@ function renderReg2(){
     ed && !T.semNovo ? el("button",{class:"btn pri ps-novo",type:"button",text:`+ ${T.novo||"Novo registro"}`,onclick:()=>formReg2(RG.mod, T.id, null, T.pre?.())}) : null,
     el("div",{class:"filtros"}, per, busca),
     el("h2",{class:"tela-tit",text:`${T.nome} · ${lista.length}`}),
-    ...(lista.length ? lista.slice(0,200).map(r=>cardReg2(r,T)) : [el("div",{class:"vazio",text:ed&&!T.semNovo?`Nada registrado${T.semData?"":" no período"}. Toque em + ${T.novo||"Novo registro"}.`:"Nada registrado."})]),
+    ...(lista.length ? lista.slice(0,200).map(r=>cardReg2(r,T)) : [el("div",{class:"vazio",text:T.vazio || (ed&&!T.semNovo?`Nada registrado${T.semData?"":" no período"}. Toque em + ${T.novo||"Novo registro"}.`:"Nada registrado.")})]),
     lista.length ? el("div",{class:"row"}, el("button",{class:"btn",type:"button",text:"📄 PDF da lista",onclick:e=>pdfReg2(T, lista, e.target)})) : null,
     ...(M.rodape?.(T, lista)||[]));
 }
@@ -6238,6 +6240,273 @@ const supMat = mat => ({ id:mat, nome:`Recebimento`, novo:"Novo recebimento", fo
     {k:"qtd",rot:"Quantidade",t:"num",obrig:true},{k:"un",rot:"Unidade",t:"sel",ops:UNIDADES,padrao:MAT2[mat].un},{k:"placa",rot:"Placa",t:"txt",max:10},{k:"obs",rot:"Observação",t:"area"}],
   titulo:d=>`${d.forn||"Fornecedor"} · ${fmtVal({t:"num"},d.qtd)} ${d.un||""}` });
 
+// ================= Formas ULMA COMAIN: material (pedido x recebido x projeto) e produtividade da equipe =================
+// Projeto B291468-R00-001 (paredes dos floculadores, 4 etapas de concretagem): peças por etapa da tabela da folha 5.
+// Material: contrato ULMA 007618-26, NF 016091 em 2 cargas; chegou em 01/10/2026 e foi descarregado em 02/10/2026
+// (lista de descarga da ULMA e "Relatório de recebimento.xlsx"). Os parâmetros de custo ficam na aba Config (FORMA_*).
+const FORMA={
+  forn:"ULMA", sistema:"COMAIN", contrato:"007618-26", nf:"016091", projeto:"B291468-R00-001", est:"FLOCULADORES",
+  etapas:["1ª etapa","2ª etapa","3ª etapa","4ª etapa"],
+  // antes da montagem; os dias com a equipe também viram apontamento (contam na conta da equipe própria)
+  crono:[["2026-10-01","Chegada do material (NF 016091, 2 cargas)"],["2026-10-02","Descarregamento do material"],["2026-10-03","Sábado: sem trabalho"],
+    ["2026-10-04","Domingo: sem trabalho"],["2026-10-05","Treinamento da equipe na forma COMAIN"],["2026-10-06","Início da montagem"]],
+  // [código, descrição, m² por peça (0 = acessório), contrato, 1ª carga, 2ª carga, R$ unit. (NF), peças por etapa no projeto [1ª,2ª,3ª,4ª]]
+  itens:[
+    ["1850372","Painel COMAIN 150x90",1.35,192,95,97,2213.31,[0,92,96,4]],
+    ["1850378","Painel COMAIN 150x60",0.90,16,16,0,1636.59,[0,0,8,8]],
+    ["1850382","Painel COMAIN 150x45",0.68,100,0,100,1461.99,[16,24,50,26]],
+    ["1850386","Painel COMAIN 150x30",0.45,56,0,56,1287.83,[0,20,28,8]],
+    ["1850428","Painel COMAIN 150x20",0.30,0,0,0,0,[0,0,0,40]],
+    ["1850100","Painel COMAIN 120x90",1.08,16,16,0,1912.31,[0,8,4,0]],
+    ["1850113","Painel COMAIN 120x60",0.72,32,32,0,1488.75,[0,16,8,0]],
+    ["1850118","Painel COMAIN 120x45",0.54,180,0,180,1317.11,[12,48,90,44]],
+    ["1850124","Painel COMAIN 120x30",0.36,32,32,0,1054.84,[0,16,8,0]],
+    ["1850129","Painel COMAIN 120x20",0.24,0,0,0,0,[0,0,0,52]],
+    ["1850359","Canto interno 120x15",0.36,16,16,0,878.40,[0,8,4,0]],
+    ["1850436","Canto interno 150x15",0.45,0,0,0,0,[0,0,4,0]],
+    ["1850155","Compensador 120x5",0.06,16,0,16,184.32,[0,8,4,0]],
+    ["1850396","Compensador 150x5",0.08,14,0,14,215.18,[0,4,8,4]],
+    ["1850149","Canto externo 120 cm",0,16,16,0,378.91,[0,8,4,0]],
+    ["1850394","Canto externo 150 cm",0,8,8,0,684.94,[0,0,4,0]],
+    ["1850162","Alinhador 75 cm",0,60,60,0,177.81,[12,72,72,36]],
+    ["1850160","Alinhador 100 cm",0,88,88,0,254.02,[0,2,2,1]],
+    ["1850175","Alinhador 200 cm",0,0,0,0,0,[5,0,0,0]],
+    ["1850161","Alinhador 250 cm",0,12,12,0,558.29,[0,6,6,4]],
+    ["1850163","Alinhador 340 cm",0,48,48,0,696.27,[8,24,24,20]],
+    ["1850134","Chaveta de fixação",0,650,650,0,26.91,[42,770,1020,337]],
+    ["1850164","Fixador 20 cm",0,400,400,0,73.33,[79,490,546,306]],
+    ["1850173","Plataforma de trabalho",0,64,64,0,926.88,[0,32,0,0]],
+    ["1861300","Tirante 50 cm sem chapa",0,500,500,0,14.67,[184,613,914,477]],
+    ["1861312","Tirante 75 cm sem chapa",0,1328,0,1328,22.00,[0,0,0,0]],
+    ["1861199","Escora ECO T-C",0,76,76,0,618.91,[0,38,0,0]],
+    ["1900144","Base estabilizadora",0,76,76,0,194.24,[0,36,0,0]],
+    ["1861692","Placa excêntrica",0,134,72,62,56.69,[92,30,36,94]],
+    ["7138002","Porca borboleta 11 cm",0,3622,1210,2412,33.86,[171,905,1206,587]],
+    ["7138001","Porca sextavada",0,726,218,508,13.39,[92,198,254,196]],
+    ["0241660","Parafuso M16x60",0,508,508,0,6.50,[0,0,0,0]],
+    ["0241600","Porca M16",0,508,508,0,1.64,[0,0,0,0]],
+    ["1940042","Escada marinheiro",0,8,8,0,880.40,[0,0,0,0]],
+    ["2124908","Base ajustável 100 cm BRIO",0,24,24,0,308.48,[0,0,0,0]],
+    ["2124901","Porca da haste BRIO",0,24,24,0,22.83,[0,0,0,0]],
+    ["2127523","Travessa BRIO 102 cm",0,360,360,0,500.00,[0,0,0,0]],
+    ["2127503","Poste 300 cm com conector",0,48,48,0,721.75,[0,0,0,0]],
+    ["2127605","Poste 100 cm sem conector",0,24,24,0,247.04,[0,0,0,0]],
+    ["2127510","Tubo com disco",0,24,24,0,111.47,[0,0,0,0]],
+    ["B180005","Big bag 80x70x80",0,3,0,3,100.00,[0,0,0,0]]]
+};
+const FORMA_ATIV=["Montagem","Desforma","Descarregamento","Treinamento","Parado"];
+const brl = v => (v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
+// peça a peça: recebido, o que o projeto pede na etapa que mais usa (a forma é reaproveitada) e o saldo
+const fmItens = () => FORMA.itens.map(([cod,desc,m2,ped,c1,c2,vu,et])=>{ const rec=c1+c2, nec=Math.max(...et);
+  return {cod,desc,m2,ped,c1,c2,rec,vu,et,nec,saldo:rec-nec, grupo: m2>0 ? "Painéis, cantos e compensadores" : nec>0 ? "Acessórios do projeto" : "Fora do projeto das paredes"}; });
+const fmM2Etapa = () => FORMA.etapas.map((_,k)=>FORMA.itens.reduce((s,i)=>s+i[2]*i[7][k],0));
+const fmPar = () => ({ preco:num(cfgv("FORMA_PRECO_M2","1.4"))||0, equipe:Math.round(num(cfgv("FORMA_EQUIPE","6")))||0, propria:num(cfgv("FORMA_CUSTO_PROPRIA",""))||0 });
+const fmAtiv = d => d.ativ || "Montagem"; // apontamentos antigos (sem atividade) eram de montagem
+// próximo dia útil depois de n dias de trabalho (segunda a sexta)
+function diasUteis(ini, n){ const d=new Date(ini+"T12:00:00"); while(n>0){ d.setDate(d.getDate()+1); if(d.getDay()%6) n--; } return d.toISOString().slice(0,10); }
+function fmCalc(){
+  const L=regs2De("forma","apont"), par=fmPar(), proj=fmM2Etapa(), totProj=proj.reduce((s,x)=>s+x,0);
+  const porEt=FORMA.etapas.map(()=>({mont:0,desm:0})), dias=new Set();
+  let m2=0, desm=0, pd=0, pdMont=0, hh=0, terc=0, ult="";
+  for(const r of L){
+    const d=r.dados, n=d.n||0, mont=d.mont||0;
+    pd+=n; m2+=mont; desm+=d.desm||0;
+    if((d.vinc||"Terceirizada")==="Terceirizada") terc+=mont;
+    if(fmAtiv(d)==="Montagem"){ pdMont+=n; if(d.horas) hh+=n*d.horas; if(mont){ dias.add(r.data); if(r.data>ult) ult=r.data; } }
+    const k=FORMA.etapas.indexOf(d.etapa); if(k>=0){ porEt[k].mont+=mont; porEt[k].desm+=d.desm||0; }
+  }
+  const prod=pdMont?m2/pdMont:0, porDia=dias.size?m2/dias.size:0, falta=Math.max(0,totProj-m2), diasFalta=porDia?Math.ceil(falta/porDia):0;
+  return {L, par, proj, totProj, porEt, m2, desm, pd, pdMont, hh, dias:dias.size, prod, porDia, falta, diasFalta,
+    fim: porDia && falta ? diasUteis(ult||hojeISO(), diasFalta) : "",
+    pagoTerc:terc*par.preco, custoProp: par.propria ? pd*par.propria : 0,
+    empate: pd ? par.preco*m2/pd : 0}; // custo por pessoa/dia em que a equipe própria empata com a terceirizada
+}
+// lança os dias de descarregamento (02/10) e treinamento (05/10) com a equipe inteira
+function lancarPreparoForma(){
+  const p=fmPar(), L=regs2De("forma","apont");
+  for(const [data, ativ, obs] of [["2026-10-02","Descarregamento","Descarregamento do material ULMA (NF 016091)"],["2026-10-05","Treinamento","Treinamento da equipe na forma COMAIN"]])
+    if(!L.some(r=>r.data===data && fmAtiv(r.dados)===ativ))
+      setReg2(uid().slice(0,12), {modulo:"forma", tipo:"apont", data, status:"", dados:{ativ, est:FORMA.est, vinc:"Terceirizada", npes:p.equipe, n:p.equipe, obs}}, `Criou: ${ativ} ${ddmm(data)}`);
+  toast("Dias de descarregamento e treinamento lançados."); renderReg2();
+}
+const FM_ABERTO=new Set(); // quadros do painel de formas que a pessoa abriu
+function painelForma(){
+  const c=fmCalc(), p=c.par, ed=pode("producao-edit");
+  const tab=(cab, ls, cls)=>el("div",{class:"tbl"}, el("table",{class:cls||""}, el("thead",{}, el("tr",{}, ...cab.map(h=>el("th",{text:h})))),
+    el("tbody",{}, ...ls.map(l=>el("tr",{}, ...l.map(v=>v instanceof Node ? el("td",{},v) : el("td",{text:String(v)})))))));
+  // parâmetros: preço da terceirizada, tamanho da equipe e custo da equipe própria
+  const par=(k, rot, val, ph)=>{ const i=el("input",{type:"text",inputMode:"decimal",value:val?String(val).replace(".",","):"",placeholder:ph||"",disabled:!ed,"aria-label":rot});
+    i.onchange=()=>{ const v=i.value.trim()==="" ? "" : num(i.value); if(v!=="" && !(v>=0)) return toast("Valor inválido."); setCfg(k, v); renderReg2(); };
+    return el("label",{class:"campo"}, rot, i); };
+  const semPrep = ["2026-10-02","2026-10-05"].some(d=>!c.L.some(r=>r.data===d));
+  const veredito = !c.m2 ? el("p",{class:"info",text:"A comparação aparece depois do primeiro dia de montagem lançado."})
+    : !p.propria ? el("p",{class:"aviso",text:`Informe o custo da equipe própria acima. Com a produtividade de agora, ela só compensa se custar até ${brl(c.empate)} por pessoa/dia (com encargos).`})
+    : el("p",{class: c.custoProp<=c.m2*p.preco ? "okmsg" : "aviso",
+        text: c.custoProp<=c.m2*p.preco ? `Equipe própria sai mais barata: ${brl(c.custoProp/c.m2)} por m² contra ${brl(p.preco)} da terceirizada.`
+          : `Terceirizada sai mais barata: ${brl(p.preco)} por m² contra ${brl(c.custoProp/c.m2)} da equipe própria. A própria só empata custando até ${brl(c.empate)} por pessoa/dia.`});
+  // quadros de análise recolhidos, com o resumo no título; continuam abertos quando a tela redesenha
+  const secao=(id, resumo, ...conteudo)=>{ const d=el("details",{class:"card",open:FM_ABERTO.has(id)}, el("summary",{class:"pr-sum",text:resumo}), ...conteudo);
+    d.ontoggle=()=>{ if(d.open) FM_ABERTO.add(id); else FM_ABERTO.delete(id); }; return d; };
+  const montEt=c.porEt.reduce((s,x)=>s+x.mont,0);
+  const resumoComp = !c.m2 ? "aparece depois da 1ª montagem" : !p.propria ? "informe o custo da equipe própria"
+    : c.custoProp<=c.m2*p.preco ? "própria sai mais barata" : "terceirizada sai mais barata";
+  const kit=cardKitForma(); kit.open=FM_ABERTO.has("mat"); kit.ontoggle=()=>{ if(kit.open) FM_ABERTO.add("mat"); else FM_ABERTO.delete("mat"); };
+  return [
+    ed ? el("button",{class:"btn pri ps-novo",type:"button",text:"+ Lançar o dia",onclick:()=>formReg2("forma","apont",null)}) : null,
+    el("div",{class:"kpis"},
+      kpi("Forma montada", `${nf1.format(c.m2)} m²`, `de ${nf1.format(c.totProj)} m² · ${pct(c.totProj?c.m2/c.totProj:0)}`),
+      kpi("Produtividade", c.prod ? `${nf1.format(c.prod)} m²` : "–", c.dias ? `por pessoa/dia · equipe faz ${nf1.format(c.porDia)} m²/dia` : "lance a montagem do dia"),
+      kpi("Pago à terceirizada", brl(c.pagoTerc), `${brl(p.preco)}/m² · obra inteira ${brl(c.totProj*p.preco)}`),
+      kpi("Término previsto", c.fim ? ddmm(c.fim) : c.m2 && !c.falta ? "concluída" : "–", c.fim ? `faltam ${nf1.format(c.falta)} m² · ~${c.diasFalta} dias úteis` : "depende do ritmo")),
+    barra(c.totProj?c.m2/c.totProj:0),
+    ed && semPrep ? el("div",{class:"row"}, el("p",{class:"info",style:"flex:1",text:"Lance também os dias em que a equipe trabalhou sem montar (entram na conta da equipe própria)."}),
+      el("button",{class:"btn",type:"button",text:"Lançar 02/10 e 05/10",onclick:lancarPreparoForma})) : null,
+    secao("etapas", `Etapas do projeto · ${pct(c.totProj?montEt/c.totProj:0)} montado`,
+      tab(["Etapa","Projeto (m²)","Montado","%","Desmontado"], [...FORMA.etapas.map((e,k)=>[e, nf1.format(c.proj[k]), nf1.format(c.porEt[k].mont), pct(c.proj[k]?c.porEt[k].mont/c.proj[k]:0), nf1.format(c.porEt[k].desm)]),
+        ["Total", nf1.format(c.totProj), nf1.format(montEt), pct(c.totProj?montEt/c.totProj:0), nf1.format(c.porEt.reduce((s,x)=>s+x.desm,0))]]),
+      el("p",{class:"info",text:`Projeto ${FORMA.projeto} (paredes dos floculadores): área dos painéis, cantos internos e compensadores de cada etapa. O avanço conta os dias lançados com a etapa escolhida.`})),
+    secao("comp", `Terceirizada x equipe própria · ${resumoComp}`,
+      el("div",{class:"cf-peso"}, par("FORMA_PRECO_M2","Terceirizada: R$ por m² montado",p.preco), par("FORMA_EQUIPE","Pessoas na equipe",p.equipe),
+        par("FORMA_CUSTO_PROPRIA","Própria: R$ por pessoa/dia (com encargos)",p.propria,"Ex.: 280")),
+      tab(["","Terceirizada","Equipe própria"], [
+        ["Como é pago", `${brl(p.preco)} por m²`, p.propria ? `${brl(p.propria)} por pessoa/dia` : "informe o custo"],
+        ["Até agora", brl(c.pagoTerc), p.propria ? `${brl(c.custoProp)} (${nf0.format(c.pd)} pessoas-dia)` : `${nf0.format(c.pd)} pessoas-dia`],
+        ["Por m² montado", brl(p.preco), p.propria && c.m2 ? brl(c.custoProp/c.m2) : "–"],
+        ["Obra inteira (estimado)", brl(c.totProj*p.preco), p.propria && c.m2 ? brl(c.custoProp/c.m2*c.totProj) : "–"]]),
+      veredito,
+      el("p",{class:"info",text:"A equipe própria custa todos os dias em que está na obra (descarregamento, treinamento e dias parados); a terceirizada recebe só pelo m² montado."})),
+    kit,
+    secao("crono", "Linha do tempo",
+      tab(["Data","O que aconteceu"], FORMA.crono.map(([d,t])=>[`${dataBR(d)} (${new Date(d+"T12:00:00").toLocaleDateString("pt-BR",{weekday:"short"})})`, t]))),
+    el("div",{class:"row"}, el("button",{class:"btn",type:"button",text:"📊 Planilha de controle (Excel)",onclick:e=>excelForma(e.currentTarget)}))];
+}
+// material ULMA: contrato x 1ª e 2ª carga x o que o projeto pede na etapa que mais usa
+function cardKitForma(){
+  const its=fmItens(), noProj=its.filter(i=>i.nec>0), faltas=noProj.filter(i=>i.saldo<0);
+  const m2Rec=its.reduce((s,i)=>s+i.m2*i.rec,0), maiorEt=Math.max(...fmM2Etapa()), valor=its.reduce((s,i)=>s+i.rec*i.vu,0);
+  const sit=i=> !i.nec ? el("span",{class:"chip",text:"fora do projeto"}) : !i.rec ? el("span",{class:"chip bad",text:`não veio · faltam ${nf0.format(i.nec)}`})
+    : i.saldo<0 ? el("span",{class:"chip bad",text:`faltam ${nf0.format(-i.saldo)}`}) : el("span",{class:"chip ok",text:`ok · sobram ${nf0.format(i.saldo)}`});
+  const grupos=[...new Set(its.map(i=>i.grupo))];
+  return el("details",{class:"card"}, el("summary",{class:"pr-sum",text:`Material ULMA · contrato ${FORMA.contrato} · NF ${FORMA.nf}${faltas.length?` · ${faltas.length} itens faltando`:""}`}),
+    el("div",{class:"kpis"}, kpi("Painéis recebidos", `${nf1.format(m2Rec)} m²`, `maior etapa usa ${nf1.format(maiorEt)} m²`),
+      kpi("Peças recebidas", nf0.format(its.reduce((s,i)=>s+i.rec,0)), `em 2 cargas · descarga ${dataBR("2026-10-02")}`),
+      kpi("Valor na NF", brl(valor), "valores unitários da nota"),
+      kpi("Faltam para o projeto", String(faltas.length), faltas.length ? "itens abaixo do pico de uso" : "nada faltando")),
+    ...grupos.map(g=>el("div",{}, el("h3",{text:g}),
+      el("div",{class:"tbl"}, el("table",{}, el("thead",{}, el("tr",{}, ...["Peça","m²","Contrato","1ª carga","2ª carga","Recebido","Maior etapa","Situação"].map(h=>el("th",{text:h})))),
+        el("tbody",{}, ...its.filter(i=>i.grupo===g).map(i=>el("tr",{}, el("td",{text:`${i.desc} (${i.cod})`}), el("td",{text:i.m2?nf1.format(i.m2).replace(/,0$/,"")+"":"–"}),
+          ...[i.ped,i.c1,i.c2,i.rec,i.nec].map(v=>el("td",{text:nf0.format(v)})), el("td",{}, sit(i))))))))),
+    el("p",{class:"info",text:"Maior etapa = peças usadas na etapa que mais usa. Como a forma é reaproveitada de uma etapa para outra, é o que precisa estar na obra ao mesmo tempo."}),
+    el("p",{class:"aviso",text:"Confirmar com a ULMA: os painéis 120x20 e 150x20 (4ª etapa), o alinhador de 200 cm (1ª etapa) e o canto interno 150 (3ª etapa) não vieram. Os tirantes de 50 cm vieram em 500 (o projeto usa até 914 numa etapa e 2.188 no total, se ficarem perdidos no concreto); vieram também 1.328 tirantes de 75 cm, que não estão no projeto das paredes."}));
+}
+async function excelForma(btn){
+  const txt=btn?.textContent; if(btn){ btn.disabled=true; btn.textContent="Gerando planilha…"; }
+  try{
+    await carregarScript("https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js").catch(()=>{ throw new Error("Não consegui carregar o gerador de Excel. Abra o app uma vez com internet."); });
+    baixar(`Controle_Formas_ULMA_${hojeISO()}.xlsx`, await planilhaForma());
+    toast("Planilha de formas gerada");
+  }catch(e){ toast(e.message||"Não foi possível gerar a planilha"); }
+  finally{ if(btn){ btn.disabled=false; btn.textContent=txt; } }
+}
+async function planilhaForma(){
+  const c=fmCalc(), p=c.par, its=fmItens();
+  const wb=new ExcelJS.Workbook(); wb.creator="App WIGO"; wb.calcProperties.fullCalcOnLoad=true;
+  const A=(o={})=>({name:"Arial",size:10,...o}), thin={style:"thin",color:{argb:"FFBFBFBF"}}, BD={top:thin,left:thin,bottom:thin,right:thin};
+  const fill=x=>({type:"pattern",pattern:"solid",fgColor:{argb:"FF"+x}}), RS='"R$" #,##0.00', M2="#,##0.00", INT="#,##0";
+  const F=(formula,result)=>({formula, result: Number.isFinite(result) ? result : undefined});
+  const titulo=(ws,t,sub)=>{ ws.getCell("A1").value=t; ws.getCell("A1").font=A({bold:true,size:14,color:{argb:"FF1F4E78"}});
+    ws.getCell("A2").value=sub; ws.getCell("A2").font=A({italic:true,size:9,color:{argb:"FF595959"}}); };
+  const cab=(ws,row,cols)=>{ cols.forEach((h,k)=>{ const x=ws.getCell(row,k+1); x.value=h; x.font=A({bold:true,color:{argb:"FFFFFFFF"}}); x.fill=fill("1F4E78"); x.border=BD;
+    x.alignment={horizontal:"center",vertical:"middle",wrapText:true}; }); ws.getRow(row).height=32; };
+  const borda=(ws,row,n,{total=false}={})=>{ for(let k=1;k<=n;k++){ const x=ws.getCell(row,k); x.border=BD; x.font=A({bold:total}); if(total) x.fill=fill("D9E1F2"); } };
+  const sub=`Gerada pelo app em ${new Date().toLocaleString("pt-BR")} · ${nomeObra()} · projeto ${FORMA.projeto} · contrato ULMA ${FORMA.contrato}`;
+  const rs=wb.addWorksheet("Resumo"), wm=wb.addWorksheet("Material",{views:[{state:"frozen",ySplit:4}]}), we=wb.addWorksheet("Etapas"),
+    wd=wb.addWorksheet("Diário",{views:[{state:"frozen",ySplit:4}]}), wt=wb.addWorksheet("Linha do tempo");
+
+  // ===== Material =====
+  titulo(wm,"Material ULMA COMAIN: contrato x recebido x projeto",sub);
+  cab(wm,4,["Código","Peça","Grupo","m² por peça","Contrato","1ª carga","2ª carga","Recebido","1ª etapa","2ª etapa","3ª etapa","4ª etapa","Maior etapa","Saldo","Situação","m² recebido","R$ unit. (NF)","R$ total (NF)"]);
+  const m0=5; its.forEach((i,k)=>{ const r=m0+k;
+    wm.getRow(r).values=[i.cod,i.desc,i.grupo,i.m2||0,i.ped,i.c1,i.c2,F(`F${r}+G${r}`,i.rec),...i.et,F(`MAX(I${r}:L${r})`,i.nec),F(`H${r}-M${r}`,i.saldo),
+      F(`IF(M${r}=0,"Fora do projeto",IF(H${r}=0,"Não veio",IF(N${r}<0,"Falta "&-N${r},"OK")))`, undefined),F(`D${r}*H${r}`,i.m2*i.rec),i.vu,F(`H${r}*Q${r}`,i.rec*i.vu)];
+    borda(wm,r,18); wm.getCell(r,4).numFmt=M2; for(const k2 of [5,6,7,8,9,10,11,12,13,14]) wm.getCell(r,k2).numFmt=INT;
+    wm.getCell(r,16).numFmt=M2; wm.getCell(r,17).numFmt=wm.getCell(r,18).numFmt=RS;
+    if(i.nec && i.saldo<0) wm.getCell(r,15).font=A({bold:true,color:{argb:"FFC00000"}}); });
+  const m1=m0+its.length-1, mt=m1+1;
+  wm.getCell(mt,2).value="TOTAL";
+  for(const [col,fmt] of [["E",INT],["F",INT],["G",INT],["H",INT],["P",M2],["R",RS]]){ const x=wm.getCell(`${col}${mt}`); x.value=F(`SUM(${col}${m0}:${col}${m1})`,undefined); x.numFmt=fmt; }
+  borda(wm,mt,18,{total:true});
+  wm.getCell(mt+2,1).value="Maior etapa = peças da etapa que mais usa (a forma é reaproveitada entre etapas). Tirantes: se ficarem perdidos no concreto, a necessidade é a soma das etapas."; wm.getCell(mt+2,1).font=A({italic:true,size:9});
+  [10,30,30,10,10,9,9,10,9,9,9,9,10,9,16,12,14,18].forEach((w,k)=>wm.getColumn(k+1).width=w);
+
+  // ===== Diário (primeiro, porque Resumo e Etapas somam daqui) =====
+  titulo(wd,"Diário da equipe de formas",sub+" · preencha uma linha por dia e atividade; as colunas cinza calculam sozinhas");
+  cab(wd,4,["Data","Atividade","Etapa","Equipe","Pessoas","Horas por pessoa","Horas-homem","m² montado","m² desmontado","m² por pessoa","Pago à terceirizada (R$)","Custo se fosse própria (R$)","Observação"]);
+  const regs=[...c.L].sort((a,b)=>a.data.localeCompare(b.data)), d0=5, d1=d0+regs.length+150;
+  for(let r=d0;r<=d1;r++){
+    const x=regs[r-d0], d=x?.dados;
+    if(x){ wd.getCell(r,1).value=new Date(x.data+"T12:00:00"); wd.getRow(r).getCell(2).value=fmAtiv(d); wd.getCell(r,3).value=d.etapa||""; wd.getCell(r,4).value=d.vinc||"Terceirizada";
+      wd.getCell(r,5).value=d.n||0; wd.getCell(r,6).value=d.horas??null; wd.getCell(r,8).value=d.mont||0; wd.getCell(r,9).value=d.desm||0;
+      wd.getCell(r,13).value=[d.est&&d.est!==FORMA.est?d.est:"", d.det||"", d.obs||""].filter(Boolean).join(" · "); }
+    wd.getCell(r,7).value=F(`IF(OR(E${r}="",F${r}=""),"",E${r}*F${r})`, d?.horas ? (d.n||0)*d.horas : undefined);
+    wd.getCell(r,10).value=F(`IF(AND(B${r}="Montagem",E${r}>0,H${r}>0),H${r}/E${r},"")`, d && fmAtiv(d)==="Montagem" && d.n && d.mont ? d.mont/d.n : undefined);
+    wd.getCell(r,11).value=F(`IF(D${r}="Terceirizada",H${r}*Resumo!$B$5,0)`, d && (d.vinc||"Terceirizada")==="Terceirizada" ? (d.mont||0)*p.preco : 0);
+    wd.getCell(r,12).value=F(`IF(A${r}="","",E${r}*Resumo!$B$7)`, d ? (d.n||0)*p.propria : undefined);
+    borda(wd,r,13); wd.getCell(r,1).numFmt="dd/mm/yyyy ddd";
+    for(const k of [7,10,11,12]) wd.getCell(r,k).fill=fill("F2F2F2");
+    wd.getCell(r,8).numFmt=wd.getCell(r,9).numFmt=wd.getCell(r,10).numFmt=M2; wd.getCell(r,11).numFmt=wd.getCell(r,12).numFmt=RS;
+    wd.getCell(r,2).dataValidation={type:"list",allowBlank:true,formulae:[`"${FORMA_ATIV.join(",")}"`]};
+    wd.getCell(r,3).dataValidation={type:"list",allowBlank:true,formulae:[`"${FORMA.etapas.join(",")}"`]};
+    wd.getCell(r,4).dataValidation={type:"list",allowBlank:true,formulae:['"Terceirizada,Própria"']};
+  }
+  [16,15,11,13,9,10,11,11,12,11,14,14,40].forEach((w,k)=>wd.getColumn(k+1).width=w);
+  const D=col=>`Diário!$${col}$${d0}:$${col}$${d1}`;
+
+  // ===== Etapas =====
+  titulo(we,"m² de forma por etapa: projeto x montado",sub);
+  cab(we,4,["Etapa","m² no projeto","m² montado","% montado","m² desmontado"]);
+  const cols={0:"I",1:"J",2:"K",3:"L"};
+  FORMA.etapas.forEach((e,k)=>{ const r=5+k;
+    we.getRow(r).values=[e, F(`SUMPRODUCT(Material!$D$${m0}:$D$${m1},Material!$${cols[k]}$${m0}:$${cols[k]}$${m1})`,c.proj[k]),
+      F(`SUMIFS(${D("H")},${D("C")},A${r})`,c.porEt[k].mont), F(`IFERROR(C${r}/B${r},0)`,c.proj[k]?c.porEt[k].mont/c.proj[k]:0), F(`SUMIFS(${D("I")},${D("C")},A${r})`,c.porEt[k].desm)];
+    borda(we,r,5); we.getCell(r,2).numFmt=we.getCell(r,3).numFmt=we.getCell(r,5).numFmt=M2; we.getCell(r,4).numFmt="0.0%"; });
+  we.getRow(9).values=["Total",F("SUM(B5:B8)",c.totProj),F("SUM(C5:C8)",undefined),F("IFERROR(C9/B9,0)",undefined),F("SUM(E5:E8)",undefined)];
+  borda(we,9,5,{total:true}); we.getCell(9,2).numFmt=we.getCell(9,3).numFmt=we.getCell(9,5).numFmt=M2; we.getCell(9,4).numFmt="0.0%";
+  we.getCell(11,1).value="m² no projeto = soma (área de cada painel, canto interno e compensador × quantidade da etapa). Montado = soma do Diário com a etapa escolhida."; we.getCell(11,1).font=A({italic:true,size:9});
+  [14,14,14,12,14].forEach((w,k)=>we.getColumn(k+1).width=w);
+
+  // ===== Resumo =====
+  titulo(rs,"Formas ULMA: produtividade e viabilidade da equipe",sub);
+  const ent=(r,rot,v,fmt,dica)=>{ rs.getCell(r,1).value=rot; rs.getCell(r,1).font=A(); const x=rs.getCell(r,2); x.value=v; x.numFmt=fmt; x.fill=fill("FFF2CC"); x.border=BD; x.font=A({bold:true});
+    if(dica){ rs.getCell(r,3).value=dica; rs.getCell(r,3).font=A({italic:true,size:9,color:{argb:"FF595959"}}); } };
+  rs.getCell("A4").value="Parâmetros (células amarelas: pode alterar)"; rs.getCell("A4").font=A({bold:true,size:12});
+  ent(5,"Terceirizada: preço por m² montado",p.preco,RS);
+  ent(6,"Pessoas na equipe",p.equipe,INT);
+  ent(7,"Equipe própria: custo por pessoa/dia (com encargos)",p.propria||null,RS,"Salário + encargos + benefícios ÷ dias trabalhados no mês");
+  const ind=[
+    ["m² de forma no projeto", F("Etapas!B9",c.totProj), M2],
+    ["m² montados até agora", F(`SUM(${D("H")})`,c.m2), M2],
+    ["% montado", F("IFERROR(B10/B9,0)",c.totProj?c.m2/c.totProj:0), "0.0%"],
+    ["Pessoas-dia (todas as atividades)", F(`SUM(${D("E")})`,c.pd), INT],
+    ["Pessoas-dia na montagem", F(`SUMIFS(${D("E")},${D("B")},"Montagem")`,c.pdMont), INT],
+    ["Produtividade (m² por pessoa/dia de montagem)", F("IFERROR(B10/B13,0)",c.prod), M2],
+    ["Terceirizada: pago até agora", F(`SUM(${D("K")})`,c.pagoTerc), RS],
+    ["Terceirizada: obra inteira", F("B9*B5",c.totProj*p.preco), RS],
+    ["Própria: custo até agora", F('IF(B7="","",B12*B7)',p.propria?c.custoProp:undefined), RS],
+    ["Própria: custo por m²", F('IF(OR(B7="",B10=0),"",B17/B10)',p.propria&&c.m2?c.custoProp/c.m2:undefined), RS],
+    ["Própria: obra inteira (estimado)", F('IF(B18="","",B18*B9)',p.propria&&c.m2?c.custoProp/c.m2*c.totProj:undefined), RS],
+    ["Custo de empate da própria (R$ por pessoa/dia)", F("IFERROR(B5*B10/B12,0)",c.empate), RS],
+    ["Conclusão", F('IF(B10=0,"Lance a montagem no Diário",IF(B7="","Informe o custo da equipe própria em B7 (empate: R$ "&FIXED(B20,2)&" por pessoa/dia)",IF(B7<=B20,"Equipe própria sai mais barata","Terceirizada sai mais barata")))',undefined), "@"]];
+  rs.getCell("A8").value=""; ind.forEach(([rot,v,fmt],k)=>{ const r=9+k; rs.getCell(r,1).value=rot; rs.getCell(r,1).font=A({bold:rot==="Conclusão"}); const x=rs.getCell(r,2); x.value=v; x.numFmt=fmt; x.border=BD; x.font=A({bold:rot==="Conclusão"}); });
+  rs.getCell(23,1).value="A equipe própria custa todos os dias em que está na obra (descarregamento, treinamento e dias parados entram); a terceirizada recebe só pelo m² montado."; rs.getCell(23,1).font=A({italic:true,size:9});
+  rs.getColumn(1).width=48; rs.getColumn(2).width=22; rs.getColumn(3).width=46;
+
+  // ===== Linha do tempo =====
+  titulo(wt,"Linha do tempo",sub); cab(wt,4,["Data","O que aconteceu"]);
+  FORMA.crono.forEach(([d,t],k)=>{ wt.getCell(5+k,1).value=new Date(d+"T12:00:00"); wt.getCell(5+k,1).numFmt="dd/mm/yyyy ddd"; wt.getCell(5+k,2).value=t; borda(wt,5+k,2); });
+  wt.getColumn(1).width=18; wt.getColumn(2).width=50;
+  return new Blob([await wb.xlsx.writeBuffer()],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+}
 const MOD2={
   equip:{nome:"Equipamentos", desc:"Cadastro e apontamento diário", edit:"equip-edit", tipos:[
     {id:"apont", nome:"Apontamentos", novo:"Novo apontamento", status:["Trabalhando","Parado","Em manutenção"],
@@ -6297,18 +6566,27 @@ const MOD2={
   sup:{nome:"Suprimentos", desc:"Recebimento: fornecedor, nota, quantidade e placa", edit:"sup-edit", acesso:"sup", semAbas:true, tipos:Object.keys(MAT2).map(supMat),
     titulo:T=>`Suprimentos › ${MAT2[T.id].nome}`,
     topo:(T, lista)=>{ const tot=porMes(regs2De("sup",T.id), r=>num(r.dados.qtd));
-      return [tot.length ? el("div",{class:"card"}, el("h3",{text:"Total por mês"}), tabelaSimples(["Mês","Quantidade"], tot.slice(0,6).map(([m,q])=>[mesTxt(m), nf1.format(q)+" "+MAT2[T.id].un]))) : null].filter(Boolean); },
+      return [T.id==="forma" ? cardKitForma() : null, // formas: o material ULMA vem primeiro
+        tot.length ? el("div",{class:"card"}, el("h3",{text:"Total por mês"}), tabelaSimples(["Mês","Quantidade"], tot.slice(0,6).map(([m,q])=>[mesTxt(m), nf1.format(q)+" "+MAT2[T.id].un]))) : null].filter(Boolean); },
     rodape:T=>{ if(T.id!=="conc") return [];
       const cams=concs().flatMap(c=>(c.cams||[]).map(k=>[c.data, c.estrutura, `C${k.n}`, k.usina||"", k.nf||"", nf1.format(+k.vol||0)])).sort((a,b)=>b[0].localeCompare(a[0]));
       return [el("details",{class:"card"}, el("summary",{class:"pr-sum",text:`Caminhões lançados nas concretagens · ${cams.length}`}),
         cams.length ? tabelaSimples(["Data","Estrutura","Caminhão","Concreteira","NF","m³"], cams.slice(0,80).map(l=>[ddmm(l[0]),...l.slice(1)])) : el("p",{class:"info",text:"Nenhum caminhão lançado ainda (Produtividade › Concreto)."}))]; }},
-  forma:{nome:"Forma", desc:"Montagem e desforma por dia", edit:"producao-edit", acesso:"prod", tipos:[
-    {id:"apont", nome:"Apontamentos", novo:"Novo apontamento",
-      campos:[{k:"est",rot:"Estrutura",t:"est",obrig:true},{k:"det",rot:"Detalhe",t:"txt",dica:"Ex.: parede 3"},{k:"mont",rot:"Montado",t:"num",un:"m²"},{k:"desm",rot:"Desmontado",t:"num",un:"m²"},
-        {k:"equipe",rot:"Equipe",t:"pessoas",padrao:()=>equipeProducao(/forma|desforma|escoramento/i),semCard:true},{k:"obs",rot:"Observação",t:"area"}],
-      calc:d=>{ const n=(d.equipe||[]).length, m=(d.mont||0)+(d.desm||0); d.n=n; d.prod = n&&m ? Math.round(m/n*10)/10 : ""; if(d.prod==="") delete d.prod; },
-      titulo:d=>`${d.est||"Forma"}${d.det?" · "+d.det:""} · ${nf1.format((d.mont||0)+(d.desm||0))} m²`+(d.prod?` · ${nf1.format(d.prod)} m²/pessoa`:"")}],
-    topo:(T,lista)=>resumoProd(lista, r=>(r.dados.mont||0)+(r.dados.desm||0), "m²")},
+  forma:{nome:"Forma", desc:"Montagem, produtividade e custo da equipe (formas ULMA)", edit:"producao-edit", acesso:"prod", tipos:[
+    {id:"apont", nome:"Dias lançados", novo:"Lançar o dia", semNovo:true, vazio:"Nenhum dia lançado no período. Toque em + Lançar o dia.",
+      // o essencial primeiro; a etapa e quem fez repetem o último dia lançado
+      campos:[{k:"ativ",rot:"Atividade",t:"sel",ops:FORMA_ATIV,obrig:true,padrao:"Montagem"},
+        {k:"etapa",rot:"Etapa",t:"sel",ops:FORMA.etapas,padrao:()=>regs2De("forma","apont").find(r=>r.dados.etapa)?.dados.etapa||""},
+        {k:"mont",rot:"Montado",t:"num",un:"m²"},{k:"desm",rot:"Desmontado",t:"num",un:"m²"},
+        {k:"npes",rot:"Pessoas",t:"num",padrao:()=>fmPar().equipe||""},
+        {k:"horas",rot:"Horas por pessoa",t:"num",un:"h",dica:"Opcional"},
+        {k:"vinc",rot:"Quem fez",t:"sel",ops:["Terceirizada","Própria"],padrao:()=>regs2De("forma","apont")[0]?.dados.vinc||"Terceirizada"},
+        {k:"est",rot:"Estrutura",t:"est",obrig:true,padrao:()=>FORMA.est},{k:"det",rot:"Detalhe",t:"txt",dica:"Ex.: parede 3"},
+        {k:"equipe",rot:"Nomes (opcional)",t:"pessoas",padrao:()=>equipeProducao(/forma|desforma|escoramento/i),semCard:true},{k:"obs",rot:"Observação",t:"area"}],
+      // pessoas: os nomes marcados ou, sem nomes, o número informado; produtividade só da montagem
+      calc:d=>{ const n=(d.equipe||[]).length || Math.round(d.npes||0); d.n=n; if(n && d.mont) d.prod=Math.round(d.mont/n*10)/10; else delete d.prod; },
+      titulo:d=>`${d.ativ||"Montagem"}${d.etapa?" · "+d.etapa:""}${d.det?" · "+d.det:""}`+(d.mont||d.desm?` · ${nf1.format((d.mont||0)+(d.desm||0))} m²`:"")+(d.n?` · ${d.n} pessoas`:"")+(d.prod?` · ${nf1.format(d.prod)} m²/pessoa`:"")}],
+    topo:()=>painelForma()},
   esc:{nome:"Escavação", desc:"Volume por local e equipamento", edit:"producao-edit", acesso:"prod", tipos:[
     {id:"apont", nome:"Apontamentos", novo:"Novo apontamento",
       campos:[{k:"local",rot:"Local",t:"est",obrig:true},{k:"det",rot:"Detalhe",t:"txt"},{k:"vol",rot:"Volume",t:"num",un:"m³",obrig:true},{k:"equip",rot:"Equipamento",t:"equip"},

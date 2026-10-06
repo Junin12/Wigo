@@ -1776,7 +1776,7 @@ $("#tema").addEventListener("click", e=>{ const b=e.target.closest("button[data-
   renderTema(); });
 renderTema();
 
-const VERSAO_APP = "v66"; // igual ao número em sw.js (armacao-v66)
+const VERSAO_APP = "v67"; // igual ao número em sw.js (armacao-v67)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -3672,6 +3672,7 @@ function romaneioItem(x, R){
   return el("details",{class:"item rom"},
     el("summary",{}, el("b",{text:`C.AGUA.${x.n}`}), " ", el("span",{class:"loc",text:x.desc}), el("span",{class:"rom-kg",text:`${t(x.kg)} t`}), chip, chipCf),
     el("p",{class:"i-sub",text:`Emitido em ${ddmm(x.emit)} · ${x.els}`}),
+    cf && carretaDe(x.n).length>1 ? el("p",{class:"info",text:`🚚 Na mesma carreta que ${carretaDe(x.n).filter(k=>k!==x.n).map(k=>"C.AGUA."+k).join(", ")}`}) : null,
     R ? controleRomaneio(x, R) : null,
     // depois que chegou: conferência das peças, OS por OS
     cf ? el("div",{class:"row"}, el("button",{class:"btn"+(cf.ok?"":" pri"),type:"button",text:cf.ok?"Ver conferência e relatório":cf.nOk?"Continuar a conferência":"Conferir as peças",
@@ -3764,96 +3765,158 @@ function pesagem(c, kgRom){
   const real=ch-vz, dif=real-kgRom;
   return {real, dif, p: kgRom ? dif/kgRom : 0};
 }
+// --- Conferência em carreta: romaneios que chegaram no mesmo dia podem ser conferidos juntos (uma pesagem só) ---
+// Cada romaneio continua com o seu ACO_CONF_<n> (as marcas são por romaneio: o número da OS se repete entre romaneios).
+// Os da mesma carreta guardam junto:[romaneios] e a mesma pesagem, observações e conclusão.
+function carretaDe(n){
+  const j=(confDe(n).junto||[]).filter(k=>ROMANEIOS.some(r=>r.n===k));
+  return j.includes(n) && j.length>1 ? j : [n];
+}
+// podem entrar na carreta: chegaram no mesmo dia (sem data: mesma remessa entregue), sem conferência concluída e fora de outra carreta
+function candidatosCarreta(n){
+  const todos=remessas().flatMap(R=>R.roms), eu=todos.find(x=>x.n===n), minha=carretaDe(n);
+  if(!eu?.rec) return [];
+  return todos.filter(x=>x.n!==n && x.rec===eu.rec && (eu.rec!=="sim" || x.rem===eu.rem)
+    && (minha.includes(x.n) || (carretaDe(x.n).length===1 && !confDe(x.n).ok)));
+}
+function gravarConf(n, c){ S.pendCfg["ACO_CONF_"+n]=JSON.stringify(c); savePendExtra(); scheduleSync(); }
+// põe ou tira um romaneio da carreta; quem entra recebe a pesagem e as observações da carreta, quem sai fica sem pesagem
+function mudarCarreta(n, outro, entra){
+  const antes=carretaDe(n), nova=(entra ? [...new Set([...antes, outro])] : antes.filter(k=>k!==outro)).sort(), base=confDe(n);
+  for(const k of nova){
+    const c=confDe(k);
+    if(nova.length>1){ c.junto=nova; for(const f of ["cheia","vazia","obs"]) if(base[f]!=null) c[f]=base[f]; else delete c[f]; }
+    else delete c.junto;
+    gravarConf(k, c);
+  }
+  if(!entra){ const c=confDe(outro); delete c.junto; delete c.cheia; delete c.vazia; delete c.obs; gravarConf(outro, c); }
+}
 async function renderSupConf(){
   const box=$("#sup-conf"); if(!box) return;
-  const n=CF.rom, x=ROMANEIOS.find(r=>r.n===n), L=await carregarOsRom(), grupos=L?.[n];
+  const n=CF.rom, x=ROMANEIOS.find(r=>r.n===n), L=await carregarOsRom();
   if(!x){ abrirTela("supaco",false); return; }
-  const topo=el("p",{class:"saud"}, `Conferência · C.AGUA.${n}`, el("small",{text:`${x.desc} · remessa ${x.rem}`}));
-  if(!grupos) return repor(box, topo, el("div",{class:"vazio",text:L ? "A lista de OS deste romaneio ainda não está no app." : "Não foi possível abrir a lista de OS. Abra uma vez com internet."}));
-  const c=confDe(n), trav=!!c.ok, oss=grupos.flatMap(([,l])=>l);
-  const kgRom=oss.reduce((s,o)=>s+o[6],0), nOk=oss.filter(o=>c.m[o[0]]==="111").length;
-  const salvar=()=>{ salvarConf(n, c, oss); renderSupConf(); };
+  const ns=carretaDe(n), junto=ns.length>1;
+  const topo=el("p",{class:"saud"}, junto ? `Conferência da carreta · ${ns.length} romaneios` : `Conferência · C.AGUA.${n}`,
+    el("small",{text: junto ? ns.map(k=>"C.AGUA."+k).join(" + ") : `${x.desc} · remessa ${x.rem}`}));
+  const sem=ns.filter(k=>!L?.[k]);
+  if(sem.length) return repor(box, topo, el("div",{class:"vazio",text:L ? `A lista de OS do romaneio ${sem.join(", ")} ainda não está no app.` : "Não foi possível abrir a lista de OS. Abra uma vez com internet."}));
+  // C: conferência de cada romaneio; c0 (o aberto) guarda o que é da carreta: pesagem, observações e conclusão
+  const C=Object.fromEntries(ns.map(k=>[k,confDe(k)])), c0=C[n], trav=ns.some(k=>C[k].ok);
+  const OSS=Object.fromEntries(ns.map(k=>[k, L[k].flatMap(([,l])=>l)]));
+  const todas=ns.flatMap(k=>OSS[k].map(o=>[k,o]));
+  const kgRom=todas.reduce((s,[,o])=>s+o[6],0), nOk=todas.filter(([k,o])=>C[k].m[o[0]]==="111").length;
+  const salvar=()=>{
+    for(const k of ns){ const c=C[k]; if(junto) c.junto=ns;
+      if(k!==n) for(const f of ["cheia","vazia","obs","ok","okPor"]) if(c0[f]!=null) c[f]=c0[f]; else delete c[f];
+      salvarConf(k, c, OSS[k]); }
+    renderSupConf(); };
+  const rotPeso = junto ? `soma dos ${ns.length} romaneios` : "romaneio";
+  // carreta: outros romaneios que chegaram no mesmo dia
+  const cand=trav ? [] : candidatosCarreta(n), rec=remessas().flatMap(R=>R.roms).find(r=>r.n===n)?.rec;
+  const carreta = cand.length ? el("div",{class:"card"}, el("h3",{text:"Mesma carreta"}),
+    el("p",{class:"info",text:`${cand.length>1?"Estes romaneios chegaram":"Este romaneio chegou"} no mesmo dia${rec && rec!=="sim" ? ` (${ddmm(rec)})` : ""}. Marque os romaneios que vieram nesta carreta: a pesagem passa a ser comparada com a soma dos pesos e o relatório sai junto.`}),
+    el("div",{class:"modo",role:"group","aria-label":"Romaneios da mesma carreta"},
+      el("button",{type:"button",class:"chipbtn on",disabled:true,text:`✓ C.AGUA.${n} · ${t(x.kg)} t`}),
+      ...cand.map(r=>{ const on=ns.includes(r.n);
+        return el("button",{type:"button",class:"chipbtn"+(on?" on":""),"aria-pressed":String(on),text:`${on?"✓ ":""}C.AGUA.${r.n} · ${t(r.kg)} t`,
+          onclick:()=>{ mudarCarreta(n, r.n, !on); toast(on ? `C.AGUA.${r.n} saiu da carreta` : `C.AGUA.${r.n} entrou na carreta`); renderSupConf(); }}); }))) : null;
   // pesagem
-  const iCh=el("input",{type:"number",inputMode:"decimal",min:0,step:10,value:c.cheia??"",disabled:trav,"aria-label":"Peso da carreta cheia (kg)"});
-  const iVz=el("input",{type:"number",inputMode:"decimal",min:0,step:10,value:c.vazia??"",disabled:trav,"aria-label":"Peso da carreta vazia (kg)"});
-  iCh.onchange=()=>{ c.cheia=iCh.value; salvar(); }; iVz.onchange=()=>{ c.vazia=iVz.value; salvar(); };
-  const pz=pesagem(c, kgRom);
-  const resPeso = pz ? el("p",{class:Math.abs(pz.p)>0.02?"aviso":"okmsg",text:`Peso real ${kgF(pz.real)} · romaneio ${kgF(kgRom)} · diferença ${pz.dif>=0?"+":""}${kgF(pz.dif)} (${pz.dif>=0?"+":""}${pct(pz.p)})${Math.abs(pz.p)>0.02?" · acima de 2%: confira":""}`})
-    : el("p",{class:"info",text:`Peso do romaneio: ${kgF(kgRom)}. Pese a carreta cheia (antes de descarregar) e vazia (depois).`});
+  const iCh=el("input",{type:"number",inputMode:"decimal",min:0,step:10,value:c0.cheia??"",disabled:trav,"aria-label":"Peso da carreta cheia (kg)"});
+  const iVz=el("input",{type:"number",inputMode:"decimal",min:0,step:10,value:c0.vazia??"",disabled:trav,"aria-label":"Peso da carreta vazia (kg)"});
+  iCh.onchange=()=>{ c0.cheia=iCh.value; salvar(); }; iVz.onchange=()=>{ c0.vazia=iVz.value; salvar(); };
+  const pz=pesagem(c0, kgRom);
+  const resPeso = pz ? el("p",{class:Math.abs(pz.p)>0.02?"aviso":"okmsg",text:`Peso real ${kgF(pz.real)} · ${rotPeso} ${kgF(kgRom)} · diferença ${pz.dif>=0?"+":""}${kgF(pz.dif)} (${pz.dif>=0?"+":""}${pct(pz.p)})${Math.abs(pz.p)>0.02?" · acima de 2%: confira":""}`})
+    : el("p",{class:"info",text:`Peso ${junto?"dos romaneios (soma)":"do romaneio"}: ${kgF(kgRom)}. Pese a carreta cheia (antes de descarregar) e vazia (depois).`});
   // uma linha por OS: três marcas + "Tudo certo"
-  const linha=o=>{
-    const [os,folha,pos,bit,q,cm,kg]=o, v=(c.m[os]||"000").padEnd(3,"0"), ok=v==="111";
+  const linha=(k,o)=>{
+    const c=C[k], [os,folha,pos,bit,q,cm,kg]=o, v=(c.m[os]||"000").padEnd(3,"0"), ok=v==="111";
     const marca=(i,rot)=>el("button",{type:"button",class:"chipbtn"+(v[i]==="1"?" on":""),text:(v[i]==="1"?"✓ ":"")+rot,disabled:trav,"aria-pressed":String(v[i]==="1"),
-      "aria-label":`${CF_MARCAS[i]} certo: OS ${os}`,onclick:()=>{ const a=v.split(""); a[i]=a[i]==="1"?"0":"1"; c.m[os]=a.join(""); salvar(); }});
+      "aria-label":`${CF_MARCAS[i]} certo: OS ${os}${junto?" do romaneio "+k:""}`,onclick:()=>{ const a=v.split(""); a[i]=a[i]==="1"?"0":"1"; c.m[os]=a.join(""); salvar(); }});
     return el("div",{class:"cf-os"+(ok?" ok":"")},
       el("div",{class:"cf-top"}, el("b",{text:`OS ${os}`}), el("span",{text:`Pos. ${pos}`}), el("span",{text:bitola(bit)+" mm"}), el("span",{class:"info",text:`folha ${folha} · ${kgF(kg)}`})),
       el("div",{class:"cf-bts"}, marca(0,"Entregue"), marca(1,`${nf0.format(q)} barras`), marca(2,cmF(cm)),
         !trav && !ok ? el("button",{type:"button",class:"chipbtn",text:"Tudo certo",onclick:()=>{ c.m[os]="111"; salvar(); }}) : null));
   };
-  const iObs=el("textarea",{rows:3,maxLength:1000,value:c.obs||"",disabled:trav,placeholder:"Ex.: OS 12 entregue com 98 barras; feixe da OS 30 amassado.","aria-label":"Observações da conferência"});
-  iObs.onchange=()=>{ c.obs=iObs.value.trim(); salvar(); };
+  const iObs=el("textarea",{rows:3,maxLength:1000,value:c0.obs||"",disabled:trav,placeholder:"Ex.: OS 12 entregue com 98 barras; feixe da OS 30 amassado.","aria-label":"Observações da conferência"});
+  iObs.onchange=()=>{ c0.obs=iObs.value.trim(); salvar(); };
   const acoes = trav
-    ? el("div",{class:"card"}, el("p",{class:"okmsg",text:`Conferido por ${nomeRel(c.okPor)||"?"} em ${new Date(c.ok).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"})}.`}),
-        el("div",{class:"row"}, el("button",{class:"btn pri",type:"button",text:"📄 Relatório do romaneio conferido",onclick:e=>pdfConf(n,e.currentTarget)}),
-          el("button",{class:"btn",type:"button",text:"Reabrir conferência",onclick:()=>{ if(!confirm("Reabrir a conferência para corrigir?")) return; delete c.ok; delete c.okPor; salvar(); }})))
+    ? el("div",{class:"card"}, el("p",{class:"okmsg",text:`Conferido por ${nomeRel(c0.okPor)||"?"} em ${new Date(c0.ok).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"})}.`}),
+        el("div",{class:"row"}, el("button",{class:"btn pri",type:"button",text:junto?"📄 Relatório da carreta conferida":"📄 Relatório do romaneio conferido",onclick:e=>pdfConf(n,e.currentTarget)}),
+          el("button",{class:"btn",type:"button",text:"Reabrir conferência",onclick:()=>{ if(!confirm(junto?`Reabrir a conferência dos ${ns.length} romaneios desta carreta para corrigir?`:"Reabrir a conferência para corrigir?")) return; delete c0.ok; delete c0.okPor; salvar(); }})))
     : el("div",{class:"row"}, el("button",{class:"btn pri",type:"button",text:"Concluir e gerar relatório",onclick:e=>{
-        const falta=oss.length-nOk;
+        const falta=todas.length-nOk;
         if(falta && !confirm(`${falta} OS não estão com as três marcas. Elas vão no relatório como divergência. Concluir assim?`)) return;
-        if(!pesagem(c,kgRom) && !confirm("A pesagem da carreta não foi preenchida. Concluir mesmo assim?")) return;
-        c.ok=new Date().toISOString(); c.okPor=U?.nome||""; salvarConf(n,c,oss); renderSupConf(); pdfConf(n,e.currentTarget); }}));
+        if(!pesagem(c0,kgRom) && !confirm("A pesagem da carreta não foi preenchida. Concluir mesmo assim?")) return;
+        c0.ok=new Date().toISOString(); c0.okPor=U?.nome||""; salvar(); pdfConf(n,e.currentTarget); }}));
+  // OS: por romaneio (quando são vários) e por elemento
+  const blocos=ns.flatMap(k=>{
+    const rx=ROMANEIOS.find(r=>r.n===k), ok=OSS[k].filter(o=>C[k].m[o[0]]==="111").length;
+    return [junto ? el("h2",{class:"tela-tit",text:`C.AGUA.${k} · ${rx.desc} · ${ok}/${OSS[k].length} OS`}) : null,
+      ...L[k].map(([elem,l])=>{ const e=l.filter(o=>C[k].m[o[0]]==="111").length;
+        return el("div",{class:"card"}, el("div",{class:"i-top"}, el("h3",{text:elem||"Sem elemento"}), el("span",{class:"chip"+(e===l.length?" ok":""),text:`${e}/${l.length}`})),
+          el("div",{class:"lista"}, ...l.map(o=>linha(k,o)))); })]; });
   repor(box, topo,
-    el("div",{class:"kpis"}, kpi("OS conferidas", `${nOk} de ${oss.length}`, trav?"conferência concluída":"marque as três em cada OS"), kpi("Peso do romaneio", kgF(kgRom), `${oss.length} OS`)),
-    barra(oss.length?nOk/oss.length:0),
+    el("div",{class:"kpis"}, kpi("OS conferidas", `${nOk} de ${todas.length}`, trav?"conferência concluída":"marque as três em cada OS"),
+      kpi(junto?"Peso dos romaneios":"Peso do romaneio", kgF(kgRom), `${todas.length} OS${junto?` · ${ns.length} romaneios`:""}`)),
+    barra(todas.length?nOk/todas.length:0),
+    carreta,
     el("div",{class:"card"}, el("h3",{text:"Pesagem da carreta"}),
       el("div",{class:"cf-peso"}, el("label",{class:"campo"}, "Cheia, antes de descarregar (kg)", iCh), el("label",{class:"campo"}, "Vazia, depois (kg)", iVz)), resPeso),
     !trav ? el("div",{class:"row"}, el("p",{class:"info",style:"flex:1",text:"Em cada OS, marque o que conferiu: se foi entregue, a quantidade de barras e o comprimento."}),
-      nOk<oss.length ? el("button",{class:"btn",type:"button",text:"Marcar todas como certas",onclick:()=>{ if(!confirm(`Marcar as ${oss.length} OS como certas (entregue, quantidade e comprimento)?`)) return; for(const o of oss) c.m[o[0]]="111"; salvar(); }}) : null) : null,
-    ...grupos.map(([elem,l])=>{ const k=l.filter(o=>c.m[o[0]]==="111").length;
-      return el("div",{class:"card"}, el("div",{class:"i-top"}, el("h3",{text:elem||"Sem elemento"}), el("span",{class:"chip"+(k===l.length?" ok":""),text:`${k}/${l.length}`})),
-        el("div",{class:"lista"}, ...l.map(linha))); }),
+      nOk<todas.length ? el("button",{class:"btn",type:"button",text:"Marcar todas como certas",onclick:()=>{ if(!confirm(`Marcar as ${todas.length} OS como certas (entregue, quantidade e comprimento)?`)) return; for(const [k,o] of todas) C[k].m[o[0]]="111"; salvar(); }}) : null) : null,
+    ...blocos,
     el("div",{class:"card"}, el("h3",{text:"Observações"}), iObs),
     acoes);
 }
 async function pdfConf(n, btn){
-  const L=await carregarOsRom(), grupos=L?.[n], x=ROMANEIOS.find(r=>r.n===n);
-  if(!grupos || !x) return toast("Lista de OS indisponível.");
+  const L=await carregarOsRom(), ns=carretaDe(n), junto=ns.length>1, xs=ns.map(k=>ROMANEIOS.find(r=>r.n===k)), x=xs[ns.indexOf(n)];
+  if(!L || ns.some(k=>!L[k]) || xs.some(r=>!r)) return toast("Lista de OS indisponível.");
   const txt=btn?.textContent; if(btn){ btn.disabled=true; btn.textContent="Gerando PDF…"; }
   try{
-    const c=confDe(n), oss=grupos.flatMap(([e,l])=>l.map(o=>[e,...o])), kgRom=oss.reduce((s,o)=>s+o[7],0);
-    const R=remessas().find(r=>r.n===x.rem), xr=R?.roms.find(r=>r.n===n);
-    const doc=await novoPdf(`Romaneio conferido — C.AGUA.${n}`, `${nomeObra()} · ${x.desc} · remessa ${x.rem} (${R?.est||""})`), M=12, AZ=PDF_AZ, VD=[29,122,72], VM=[180,35,24];
+    const C=Object.fromEntries(ns.map(k=>[k,confDe(k)])), c=C[n];
+    // o = [elemento, OS, folha, posição, bitola, barras, compr. cm, kg, romaneio]
+    const oss=ns.flatMap(k=>L[k].flatMap(([e,l])=>l.map(o=>[e,...o,k]))), kgRom=oss.reduce((s,o)=>s+o[7],0);
+    const kgDe=k=>oss.filter(o=>o[8]===k).reduce((s,o)=>s+o[7],0), mk=o=>(C[o[8]].m[o[1]]||"000").padEnd(3,"0");
+    const Rs=remessas(), xr=Rs.flatMap(R=>R.roms).find(r=>r.n===n), R=Rs.find(r=>r.n===x.rem), nums=ns.map(k=>"C.AGUA."+k).join(" + ");
+    const doc=await novoPdf(junto ? `Carreta conferida — ${ns.length} romaneios` : `Romaneio conferido — C.AGUA.${n}`,
+      junto ? `${nomeObra()} · ${nums}` : `${nomeObra()} · ${x.desc} · remessa ${x.rem} (${R?.est||""})`), M=12, AZ=PDF_AZ, VD=[29,122,72], VM=[180,35,24];
     let y=38;
     // Entregue: Sim/Não; Qntd e Compr.: OK/Não
     const sim=(v,i)=>v[i]==="1" ? (i===0?"Sim":"OK") : "Não";
-    const div=oss.filter(o=>c.m[o[1]]!=="111"), pz=pesagem(c,kgRom);
+    const div=oss.filter(o=>mk(o)!=="111"), pz=pesagem(c,kgRom);
     doc.setFontSize(9);
     const linhas=[
       ["Chegada", !xr?.rec ? "—" : xr.rec==="sim" ? "Entregue" : dataBR(xr.rec)],
+      ...(junto ? [["Romaneios na carreta", xs.map(r=>`C.AGUA.${r.n} · ${r.desc} · remessa ${r.rem} · ${kgF(kgDe(r.n))}`).join("\n")]] : []),
       ["Conferido por", c.ok ? `${nomeRel(c.okPor)||"?"} em ${new Date(c.ok).toLocaleString("pt-BR")}` : "Conferência não concluída"],
       ["OS conferidas", `${oss.length-div.length} de ${oss.length}`+(div.length?` · ${div.length} com divergência`:" · sem divergência")],
-      ["Peso do romaneio", kgF(kgRom)],
+      [junto ? "Peso dos romaneios (soma)" : "Peso do romaneio", kgF(kgRom)],
       ["Carreta cheia / vazia", c.cheia||c.vazia ? `${c.cheia?kgF(num(c.cheia)):"—"} / ${c.vazia?kgF(num(c.vazia)):"—"}` : "não pesada"],
       ["Peso real (balança)", pz ? `${kgF(pz.real)} · diferença ${pz.dif>=0?"+":""}${kgF(pz.dif)} (${pz.dif>=0?"+":""}${pct(pz.p)})` : "—"]];
     doc.autoTable({startY:y, body:linhas, theme:"plain", margin:{left:M,right:M}, styles:{fontSize:9,cellPadding:1.2,textColor:20},
       columnStyles:{0:{fontStyle:"bold",cellWidth:45}},
-      didParseCell:d=>{ if(d.row.index===5 && d.column.index===1 && pz && Math.abs(pz.p)>0.02) d.cell.styles.textColor=VM; if(d.row.index===2 && d.column.index===1) d.cell.styles.textColor=div.length?VM:VD; }});
+      didParseCell:d=>{ if(d.column.index!==1) return; const rot=d.row.raw[0];
+        if(rot==="Peso real (balança)" && pz && Math.abs(pz.p)>0.02) d.cell.styles.textColor=VM;
+        if(rot==="OS conferidas") d.cell.styles.textColor=div.length?VM:VD; }});
     y=doc.lastAutoTable.finalY+6;
+    // carreta: coluna "Rom." no começo das tabelas
+    const off=junto?1:0, rom=o=>junto?[o[8]]:[], hRom=junto?["Rom."]:[];
     if(div.length){
       doc.setFont("helvetica","bold"); doc.setFontSize(11); doc.setTextColor(...VM); doc.text("Divergências",M,y); y+=3; doc.setTextColor(20);
-      doc.autoTable({startY:y, head:[["OS","Elemento","Pos.","Ø (mm)","Barras","Compr. (cm)","Entregue","Qntd","Compr."]],
-        body:div.map(o=>[o[1],o[0],o[3],String(o[4]).replace(".",","),nf0.format(o[5]),String(o[6]).replace(".",","),sim(c.m[o[1]]||"000",0),sim(c.m[o[1]]||"000",1),sim(c.m[o[1]]||"000",2)]),
+      doc.autoTable({startY:y, head:[[...hRom,"OS","Elemento","Pos.","Ø (mm)","Barras","Compr. (cm)","Entregue","Qntd","Compr."]],
+        body:div.map(o=>{ const v=mk(o); return [...rom(o),o[1],o[0],o[3],String(o[4]).replace(".",","),nf0.format(o[5]),String(o[6]).replace(".",","),sim(v,0),sim(v,1),sim(v,2)]; }),
         margin:{left:M,right:M}, styles:{fontSize:8,cellPadding:1.3,textColor:20}, headStyles:{fillColor:VM,textColor:255,fontStyle:"bold"},
-        didParseCell:d=>{ if(d.section==="body" && d.column.index>=6 && d.cell.raw==="Não") d.cell.styles.textColor=VM; }});
+        didParseCell:d=>{ if(d.section==="body" && d.column.index>=6+off && d.cell.raw==="Não") d.cell.styles.textColor=VM; }});
       y=doc.lastAutoTable.finalY+6;
     }
     doc.setFont("helvetica","bold"); doc.setFontSize(11); doc.setTextColor(...AZ); doc.text("Todas as OS",M,y); y+=3; doc.setTextColor(20); doc.setFont("helvetica","normal");
-    doc.autoTable({startY:y, head:[["OS","Elemento","Folha","Pos.","Ø (mm)","Barras","Compr. (cm)","Peso (kg)","Entregue","Qntd","Compr."]],
-      body:oss.map(o=>{ const v=(c.m[o[1]]||"000").padEnd(3,"0"); return [o[1],o[0],o[2],o[3],String(o[4]).replace(".",","),nf0.format(o[5]),String(o[6]).replace(".",","),nf1.format(o[7]),sim(v,0),sim(v,1),sim(v,2)]; }),
-      foot:[["","Total","","","","","",nf1.format(kgRom),"","",""]],
-      margin:{left:M,right:M}, styles:{fontSize:7.5,cellPadding:1.1,textColor:20}, headStyles:{fillColor:AZ,textColor:255,fontStyle:"bold"},
+    doc.autoTable({startY:y, head:[[...hRom,"OS","Elemento","Folha","Pos.","Ø (mm)","Barras","Compr. (cm)","Peso (kg)","Entregue","Qntd","Compr."]],
+      body:oss.map(o=>{ const v=mk(o); return [...rom(o),o[1],o[0],o[2],o[3],String(o[4]).replace(".",","),nf0.format(o[5]),String(o[6]).replace(".",","),nf1.format(o[7]),sim(v,0),sim(v,1),sim(v,2)]; }),
+      foot:[[...hRom.map(()=>""),"","Total","","","","","",nf1.format(kgRom),"","",""]],
+      margin:{left:M,right:M}, styles:{fontSize:junto?7:7.5,cellPadding:1.1,textColor:20}, headStyles:{fillColor:AZ,textColor:255,fontStyle:"bold"},
       footStyles:{fillColor:[236,240,245],textColor:20,fontStyle:"bold"}, alternateRowStyles:{fillColor:[244,246,249]},
-      columnStyles:{5:{halign:"right"},6:{halign:"right"},7:{halign:"right"}},
-      didParseCell:d=>{ if(d.section==="body" && d.column.index>=8) d.cell.styles.textColor = d.cell.raw==="Não" ? VM : VD; }});
+      columnStyles:{[5+off]:{halign:"right"},[6+off]:{halign:"right"},[7+off]:{halign:"right"}},
+      didParseCell:d=>{ if(d.section==="body" && d.column.index>=8+off) d.cell.styles.textColor = d.cell.raw==="Não" ? VM : VD; }});
     y=doc.lastAutoTable.finalY+8;
     if(c.obs){ if(y>255){ doc.addPage(); y=16; } doc.setFont("helvetica","bold"); doc.setFontSize(10); doc.text("Observações",M,y); y+=5; doc.setFont("helvetica","normal"); doc.setFontSize(9);
       const ls=doc.splitTextToSize(c.obs,210-2*M); doc.text(ls,M,y); y+=ls.length*4.5+4; }
@@ -3861,8 +3924,8 @@ async function pdfConf(n, btn){
     y=Math.max(y+14,262); doc.setDrawColor(120); doc.setFontSize(8);
     doc.line(M,y,M+80,y); doc.text("Conferido por"+(c.okPor?` (${nomeRel(c.okPor)})`:""),M,y+4);
     doc.line(210-M-80,y,210-M,y); doc.text("Recebido / almoxarifado",210-M-80,y+4);
-    rodapePdf(doc, (p,t)=>`C.AGUA.${n} · Página ${p} de ${t}`);
-    await entregarPdf(doc, `Romaneio_${n}_conferido.pdf`, `Romaneio ${n} conferido`);
+    rodapePdf(doc, (p,t)=>`${junto?nums:"C.AGUA."+n} · Página ${p} de ${t}`);
+    await entregarPdf(doc, junto ? `Carreta_${ns.join("_")}_conferida.pdf` : `Romaneio_${n}_conferido.pdf`, junto ? `Carreta conferida (${ns.join(", ")})` : `Romaneio ${n} conferido`);
   }catch(e){ toast("Erro ao gerar o PDF: "+e.message); }
   finally{ if(btn){ btn.disabled=false; btn.textContent=txt; } }
 }

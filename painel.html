@@ -70,11 +70,15 @@ td.txt{text-align:left;white-space:normal}
 .chip.ok{background:var(--good-bg);color:var(--good)} .chip.and{background:var(--warn-bg);color:var(--warn)} .chip.ruim{background:var(--bad-bg);color:var(--bad)}
 .aviso{border:1px solid var(--bad);background:var(--bad-bg);border-radius:var(--r);padding:14px}
 .carregando{padding:40px 16px;text-align:center;color:var(--muted)}
+.sec{font-size:1.35rem;margin-top:6px}
+/* celular: tudo cabe na largura (sem arrastar para o lado) e o texto dos gráficos continua legível */
+@media (max-width:520px){ table{font-size:.8rem} th,td{padding:6px 3px;white-space:normal;overflow-wrap:anywhere}
+  .kpis{grid-template-columns:1fr 1fr} .kpi b{display:block;font-size:1.5rem} .chart text{font-size:21px} .bar{width:48px} }
 </style>
 </head>
 <body>
 <div class="faixa"><div class="in">
-  <div class="brand">Armação · SAA Rio Grande<small>Painel de acompanhamento · somente leitura</small></div>
+  <div class="brand">Armação e formas · SAA Rio Grande<small>Painel de acompanhamento · somente leitura</small></div>
   <img src="logo-wigo-escuro.png" alt="WIGO">
 </div></div>
 <div class="wrap">
@@ -92,6 +96,14 @@ td.txt{text-align:left;white-space:normal}
       <div class="card"><h3>Curva S (obra inteira, t)</h3><div class="chart" id="ch-s"></div><p class="info" id="s-nota"></p></div>
     </div>
     <div class="kpis" id="k-prev"></div>
+    <section id="forma" class="wrap" style="padding:0" hidden>
+      <h2 class="sec">Formas · paredes dos floculadores (ULMA)</h2>
+      <div class="kpis" id="f-kpis"></div>
+      <div class="grid2">
+        <div class="card"><h3>m² de forma montados por dia</h3><div class="chart" id="f-ch"></div><p class="info" id="f-nota"></p></div>
+        <div class="card"><h3>Avanço por etapa</h3><div class="tbl" id="f-et"></div></div>
+      </div>
+    </section>
     <div class="grid2">
       <div class="card"><h3>Avanço por estrutura</h3><div class="tbl" id="t-est"></div></div>
       <div class="card"><h3>Equipes</h3><div class="tbl" id="t-eq"></div></div>
@@ -179,7 +191,7 @@ function preparar(j){
   for(const [n,c0,q,eq] of j.lanc){ const s=bn.get(n), c=consertaCod(c0), i=by.get(c); if(!s||!i) continue;
     s.exec[c]=(s.exec[c]||0)+q; s.kg+=q*i.ppb; const e=(s.porEq[eq]??={kg:0}); e.kg+=q*i.ppb; }
   const meta=num(j.config?.META_KG_ARM_DIA)||200, dias=num(j.config?.DIAS_SEMANA)||6;
-  D={itens,by,sem,eqs:j.equipes||[],ocs:(j.registros||[]).filter(r=>r.tipo==="ocorrencia"),els:j.elementos||[],meta,dias,prazo:j.config?.PRAZO||""};
+  D={itens,by,sem,eqs:j.equipes||[],ocs:(j.registros||[]).filter(r=>r.tipo==="ocorrencia"),els:j.elementos||[],meta,dias,prazo:j.config?.PRAZO||"",forma:j.forma||null};
   const ini=sem.filter(s=>s.ini<=hojeISO());
   if(SEM==null||!ini.some(s=>s.n===SEM)) SEM=(ini.find(s=>s.ini<=hojeISO()&&hojeISO()<=s.fim)||ini[ini.length-1]||sem[0])?.n;
   const emps=[...new Set(itens.map(i=>i.emp))].sort();
@@ -195,12 +207,25 @@ function svgMeta(data){
   const mk=(tag,a,txt)=>{ const e=document.createElementNS(ns,tag); for(const k in a) e.setAttribute(k,a[k]); if(txt!=null) e.textContent=txt; s.append(e); return e; };
   if(!data.length) return s;
   const top=Math.max(...data.map(d=>Math.max(d.real,d.meta)),0.001), max=top*1.15, ih=H-pt-pb, bw=(W-pl-pr)/data.length, y=v=>pt+ih-(v/max)*ih;
-  mk("line",{x1:pl,x2:W-pr,y1:pt+ih,y2:pt+ih,class:"grid"}); mk("line",{x1:W-150,x2:W-128,y1:12,y2:12,class:"meta"}); mk("text",{x:W-122,y:16},"meta da semana");
-  data.forEach((d,k)=>{ const cx=pl+bw*k+bw/2, w=bw*0.56;
+  mk("line",{x1:pl,x2:W-pr,y1:pt+ih,y2:pt+ih,class:"grid"}); mk("text",{x:W-pr,y:16,"text-anchor":"end"},"meta da semana"); mk("line",{x1:W-pr-200,x2:W-pr-178,y1:11,y2:11,class:"meta"});
+  const passo=Math.ceil(data.length/8); // no celular o texto é maior: rótulo a cada "passo"
+  data.forEach((d,k)=>{ const cx=pl+bw*k+bw/2, w=bw*0.56, mostra=(data.length-1-k)%passo===0||d.hl;
     mk("rect",{x:cx-w/2,y:y(d.real),width:w,height:Math.max(0,pt+ih-y(d.real)),rx:3,class:"b"+(d.hl?" hl":"")});
     if(d.meta>0) mk("line",{x1:cx-w/2-4,x2:cx+w/2+4,y1:y(d.meta),y2:y(d.meta),class:"meta"});
-    mk("text",{x:cx,y:Math.min(y(d.real),d.meta>0?y(d.meta):H)-6,"text-anchor":"middle",class:"val"},d.meta>0?Math.round(d.real/d.meta*100)+"%":nf1.format(d.real));
-    mk("text",{x:cx,y:H-8,"text-anchor":"middle"},d.label); });
+    if(mostra) mk("text",{x:cx,y:Math.min(y(d.real),d.meta>0?y(d.meta):H)-6,"text-anchor":"middle",class:"val"},d.meta>0?Math.round(d.real/d.meta*100)+"%":nf1.format(d.real));
+    if(mostra) mk("text",{x:cx,y:H-8,"text-anchor":"middle"},d.label); });
+  return s;
+}
+// barras simples (m² de forma por dia)
+function svgBarras(data){
+  const W=640,H=230,pl=10,pr=10,pt=26,pb=26,ns="http://www.w3.org/2000/svg", s=document.createElementNS(ns,"svg"); s.setAttribute("viewBox",`0 0 ${W} ${H}`);
+  const mk=(tag,a,txt)=>{ const e=document.createElementNS(ns,tag); for(const k in a) e.setAttribute(k,a[k]); if(txt!=null) e.textContent=txt; s.append(e); return e; };
+  if(!data.length){ mk("text",{x:W/2,y:H/2,"text-anchor":"middle"},"Sem montagem lançada ainda"); return s; }
+  const top=Math.max(...data.map(d=>d.v),1), ih=H-pt-pb, bw=(W-pl-pr)/data.length, y=v=>pt+ih-(v/(top*1.12))*ih, passo=Math.ceil(data.length/8);
+  mk("line",{x1:pl,x2:W-pr,y1:pt+ih,y2:pt+ih,class:"grid"});
+  data.forEach((d,k)=>{ const cx=pl+bw*k+bw/2, mostra=(data.length-1-k)%passo===0;
+    mk("rect",{x:cx-bw*0.32,y:y(d.v),width:bw*0.64,height:Math.max(0,pt+ih-y(d.v)),rx:3,class:"b"});
+    if(mostra){ mk("text",{x:cx,y:y(d.v)-6,"text-anchor":"middle",class:"val"},nf1.format(d.v)); mk("text",{x:cx,y:H-8,"text-anchor":"middle"},d.label); } });
   return s;
 }
 function svgCurva(series,labels,maxY,prazoIdx){
@@ -277,6 +302,26 @@ function render(){
   const oc=[...D.ocs].sort((a,b)=>String(b.data).localeCompare(String(a.data))).slice(0,15);
   $("#t-oc").replaceChildren(oc.length?tabela(["Data","Tipo","Horas","Descrição"],oc.map(r=>el("tr",{},el("td",{text:ddmm(r.data)}),el("td",{class:"txt",text:r.cat}),
     el("td",{text:nf1.format(+r.horas||0)}),el("td",{class:"txt",text:r.texto||""})))):el("p",{class:"info",text:"Nenhuma ocorrência registrada."}));
+  renderForma();
+}
+// formas: vem do Code.gs 22+ (sem nomes); etapas concluídas sem lançamento contam no avanço, não na produtividade
+const brl=v=>(v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
+function renderForma(){
+  const f=D.forma; $("#forma").hidden=!f; if(!f) return;
+  const mont=f.dias.filter(x=>x.ativ==="Montagem"), m2=f.dias.reduce((s,x)=>s+x.mont,0), pdM=mont.reduce((s,x)=>s+x.pessoas,0), porDia=new Map();
+  for(const x of mont) if(x.mont) porDia.set(x.data,(porDia.get(x.data)||0)+x.mont);
+  const proj=f.etapas.reduce((s,e)=>s+e.projeto,0), av=f.etapas.reduce((s,e)=>s+e.avanco,0);
+  const pago=f.dias.filter(x=>x.equipe==="Terceirizada").reduce((s,x)=>s+x.mont,0)*f.preco, ritmo=porDia.size?m2/porDia.size:0;
+  $("#f-kpis").replaceChildren(kpi("Avanço",pct(proj?av/proj:0),`${nf1.format(av)} de ${nf1.format(proj)} m²`),
+    kpi("Produtividade",pdM?nf1.format(m2/pdM)+" m²":"–","por pessoa/dia de montagem"),
+    kpi("Ritmo da equipe",ritmo?nf1.format(ritmo)+" m²":"–",`por dia · ${porDia.size} dia${porDia.size===1?"":"s"} de montagem`),
+    kpi("Pago à terceirizada",brl(pago),`${brl(f.preco)} por m² montado`));
+  const ds=[...porDia].sort((a,b)=>a[0].localeCompare(b[0])).slice(-15);
+  $("#f-ch").replaceChildren(svgBarras(ds.map(([d,v])=>({label:ddmm(d),v}))));
+  $("#f-nota").textContent=porDia.size>15?"Últimos 15 dias de montagem.":"m² de painéis montados em cada dia.";
+  $("#f-et").replaceChildren(tabela(["Etapa","Projeto (m²)","Avanço"],f.etapas.map(e=>el("tr",{},
+    el("td",{},el("b",{text:e.etapa}),e.concluida?el("div",{class:"info",text:"concluída sem lançamento"}):null),el("td",{text:nf1.format(e.projeto)}),
+    el("td",{},pct(e.pct),el("span",{class:"bar"},el("i",{style:`width:${Math.min(100,e.pct*100)}%`})))))));
 }
 carregar(); setInterval(carregar,10*60*1000);
 </script>

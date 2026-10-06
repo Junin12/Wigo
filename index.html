@@ -144,7 +144,7 @@ section.view{padding-block:14px;display:grid;gap:14px}
 
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
 /* módulos: indicadores sempre em 2 colunas no celular, para a ação principal ficar perto do topo */
-@media (max-width:520px){ #reg2 .kpis{grid-template-columns:1fr 1fr} #reg2 .kpi b{display:block;font-size:1.5rem} }
+@media (max-width:520px){ #reg2 .kpis,#fpainel .kpis{grid-template-columns:1fr 1fr} #reg2 .kpi b,#fpainel .kpi b{display:block;font-size:1.5rem} }
 .kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px}
 .kpi span{display:block;font-size:.72rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600}
 .kpi b{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-size:1.9rem;font-weight:600;line-height:1.1}
@@ -153,6 +153,7 @@ section.view{padding-block:14px;display:grid;gap:14px}
 .chart svg{width:100%;height:auto;display:block}
 .chart text{fill:var(--muted);font-size:11px;font-family:"Barlow",sans-serif}
 .chart .val{fill:var(--ink);font-weight:600}
+@media (max-width:520px){ .chart text{font-size:21px} } /* o gráfico encolhe para caber no celular: texto maior para continuar legível */
 .chart .grid{stroke:var(--line);stroke-width:1}
 .chart .b{fill:var(--bar)}
 .chart .b.hl{fill:var(--bar-hl)}
@@ -161,6 +162,8 @@ section.view{padding-block:14px;display:grid;gap:14px}
 .tbl{overflow-x:auto}
 table{border-collapse:collapse;width:100%;font-size:.88rem}
 th,td{padding:8px 6px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+/* celular: a tabela cabe na tela (o texto quebra linha) em vez de arrastar para o lado */
+@media (max-width:520px){ table{font-size:.78rem} th,td{padding:6px 3px;white-space:normal;overflow-wrap:anywhere} th{hyphens:auto} }
 th{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600}
 th:first-child,td:first-child{text-align:left;white-space:normal}
 td .bar{width:80px;display:inline-block;vertical-align:middle;margin-left:6px}
@@ -219,6 +222,11 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
 .fotobtn{position:relative;overflow:hidden}
 .fotobtn input{position:absolute;inset:0;opacity:0;cursor:pointer}
 .form-oc{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.fm-acoes .btn{flex:1}
+.fm-peca{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid var(--line)}
+.fm-peca span{display:flex;flex-direction:column;min-width:0} .fm-peca small{color:var(--muted)} .fm-peca input{width:5.5em;flex:none}
+.fm-et{display:grid;grid-template-columns:5.5em 1fr auto;gap:8px;align-items:center;margin:6px 0} .fm-et .bar{margin:0}
+.form-oc>*{min-width:0} .form-oc select{width:100%;min-width:0} /* opção de texto longo não alarga a tela */
 .form-oc .full{grid-column:1/-1}
 
 /* projetos */
@@ -641,6 +649,13 @@ canvas.qr{display:block;width:min(260px,100%);height:auto;image-rendering:pixela
     <img class="tela-logo" src="logo-wigo-escuro.png" alt="WIGO">
   </div></header>
   <div class="tela-corpo" id="reg2"></div>
+</section>
+<section id="tela-fpainel" class="tela" aria-label="Painel da forma" hidden>
+  <header class="tela-topo compacto"><div class="in">
+    <button class="tela-voltar" type="button" data-voltar><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>Voltar</button>
+    <img class="tela-logo" src="logo-wigo-escuro.png" alt="WIGO">
+  </div></header>
+  <div class="tela-corpo" id="fpainel"></div>
 </section>
 
 <div class="modal ef" id="ef-modal" role="dialog" aria-modal="true" aria-labelledby="ef-m-tit" hidden>
@@ -1539,13 +1554,13 @@ function svgChart(data, {line=false, fmt=v=>nf1.format(v)}={}){
   const top=Math.max(...data.map(d=>d.v),1), max=top*1.12, iw=W-pl-pr, ih=H-pt-pb, bw=iw/data.length, y=v=>pt+ih-(v/max)*ih;
   for(const g of [0.5,1]) mk("line",{x1:pl,x2:W-pr,y1:y(top*g),y2:y(top*g),class:"grid"});
   mk("line",{x1:pl,x2:W-pr,y1:pt+ih,y2:pt+ih,class:"grid"});
-  const pts=[];
+  const pts=[], passo=Math.ceil(data.length/8); // com muitos pontos, mostra um rótulo a cada "passo" (no celular o texto é maior)
   data.forEach((d,k)=>{
-    const cx=pl+bw*k+bw/2;
+    const cx=pl+bw*k+bw/2, mostra=(data.length-1-k)%passo===0; // o último ponto sempre aparece
     if(line) pts.push([cx,y(d.v)]);
     else mk("rect",{x:cx-bw*0.32,y:y(d.v),width:bw*0.64,height:Math.max(0,pt+ih-y(d.v)),rx:3,class:"b"+(d.hl?" hl":"")});
-    if(d.v>0) mk("text",{x:cx,y:y(d.v)-(line?9:6),"text-anchor":"middle",class:"val"},fmt(d.v));
-    mk("text",{x:cx,y:H-8,"text-anchor":"middle"},d.label);
+    if(d.v>0 && (mostra || d.hl)) mk("text",{x:cx,y:y(d.v)-(line?9:6),"text-anchor":"middle",class:"val"},fmt(d.v));
+    if(mostra || d.hl) mk("text",{x:cx,y:H-8,"text-anchor":"middle"},d.label);
   });
   if(line && pts.length){ mk("polyline",{points:pts.map(p=>p.join(",")).join(" "),class:"ln"}); pts.forEach(([x,yy],k)=>mk("circle",{cx:x,cy:yy,r:data[k].hl?5:3.5,class:"pt"})); }
   return s;
@@ -1664,7 +1679,7 @@ function renderAcomp(){
     const b=el("button",{class:"btn",type:"button",text:"Copiar"});
     b.onclick=async()=>{ try{ await navigator.clipboard.writeText(url); toast("Link copiado"); }catch{ i.select(); toast("Selecione e copie o link"); } };
     return el("label",{class:"campo"}, rot, el("div",{class:"row",style:"flex-wrap:nowrap"}, i, b)); };
-  const bi=["posicoes","lancamentos","semanas","equipes","ocorrencias","elementos"];
+  const bi=["posicoes","lancamentos","semanas","equipes","ocorrencias","elementos","forma","forma_etapas"];
   const env=el("button",{class:"btn pri",type:"button",text:"Enviar link do painel"});
   env.onclick=async()=>{ try{ await navigator.share({title:`Painel da armação — ${nomeObra()}`,url:painel}); }catch{ try{ await navigator.clipboard.writeText(painel); toast("Link copiado"); }catch{} } };
   box.replaceChildren(linha("Painel (abre em qualquer navegador)",painel), el("div",{class:"row"},env),
@@ -1778,7 +1793,7 @@ $("#tema").addEventListener("click", e=>{ const b=e.target.closest("button[data-
   renderTema(); });
 renderTema();
 
-const VERSAO_APP = "v69"; // igual ao número em sw.js (armacao-v69)
+const VERSAO_APP = "v71"; // igual ao número em sw.js (armacao-v71)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -2697,13 +2712,14 @@ function svgMeta(data){
   if(!data.length){ mk("text",{x:W/2,y:H/2,"text-anchor":"middle"},"Sem semanas iniciadas"); return s; }
   const top=Math.max(...data.map(d=>Math.max(d.real,d.meta)),0.001), max=top*1.15, ih=H-pt-pb, bw=(W-pl-pr)/data.length, y=v=>pt+ih-(v/max)*ih;
   mk("line",{x1:pl,x2:W-pr,y1:pt+ih,y2:pt+ih,class:"grid"});
-  mk("line",{x1:W-150,x2:W-128,y1:12,y2:12,class:"meta"}); mk("text",{x:W-122,y:16},"meta da semana");
+  mk("text",{x:W-pr,y:16,"text-anchor":"end"},"meta da semana"); mk("line",{x1:W-pr-200,x2:W-pr-178,y1:11,y2:11,class:"meta"});
+  const passo=Math.ceil(data.length/8); // muitas semanas: rótulo a cada "passo" para não embolar no celular
   data.forEach((d,k)=>{
-    const cx=pl+bw*k+bw/2, w=bw*0.56;
+    const cx=pl+bw*k+bw/2, w=bw*0.56, mostra=(data.length-1-k)%passo===0 || d.hl;
     mk("rect",{x:cx-w/2,y:y(d.real),width:w,height:Math.max(0,pt+ih-y(d.real)),rx:3,class:"b"+(d.hl?" hl":"")});
     if(d.meta>0) mk("line",{x1:cx-w/2-4,x2:cx+w/2+4,y1:y(d.meta),y2:y(d.meta),class:"meta"});
-    mk("text",{x:cx,y:Math.min(y(d.real),d.meta>0?y(d.meta):H)-6,"text-anchor":"middle",class:"val"}, d.meta>0 ? Math.round(d.real/d.meta*100)+"%" : nf1.format(d.real));
-    mk("text",{x:cx,y:H-8,"text-anchor":"middle"},d.label);
+    if(mostra) mk("text",{x:cx,y:Math.min(y(d.real),d.meta>0?y(d.meta):H)-6,"text-anchor":"middle",class:"val"}, d.meta>0 ? Math.round(d.real/d.meta*100)+"%" : nf1.format(d.real));
+    if(mostra) mk("text",{x:cx,y:H-8,"text-anchor":"middle"},d.label);
   });
   return s;
 }
@@ -3429,9 +3445,9 @@ const SERVICOS=[
 
 // --- navegação entre telas: início → produtividade → aço (o app de armação) ---
 const TELAS={inicio:"#inicio", prod:"#tela-prod", sup:"#tela-sup", supaco:"#tela-sup-aco", supped:"#tela-sup-pedido", supconf:"#tela-sup-conf", ponto:"#tela-ponto", fotos:"#tela-fotos",
-  producao:"#tela-producao", login:"#tela-login", rdo:"#tela-rdo", conc:"#tela-conc", reg:"#tela-reg", acessos:"#tela-acessos"};
+  producao:"#tela-producao", login:"#tela-login", rdo:"#tela-rdo", conc:"#tela-conc", reg:"#tela-reg", acessos:"#tela-acessos", fpainel:"#tela-fpainel"};
 // módulo exigido por cada tela (o cargo precisa ter acesso)
-const TELA_MOD={prod:"prod", aco:"prod", sup:"sup", supaco:"sup", supped:"sup", supconf:"sup", ponto:"ponto", fotos:"fotos", producao:"producao", rdo:"rdo", conc:"prod"};
+const TELA_MOD={prod:"prod", aco:"prod", fpainel:"prod", sup:"sup", supaco:"sup", supped:"sup", supconf:"sup", ponto:"ponto", fotos:"fotos", producao:"producao", rdo:"rdo", conc:"prod"};
 function abrirTela(t, empilhar=true, forcar=false){
   if(!liberado() && t!=="login") t="login"; // sem login ou sem liberação: só a tela de entrada/espera
   if(!forcar && TELA_MOD[t] && !pode(TELA_MOD[t])){ toast("Seu cargo não tem acesso a esta parte do app."); t="inicio"; }
@@ -3441,7 +3457,7 @@ function abrirTela(t, empilhar=true, forcar=false){
   if(t==="inicio") renderInicio(); if(t==="prod") renderProdMenu();
   if(t==="sup") renderSupMenu(); if(t==="supaco") renderSupAco(); if(t==="supped") renderSupPedido(); if(t==="supconf") renderSupConf();
   if(t==="ponto") renderPonto(); if(t!=="ponto") $("#ef-modal").hidden=true;
-  if(t==="fotos") renderFotos(); if(t==="producao") renderProducao(); if(t==="login") renderLogin(); if(t==="rdo") renderRdo(); if(t==="conc") renderConc(); if(t==="reg") renderReg2(); if(t==="acessos") renderAcessos();
+  if(t==="fotos") renderFotos(); if(t==="producao") renderProducao(); if(t==="login") renderLogin(); if(t==="rdo") renderRdo(); if(t==="conc") renderConc(); if(t==="reg") renderReg2(); if(t==="acessos") renderAcessos(); if(t==="fpainel") renderPainelForma();
   if(empilhar) history.pushState({tela:t},"");
 }
 addEventListener("popstate", e=>{ if(e.state?.tela) abrirTela(e.state.tela,false); });
@@ -3463,16 +3479,19 @@ function renderIndicadores(){
   const box=$("#ind-ini"); if(!box) return; numProd();
   if(!S.items.length){ box.replaceChildren(el("div",{class:"ind"}, el("span",{text:"Primeiro acesso"}), el("b",{text:"Conecte o banco"}), el("small",{text:"Toque em ⚙ Configurar o banco, abaixo dos módulos"}))); return; }
   const r=resumoAco(), w=r.w, meta=w?metaSemana(w):0;
-  const i1=el("b"), i2=el("b"), i3=el("b",{id:"ind-sync",text:$("#sync").textContent});
+  const i1=el("b"), i2=el("b"), i3=el("b",{id:"ind-sync",text:$("#sync").textContent}), iF=el("b"), f=fmCalc();
   box.replaceChildren(
     el("div",{class:"ind",style:"animation-delay:.05s"}, el("span",{text:"Aço armado"}), i1, el("small",{text:`de ${t(r.P)} t previstas`})),
+    el("button",{class:"ind",type:"button",style:"animation-delay:.09s;text-align:left;cursor:pointer",onclick:()=>abrirTela("fpainel")}, el("span",{text:"Forma montada"}), iF,
+      el("small",{text:`de ${nf0.format(f.totProj)} m²`+(f.prod?` · ${nf1.format(f.prod)} m²/pessoa·dia`:"")+(f.fim?` · término ${ddmm(f.fim)}`:"")})),
     el("div",{class:"ind",style:"animation-delay:.12s"}, el("span",{text:w?`Semana ${w.n} · ${ddmm(w.ini)} a ${ddmm(w.fim)}`:"Semana"}), i2, el("small",{text:meta?`meta ${t(meta)} t · ${pct(w.kg/meta)} atingido`:"sem meta definida"})),
     el("div",{class:"ind",style:"animation-delay:.19s"}, el("span",{text:"Sincronização"}), i3, el("small",{text:S.lastSync?`última: ${new Date(S.lastSync).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}`:"ainda não sincronizado"})));
   contar(i1, r.E/1000, v=>`${nf1.format(v)} t · ${pct(r.P?v*1000/r.P:0)}`);
+  contar(iF, f.avanco, v=>`${nf0.format(v)} m² · ${pct(f.totProj?v/f.totProj:0)}`);
   contar(i2, (w?.kg||0)/1000, v=>`${nf1.format(v)} t na semana`);
 }
 // percentual do aço no botão Produtividade (atualiza quando a base chega)
-function numProd(){ const n=$("#num-prod"); if(n) n.textContent = S.items.length ? `Aço ${pct(resumoAco().pct)}` : ""; }
+function numProd(){ const n=$("#num-prod"), f=fmCalc(); if(n) n.textContent = S.items.length ? `Aço ${pct(resumoAco().pct)} · Forma ${pct(f.totProj?f.avanco/f.totProj:0)}` : ""; }
 function saudacao(){
   const h=new Date().getHours(), s=h<12?"Bom dia":h<18?"Boa tarde":"Boa noite";
   const d=new Date().toLocaleDateString("pt-BR",{weekday:"long",day:"numeric",month:"long"});
@@ -3530,11 +3549,17 @@ function renderInicio(){
     : m.id==="rdo" ? (b)=>{ const r=rdoDe(hojeISO()); b.append(el("span",{class:"num",text: !r ? "Hoje: não iniciado" : r.status==="Fechado" ? "Hoje: fechado ✓" : "Hoje: em preenchimento"})); } : null)));
   numProd();
   // atalhos que já funcionam
+  // Lançamentos e Painéis: escolhe aço ou forma
+  const avF=()=>{ const c=fmCalc(); return pct(c.totProj?c.avanco/c.totProj:0); };
   const at=[
-    {id:"lancar", nome:"Lançar aço", desc:"Coleta da semana", c:["#1A9BDC","#0067A6"], ativo:true, acao:()=>irAco("coleta")},
+    {id:"lancar", nome:"Lançamentos", desc:"Aço e forma", c:["#1A9BDC","#0067A6"], ativo:true, acao:()=>escolher("Lançamentos", [
+      ["Aço","Coleta da semana: barras ou %",()=>irAco("coleta")],
+      ["Forma","Montagem do dia: m², peças ou %",()=>abrirModulo("forma")]])},
     {id:"frentes",nome:"Frentes", desc:"Liberações e concretagem", c:["#36B37E","#1D7A48"], ativo:true, acao:()=>irAco("frentes")},
-    {id:"pdf",    nome:"Relatório PDF", desc:"Semana atual", c:["#8A6BE0","#5A3FB0"], ativo:true, acao:()=>{ irAco("painel"); setTimeout(()=>$("#rel-pdf").click(),300); }},
-    {id:"painel", nome:"Painel do aço", desc:"Meta, curva S e equipes", c:["#45A1D6","#22709F"], ativo:true, acao:()=>irAco("painel")},
+    {id:"pdf",    nome:"Relatório PDF", desc:"Aço · semana atual", c:["#8A6BE0","#5A3FB0"], ativo:true, acao:()=>{ irAco("painel"); setTimeout(()=>$("#rel-pdf").click(),300); }},
+    {id:"painel", nome:"Painéis", desc:"Gráficos do aço e da forma", c:["#45A1D6","#22709F"], ativo:true, acao:()=>escolher("Painéis", [
+      ["Painel do aço",`Meta, curva S e equipes · ${pct(resumoAco().pct)} armado`,()=>irAco("painel")],
+      ["Painel da forma",`m² por dia, produtividade e etapas · ${avF()} montado`,()=>abrirTela("fpainel")]])},
   ];
   let box=$("#atalhos");
   if(!box){ box=el("div",{class:"mods",id:"atalhos"}); $("#tit-mods").before(el("h2",{class:"tela-tit",id:"tit-atalhos",text:"Atalhos"}), box); }
@@ -3544,6 +3569,11 @@ function renderInicio(){
   let cfgIni=$("#cfg-ini");
   if(!cfgIni){ cfgIni=el("button",{class:"btn",id:"cfg-ini",type:"button",text:"⚙ Configurar o banco neste celular",onclick:()=>{ abrirTela("aco",true,true); show("dados"); }}); $("#mods").after(cfgIni); }
   cfgIni.hidden=!!S.cfg?.url;
+}
+// janela de escolha (ex.: Lançamentos › Aço ou Forma)
+function escolher(tit, ops){
+  efModal(tit, [el("div",{class:"lista full"}, ...ops.map(([nome,desc,acao])=>el("button",{class:"card r2-card",type:"button",onclick:()=>{ fecharEf(); acao(); }},
+    el("b",{text:nome}), el("div",{class:"i-sub",text:desc}))))], []);
 }
 function renderProdMenu(){
   const r=S.items.length ? resumoAco() : null;
@@ -6071,6 +6101,7 @@ const CK_VALS=[["C","Conforme","ok"],["NC","Não conforme","bad"],["NA","Não se
 const nomesPessoas = () => pessoas().filter(p=>p.ativo).map(p=>p.nome);
 const equipsCadastrados = () => regs2De("equip","cad").filter(r=>r.status!=="Inativo").map(r=>r.dados.nome).filter(Boolean).sort((a,b)=>a.localeCompare(b,"pt-BR"));
 function campoReg2(c, v, ctx){
+  if(c.t==="custom") return c.render(v, ctx); // campo próprio do módulo (ex.: montagem da forma por peças, m² ou %)
   const ops = typeof c.ops==="function" ? c.ops(ctx) : (c.ops||[]);
   if(c.t==="area"){ const i=el("textarea",{rows:3,maxLength:2000,value:v??"",placeholder:c.dica||""}); return {elm:campoEf(c.rot,i,true), ler:()=>i.value.trim()}; }
   if(c.t==="num"){ const i=el("input",{type:"text",inputMode:"decimal",autocomplete:"off",value:v!=null&&v!==""?String(v).replace(".",","):"",placeholder:c.dica||""});
@@ -6116,6 +6147,7 @@ function campoReg2(c, v, ctx){
 // valor de um campo em texto curto (cartões e PDF)
 function fmtVal(c, v){
   if(v==null || v==="" || (Array.isArray(v)&&!v.length)) return "";
+  if(c.fmt) return c.fmt(v);
   if(c.t==="num") return nf1.format(v).replace(/,0$/,"")+(c.un?" "+c.un:"");
   if(c.t==="data") return dataBR(v);
   if(c.t==="pessoas") return v.length>4 ? `${v.length} pessoas` : v.join(", ");
@@ -6128,9 +6160,11 @@ const tituloReg2 = (T, r) => T.titulo ? T.titulo(r.dados, r) : fmtVal(T.campos[0
 // --- formulário de um registro (novo, editar ou só ver) ---
 function formReg2(mod, tipo, r, pre){
   const M=MOD2[mod], T=M.tipos.find(x=>x.id===tipo), nova=!r, id=r?.id||uid().slice(0,12), ed=pode(M.edit);
-  const dados={...(pre||{}), ...(r?.dados||{})}, ctx={data:r?.data||hojeISO(), dados, nova};
+  const dados={...(pre||{}), ...(r?.dados||{})}, ctx={id, data:r?.data||hojeISO(), dados, nova};
   const iData = T.semData ? null : el("input",{type:"date",value:ctx.data,max:hojeISO()});
   const cs=T.campos.map(c=>({c, ...campoReg2(c, dados[c.k] ?? (nova && c.padrao!=null ? (typeof c.padrao==="function"?c.padrao(ctx):c.padrao) : undefined), ctx)}));
+  ctx.valor = k => cs.find(x=>x.c.k===k)?.ler(); // um campo pode depender de outro (ex.: peças da etapa escolhida)
+  cs.forEach(x=>x.pronto?.());
   const iSt = T.status ? el("div",{class:"pr-bts"}) : null; let st=r?.status || T.status?.[0] || "";
   const desSt=()=>iSt && repor(iSt, ...T.status.map(s=>el("button",{class:"chipbtn"+(st===s?" on":""),type:"button",text:s,"aria-pressed":String(st===s),onclick:()=>{ st=s; desSt(); }})));
   desSt();
@@ -6304,23 +6338,71 @@ const fmPar = () => ({ preco:num(cfgv("FORMA_PRECO_M2","1.4"))||0, equipe:Math.r
 const fmAtiv = d => d.ativ || "Montagem"; // apontamentos antigos (sem atividade) eram de montagem
 // próximo dia útil depois de n dias de trabalho (segunda a sexta)
 function diasUteis(ini, n){ const d=new Date(ini+"T12:00:00"); while(n>0){ d.setDate(d.getDate()+1); if(d.getDay()%6) n--; } return d.toISOString().slice(0,10); }
+// etapas concluídas sem lançamento (a 1ª foi montada antes do controle): contam no avanço, não na produtividade nem no pagamento.
+// Fica na aba Config (FORMA_CONCLUIDAS, separadas por "|"); sem a chave, vale a 1ª etapa. O Code.gs usa a mesma regra.
+const fmConcluidas = () => String(cfgv("FORMA_CONCLUIDAS","1ª etapa")).split("|").filter(e=>FORMA.etapas.includes(e));
+function setConcluida(e, on){ const s=new Set(fmConcluidas()); if(on) s.add(e); else s.delete(e); setCfg("FORMA_CONCLUIDAS", FORMA.etapas.filter(x=>s.has(x)).join("|")); renderReg2(); }
 function fmCalc(){
-  const L=regs2De("forma","apont"), par=fmPar(), proj=fmM2Etapa(), totProj=proj.reduce((s,x)=>s+x,0);
-  const porEt=FORMA.etapas.map(()=>({mont:0,desm:0})), dias=new Set();
+  const L=regs2De("forma","apont"), par=fmPar(), proj=fmM2Etapa(), totProj=proj.reduce((s,x)=>s+x,0), conc=fmConcluidas();
+  const porEt=FORMA.etapas.map(()=>({mont:0,desm:0})), dias=new Map(); // dias: data -> {m2, pessoas}
   let m2=0, desm=0, pd=0, pdMont=0, hh=0, terc=0, ult="";
   for(const r of L){
     const d=r.dados, n=d.n||0, mont=d.mont||0;
     pd+=n; m2+=mont; desm+=d.desm||0;
     if((d.vinc||"Terceirizada")==="Terceirizada") terc+=mont;
-    if(fmAtiv(d)==="Montagem"){ pdMont+=n; if(d.horas) hh+=n*d.horas; if(mont){ dias.add(r.data); if(r.data>ult) ult=r.data; } }
+    if(fmAtiv(d)==="Montagem"){ pdMont+=n; if(d.horas) hh+=n*d.horas;
+      if(mont){ const x=dias.get(r.data)||{m2:0,n:0}; x.m2+=mont; x.n+=n; dias.set(r.data,x); if(r.data>ult) ult=r.data; } }
     const k=FORMA.etapas.indexOf(d.etapa); if(k>=0){ porEt[k].mont+=mont; porEt[k].desm+=d.desm||0; }
   }
-  const prod=pdMont?m2/pdMont:0, porDia=dias.size?m2/dias.size:0, falta=Math.max(0,totProj-m2), diasFalta=porDia?Math.ceil(falta/porDia):0;
-  return {L, par, proj, totProj, porEt, m2, desm, pd, pdMont, hh, dias:dias.size, prod, porDia, falta, diasFalta,
+  // avanço de cada etapa: a área do projeto se está concluída; senão o lançado, sem passar do projeto
+  const av=FORMA.etapas.map((e,k)=>conc.includes(e) ? proj[k] : Math.min(proj[k], porEt[k].mont)), avanco=av.reduce((s,x)=>s+x,0);
+  const semLanc=FORMA.etapas.reduce((s,e,k)=>s+(conc.includes(e) ? Math.max(0, proj[k]-porEt[k].mont) : 0),0);
+  const serie=[...dias].sort((a,b)=>a[0].localeCompare(b[0])).map(([data,x])=>({data, m2:x.m2, prod:x.n?x.m2/x.n:0}));
+  const prod=pdMont?m2/pdMont:0, porDia=dias.size?m2/dias.size:0, falta=Math.max(0,totProj-avanco), diasFalta=porDia?Math.ceil(falta/porDia):0;
+  return {L, par, proj, totProj, conc, porEt, av, avanco, semLanc, serie, m2, desm, pd, pdMont, hh, dias:dias.size, prod, porDia, falta, diasFalta,
     fim: porDia && falta ? diasUteis(ult||hojeISO(), diasFalta) : "",
     pagoTerc:terc*par.preco, custoProp: par.propria ? pd*par.propria : 0,
     empate: pd ? par.preco*m2/pd : 0}; // custo por pessoa/dia em que a equipe própria empata com a terceirizada
 }
+// campo "Montado" do lançamento: por m², por peças (quantidade × área de cada painel) ou por % da etapa concluída
+// (como o aço por barras ou %). Guarda {modo, m2, pecas | pct}; o calc do apontamento copia m2 para "mont".
+function campoMontagem(v, ctx){
+  const st={modo:v?.modo||"area", m2:v?.m2 ?? ctx.dados.mont ?? "", pecas:{...(v?.pecas||{})}, pct:v?.pct ?? ""};
+  const box=el("div",{class:"fm-mont"}), res=el("p",{class:"okmsg"});
+  const etapaK=()=>FORMA.etapas.indexOf(ctx.valor?.("etapa")||"");
+  // painéis, cantos e compensadores (têm área); com etapa escolhida, só os que ela usa
+  const pecasEt=()=>{ const k=etapaK(); return FORMA.itens.filter(i=>i[2]>0 && (k<0 || i[7][k]>0)); };
+  const jaLancado=()=>{ const e=ctx.valor?.("etapa"); return regs2De("forma","apont").filter(r=>r.id!==ctx.id && r.dados.etapa===e).reduce((s,r)=>s+(r.dados.mont||0),0); };
+  const calc=()=>{
+    if(st.modo==="pecas") return Object.entries(st.pecas).reduce((s,[cod,q])=>s+q*(FORMA.itens.find(i=>i[0]===cod)?.[2]||0),0);
+    if(st.modo==="pct"){ const k=etapaK(); return k<0 ? 0 : Math.max(0, Math.min(100,num(st.pct)||0)/100*fmM2Etapa()[k] - jaLancado()); }
+    return Math.max(0, num(st.m2)||0); };
+  const mostrar=()=>{ res.hidden=st.modo==="area"; res.textContent=`Montado no dia: ${nf1.format(calc())} m²`; };
+  const desenhar=()=>{
+    const k=etapaK(), modos=el("div",{class:"modo",role:"group","aria-label":"Como lançar a montagem"},
+      ...[["area","Por m²"],["pecas","Por peças"],["pct","Por % da etapa"]].map(([m,t])=>el("button",{type:"button",class:"chipbtn"+(st.modo===m?" on":""),"aria-pressed":String(st.modo===m),text:t,onclick:()=>{ st.modo=m; desenhar(); }})));
+    let corpo;
+    if(st.modo==="area"){
+      const i=el("input",{type:"text",inputMode:"decimal",value:st.m2!==""?String(st.m2).replace(".",","):"",placeholder:"Ex.: 45"}); i.oninput=()=>{ st.m2=i.value; };
+      corpo=campoEf("m² montados no dia",i);
+    } else if(st.modo==="pecas"){
+      corpo=el("div",{class:"fm-pecas"}, k<0 ? el("p",{class:"info",text:"Escolha a etapa acima para ver só as peças dela."}) : null,
+        ...pecasEt().map(i=>{ const inp=el("input",{type:"number",inputMode:"numeric",min:0,step:1,value:st.pecas[i[0]]||"",placeholder:"0","aria-label":`${i[1]}: peças montadas`});
+          inp.oninput=()=>{ const q=Math.max(0,Math.round(num(inp.value)||0)); if(q) st.pecas[i[0]]=q; else delete st.pecas[i[0]]; mostrar(); };
+          return el("label",{class:"fm-peca"}, el("span",{}, i[1].replace("Painel COMAIN ","Painel "), el("small",{text:`${nf1.format(i[2]).replace(/,0$/,"")} m²`+(k>=0?` · projeto ${i[7][k]}`:"")})), inp); }));
+    } else {
+      const proj=k>=0?fmM2Etapa()[k]:0, ja=k>=0?jaLancado():0;
+      const i=el("input",{type:"text",inputMode:"decimal",value:st.pct!==""?String(st.pct).replace(".",","):"",placeholder:"Ex.: 50"}); i.oninput=()=>{ st.pct=i.value; mostrar(); };
+      corpo=el("div",{}, campoEf("Etapa concluída até hoje (%)",i),
+        el("p",{class:"info",text: k<0 ? "Escolha a etapa acima." : `${FORMA.etapas[k]}: ${nf1.format(proj)} m² no projeto · já lançado ${nf1.format(ja)} m² (${pct(proj?ja/proj:0)}). O app lança só a diferença.`}));
+    }
+    repor(box, modos, corpo, res); mostrar(); };
+  ctx.mudouEtapa=desenhar;
+  return {elm:el("div",{class:"campo full"}, "Montado", box), pronto:desenhar,
+    ler:()=>{ const m=Math.round(calc()*100)/100; if(!m) return "";
+      return {modo:st.modo, m2:m, ...(st.modo==="pecas"?{pecas:{...st.pecas}}:{}), ...(st.modo==="pct"?{pct:Math.min(100,num(st.pct)||0)}:{})}; }};
+}
+const fmtMontagem = v => `${nf1.format(v.m2||0)} m²` + (v.modo==="pecas" ? ` (${nf0.format(Object.values(v.pecas||{}).reduce((s,q)=>s+q,0))} peças)` : v.modo==="pct" ? ` (etapa em ${nf0.format(v.pct||0)}%)` : "");
 // lança os dias de descarregamento (02/10) e treinamento (05/10) com a equipe inteira
 function lancarPreparoForma(){
   const p=fmPar(), L=regs2De("forma","apont");
@@ -6330,6 +6412,23 @@ function lancarPreparoForma(){
   toast("Dias de descarregamento e treinamento lançados."); renderReg2();
 }
 const FM_ABERTO=new Set(); // quadros do painel de formas que a pessoa abriu
+// documentos da forma: PDFs da pasta "Formas" do Drive (separada da pasta Projetos da armação; nada vai para o GitHub)
+const PJF={lista:LS.get("projetosForma")||[], tentou:false};
+async function carregarDocsForma(){
+  const j=await post({acao:"projetos", pasta:"Formas"});
+  // Code.gs antigo ignora a pasta e devolveria os PDFs da armação
+  if(j.pasta!=="Formas") throw new Error("Atualize o Code.gs (versão 23) no Apps Script e publique uma Nova versão para ler a pasta Formas.");
+  PJF.lista=j.arquivos||[]; LS.set("projetosForma",PJF.lista);
+}
+async function atualizarDocsForma(btn){
+  if(btn){ btn.disabled=true; btn.textContent="Atualizando…"; }
+  try{ await carregarDocsForma(); toast(`${PJF.lista.length} PDF${PJF.lista.length===1?"":"s"} na pasta Formas`); }
+  catch(e){ toast(e.message); }
+  finally{ renderReg2(); }
+}
+const docForma = f => el("button",{class:"card r2-card",type:"button",onclick:()=>abrirPdf(f,1)},
+  el("div",{class:"i-top"}, el("b",{text:"📄 "+pjTitulo(f.nome)}), PJ.off[f.id]===f.atualizado ? el("span",{class:"chip ok",text:"no celular"}) : null),
+  el("div",{class:"i-sub",text:`PDF · ${mb(f.tamanho||0)}`}));
 function painelForma(){
   const c=fmCalc(), p=c.par, ed=pode("producao-edit");
   const tab=(cab, ls, cls)=>el("div",{class:"tbl"}, el("table",{class:cls||""}, el("thead",{}, el("tr",{}, ...cab.map(h=>el("th",{text:h})))),
@@ -6347,24 +6446,35 @@ function painelForma(){
   // quadros de análise recolhidos, com o resumo no título; continuam abertos quando a tela redesenha
   const secao=(id, resumo, ...conteudo)=>{ const d=el("details",{class:"card",open:FM_ABERTO.has(id)}, el("summary",{class:"pr-sum",text:resumo}), ...conteudo);
     d.ontoggle=()=>{ if(d.open) FM_ABERTO.add(id); else FM_ABERTO.delete(id); }; return d; };
-  const montEt=c.porEt.reduce((s,x)=>s+x.mont,0);
   const resumoComp = !c.m2 ? "aparece depois da 1ª montagem" : !p.propria ? "informe o custo da equipe própria"
     : c.custoProp<=c.m2*p.preco ? "própria sai mais barata" : "terceirizada sai mais barata";
+  // documentos: na primeira vez que abre o quadro, busca a lista da pasta Formas no Drive
+  const docs=secao("docs", `Documentos · pasta Formas do Drive (${PJF.lista.length} PDF${PJF.lista.length===1?"":"s"})`,
+    PJF.lista.length ? el("div",{class:"lista"}, ...PJF.lista.map(docForma))
+      : el("p",{class:"vazio",text:"Nenhum PDF ainda. Coloque o projeto e o catálogo da forma na pasta Formas do Google Drive (ao lado da planilha) e toque em Atualizar lista."}),
+    el("div",{class:"row"}, el("button",{class:"btn",type:"button",text:"Atualizar lista",onclick:e=>atualizarDocsForma(e.currentTarget)})),
+    el("p",{class:"info",text:"Ficam separados dos PDFs da armação. Depois de abertos uma vez, ficam guardados no celular para ver sem internet."}));
+  docs.addEventListener("toggle", ()=>{ if(docs.open && !PJF.tentou && S.cfg?.url){ PJF.tentou=true; atualizarDocsForma(); } });
   const kit=cardKitForma(); kit.open=FM_ABERTO.has("mat"); kit.ontoggle=()=>{ if(kit.open) FM_ABERTO.add("mat"); else FM_ABERTO.delete("mat"); };
   return [
-    ed ? el("button",{class:"btn pri ps-novo",type:"button",text:"+ Lançar o dia",onclick:()=>formReg2("forma","apont",null)}) : null,
+    el("div",{class:"row fm-acoes"},
+      ed ? el("button",{class:"btn pri",type:"button",text:"+ Lançar o dia",onclick:()=>formReg2("forma","apont",null)}) : null,
+      el("button",{class:"btn",type:"button",text:"📈 Painel",onclick:()=>abrirTela("fpainel")})),
     el("div",{class:"kpis"},
-      kpi("Forma montada", `${nf1.format(c.m2)} m²`, `de ${nf1.format(c.totProj)} m² · ${pct(c.totProj?c.m2/c.totProj:0)}`),
+      kpi("Forma montada", `${nf1.format(c.avanco)} m²`, `de ${nf1.format(c.totProj)} m² · ${pct(c.totProj?c.avanco/c.totProj:0)}`+(c.semLanc?` · ${nf1.format(c.semLanc)} m² sem lançamento`:"")),
       kpi("Produtividade", c.prod ? `${nf1.format(c.prod)} m²` : "–", c.dias ? `por pessoa/dia · equipe faz ${nf1.format(c.porDia)} m²/dia` : "lance a montagem do dia"),
       kpi("Pago à terceirizada", brl(c.pagoTerc), `${brl(p.preco)}/m² · obra inteira ${brl(c.totProj*p.preco)}`),
       kpi("Término previsto", c.fim ? ddmm(c.fim) : c.m2 && !c.falta ? "concluída" : "–", c.fim ? `faltam ${nf1.format(c.falta)} m² · ~${c.diasFalta} dias úteis` : "depende do ritmo")),
-    barra(c.totProj?c.m2/c.totProj:0),
+    barra(c.totProj?c.avanco/c.totProj:0),
     ed && semPrep ? el("div",{class:"row"}, el("p",{class:"info",style:"flex:1",text:"Lance também os dias em que a equipe trabalhou sem montar (entram na conta da equipe própria)."}),
       el("button",{class:"btn",type:"button",text:"Lançar 02/10 e 05/10",onclick:lancarPreparoForma})) : null,
-    secao("etapas", `Etapas do projeto · ${pct(c.totProj?montEt/c.totProj:0)} montado`,
-      tab(["Etapa","Projeto (m²)","Montado","%","Desmontado"], [...FORMA.etapas.map((e,k)=>[e, nf1.format(c.proj[k]), nf1.format(c.porEt[k].mont), pct(c.proj[k]?c.porEt[k].mont/c.proj[k]:0), nf1.format(c.porEt[k].desm)]),
-        ["Total", nf1.format(c.totProj), nf1.format(montEt), pct(c.totProj?montEt/c.totProj:0), nf1.format(c.porEt.reduce((s,x)=>s+x.desm,0))]]),
-      el("p",{class:"info",text:`Projeto ${FORMA.projeto} (paredes dos floculadores): área dos painéis, cantos internos e compensadores de cada etapa. O avanço conta os dias lançados com a etapa escolhida.`})),
+    secao("etapas", `Etapas do projeto · ${pct(c.totProj?c.avanco/c.totProj:0)} montado`,
+      tab(["Etapa","Projeto (m²)","Montado (m²)","%","Concluída"], [...FORMA.etapas.map((e,k)=>{
+        const ck=el("input",{type:"checkbox",checked:c.conc.includes(e),disabled:!ed,"aria-label":`${e} concluída`});
+        ck.onchange=()=>setConcluida(e, ck.checked);
+        return [e, nf1.format(c.proj[k]), nf1.format(c.av[k]), pct(c.proj[k]?c.av[k]/c.proj[k]:0), ck]; }),
+        ["Total", nf1.format(c.totProj), nf1.format(c.avanco), pct(c.totProj?c.avanco/c.totProj:0), ""]]),
+      el("p",{class:"info",text:"Marque “Concluída” na etapa montada sem lançamento (como a 1ª): ela entra no avanço, mas não na produtividade nem no pagamento."+(c.desm?` Desmontado até agora: ${nf1.format(c.desm)} m².`:"")})),
     secao("comp", `Terceirizada x equipe própria · ${resumoComp}`,
       el("div",{class:"cf-peso"}, par("FORMA_PRECO_M2","Terceirizada: R$ por m² montado",p.preco), par("FORMA_EQUIPE","Pessoas na equipe",p.equipe),
         par("FORMA_CUSTO_PROPRIA","Própria: R$ por pessoa/dia (com encargos)",p.propria,"Ex.: 280")),
@@ -6375,10 +6485,40 @@ function painelForma(){
         ["Obra inteira (estimado)", brl(c.totProj*p.preco), p.propria && c.m2 ? brl(c.custoProp/c.m2*c.totProj) : "–"]]),
       veredito,
       el("p",{class:"info",text:"A equipe própria custa todos os dias em que está na obra (descarregamento, treinamento e dias parados); a terceirizada recebe só pelo m² montado."})),
+    docs,
     kit,
     secao("crono", "Linha do tempo",
       tab(["Data","O que aconteceu"], FORMA.crono.map(([d,t])=>[`${dataBR(d)} (${new Date(d+"T12:00:00").toLocaleDateString("pt-BR",{weekday:"short"})})`, t]))),
     el("div",{class:"row"}, el("button",{class:"btn",type:"button",text:"📊 Planilha de controle (Excel)",onclick:e=>excelForma(e.currentTarget)}))];
+}
+// painel da forma (como o do aço): indicadores e gráficos de m² por dia, produtividade, avanço acumulado, etapas e custo
+function renderPainelForma(){
+  const box=$("#fpainel"); if(!box) return;
+  const c=fmCalc(), p=c.par, ult=c.serie.slice(-15); // últimos 15 dias de montagem: mais que isso não cabe no celular
+  const graf=(tit, svg, nota)=>el("div",{class:"card"}, el("h3",{text:tit}), el("div",{class:"chart"}, svg), nota ? el("p",{class:"info",text:nota}) : null);
+  let ac=c.semLanc; const acum=c.serie.map(x=>({label:ddmm(x.data), v:(ac+=x.m2)})).slice(-15);
+  repor(box,
+    el("p",{class:"saud"}, "Painel da forma", el("small",{text:`Paredes dos floculadores · projeto ${FORMA.projeto} · ULMA ${FORMA.sistema}`})),
+    el("div",{class:"kpis"},
+      kpi("Avanço", pct(c.totProj?c.avanco/c.totProj:0), `${nf1.format(c.avanco)} de ${nf1.format(c.totProj)} m²`),
+      kpi("Produtividade", c.prod ? `${nf1.format(c.prod)} m²` : "–", "por pessoa/dia de montagem"),
+      kpi("Ritmo da equipe", c.porDia ? `${nf1.format(c.porDia)} m²` : "–", `por dia · ${c.dias} dia${c.dias===1?"":"s"} de montagem`),
+      kpi("Término previsto", c.fim ? ddmm(c.fim) : c.avanco>=c.totProj ? "concluída" : "–", c.fim ? `faltam ${nf1.format(c.falta)} m²` : "depende do ritmo")),
+    barra(c.totProj?c.avanco/c.totProj:0),
+    graf("m² montados por dia", svgChart(ult.map(x=>({label:ddmm(x.data), v:x.m2, hl:x.data===hojeISO()}))), c.serie.length>15 ? "Últimos 15 dias de montagem." : ""),
+    graf("Produtividade (m² por pessoa/dia)", svgChart(ult.map(x=>({label:ddmm(x.data), v:x.prod})),{line:true}), "m² montados no dia ÷ pessoas na montagem."),
+    graf("Avanço acumulado (m²)", svgChart(acum,{line:true,fmt:v=>nf0.format(v)}),
+      `Projeto: ${nf1.format(c.totProj)} m²`+(c.semLanc?` · começa em ${nf1.format(c.semLanc)} m² das etapas concluídas sem lançamento.`:".")),
+    el("div",{class:"card"}, el("h3",{text:"Etapas"}),
+      ...FORMA.etapas.map((e,k)=>el("div",{class:"fm-et"}, el("b",{text:e}), barra(c.proj[k]?c.av[k]/c.proj[k]:0),
+        el("span",{class:"info",text:`${pct(c.proj[k]?c.av[k]/c.proj[k]:0)} de ${nf0.format(c.proj[k])} m²`+(c.conc.includes(e)?" ✓":"")})))),
+    el("div",{class:"card"}, el("h3",{text:"Custo da equipe"}),
+      tabelaSimples(["","Até agora","Obra inteira"], [
+        ["Terceirizada", brl(c.pagoTerc), brl(c.totProj*p.preco)],
+        ["Equipe própria", p.propria ? brl(c.custoProp) : "informe o custo", p.propria && c.m2 ? brl(c.custoProp/c.m2*c.totProj) : "–"]]),
+      el("p",{class:"info",text:`Terceirizada: ${brl(p.preco)} por m² montado. Equipe própria: ${p.propria?brl(p.propria):"—"} por pessoa/dia, todos os dias na obra (${nf0.format(c.pd)} pessoas-dia até agora).`})),
+    el("div",{class:"row"}, el("button",{class:"btn pri",type:"button",text:"Ir para os lançamentos",onclick:()=>abrirModulo("forma")}),
+      el("button",{class:"btn",type:"button",text:"📊 Planilha (Excel)",onclick:e=>excelForma(e.currentTarget)})));
 }
 // material ULMA: contrato x 1ª e 2ª carga x o que o projeto pede na etapa que mais usa
 function cardKitForma(){
@@ -6447,7 +6587,7 @@ async function planilhaForma(){
     const x=regs[r-d0], d=x?.dados;
     if(x){ wd.getCell(r,1).value=new Date(x.data+"T12:00:00"); wd.getRow(r).getCell(2).value=fmAtiv(d); wd.getCell(r,3).value=d.etapa||""; wd.getCell(r,4).value=d.vinc||"Terceirizada";
       wd.getCell(r,5).value=d.n||0; wd.getCell(r,6).value=d.horas??null; wd.getCell(r,8).value=d.mont||0; wd.getCell(r,9).value=d.desm||0;
-      wd.getCell(r,13).value=[d.est&&d.est!==FORMA.est?d.est:"", d.det||"", d.obs||""].filter(Boolean).join(" · "); }
+      wd.getCell(r,13).value=[d.est&&d.est!==FORMA.est?d.est:"", d.det||"", d.montagem&&d.montagem.modo!=="area"?"lançado "+fmtMontagem(d.montagem):"", d.obs||""].filter(Boolean).join(" · "); }
     wd.getCell(r,7).value=F(`IF(OR(E${r}="",F${r}=""),"",E${r}*F${r})`, d?.horas ? (d.n||0)*d.horas : undefined);
     wd.getCell(r,10).value=F(`IF(AND(B${r}="Montagem",E${r}>0,H${r}>0),H${r}/E${r},"")`, d && fmAtiv(d)==="Montagem" && d.n && d.mont ? d.mont/d.n : undefined);
     wd.getCell(r,11).value=F(`IF(D${r}="Terceirizada",H${r}*Resumo!$B$5,0)`, d && (d.vinc||"Terceirizada")==="Terceirizada" ? (d.mont||0)*p.preco : 0);
@@ -6464,16 +6604,19 @@ async function planilhaForma(){
 
   // ===== Etapas =====
   titulo(we,"m² de forma por etapa: projeto x montado",sub);
-  cab(we,4,["Etapa","m² no projeto","m² montado","% montado","m² desmontado"]);
+  cab(we,4,["Etapa","m² no projeto","m² montado (avanço)","% montado","m² desmontado","Concluída sem lançamento?"]);
   const cols={0:"I",1:"J",2:"K",3:"L"};
   FORMA.etapas.forEach((e,k)=>{ const r=5+k;
+    // concluída sem lançamento: conta a etapa inteira; senão o lançado no Diário, sem passar do projeto
     we.getRow(r).values=[e, F(`SUMPRODUCT(Material!$D$${m0}:$D$${m1},Material!$${cols[k]}$${m0}:$${cols[k]}$${m1})`,c.proj[k]),
-      F(`SUMIFS(${D("H")},${D("C")},A${r})`,c.porEt[k].mont), F(`IFERROR(C${r}/B${r},0)`,c.proj[k]?c.porEt[k].mont/c.proj[k]:0), F(`SUMIFS(${D("I")},${D("C")},A${r})`,c.porEt[k].desm)];
-    borda(we,r,5); we.getCell(r,2).numFmt=we.getCell(r,3).numFmt=we.getCell(r,5).numFmt=M2; we.getCell(r,4).numFmt="0.0%"; });
-  we.getRow(9).values=["Total",F("SUM(B5:B8)",c.totProj),F("SUM(C5:C8)",undefined),F("IFERROR(C9/B9,0)",undefined),F("SUM(E5:E8)",undefined)];
-  borda(we,9,5,{total:true}); we.getCell(9,2).numFmt=we.getCell(9,3).numFmt=we.getCell(9,5).numFmt=M2; we.getCell(9,4).numFmt="0.0%";
-  we.getCell(11,1).value="m² no projeto = soma (área de cada painel, canto interno e compensador × quantidade da etapa). Montado = soma do Diário com a etapa escolhida."; we.getCell(11,1).font=A({italic:true,size:9});
-  [14,14,14,12,14].forEach((w,k)=>we.getColumn(k+1).width=w);
+      F(`IF(F${r}="Sim",B${r},MIN(B${r},SUMIFS(${D("H")},${D("C")},A${r})))`,c.av[k]), F(`IFERROR(C${r}/B${r},0)`,c.proj[k]?c.av[k]/c.proj[k]:0),
+      F(`SUMIFS(${D("I")},${D("C")},A${r})`,c.porEt[k].desm), c.conc.includes(e)?"Sim":"Não"];
+    borda(we,r,6); we.getCell(r,2).numFmt=we.getCell(r,3).numFmt=we.getCell(r,5).numFmt=M2; we.getCell(r,4).numFmt="0.0%";
+    we.getCell(r,6).fill=fill("FFF2CC"); we.getCell(r,6).alignment={horizontal:"center"}; we.getCell(r,6).dataValidation={type:"list",allowBlank:false,formulae:['"Sim,Não"']}; });
+  we.getRow(9).values=["Total",F("SUM(B5:B8)",c.totProj),F("SUM(C5:C8)",c.avanco),F("IFERROR(C9/B9,0)",c.totProj?c.avanco/c.totProj:0),F("SUM(E5:E8)",undefined),""];
+  borda(we,9,6,{total:true}); we.getCell(9,2).numFmt=we.getCell(9,3).numFmt=we.getCell(9,5).numFmt=M2; we.getCell(9,4).numFmt="0.0%";
+  we.getCell(11,1).value="m² no projeto = soma (área de cada painel, canto interno e compensador × quantidade da etapa). Montado = soma do Diário com a etapa escolhida; etapa concluída sem lançamento (coluna F = Sim) conta inteira no avanço, mas não na produtividade nem no pagamento."; we.getCell(11,1).font=A({italic:true,size:9});
+  [14,14,16,12,14,16].forEach((w,k)=>we.getColumn(k+1).width=w);
 
   // ===== Resumo =====
   titulo(rs,"Formas ULMA: produtividade e viabilidade da equipe",sub);
@@ -6485,8 +6628,8 @@ async function planilhaForma(){
   ent(7,"Equipe própria: custo por pessoa/dia (com encargos)",p.propria||null,RS,"Salário + encargos + benefícios ÷ dias trabalhados no mês");
   const ind=[
     ["m² de forma no projeto", F("Etapas!B9",c.totProj), M2],
-    ["m² montados até agora", F(`SUM(${D("H")})`,c.m2), M2],
-    ["% montado", F("IFERROR(B10/B9,0)",c.totProj?c.m2/c.totProj:0), "0.0%"],
+    ["m² montados lançados no Diário", F(`SUM(${D("H")})`,c.m2), M2],
+    ["% do projeto montado (avanço, inclui etapas concluídas)", F("Etapas!D9",c.totProj?c.avanco/c.totProj:0), "0.0%"],
     ["Pessoas-dia (todas as atividades)", F(`SUM(${D("E")})`,c.pd), INT],
     ["Pessoas-dia na montagem", F(`SUMIFS(${D("E")},${D("B")},"Montagem")`,c.pdMont), INT],
     ["Produtividade (m² por pessoa/dia de montagem)", F("IFERROR(B10/B13,0)",c.prod), M2],
@@ -6576,15 +6719,16 @@ const MOD2={
     {id:"apont", nome:"Dias lançados", novo:"Lançar o dia", semNovo:true, vazio:"Nenhum dia lançado no período. Toque em + Lançar o dia.",
       // o essencial primeiro; a etapa e quem fez repetem o último dia lançado
       campos:[{k:"ativ",rot:"Atividade",t:"sel",ops:FORMA_ATIV,obrig:true,padrao:"Montagem"},
-        {k:"etapa",rot:"Etapa",t:"sel",ops:FORMA.etapas,padrao:()=>regs2De("forma","apont").find(r=>r.dados.etapa)?.dados.etapa||""},
-        {k:"mont",rot:"Montado",t:"num",un:"m²"},{k:"desm",rot:"Desmontado",t:"num",un:"m²"},
+        {k:"etapa",rot:"Etapa",t:"sel",ops:FORMA.etapas,padrao:()=>regs2De("forma","apont").find(r=>r.dados.etapa)?.dados.etapa||"",mudou:(v,ctx)=>ctx.mudouEtapa?.()},
+        {k:"montagem",rot:"Montado",t:"custom",render:campoMontagem,fmt:fmtMontagem},{k:"desm",rot:"Desmontado",t:"num",un:"m²"},
         {k:"npes",rot:"Pessoas",t:"num",padrao:()=>fmPar().equipe||""},
         {k:"horas",rot:"Horas por pessoa",t:"num",un:"h",dica:"Opcional"},
         {k:"vinc",rot:"Quem fez",t:"sel",ops:["Terceirizada","Própria"],padrao:()=>regs2De("forma","apont")[0]?.dados.vinc||"Terceirizada"},
         {k:"est",rot:"Estrutura",t:"est",obrig:true,padrao:()=>FORMA.est},{k:"det",rot:"Detalhe",t:"txt",dica:"Ex.: parede 3"},
         {k:"equipe",rot:"Nomes (opcional)",t:"pessoas",padrao:()=>equipeProducao(/forma|desforma|escoramento/i),semCard:true},{k:"obs",rot:"Observação",t:"area"}],
       // pessoas: os nomes marcados ou, sem nomes, o número informado; produtividade só da montagem
-      calc:d=>{ const n=(d.equipe||[]).length || Math.round(d.npes||0); d.n=n; if(n && d.mont) d.prod=Math.round(d.mont/n*10)/10; else delete d.prod; },
+      calc:d=>{ if(d.montagem) d.mont=d.montagem.m2; // m² do dia, venha de m², peças ou %
+        const n=(d.equipe||[]).length || Math.round(d.npes||0); d.n=n; if(n && d.mont) d.prod=Math.round(d.mont/n*10)/10; else delete d.prod; },
       titulo:d=>`${d.ativ||"Montagem"}${d.etapa?" · "+d.etapa:""}${d.det?" · "+d.det:""}`+(d.mont||d.desm?` · ${nf1.format((d.mont||0)+(d.desm||0))} m²`:"")+(d.n?` · ${d.n} pessoas`:"")+(d.prod?` · ${nf1.format(d.prod)} m²/pessoa`:"")}],
     topo:()=>painelForma()},
   esc:{nome:"Escavação", desc:"Volume por local e equipamento", edit:"producao-edit", acesso:"prod", tipos:[

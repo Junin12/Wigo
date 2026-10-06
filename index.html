@@ -244,6 +244,31 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
 .r2-ck>span{flex:1 1 180px}
 .r2-ck .chipbtn.on.ok{background:var(--good);border-color:var(--good);color:#fff}
 .r2-ck .chipbtn.on.bad{background:var(--bad);border-color:var(--bad);color:#fff}
+/* checklists de máquinas (Segurança) */
+.mq-menu{display:grid;gap:14px;margin-top:10px}
+.mq-grupo h3{margin:4px 0 8px}
+.mq-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:10px}
+.mq-bt{display:grid;gap:6px;align-content:start;justify-items:center;text-align:center;padding:8px 8px 10px;border:1px solid var(--line);border-radius:14px;background:var(--surface);color:inherit;font:inherit;cursor:pointer}
+.mq-bt[hidden],.mq-grupo[hidden]{display:none}
+.mq-bt:hover,.mq-bt:focus-visible{border-color:var(--accent);box-shadow:0 6px 16px -10px rgba(0,79,128,.5)}
+.mq-bt img,.mq-sem{width:100%;aspect-ratio:4/3;object-fit:contain;background:#fff;border-radius:10px}
+.mq-sem{display:grid;place-items:center;font-size:2rem}
+.mq-bt b{font-size:.86rem;line-height:1.2}
+.mq-fotos{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px}
+.mq-fotos img{height:110px;width:auto;flex:none;background:#fff;border-radius:10px;border:1px solid var(--line)}
+.mq-epis,.mq-acoes{display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center}
+.mq-epis .chip{margin-left:0}
+.mq-epi-bts .chipbtn.on{background:var(--good);border-color:var(--good);color:#fff}
+.mq-cab-it{justify-content:space-between;align-items:center}
+.mq-item{display:grid;grid-template-columns:24px 1fr;gap:6px 8px;padding:9px 4px;border-bottom:1px solid var(--line);border-radius:8px}
+.mq-item .pr-bts{grid-column:2}
+.mq-item.ng{background:rgba(180,35,24,.08)}
+.mq-n{font-weight:700;color:var(--muted);text-align:right}
+.mq-txt small{display:block;color:var(--muted);font-size:.72rem;text-transform:capitalize}
+.mq-item .chipbtn{min-height:40px;min-width:64px}
+.mq-item .chipbtn.on.ok{background:var(--good);border-color:var(--good);color:#fff}
+.mq-item .chipbtn.on.bad{background:var(--bad);border-color:var(--bad);color:#fff}
+.chipbtn.mq-ng{border-color:var(--bad);color:var(--bad)}
 .r2-itens{display:grid;gap:6px}
 .r2-item{flex-wrap:nowrap}
 .r2-item input:first-child{flex:1;min-width:0}
@@ -1795,7 +1820,7 @@ $("#tema").addEventListener("click", e=>{ const b=e.target.closest("button[data-
   renderTema(); });
 renderTema();
 
-const VERSAO_APP = "v72"; // igual ao número em sw.js (armacao-v72)
+const VERSAO_APP = "v73"; // igual ao número em sw.js (armacao-v73)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -1858,9 +1883,9 @@ async function carregarJsPdf(){
   await carregarScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js");
 }
 // A4 com a faixa azul, a logo à direita e até três linhas: título, subtítulo e linha pequena (padrão: "Gerado em …")
-async function novoPdf(titulo, sub, linha3){
+async function novoPdf(titulo, sub, linha3, {paisagem=false}={}){
   await carregarJsPdf();
-  const {jsPDF}=window.jspdf, doc=new jsPDF({unit:"mm",format:"a4"}), W=210, M=12, HB=30;
+  const {jsPDF}=window.jspdf, doc=new jsPDF({unit:"mm",format:"a4",orientation:paisagem?"landscape":"portrait"}), W=paisagem?297:210, M=12, HB=30;
   doc.setFillColor(...PDF_AZ); doc.rect(0,0,W,HB,"F");
   const logo=await logoRelatorio();
   if(logo){ const lw=Math.min(52,14*logo.w/logo.h), lh=lw*logo.h/logo.w; doc.addImage(logo.src,"PNG",W-M-lw,(HB-lh)/2,lw,lh,undefined,"FAST"); }
@@ -1872,8 +1897,8 @@ async function novoPdf(titulo, sub, linha3){
 }
 // numeração em todas as páginas; antes(p) desenha algo a mais em cada página (ex.: marca-d'água)
 function rodapePdf(doc, texto=(p,n)=>`Página ${p} de ${n}`, {centro=false, cor=[120,120,120], antes}={}){
-  const n=doc.getNumberOfPages();
-  for(let p=1;p<=n;p++){ doc.setPage(p); antes?.(p); doc.setFontSize(7); doc.setTextColor(...cor); doc.text(texto(p,n), centro?105:198, 292, {align:centro?"center":"right"}); }
+  const n=doc.getNumberOfPages(), W=doc.internal.pageSize.getWidth(), H=doc.internal.pageSize.getHeight();
+  for(let p=1;p<=n;p++){ doc.setPage(p); antes?.(p); doc.setFontSize(7); doc.setTextColor(...cor); doc.text(texto(p,n), centro?W/2:W-12, H-5, {align:centro?"center":"right"}); }
 }
 // no celular abre o compartilhar (WhatsApp, e-mail); no computador baixa o arquivo
 async function entregarArquivo(blob, nome, titulo, compartilhar=true){
@@ -3434,7 +3459,7 @@ const MODULOS=[
   {id:"rel",   nome:"Relatórios",       desc:"PDF semanal e painéis",          c:["#8A6BE0","#5A3FB0"], ativo:true},
   {id:"sup",   nome:"Suprimentos",      desc:"Pedidos e recebimento",          c:["#F2AE3D","#D27D1F"], ativo:true},
   {id:"qual",  nome:"Qualidade",        desc:"Fichas de verificação (FVS)",    c:["#36B37E","#1D7A48"], ativo:true},
-  {id:"seg",   nome:"Segurança",        desc:"DDS, inspeções e SST",           c:["#F2783A","#C9461A"], ativo:true},
+  {id:"seg",   nome:"Segurança",        desc:"DDS, inspeções e checklists de máquinas",           c:["#F2783A","#C9461A"], ativo:true},
   {id:"med",   nome:"Medições",         desc:"Boletins e avanço físico",       c:["#45A1D6","#22709F"], ativo:true},
   {id:"equip", nome:"Equipamentos",     desc:"Máquinas e horímetros",          c:["#7D8B99","#4A5866"], ativo:true},
 ];
@@ -6241,7 +6266,7 @@ function listaReg2(){
 function cardReg2(r, T){
   const linhas=T.campos.filter(c=>!c.semCard).map(c=>[c, fmtVal(c, r.dados[c.k])]).filter(([,v])=>v).slice(1,4), nf=T.fotos?fotosReg2(r.id).length:0;
   const cor = /conforme$|resolvid|ativo|trabalhando|conclu/i.test(r.status) && !/não/i.test(r.status) ? "ok" : /não conforme|aberta|parado|manuten|acidente/i.test(r.status) ? "bad" : "";
-  return el("button",{class:"card r2-card",type:"button",onclick:()=>formReg2(RG.mod, T.id, r)},
+  return el("button",{class:"card r2-card",type:"button",onclick:()=>T.abrir ? T.abrir(r) : formReg2(RG.mod, T.id, r)},
     el("div",{class:"i-top"}, el("b",{text:tituloReg2(T,r)}), r.status ? el("span",{class:"chip "+cor,text:r.status}) : null),
     el("div",{class:"i-sub",text:[T.semData?"":dataBR(r.data), ...linhas.map(([c,v])=>`${c.rot}: ${v}`)].filter(Boolean).join(" · ")}),
     nf || r.pend ? el("div",{class:"info"}, nf?`📷 ${nf}`:"", r.pend?el("span",{style:"color:var(--warn)",text:" · a enviar"}):null) : null);
@@ -6282,6 +6307,228 @@ async function pdfReg2(T, lista, btn, mod=RG.mod, perTxt){
     await entregarPdf(doc, `${arq(M.titulo?.(T)||M.nome)}_${arq(T.nome)}_${hojeISO()}.pdf`, `${M.titulo?.(T)||M.nome} — ${T.nome}`);
   }catch(e){ toast(e.message||"Não foi possível gerar o PDF."); }
   finally{ btn.disabled=false; btn.textContent=txt; }
+}
+
+// ================= Segurança › Checklists de máquinas e equipamentos =================
+// Os checklists vêm de checklists-maquinas.json (lidos da planilha "Check Lists de Máquinas e Equipamentos", sem a logo do cliente):
+// [{id, nome, grupo, campos:[rótulos do cabeçalho], itens:[[texto, período]], epis:[[EPI, obrigatório]], fotos:[[arquivo, largura, altura]]}]
+// Cada checklist preenchido é um registro seg/maq (aba Registros2), um por dia:
+// dados = {maq, empresa, cab:{rótulo: valor}, ident, it:{nº do item: "C"|"NC"|"NA"}, epis:[em uso], oper, lider, segv, obs, res}
+// O PDF segue a ficha mensal da planilha (dias 1 a 31): em branco para preencher à mão ou com os dias preenchidos no app.
+const MQ={lista:null, carregando:null, busca:""};
+function carregarMaq(){
+  if(MQ.lista) return Promise.resolve(MQ.lista);
+  return MQ.carregando ??= fetch("checklists-maquinas.json").then(r=>r.json()).then(l=>{
+    MQ.lista=l;
+    // passa as fotos pela rede uma vez: o service worker guarda e elas abrem sem internet
+    setTimeout(()=>l.flatMap(m=>m.fotos).forEach(([f])=>fetch(f).catch(()=>{})), 1500);
+    return l; }).catch(()=>{ MQ.carregando=null; return null; });
+}
+const maqDe = id => MQ.lista?.find(m=>m.id===id);
+// valor guardado → [no PDF, no botão, cor]
+const MQ_VAL={C:["O","✓ OK","ok"], NC:["X","✗ Problema","bad"], NA:["N/A","N/A",""]};
+const identMaq = (M, cab) => M.campos.map(c=>cab?.[c]).filter(Boolean).join(" · ");
+const regsMaq = id => regs2De("seg","maq").filter(r=>r.dados.maq===id);
+const fotosMaq = M => M.fotos.length ? el("div",{class:"full mq-fotos"}, ...M.fotos.map(([f])=>el("img",{src:f,alt:M.nome,loading:"lazy"}))) : null;
+async function urlDados(src){ const b=await (await fetch(src)).blob(); return new Promise((ok,erro)=>{ const fr=new FileReader(); fr.onload=()=>ok(fr.result); fr.onerror=erro; fr.readAsDataURL(b); }); }
+
+// menu: uma figura por máquina, separadas por grupo, com busca
+function menuMaq(){
+  if(!MQ.lista){ carregarMaq().then(l=>{ if(l && !$("#tela-reg").hidden) renderReg2(); });
+    return [el("div",{class:"vazio",text:"Abrindo a lista de máquinas… Na primeira vez o celular precisa de internet."})]; }
+  const mes=hojeISO().slice(0,7), feitos=new Map();
+  for(const r of regs2De("seg","maq")) if(r.data.startsWith(mes)) feitos.set(r.dados.maq,(feitos.get(r.dados.maq)||0)+1);
+  const busca=el("input",{type:"search",placeholder:"Procurar máquina ou equipamento",value:MQ.busca,"aria-label":"Procurar máquina ou equipamento"});
+  const vaz=el("p",{class:"vazio",text:"Nenhuma máquina com esse nome.",hidden:true}), box=el("div",{class:"mq-menu"});
+  const filtrar=()=>{ const q=normTxt(MQ.busca); let n=0;
+    box.querySelectorAll(".mq-bt").forEach(b=>{ b.hidden=!!q && !b.dataset.q.includes(q); if(!b.hidden) n++; });
+    box.querySelectorAll(".mq-grupo").forEach(g=>{ g.hidden=![...g.querySelectorAll(".mq-bt")].some(b=>!b.hidden); });
+    vaz.hidden=n>0; };
+  busca.oninput=()=>{ MQ.busca=busca.value; filtrar(); };
+  repor(box, ...[...new Set(MQ.lista.map(m=>m.grupo))].map(g=>el("section",{class:"mq-grupo"}, el("h3",{text:g}),
+    el("div",{class:"mq-grid"}, ...MQ.lista.filter(m=>m.grupo===g).map(m=>{ const n=feitos.get(m.id), f=m.fotos[0];
+      return el("button",{class:"mq-bt",type:"button","data-q":normTxt(m.nome+" "+g),"aria-label":m.nome+(n?`: ${n} este mês`:""),onclick:()=>paginaMaq(m.id)},
+        f ? el("img",{src:f[0],alt:"",loading:"lazy"}) : el("span",{class:"mq-sem","aria-hidden":"true",text:"🛠"}),
+        el("b",{text:m.nome}), n ? el("span",{class:"chip ok",text:`${n} este mês`}) : null); })))), vaz);
+  filtrar();
+  return [el("div",{class:"card"}, el("h3",{text:"Escolha a máquina ou o equipamento"}),
+    el("p",{class:"info",text:"Preencha o checklist no app (o PDF já sai preenchido) ou imprima a ficha em branco para preencher à mão."}), busca, box)];
+}
+
+// página da máquina: fotos, EPIs, preencher, ficha em branco e as fichas do mês já preenchidas
+function paginaMaq(id){
+  const M=maqDe(id); if(!M) return;
+  const ed=pode("seg-edit"), fichas=new Map(), epis=M.epis.filter(e=>e[1]);
+  for(const r of regsMaq(id)){ const k=r.data.slice(0,7)+"|"+(r.dados.ident||""); if(!fichas.has(k)) fichas.set(k,[]); fichas.get(k).push(r); }
+  efModal(M.nome, [
+    fotosMaq(M),
+    el("div",{class:"full"}, el("p",{class:"info",text:`${M.itens.length} itens para checar · ${M.grupo}`}),
+      epis.length ? el("div",{class:"mq-epis"}, el("b",{text:"EPIs obrigatórios:"}), ...epis.map(([e])=>el("span",{class:"chip",text:e}))) : null),
+    el("div",{class:"full mq-acoes"},
+      ed ? el("button",{class:"btn pri",type:"button",text:"✓ Preencher o checklist no app",onclick:()=>formMaq(id,null)}) : null,
+      el("button",{class:"btn",type:"button",text:"🖨 Ficha em branco (PDF para imprimir)",onclick:e=>pdfMaq(M,null,e.currentTarget)})),
+    el("div",{class:"full"}, el("h3",{text:`Fichas preenchidas · ${fichas.size}`}),
+      fichas.size ? el("div",{class:"lista"}, ...[...fichas].map(([k,rs])=>{ const [ym,ident]=k.split("|"), ng=rs.some(r=>r.status==="Não conforme");
+        return el("div",{class:"card"},
+          el("div",{class:"i-top"}, el("b",{text:mesTxt(ym)+(ident?" · "+ident:"")}), el("span",{class:"chip "+(ng?"bad":"ok"),text:`${rs.length} dia${rs.length>1?"s":""}${ng?" · com problema":""}`})),
+          el("div",{class:"pr-bts"}, el("button",{class:"btn pri",type:"button",text:"📄 PDF preenchido",onclick:e=>pdfMaq(M,rs,e.currentTarget)}),
+            ...rs.slice().sort((a,b)=>a.data.localeCompare(b.data)).map(r=>el("button",{type:"button",class:"chipbtn"+(r.status==="Não conforme"?" mq-ng":""),text:ddmm(r.data),
+              "aria-label":`Abrir o checklist de ${ddmm(r.data)}`,onclick:()=>formMaq(id,r)})))); }))
+      : el("p",{class:"info",text:"Nenhum checklist desta máquina ainda."}))], []);
+}
+
+// formulário do dia: cabeçalho, EPIs, itens (OK / Problema / N/A), vistos e observação
+function formMaq(id, r){
+  const M=maqDe(id); if(!M) return;
+  const ed=pode("seg-edit"), nova=!r, rid=r?.id||uid().slice(0,12), outros=regsMaq(id).filter(x=>x.id!==rid), ult=outros[0];
+  // novo: repete a empresa, a identificação e o líder do último checklist desta máquina
+  const d=JSON.parse(JSON.stringify(r?.dados || {empresa:ult?.dados.empresa||"", cab:ult?.dados.cab||{}, lider:ult?.dados.lider||"",
+    segv:U?.cargo==="Técnico de segurança" ? nomeRel(U.nome) : ""}));
+  d.it ??= {}; d.cab ??= {}; d.epis ??= [];
+  const ant = k => [...new Set(outros.map(k).filter(Boolean))];
+  const texto=(rot, v, lista, ph)=>{ const i=el("input",{type:"text",maxLength:80,value:v||"",placeholder:ph||"",autocomplete:"off",disabled:!ed});
+    let dl=null; if(lista.length){ const k="dl-"+uid().slice(0,6); i.setAttribute("list",k); dl=listaDatalist(k,lista); }
+    return {i, elm:el("label",{class:"campo"}, rot, i, dl)}; };
+  const iData=el("input",{type:"date",value:r?.data||hojeISO(),max:hojeISO(),disabled:!ed});
+  const fEmp=texto("Empresa", d.empresa, ant(x=>x.dados.empresa));
+  const fCab=M.campos.map(c=>[c, texto(c, d.cab[c], ant(x=>x.dados.cab?.[c]))]);
+  // EPIs obrigatórios: confirma os que estão em uso
+  const epis=M.epis.filter(e=>e[1]).map(([e])=>e);
+  const emUso=new Set(d.epis.filter(e=>epis.includes(e))), boxBtE=el("div",{class:"pr-bts mq-epi-bts"});
+  const desE=()=>repor(boxBtE, ...epis.map(e=>{ const on=emUso.has(e);
+    return el("button",{type:"button",class:"chipbtn"+(on?" on":""),text:(on?"✓ ":"")+e,disabled:!ed,"aria-pressed":String(on),onclick:()=>{ if(on) emUso.delete(e); else emUso.add(e); desE(); }}); }),
+    ed && emUso.size<epis.length ? el("button",{class:"linkbtn",type:"button",text:"Todos em uso",onclick:()=>{ epis.forEach(e=>emUso.add(e)); desE(); }}) : null);
+  desE();
+  const boxE = epis.length ? el("div",{class:"campo full"}, "EPIs obrigatórios em uso (toque para marcar)", boxBtE) : null;
+  // itens
+  const boxIt=el("div",{class:"mq-itens"}), cont=el("p",{class:"info"}), avisoNg=el("p",{class:"aviso",hidden:true,text:"Item com problema: descreva em Observação o que foi encontrado e a providência. O equipamento só deve ser usado depois de corrigido."});
+  const desenhar=()=>{
+    repor(boxIt, ...M.itens.map(([t,per],k)=>{ const v=d.it[k];
+      return el("div",{class:"mq-item"+(v==="NC"?" ng":"")}, el("span",{class:"mq-n",text:String(k+1)}), el("div",{class:"mq-txt"}, t, per ? el("small",{text:per}) : null),
+        el("div",{class:"pr-bts"}, ...Object.entries(MQ_VAL).map(([kv,[,rot,cls]])=>el("button",{type:"button",class:"chipbtn"+(v===kv?" on "+cls:""),text:rot,disabled:!ed,
+          "aria-pressed":String(v===kv),"aria-label":`Item ${k+1}: ${rot}`,onclick:()=>{ if(d.it[k]===kv) delete d.it[k]; else d.it[k]=kv; desenhar(); }})))); }));
+    const vs=Object.values(d.it), ng=vs.filter(v=>v==="NC").length;
+    cont.textContent=`${vs.length} de ${M.itens.length} itens respondidos`+(ng?` · ${ng} com problema`:"");
+    avisoNg.hidden=!ng; };
+  desenhar();
+  const fOp=texto("Operador (quem inspecionou)", d.oper, nomesPessoas(), "Nome");
+  const fLi=texto("Líder / encarregado (visto)", d.lider, [...new Set([...nomesPessoas(), ...ant(x=>x.dados.lider)])], "Nome");
+  const fSeg=texto("Segurança do Trabalho (visto semanal)", d.segv, [...new Set([...nomesPessoas(), ...ant(x=>x.dados.segv)])], "Nome de quem vistou, se vistou");
+  const iObs=el("textarea",{rows:3,maxLength:1000,value:d.obs||"",disabled:!ed,placeholder:"Ex.: item 2 com fio descascado; equipamento retirado para manutenção."});
+  // foto (opcional), ligada ao registro como nas outras telas da Segurança
+  const boxF=el("div",{class:"full"});
+  const desF=()=>{ const n=fotosReg2(rid).length, cam=el("input",{type:"file",accept:"image/*",hidden:true}); cam.setAttribute("capture","environment");
+    cam.onchange=async()=>{ if(await fotoReg2(rid, `Checklist ${M.nome}`, cam)) desF(); };
+    repor(boxF, el("div",{class:"row"}, ed ? el("button",{class:"btn",type:"button",text:"📷 Foto",onclick:()=>cam.click()}) : null, el("span",{class:"info",text:n?`${n} foto${n>1?"s":""}`:"Sem fotos"})), cam); };
+  desF();
+  const btnPdf=el("button",{class:"btn pri",type:"button",text:"Salvar e gerar PDF",onclick:()=>salvar(true)});
+  async function salvar(gerar){
+    const data=iData.value||hojeISO();
+    if(data>hojeISO()) return toast("A data não pode ser depois de hoje.");
+    const falta=M.itens.findIndex((_,k)=>!d.it[k]);
+    if(falta>=0){ toast(`Responda todos os itens: faltam ${M.itens.length-Object.keys(d.it).length} (OK, Problema ou N/A).`); boxIt.children[falta]?.scrollIntoView({behavior:"smooth",block:"center"}); return; }
+    d.empresa=fEmp.i.value.trim(); d.oper=fOp.i.value.trim(); d.lider=fLi.i.value.trim(); d.segv=fSeg.i.value.trim(); d.obs=iObs.value.trim();
+    for(const [c,f] of fCab){ const v=f.i.value.trim(); if(v) d.cab[c]=v; else delete d.cab[c]; }
+    d.epis=epis.filter(e=>emUso.has(e));
+    if(!d.oper){ toast("Informe o operador (quem inspecionou)."); fOp.i.focus(); return; }
+    const vs=Object.values(d.it), ng=vs.filter(v=>v==="NC").length;
+    if(ng && !d.obs){ toast("Descreva o problema em Observação."); iObs.focus(); return; }
+    if(epis.length && d.epis.length<epis.length && !confirm(`${epis.length-d.epis.length} EPI obrigatório não está marcado como em uso. Salvar assim?`)) return;
+    d.ident=identMaq(M, d.cab); d.maq=id;
+    d.res=`${vs.filter(v=>v==="C").length} OK · ${ng} com problema · ${vs.filter(v=>v==="NA").length} N/A`;
+    if(outros.some(x=>x.data===data && (x.dados.ident||"")===d.ident) && !confirm(`Já existe um checklist desta máquina${d.ident?" ("+d.ident+")":""} em ${ddmm(data)}. No PDF vale o salvo por último. Salvar mesmo assim?`)) return;
+    const dados=Object.fromEntries(Object.entries(d).filter(([,v])=>v!=="" && v!=null && !(Array.isArray(v)&&!v.length) && !(typeof v==="object"&&!Array.isArray(v)&&!Object.keys(v).length)));
+    setReg2(rid, {modulo:"seg", tipo:"maq", data, dados, status:ng?"Não conforme":"Conforme"}, `${nova?"Criou":"Alterou"}: checklist ${M.nome}${d.ident?" · "+d.ident:""} (${ddmm(data)})`);
+    toast(ng ? "Checklist salvo com problema registrado." : "Checklist salvo.");
+    if(gerar) await pdfMaq(M, regsMaq(id).filter(x=>x.data.slice(0,7)===data.slice(0,7) && (x.dados.ident||"")===d.ident), btnPdf);
+    paginaMaq(id);
+  }
+  const quem = r ? el("p",{class:"info full",text:`Criado por ${r.criadoPor||quemSou()}${r.criadoEm?" em "+quandoTxt(r.criadoEm):""}`+(r.atualizadoPor&&r.atualizadoEm?` · última alteração: ${r.atualizadoPor}, ${quandoTxt(r.atualizadoEm)}`:"")+(r.pend?" · a enviar":"")}) : null;
+  efModal(`${nova?"Checklist":ed?"Editar checklist":"Checklist"} · ${M.nome}`, [
+    fotosMaq(M),
+    campoEf("Data",iData), fEmp.elm, ...fCab.map(([,f])=>f.elm),
+    boxE,
+    el("div",{class:"campo full"}, el("div",{class:"row mq-cab-it"}, el("b",{text:"Itens para checar"}),
+      ed ? el("button",{class:"btn",type:"button",text:"✓ Marcar os que faltam como OK",onclick:()=>{ M.itens.forEach((_,k)=>{ d.it[k] ??= "C"; }); desenhar(); }}) : null),
+      cont, boxIt),
+    fOp.elm, fLi.elm, fSeg.elm,
+    el("label",{class:"campo full"}, "Observação", iObs), avisoNg,
+    boxF, quem],
+    [el("button",{class:"btn",type:"button",text:"‹ Voltar",onclick:()=>paginaMaq(id)}),
+     ...(ed ? [el("button",{class:"btn",type:"button",text:"Salvar",onclick:()=>salvar(false)}), btnPdf,
+       nova ? null : el("button",{class:"btn",type:"button",text:"Excluir",style:"color:var(--bad);margin-left:auto",onclick:()=>{
+         if(!confirm(`Excluir o checklist de ${ddmm(r.data)}? A exclusão fica registrada no Histórico da planilha.`)) return;
+         delReg2(rid); toast("Checklist excluído."); paginaMaq(id); }})] : [])]);
+  $("#ef-m-corpo").scrollTop=0;
+}
+
+// PDF no modelo da ficha mensal da planilha (A4 deitado): sem rs = em branco; com rs = os dias preenchidos daquele mês
+async function pdfMaq(M, rs, btn){
+  const txt=btn?.textContent; if(btn){ btn.disabled=true; btn.textContent="Gerando PDF…"; }
+  try{
+    const cheio=!!rs?.length, ord=(rs||[]).slice().sort((a,b)=>a.data.localeCompare(b.data) || String(a.criadoEm||"").localeCompare(String(b.criadoEm||"")));
+    const r0=ord[ord.length-1], ym=r0?.data.slice(0,7), dias=ym ? new Date(+ym.slice(0,4), +ym.slice(5,7), 0).getDate() : 31;
+    const porDia={}; for(const r of ord) porDia[+r.data.slice(8,10)]=r; // vale o último salvo do dia
+    const doc=await novoPdf(`Check-list · ${M.nome}`, `${nomeObra()} · Mês: ${cheio ? mesTxt(ym) : "______ / ______"}`, cheio ? undefined : "Ficha em branco para preencher à mão", {paisagem:true});
+    const W=297, Mg=10, H=34; let y=34;
+    doc.setDrawColor(150); doc.setLineWidth(0.2);
+    // cabeçalho: empresa e identificação | fotos | EPIs obrigatórios
+    doc.rect(Mg,y,85,H); doc.setFontSize(8);
+    let yy=y+6;
+    for(const [c,v] of [["Empresa", r0?.dados.empresa], ...M.campos.map(c=>[c, r0?.dados.cab?.[c]])].slice(0,5)){
+      doc.setFont("helvetica","bold"); doc.text(c+":",Mg+2,yy); const x=Mg+3+doc.getTextWidth(c+":"); doc.setFont("helvetica","normal");
+      if(v) doc.text(String(v),x+1,yy,{maxWidth:Mg+83-x}); else doc.line(x+1,yy+0.6,Mg+83,yy+0.6);
+      yy+=6.5; }
+    const fotos=(await Promise.all(M.fotos.slice(0,3).map(async ([f,w,h])=>{ try{ return {src:await urlDados(f), w, h}; }catch{ return null; } }))).filter(Boolean);
+    if(fotos.length){
+      const fx=98, fw=102, alt=H-2, larg=fotos.map(f=>f.w/f.h*alt), tot=larg.reduce((s,v)=>s+v,0)+(fotos.length-1)*3, k=Math.min(1,fw/tot);
+      let x=fx+(fw-tot*k)/2;
+      fotos.forEach((f,i)=>{ const w=larg[i]*k, h=alt*k; doc.addImage(f.src,"JPEG",x,y+1+(alt-h)/2,w,h,undefined,"FAST"); x+=w+3*k; });
+    }
+    const ex=203, ew=W-Mg-ex; doc.rect(ex,y,ew,H);
+    doc.setFont("helvetica","bold"); doc.setFontSize(7.5); doc.text("USO OBRIGATÓRIO DOS EPIs",ex+2,y+4.2);
+    doc.setFont("helvetica","normal"); doc.setFontSize(7);
+    if(!M.epis.length) doc.text("—",ex+2,y+9);
+    M.epis.slice(0,7).forEach(([e,obr],i)=>{ const ly=y+8.6+i*3.75; doc.rect(ex+2,ly-2.3,2.7,2.7); if(obr){ doc.setFont("helvetica","bold"); doc.text("X",ex+2.45,ly-0.1); doc.setFont("helvetica","normal"); } doc.text(e,ex+6.3,ly,{maxWidth:ew-8}); });
+    y+=H+3;
+    // grade do mês: itens × dias, mais as linhas de visto
+    const cols=Array.from({length:31},(_,i)=>String(i+1));
+    const ini=s=>String(s||"").split(/\s+/).filter(p=>p && !/^(d[aeo]s?|e)$/i.test(p)).slice(0,2).map(p=>p[0].toUpperCase()).join("");
+    const body=M.itens.map(([t,per],k)=>[String(k+1), t, per, ...cols.map((_,i)=>{ const v=porDia[i+1]?.dados.it?.[k]; return v ? MQ_VAL[v][0] : ""; })]);
+    for(const [rot,per,c] of [["Visto do operador do equipamento","diário","oper"],["Visto do líder / encarregado / téc. segurança contratada","diário","lider"],["Visto da Segurança do Trabalho","semanal","segv"]])
+      body.push([{content:rot,colSpan:2,styles:{fontStyle:"bold",fontSize:5.8}}, per, ...cols.map((_,i)=>ini(porDia[i+1]?.dados[c]))]);
+    const dw=(W-2*Mg-106)/31, longa=M.itens.length>16; // listas longas (andaime) ficam mais justas para caber numa folha
+    doc.autoTable({startY:y, margin:{left:Mg,right:Mg,bottom:12}, theme:"grid", head:[["Item","Itens para checar","Período",...cols]], body,
+      styles:{fontSize:longa?6:6.3,cellPadding:longa?0.45:0.8,textColor:20,lineColor:[150,150,150],lineWidth:0.15,valign:"middle"},
+      headStyles:{fillColor:PDF_AZ,textColor:255,fontStyle:"bold",halign:"center",fontSize:6.3},
+      columnStyles:{0:{cellWidth:7,halign:"center"},1:{cellWidth:86},2:{cellWidth:13,halign:"center",fontSize:5.5},...Object.fromEntries(cols.map((_,i)=>[i+3,{cellWidth:dw,halign:"center",fontSize:5.6,cellPadding:0.3}]))},
+      didParseCell:c=>{ if(c.section!=="body" || c.column.index<3) return;
+        if(c.column.index-2>dias) c.cell.styles.fillColor=[222,222,222];
+        if(c.cell.raw==="X"){ c.cell.styles.textColor=[180,35,24]; c.cell.styles.fontStyle="bold"; } else if(c.cell.raw==="O") c.cell.styles.textColor=[29,122,72]; }});
+    y=doc.lastAutoTable.finalY+4; if(y>199){ doc.addPage(); y=16; }
+    doc.setFontSize(7); doc.setTextColor(20);
+    doc.setFont("helvetica","bold"); doc.text("OBS:",Mg,y); doc.setFont("helvetica","normal");
+    doc.text("Este check-list deve ser preenchido pelo operador antes de iniciar a produção e vistado pelo encarregado da área.",Mg+8,y);
+    y+=4.5; doc.setFont("helvetica","bold"); doc.text("LEGENDA:",Mg,y); doc.setFont("helvetica","normal");
+    doc.text("O = OK      X = NG (com problema)      N/A = não se aplica"+(cheio?"      Vistos: iniciais do nome":""),Mg+15,y);
+    if(cheio){
+      // quem vistou (as iniciais da grade) e os problemas do mês
+      const nomes=[...new Set(ord.flatMap(r=>[r.dados.oper,r.dados.lider,r.dados.segv]).filter(Boolean))];
+      if(nomes.length){ y+=4.5; doc.text(doc.splitTextToSize("Iniciais: "+nomes.map(n=>`${ini(n)} = ${n}`).join(" · "), W-2*Mg), Mg, y); }
+      const ls=Object.values(porDia).filter(r=>r.status==="Não conforme" || r.dados.obs).map(r=>[ddmm(r.data),
+        M.itens.map(([t],k)=>r.dados.it?.[k]==="NC" ? `${k+1}. ${t}` : null).filter(Boolean).join("\n") || "—", r.dados.obs||"", r.dados.oper||""]);
+      y+=5; if(y>180){ doc.addPage(); y=16; }
+      doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.text("Problemas e observações do mês",Mg,y); y+=2;
+      doc.autoTable({startY:y, margin:{left:Mg,right:Mg,bottom:12}, head:[["Dia","Itens com problema (X)","Observação","Operador"]],
+        body: ls.length ? ls : [["—","Nenhum problema registrado no mês.","",""]],
+        styles:{fontSize:7,cellPadding:1.2,textColor:20}, headStyles:{fillColor:PDF_AZ,textColor:255,fontStyle:"bold"},
+        columnStyles:{0:{cellWidth:14},1:{cellWidth:110},3:{cellWidth:45}}});
+    }
+    rodapePdf(doc, (p,n)=>`Check-list ${M.nome} · Página ${p} de ${n}`);
+    const arq=s=>s.normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/\W+/g,"_");
+    await entregarPdf(doc, `Checklist_${arq(M.nome)}_${cheio?ym+(r0.dados.ident?"_"+arq(r0.dados.ident):""):"em_branco"}.pdf`, `Check-list ${M.nome}`);
+  }catch(e){ toast(e.message||"Não foi possível gerar o PDF."); }
+  finally{ if(btn){ btn.disabled=false; btn.textContent=txt; } }
 }
 
 // --- esquemas dos módulos ---
@@ -6695,7 +6942,7 @@ const MOD2={
       campos:[{k:"nome",rot:"Nome",t:"txt",obrig:true,dica:"Ex.: Escavadeira 01"},{k:"tipo",rot:"Tipo",t:"txt",ops:EQUIP_PADRAO},{k:"ident",rot:"Identificação / placa",t:"txt"},
         {k:"posse",rot:"Próprio ou locado",t:"sel",ops:["Próprio","Locado"]},{k:"empresa",rot:"Empresa",t:"txt"}]}],
     topo:(T)=>T.id==="apont" && !equipsCadastrados().length ? [el("p",{class:"aviso",text:"Cadastre os equipamentos primeiro (aba Cadastro)."})] : []},
-  seg:{nome:"Segurança", desc:"DDS, inspeções e ocorrências", edit:"seg-edit", tipos:[
+  seg:{nome:"Segurança", desc:"DDS, inspeções, checklists de máquinas e ocorrências", edit:"seg-edit", tipos:[
     {id:"dds", nome:"DDS", novo:"Novo DDS", fotos:"Foto do DDS",
       campos:[{k:"tema",rot:"Tema",t:"txt",obrig:true,full:true},{k:"part",rot:"Participantes",t:"pessoas"},{k:"resp",rot:"Quem conduziu",t:"pessoa",padrao:()=>nomeRel(U?.nome)},{k:"obs",rot:"Observação",t:"area"}],
       titulo:d=>d.tema},
@@ -6703,10 +6950,17 @@ const MOD2={
       campos:[{k:"local",rot:"Local",t:"est",obrig:true},{k:"ck",rot:"Checklist",t:"check",itens:CHECK_SEG},{k:"prazo",rot:"Prazo de correção",t:"data"},
         {k:"resp",rot:"Responsável pela correção",t:"pessoa"},{k:"obs",rot:"O que precisa corrigir",t:"area"}],
       titulo:d=>`Inspeção · ${d.local||""}`},
+    {id:"maq", nome:"Checklists de máquinas", semNovo:true, status:["Conforme","Não conforme"],
+      vazio:"Nenhum checklist preenchido no período. Escolha a máquina acima.",
+      campos:[{k:"maq",rot:"Equipamento",t:"txt",fmt:v=>maqDe(v)?.nome||v},{k:"ident",rot:"Identificação",t:"txt"},{k:"res",rot:"Resultado",t:"txt"},
+        {k:"oper",rot:"Operador",t:"txt"},{k:"obs",rot:"Observação",t:"txt",semCard:true}],
+      titulo:d=>`${maqDe(d.maq)?.nome||"Checklist"}${d.ident?" · "+d.ident:""}`,
+      abrir:r=>carregarMaq().then(()=>formMaq(r.dados.maq, r))},
     {id:"ocor", nome:"Ocorrências", novo:"Nova ocorrência", fotos:"Foto", status:["Aberta","Resolvida"],
       campos:[{k:"classe",rot:"Tipo",t:"sel",ops:["Incidente","Quase-acidente","Acidente"],obrig:true},{k:"local",rot:"Local",t:"est"},{k:"desc",rot:"O que aconteceu",t:"area",obrig:true},
         {k:"env",rot:"Envolvidos",t:"pessoas"},{k:"acao",rot:"Ação tomada",t:"area"}],
-      titulo:d=>`${d.classe||"Ocorrência"}${d.local?" · "+d.local:""}`}]},
+      titulo:d=>`${d.classe||"Ocorrência"}${d.local?" · "+d.local:""}`}],
+    topo:T=>T.id==="maq" ? menuMaq() : []},
   qual:{nome:"Qualidade", desc:"Fichas de verificação (FVS)", edit:"qual-edit", tipos:[
     {id:"fvs", nome:"FVS", novo:"Nova FVS", fotos:"Foto", status:["Conforme","Não conforme","Reinspecionada"],
       campos:[{k:"servico",rot:"Serviço",t:"sel",ops:()=>[...new Set([...Object.keys(FVS_PADRAO), ...regs2De("qual","modelo").map(r=>r.dados.servico)])],obrig:true,mudou:(v,ctx)=>ctx.recheck?.(itensFvs(v))},

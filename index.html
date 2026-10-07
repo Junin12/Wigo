@@ -1850,7 +1850,7 @@ $("#tema").addEventListener("click", e=>{ const b=e.target.closest("button[data-
   renderTema(); });
 renderTema();
 
-const VERSAO_APP = "v78"; // igual ao número em sw.js (armacao-v78)
+const VERSAO_APP = "v79"; // igual ao número em sw.js (armacao-v79)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -3612,6 +3612,7 @@ function renderInicio(){
     souDev()||podeConvidar() ? el("div",{class:"row"},
       souDev() ? el("button",{class:"btn"+(nPed?" pri":""),id:"bt-acessos",type:"button",text:nPed?`🔑 Acessos · ${nPed} aguardando liberação`:"🔑 Acessos",onclick:()=>abrirTela("acessos")}) : null,
       podeConvidar() ? el("button",{class:"btn",type:"button",text:"📲 Convidar colaborador",onclick:convidarQR}) : null) : null,
+    pendInicio(),
     el("button",{class:"btn",id:"aviso-senha",type:"button",hidden:true,style:"color:var(--bad)",text:"⚠ Senha do app errada: nada está sendo gravado nem baixado. Toque para corrigir.",
       onclick:()=>{ irAco("dados"); $("#cfg-tok").focus(); }}));
   setSync();
@@ -3676,9 +3677,13 @@ const REMESSAS_ACO={
   4:{est:"ELEVATÓRIA AT", ini:"2026-10-15", fim:"2026-10-20"},
   5:{est:"POÇO DE SUCÇÃO", ini:"2026-10-27", fim:"2026-10-27"}, // pedido feito fora do app (Tanque Pulmão / Poço de Sucção, Alto Recalque)
 };
-// Posições (códigos da base) que vieram nos romaneios das remessas 3 e 4: "CÓDIGO" = posição inteira, "CÓDIGO:n" = n barras.
+// Posições (códigos da base) que vieram nos romaneios das remessas 3 a 5: "CÓDIGO" = posição inteira, "CÓDIGO:n" = n barras.
 // Cruzamento feito pelos PDFs (folha + posição + bitola + elemento). As remessas 1 e 2 estão na coluna PEDIDO da planilha.
+// Remessa 5 (004829, Tanque Pulmão / Poço de sucção): a base é de uma revisão anterior do projeto, então as paredes 1,
+// 6=8=10=12, 7=11 e a viga V1 contam inteiras (o romaneio cobre esses elementos e pesa mais que a base); na laje de fundo
+// e na laje EL.652,15 (corte AA) só as barras do poço, cruzadas por posição + bitola + comprimento (barras emendadas somadas).
 const ITENS_REMESSA={
+  5:"TPU-0001:37 TPU-0006 TPU-0008 TPU-0009:62 TPU-0014 TPU-0016 TPU-0021:20 TPU-0022:20 TPU-0023 TPU-0024 TPU-0025 TPU-0026 TPU-0027 TPU-0028 TPU-0029 TPU-0030 TPU-0031 TPU-0032 TPU-0033 TPU-0034 TPU-0035 TPU-0036 TPU-0037 TPU-0038 TPU-0039 TPU-0040 TPU-0041 TPU-0042 TPU-0043 TPU-0044 TPU-0045 TPU-0046 TPU-0047 TPU-0048 TPU-0049 TPU-0050 TPU-0051 TPU-0052 TPU-0053 TPU-0054 TPU-0055 TPU-0056 TPU-0057 TPU-0058 TPU-0059 TPU-0081 TPU-0082 TPU-0083",
   3:"DEC-0009:30 DEC-0010:32 DEC-0011:35 DEC-0012:33 DEC-0013:32 DEC-0014:32 DEC-0015:32 DEC-0016:48 DEC-0017:40 DEC-0018:48 DEC-0019:40 DEC-0020:200 DEC-0021:1280 DEC-0022:1896 DEC-0023:16 DEC-0024:76 DEC-0025:32 DEC-0026:6 DEC-0027:6 DEC-0028:184 DEC-0029:808 DEC-0030:371 DEC-0031:371 DEC-0032:8 DEC-0033:8 DEC-0034:8 DEC-0036:56 DEC-0037:136 DEC-0038:56 DEC-0039 DEC-0041:16 DEC-0043:112 DEC-0044:308 DEC-0046:64 DEC-0047:32 DEC-0048:64 DEC-0049:72 DEC-0050:28 DEC-0051:56 DEC-0054:12 DEC-0055:123 DEC-0056 DEC-0057 DEC-0058 DEC-0059 DEC-0060 DEC-0061:24 DEC-0062:24 DEC-0063:36 DEC-0064:24 DEC-0065:36 DEC-0066:24 DEC-0067:10 DEC-0068:36 DEC-0069:16 DEC-0070:40 DEC-0071:10 DEC-0072:76 DEC-0073:23 DEC-0074:24 DEC-0075:24 DEC-0077:600 DEC-0080:600 DEC-0082:297 DEC-0083:320 DEC-0085:8 DEC-0086:8 DEC-0087:8 DEC-0089:56 DEC-0090 DEC-0093:56 DEC-0095:232 DEC-0098:2400 DEC-0100 DEC-0101:20 DEC-0102 DEC-0103:17 DEC-0104:51 DEC-0105:6 DEC-0106:12 DEC-0107:12 DEC-0108:32 DEC-0109:32 DEC-0110:51 DEC-0111:16 DEC-0112:16 DEC-0113:16 DEC-0114:16 DEC-0115:107 DEC-0117:240 DEC-0118:129 DEC-0119:12 DEC-0120:472 DEC-0122:96 DEC-0123:192 DEC-0124:107 DEC-0126:488 DEC-0127:278 DEC-0129:6 DEC-0130:180 DEC-0131:192 DEC-0132:364 DEC-0134:8 DEC-0135:4 DEC-0136:4 DEC-0137:88 DEC-0138:16 DEC-0141:84 DEC-0144 DEC-0145 DEC-0146 DEC-0147 DEC-0148 DEC-0151 DEC-0154:16 DEC-0155:16 DEC-0156:16 DEC-0157:107 DEC-0159:376 DEC-0160:472 DEC-0162:192 DEC-0163:107 DEC-0165:376 DEC-0166:278 DEC-0168:24 DEC-0169:180 DEC-0170:192 DEC-0171:214 DEC-0173:4 DEC-0174:8 DEC-0175:16 DEC-0176:16 DEC-0177:48 DEC-0178:32 DEC-0179:4 DEC-0180:144 DEC-0181:48 DEC-0182:72 DEC-0183:252 DEC-0184:136 DEC-0185:20 DEC-0186:43 DEC-0187:36 DEC-0188:8 DEC-0189:16 DEC-0190:48 DEC-0191:68 DEC-0192:16 DEC-0193:16 DEC-0194:8 DEC-0195:16 DEC-0196:48 DEC-0197:64 DEC-0198:24 DEC-0199 DEC-0200 DEC-0201 DEC-0202 DEC-0203 DEC-0204 DEC-0205 DEC-0206 DEC-0207 DEC-0208 DEC-0209 DEC-0210 DEC-0211",
   4:"ELA-0001 ELA-0002 ELA-0003 ELA-0004 ELA-0005 ELA-0006 ELA-0007 ELA-0008 ELA-0009 ELA-0010 ELA-0011 ELA-0012 ELA-0013 ELA-0014 ELA-0015 ELA-0016 ELA-0017 ELA-0018 ELA-0019 ELA-0020 ELA-0021 ELA-0022 ELA-0023 ELA-0024 ELA-0025 ELA-0026 ELA-0027 ELA-0028 ELA-0029 ELA-0030 ELA-0031 ELA-0032 ELA-0033 ELA-0034 ELA-0035 ELA-0036 ELA-0037 ELA-0038 ELA-0039 ELA-0040 ELA-0041 ELA-0042 ELA-0043 ELA-0044 ELA-0045 ELA-0046:32 ELA-0047 ELA-0048 ELA-0049 ELA-0050 ELA-0051 ELA-0052 ELA-0053 ELA-0054 ELA-0055 ELA-0056 ELA-0057:91 ELA-0058 ELA-0059 ELA-0060 ELA-0061 ELA-0062 ELA-0063 ELA-0064 ELA-0065 ELA-0066 ELA-0067 ELA-0068 ELA-0069 ELA-0070 ELA-0071 ELA-0072 ELA-0073 ELA-0074:28 ELA-0075 ELA-0076 ELA-0077:16 ELA-0078 ELA-0079:3 ELA-0080 ELA-0081 ELA-0082 ELA-0083 ELA-0084 ELA-0085 ELA-0086 ELA-0087 ELA-0088 ELA-0089 ELA-0090 ELA-0091 ELA-0092 ELA-0093 ELA-0094 ELA-0095 ELA-0096 ELA-0097 ELA-0098 ELA-0099 ELA-0100 ELA-0101 ELA-0102 ELA-0103 ELA-0104 ELA-0105 ELA-0106 ELA-0107 ELA-0108 ELA-0109 ELA-0110 ELA-0111 ELA-0112 ELA-0113 ELA-0114 ELA-0115 ELA-0116 ELA-0117 ELA-0118 ELA-0119 ELA-0120 ELA-0121 ELA-0122 ELA-0123 ELA-0124 ELA-0125 ELA-0126 ELA-0127 ELA-0128 ELA-0129 ELA-0130 ELA-0131 ELA-0132 ELA-0133 ELA-0134 ELA-0135 ELA-0136 ELA-0137 ELA-0138 ELA-0139 ELA-0140 ELA-0141 ELA-0142 ELA-0143 ELA-0144 ELA-0145 ELA-0146 ELA-0147 ELA-0148 ELA-0149 ELA-0150 ELA-0151 ELA-0152 ELA-0153 ELA-0154 ELA-0155 ELA-0156 ELA-0157 ELA-0158 ELA-0159 ELA-0160 ELA-0161 ELA-0162 ELA-0163 ELA-0164 ELA-0165 ELA-0166 ELA-0167 ELA-0168 ELA-0169 ELA-0170 ELA-0171 ELA-0172 ELA-0173 ELA-0174 ELA-0175 ELA-0176 ELA-0177 ELA-0178 ELA-0179 ELA-0180 ELA-0181 ELA-0182:85 ELA-0183 ELA-0184 ELA-0185 ELA-0186 ELA-0187 ELA-0188 ELA-0189 ELA-0190 ELA-0191 ELA-0192 ELA-0193 ELA-0194 ELA-0195 ELA-0196 ELA-0197 ELA-0198 ELA-0199 ELA-0200 ELA-0201 ELA-0202 ELA-0203 ELA-0204 ELA-0205 ELA-0206 ELA-0207 ELA-0208 ELA-0209 ELA-0210 ELA-0211 ELA-0212 ELA-0213 ELA-0214 RAT-0032 RAT-0033 RAT-0034 RAT-0035 RAT-0036 RAT-0037 RAT-0038 RAT-0039:59 RAT-0040 RAT-0041 RAT-0042 RAT-0043 RAT-0044 RAT-0045 RAT-0046:30 RAT-0047 RAT-0048 RAT-0049",
 };
@@ -4820,6 +4825,33 @@ async function exportarEf(de, ate, btn){
   finally{ btn.disabled=false; }
 }
 
+// relatório do mês por pessoa (Excel): dias com OK, faltas, atestados, folgas e sem marcação, contando os dias com o efetivo lançado.
+// O app guarda os últimos 45 dias; para meses mais antigos, o histórico completo está na aba Presencas da planilha.
+async function relatorioMensalPessoas(ym, btn){
+  const dias=datasEf().filter(d=>d.startsWith(ym));
+  if(!dias.length) return toast("Nenhum dia lançado nesse mês.");
+  if(btn) btn.disabled=true;
+  try{
+    await loadXLSX();
+    const fm=new Map(funcoes().map(f=>[f.id,f])), pd=dias.map(presDia);
+    const ps=pessoas().filter(p=>p.ativo || pd.some(o=>o[p.id]));
+    const conta=p=>{ const c={P:0,F:0,AT:0,FO:0,sem:0}; for(const o of pd){ const s=(o[p.id]||"").split(" ")[0]; if(s in c) c[s]++; else c.sem++; } return c; };
+    const linhas=ps.map(p=>{ const f=fm.get(p.fid), c=conta(p);
+      return [p.nome, nomeGrupo(grupoFun(f)), f?.empresa||"", f?.funcao||"", p.matricula||"", c.P, c.F, c.AT, c.FO, c.sem, Math.round(c.P/dias.length*1000)/10]; })
+      .sort((a,b)=>a[1].localeCompare(b[1]) || a[2].localeCompare(b[2]) || a[0].localeCompare(b[0],"pt-BR"));
+    const ws=XLSX.utils.aoa_to_sheet([[`PRESENÇA POR PESSOA — ${mesTxt(ym).toUpperCase()} — ${nomeObra().toUpperCase()}`],
+      [`${dias.length} dias lançados (${ddmm(dias[0])} a ${ddmm(dias.at(-1))}) · sem marcação = dia lançado sem OK nem falta (ex.: antes da admissão) · gerado em ${new Date().toLocaleString("pt-BR")}`],[],
+      ["NOME","GRUPO","EMPRESA","FUNÇÃO","MATRÍCULA","DIAS COM OK","FALTAS","ATESTADOS","FOLGAS","SEM MARCAÇÃO","% PRESENÇA"], ...linhas]);
+    ws["!cols"]=[{wch:34},{wch:22},{wch:26},{wch:22},{wch:12},...Array(6).fill({wch:13})];
+    const dd=XLSX.utils.aoa_to_sheet([["NOME",...dias.map(ddmm)], ...ps.map(p=>[p.nome, ...pd.map(o=>{ const [st,h]=(o[p.id]||"").split(" "); return st==="P" ? (h||"OK") : st||""; })])]);
+    dd["!cols"]=[{wch:34},...dias.map(()=>({wch:7}))];
+    const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,"Por pessoa"); XLSX.utils.book_append_sheet(wb,dd,"Dia a dia");
+    baixar(`Presenca_por_pessoa_${ym}.xlsx`, new Blob([XLSX.write(wb,{type:"array",bookType:"xlsx"})],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}));
+    toast(`Relatório de ${mesTxt(ym)}: ${ps.length} pessoas.`);
+  }catch(e){ toast(e.message||"Não foi possível gerar o relatório."); }
+  finally{ if(btn) btn.disabled=false; }
+}
+
 // --- telas ---
 // A tela principal é só a lista de presença (OK / Faltou). O resto fica em "Gerenciar".
 function renderPonto(){
@@ -5148,6 +5180,7 @@ function efNomes(){
 function efHist(){
   const dias=datasEf().reverse(), h=hojeISO(), min=somaDias(h,-EF_DIAS_EDICAO);
   const de=el("input",{type:"date",value:dias.length?dias.at(-1):h,max:h,"aria-label":"Exportar a partir de"}), ate=el("input",{type:"date",value:h,max:h,"aria-label":"Exportar até"});
+  const mes=el("input",{type:"month",value:h.slice(0,7),max:h.slice(0,7),"aria-label":"Mês do relatório por pessoa"});
   const linhas=dias.map(d=>{ const r=resumoEfDia(d);
     return el("tr",{title:d>=min?"Abrir este dia":"", onclick:()=>{ if(d<min) return toast(`Só dá para corrigir os últimos ${EF_DIAS_EDICAO} dias no app.`); EF.data=d; EF.aba="dia"; LS.set("efAba","dia"); renderPonto(); }},
       el("td",{text:`${ddmm(d)} · ${new Date(d+"T12:00").toLocaleDateString("pt-BR",{weekday:"short"}).replace(".","")}`}),
@@ -5157,6 +5190,10 @@ function efHist(){
       el("p",{class:"info",text:"Uma aba por dia no formato da planilha da obra, com resumo e chegadas por nome."}),
       el("div",{class:"form-oc"}, campoEf("De",de), campoEf("Até",ate)),
       el("div",{class:"row"}, el("button",{class:"btn pri",type:"button",text:"Exportar Excel",onclick:e=>{ if(!de.value||!ate.value||de.value>ate.value) return toast("Confira o período."); exportarEf(de.value,ate.value,e.currentTarget); }}))),
+    el("div",{class:"card"}, el("h3",{text:"Presença por pessoa no mês"}),
+      el("p",{class:"info",text:"Dias com OK, faltas, atestados, folgas e % de presença de cada nome, mais o dia a dia. O app guarda 45 dias; meses mais antigos estão na aba Presencas da planilha."}),
+      el("div",{class:"form-oc"}, campoEf("Mês",mes)),
+      el("div",{class:"row"}, el("button",{class:"btn",type:"button",text:"📊 Gerar Excel do mês",onclick:e=>{ if(!mes.value) return toast("Escolha o mês."); relatorioMensalPessoas(mes.value,e.currentTarget); }}))),
     dias.length ? el("div",{class:"card"}, el("h3",{text:`Últimos ${dias.length} dias lançados`}),
       el("div",{class:"tbl ef-hist"}, el("table",{},
         el("thead",{}, el("tr",{}, el("th",{text:"Dia"}), el("th",{text:"Turma"}), el("th",{text:"Faltas"}), el("th",{text:"Atest./folga"}), el("th",{text:"Na obra"}), el("th",{text:"Produção"}), el("th",{text:"Gestão"}), el("th",{text:"Próprio"}), el("th",{text:"Terceiros"}))),
@@ -5568,6 +5605,52 @@ const PERIODOS=[["manha","Manhã"],["tarde","Tarde"],["noite","Noite"]];
 const EQUIP_PADRAO=["Retroescavadeira","Escavadeira hidráulica","Pá carregadeira","Caminhão basculante","Caminhão munck","Rolo compactador",
   "Betoneira","Vibrador de concreto","Bomba de concreto","Gerador","Compressor","Guindaste"];
 const RDO_DIAS_EDICAO=30;
+// ---------- clima automático (Open-Meteo: serviço gratuito, sem chave) ----------
+// Local: OBRA_LAT e OBRA_LON da aba Config, se existirem; senão a cidade da obra (ex.: "Uberaba/MG"), procurada uma vez e guardada.
+// Por período: chuva ≥ 0,5 mm = Chuva; nuvens ≥ 70% = Nublado; senão Bom. "Impraticável" continua sendo escolha de quem preenche.
+const CLIMA_HORAS={manha:[7,12], tarde:[12,18], noite:[18,23]};
+const UFS={AC:"Acre",AL:"Alagoas",AP:"Amapá",AM:"Amazonas",BA:"Bahia",CE:"Ceará",DF:"Distrito Federal",ES:"Espírito Santo",GO:"Goiás",MA:"Maranhão",MT:"Mato Grosso",
+  MS:"Mato Grosso do Sul",MG:"Minas Gerais",PA:"Pará",PB:"Paraíba",PR:"Paraná",PE:"Pernambuco",PI:"Piauí",RJ:"Rio de Janeiro",RN:"Rio Grande do Norte",
+  RS:"Rio Grande do Sul",RO:"Rondônia",RR:"Roraima",SC:"Santa Catarina",SP:"São Paulo",SE:"Sergipe",TO:"Tocantins"};
+async function localObra(){
+  const lat=num(cfgv("OBRA_LAT","")), lon=num(cfgv("OBRA_LON",""));
+  if(lat && lon) return {lat, lon};
+  const cid=cidadeObra(), g=LS.get("geoObra"); if(g?.cid===cid) return g;
+  const [nome, uf]=cid.split("/").map(s=>s.trim());
+  const j=await (await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(nome)}&count=10&language=pt&countryCode=BR`)).json();
+  const r=(j.results||[]).find(x=>!uf || normTxt(x.admin1||"")===normTxt(UFS[uf.toUpperCase()]||uf)) || j.results?.[0];
+  if(!r) throw new Error(`Cidade da obra (${cid}) não encontrada para o clima.`);
+  const o={cid, lat:r.latitude, lon:r.longitude}; LS.set("geoObra",o); return o;
+}
+const CLIMA_CACHE=new Map();
+// clima de um dia por período: {manha:{c, mm, tmin, tmax, fim}, …}
+function climaDoDia(d){
+  if(CLIMA_CACHE.has(d)) return CLIMA_CACHE.get(d);
+  const p=(async()=>{
+    const {lat, lon}=await localObra();
+    const j=await (await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,precipitation,cloud_cover&timezone=America%2FSao_Paulo&start_date=${d}&end_date=${d}`)).json();
+    const H=j.hourly; if(!H?.time) throw new Error(j.reason||"Sem dados do clima para este dia.");
+    const out={};
+    for(const [k,[a,b]] of Object.entries(CLIMA_HORAS)){
+      const ix=H.time.map((t,i)=>[+t.slice(11,13),i]).filter(([h])=>h>=a && h<b).map(([,i])=>i); if(!ix.length) continue;
+      const mm=Math.round(ix.reduce((s,i)=>s+(H.precipitation[i]||0),0)*10)/10, nuv=ix.reduce((s,i)=>s+(H.cloud_cover[i]||0),0)/ix.length, t=ix.map(i=>H.temperature_2m[i]);
+      out[k]={c: mm>=0.5 ? "Chuva" : nuv>=70 ? "Nublado" : "Bom", mm, tmin:Math.round(Math.min(...t)), tmax:Math.round(Math.max(...t)), fim:b};
+    }
+    return out; })();
+  CLIMA_CACHE.set(d,p); p.catch(()=>CLIMA_CACHE.delete(d)); // falhou (sem internet): tenta de novo na próxima vez
+  return p;
+}
+// período que já terminou (o clima de um período que ainda não acabou é só previsão)
+const periodoAcabou = (d, fim) => d<hojeISO() || (d===hojeISO() && new Date().getHours()>=fim);
+// preenche os períodos vazios que já terminaram; devolve quantos preencheu
+function aplicarClima(d, cl, x){
+  let n=0; x.clima ??= {}; x.tempo ??= {};
+  for(const [k,v] of Object.entries(cl)){ if(!periodoAcabou(d, v.fim)) continue;
+    x.tempo[k]={mm:v.mm, tmin:v.tmin, tmax:v.tmax};
+    if(!x.clima[k]){ x.clima[k]=v.c; n++; } }
+  return n;
+}
+const txtTempo = t => t ? `${t.tmin===t.tmax ? t.tmin : t.tmin+"–"+t.tmax} °C · ${nf1.format(t.mm).replace(/,0$/,"")} mm` : "";
 const savePendRdo = () => LS.set("pendRdo", S.pendRdo);
 function limparPendRdo(snap, j){
   if(!j.rdo) return; // Code.gs antigo
@@ -5646,6 +5729,18 @@ function renderRdo(){
       text:`${ic} ${c}`,onclick:()=>{ setRdo(d,x=>{ (x.clima ??= {})[k] = x.clima[k]===c ? "" : c; if(c==="Impraticável" && !x.cond) x.cond="Impraticável"; }, `Clima ${rot.toLowerCase()}: ${c}`); renderRdo(); }})));
   const cond=["Praticável","Impraticável"].map(c=>el("button",{class:"chipbtn"+(dados.cond===c?" on":""),type:"button",disabled:!ed,text:c,"aria-pressed":String(dados.cond===c),
     onclick:()=>{ setRdo(d,x=>{ x.cond = x.cond===c ? "" : c; }, `Condição: ${c}`); renderRdo(); }}));
+  // clima automático: mostra o tempo da região e, com o RDO iniciado, preenche sozinho os períodos vazios que já terminaram
+  const climaBox=el("div",{class:"info"}, "🌡️ Buscando o tempo da região…");
+  climaDoDia(d).then(cl=>{
+    if(RD.data!==d || !climaBox.isConnected) return;
+    const acabou=([k])=>cl[k] && periodoAcabou(d, cl[k].fim);
+    if(ed && r && PERIODOS.some(p=>acabou(p) && (!dados.clima?.[p[0]] || !dados.tempo?.[p[0]]))){
+      setRdo(d, x=>aplicarClima(d,cl,x), "Clima automático (Open-Meteo)"); return renderRdo(); }
+    const per=PERIODOS.filter(([k])=>cl[k]).map(([k,rot])=>`${rot}: ${cl[k].c} · ${txtTempo(cl[k])}${periodoAcabou(d,cl[k].fim)?"":" (previsão)"}`);
+    repor(climaBox, `🌡️ Tempo da região · ${per.join(" · ")||"sem dados"}`,
+      ed && !r && PERIODOS.some(acabou) ? el("button",{class:"linkbtn",type:"button",text:"Preencher o clima automático",
+        onclick:()=>{ setRdo(d, x=>aplicarClima(d,cl,x), "Clima automático (Open-Meteo)"); renderRdo(); }}) : null);
+  }).catch(e=>{ if(climaBox.isConnected) climaBox.textContent=`🌡️ Clima automático indisponível: ${navigator.onLine ? e.message : "sem internet"}.`; });
 
   // 2. efetivo (Ponto)
   const ef=ret.ef, rr=ef.r, gEf=ef.grupos || [{rot:"", emp:ef.emp}];
@@ -5724,7 +5819,8 @@ function renderRdo(){
     sec("1. Horário e clima",
       el("div",{class:"row"}, el("span",{class:"info",text:"Expediente:"}), hora("ini","07:00"), el("span",{text:"às"}), hora("fim","17:00")),
       ...PERIODOS.map(climaLinha),
-      el("div",{class:"rd-clima"}, el("span",{class:"rd-per",text:"Obra"}), ...cond)),
+      el("div",{class:"rd-clima"}, el("span",{class:"rd-per",text:"Obra"}), ...cond),
+      climaBox),
     sec("2. Efetivo do dia", ...efetivo),
     sec("3. Atividades executadas", ...atividades, el("label",{class:"campo"},"Outros serviços executados", area("servicos","Outros serviços","Serviços que não estão na Produção (opcional)"))),
     sec("4. Equipamentos na obra", ...equipamentos),
@@ -5862,7 +5958,9 @@ async function pdfRdo(d, btn){
     const paragrafo=(s)=>{ doc.setFontSize(9); for(const l of doc.splitTextToSize(s, W-2*M)){ if(y>282){ doc.addPage(); y=16; } doc.text(l,M,y); y+=4.4; } y+=3; };
     const dir={halign:"right"};
     tit("1. Horário e clima");
-    tab(["Expediente","Manhã","Tarde","Noite","Condição da obra"], [[`${dados.ini||"07:00"} às ${dados.fim||"17:00"}`, dados.clima?.manha||"—", dados.clima?.tarde||"—", dados.clima?.noite||"—", dados.cond||"—"]]);
+    // com o clima automático, cada período leva também temperatura e chuva (Open-Meteo)
+    const clPdf=k=>[dados.clima?.[k]||"—", txtTempo(dados.tempo?.[k])].filter(Boolean).join("\n");
+    tab(["Expediente","Manhã","Tarde","Noite","Condição da obra"], [[`${dados.ini||"07:00"} às ${dados.fim||"17:00"}`, clPdf("manha"), clPdf("tarde"), clPdf("noite"), dados.cond||"—"]]);
     tit("2. Efetivo do dia");
     if(ret.ef.r){
       const rr=ret.ef.r, body=[];
@@ -6183,6 +6281,7 @@ function cardConc(c, ed){
     el("div",{class:"row"},
       el("button",{class:"btn pri",type:"button",text:edSt&&c.status!=="Concluída"?"🖌 Abrir a forma e pintar":"📄 Ver a forma",onclick:()=>abrirConcretagem(c)}),
       el("button",{class:"btn",type:"button",text:`🚚 Caminhões (${c.cams.length})`,onclick:()=>listaCaminhoes(c)}),
+      pode("qual") ? el("button",{class:"btn",type:"button",text:`🧪 Corpos de prova (${regs2De("qual","cp").filter(r=>r.dados.conc===rotConc(c)).length})`,onclick:()=>cpDaConc(c)}) : null,
       el("button",{class:"btn",type:"button",text:"📄 Relatório",onclick:e=>relatorioConc(c,e.currentTarget)})),
     edSt ? el("div",{class:"pr-bts"}, ...CC_STATUS.map(s=>el("button",{class:"chipbtn"+(c.status===s?" on":""),type:"button",text:s,"aria-pressed":String(c.status===s),
       onclick:()=>{ if(c.status===s) return; if(s==="Concluída" && !confirm("Marcar a concretagem como concluída? Depois disso a pintura fica travada.")) return; setConc(c.id,{status:s},`Status: ${s}`); renderConc(); }}))) : null,
@@ -6371,8 +6470,12 @@ function formReg2(mod, tipo, r, pre){
     if(falta.length) return toast(`Preencha: ${falta.join(", ")}.`);
     const data=iData?.value || r?.data || hojeISO();
     if(data>hojeISO()) return toast("A data não pode ser depois de hoje.");
-    setReg2(id, {modulo:mod, tipo, data, dados:d, status:st}, nova?`Criou: ${tituloReg2(T,{dados:d})}`:`Alterou: ${tituloReg2(T,{dados:d})}`);
-    toast(nova?"Registro criado.":"Registro salvo."); fecharEf();
+    const msg=T.validar?.(d, st); if(msg) return toast(msg);
+    // situação calculada pelo próprio registro (ex.: corpo de prova aprovado ou abaixo do fck)
+    const stF=T.statusAuto ? T.statusAuto(d) : st;
+    setReg2(id, {modulo:mod, tipo, data, dados:d, status:stF}, nova?`Criou: ${tituloReg2(T,{dados:d})}`:`Alterou: ${tituloReg2(T,{dados:d})}`);
+    const extra=T.aoSalvar?.(id, d, stF, mod, data) || ""; // ex.: não conformidades vão para o plano de ação
+    toast((nova?"Registro criado.":"Registro salvo.")+extra); fecharEf();
   };
   const quem = r ? el("p",{class:"info full",text:`Criado por ${r.criadoPor||quemSou()}${r.criadoEm?" em "+quandoTxt(r.criadoEm):""}`+(r.atualizadoPor&&r.atualizadoEm?` · última alteração: ${r.atualizadoPor}, ${quandoTxt(r.atualizadoEm)}`:"")+(r.pend?" · a enviar":"")}) : null;
   efModal(`${nova?"Novo":ed?"Editar":"Ver"}: ${T.nome}`,
@@ -6393,13 +6496,17 @@ function abrirModulo(mod){
 }
 function listaReg2(){
   const M=MOD2[RG.mod], T=M.tipos.find(x=>x.id===RG.tipo[RG.mod]) || M.tipos[0], q=normTxt(RG.busca), desde=T.semData||!RG.dias ? "" : somaDias(hojeISO(),-RG.dias);
-  return {M, T, lista: regs2De(RG.mod, T.id).filter(r=>(!desde || r.data>=desde) && (!q || normTxt(tituloReg2(T,r)+" "+T.campos.map(c=>fmtVal(c,r.dados[c.k])).join(" ")+" "+r.status).includes(q)))};
+  // em aberto (T.aberto) aparece sempre, mesmo fora do período: uma pendência antiga não pode sumir da lista
+  const lista=regs2De(RG.mod, T.id).filter(r=>(!desde || r.data>=desde || T.aberto?.(r)) && (!q || normTxt(tituloReg2(T,r)+" "+T.campos.map(c=>fmtVal(c,r.dados[c.k])).join(" ")+" "+r.status).includes(q)));
+  if(T.ordem) lista.sort(T.ordem);
+  return {M, T, lista};
 }
 function cardReg2(r, T){
   const linhas=T.campos.filter(c=>!c.semCard).map(c=>[c, fmtVal(c, r.dados[c.k])]).filter(([,v])=>v).slice(1,4), nf=T.fotos?fotosReg2(r.id).length:0;
-  const cor = /conforme$|resolvid|ativo|trabalhando|conclu/i.test(r.status) && !/não/i.test(r.status) ? "ok" : /não conforme|aberta|parado|manuten|acidente/i.test(r.status) ? "bad" : "";
+  const cor = /conforme$|resolvid|ativo|trabalhando|conclu|aprovad/i.test(r.status) && !/não/i.test(r.status) ? "ok" : /não conforme|aberta|parado|manuten|acidente|abaixo/i.test(r.status) ? "bad" : "";
+  const [chTxt, chCor] = T.chip?.(r) || [r.status, cor]; // etiqueta própria do tipo (ex.: "Vencida")
   return el("button",{class:"card r2-card",type:"button",onclick:()=>T.abrir ? T.abrir(r) : formReg2(RG.mod, T.id, r)},
-    el("div",{class:"i-top"}, el("b",{text:tituloReg2(T,r)}), r.status ? el("span",{class:"chip "+cor,text:r.status}) : null),
+    el("div",{class:"i-top"}, el("b",{text:tituloReg2(T,r)}), chTxt ? el("span",{class:"chip "+chCor,text:chTxt}) : null),
     el("div",{class:"i-sub",text:[T.semData?"":dataBR(r.data), ...linhas.map(([c,v])=>`${c.rot}: ${v}`)].filter(Boolean).join(" · ")}),
     nf || r.pend ? el("div",{class:"info"}, nf?`📷 ${nf}`:"", r.pend?el("span",{style:"color:var(--warn)",text:" · a enviar"}):null) : null);
 }
@@ -7063,6 +7170,96 @@ async function planilhaForma(){
   wt.getColumn(1).width=18; wt.getColumn(2).width=50;
   return new Blob([await wb.xlsx.writeBuffer()],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
 }
+// ---------- Não conformidades: plano de ação (Qualidade e Segurança) ----------
+// Cada NC tem ação corretiva, responsável e prazo, e fecha com "como foi resolvido" (e a foto do corrigido).
+// As NC marcadas numa FVS, numa inspeção de segurança ou num corpo de prova abaixo do fck entram sozinhas, ligadas à origem (ref).
+const ncAberta = r => r.status!=="Resolvida";
+const ncVencida = r => ncAberta(r) && !!r.dados.prazo && r.dados.prazo<hojeISO();
+const tipoNc = () => ({id:"nc", nome:"Plano de ação", novo:"Nova não conformidade", fotos:"Foto", status:["Aberta","Em andamento","Resolvida"],
+  campos:[{k:"desc",rot:"Não conformidade",t:"area",obrig:true},{k:"origem",rot:"Origem",t:"txt",dica:"Ex.: FVS de armação, inspeção, auditoria"},
+    {k:"local",rot:"Local",t:"est"},{k:"acao",rot:"Ação corretiva",t:"area",dica:"O que vai ser feito para corrigir"},
+    {k:"resp",rot:"Responsável",t:"pessoa",obrig:true},{k:"prazo",rot:"Prazo",t:"data",obrig:true,padrao:()=>somaDias(hojeISO(),7)},
+    {k:"sol",rot:"Como foi resolvido",t:"area",dica:"Preencha ao resolver e tire a foto do corrigido"}],
+  validar:(d,st)=> st==="Resolvida" ? (d.sol ? "" : "Para resolver, escreva como foi resolvido.") : (d.acao ? "" : "Escreva a ação corretiva."),
+  aberto:ncAberta,
+  chip:r=> ncVencida(r) ? [`Vencida · ${ddmm(r.dados.prazo)}`,"bad"] : ncAberta(r) && r.dados.prazo ? [`${r.status} · até ${ddmm(r.dados.prazo)}`, r.status==="Aberta"?"and":""] : null,
+  // em aberto primeiro, pelo prazo mais próximo
+  ordem:(a,b)=>(ncAberta(b)-ncAberta(a)) || (ncAberta(a) ? String(a.dados.prazo||"9").localeCompare(String(b.dados.prazo||"9")) : String(b.data).localeCompare(String(a.data))),
+  titulo:d=>String(d.desc||"Não conformidade").split("\n")[0].slice(0,90)});
+// cria (uma vez só: o id vem da origem + item) as NC de um registro; devolve o texto do aviso
+function criarNCs(mod, origemId, lista){
+  const existe=new Set(regs2De(mod,"nc").map(r=>r.id)); let n=0;
+  for(const x of lista){
+    const id="nc"+cyrb53(origemId+"|"+x.chave).slice(0,11); if(existe.has(id)) continue;
+    setReg2(id, {modulo:mod, tipo:"nc", data:x.data||hojeISO(), dados:{...x.dados, ref:origemId}, status:"Aberta"}, `Criou: ${x.dados.desc}`); n++;
+  }
+  return n ? ` ${n} não conformidade${n>1?"s foram":" foi"} para o Plano de ação.` : "";
+}
+// itens marcados NC num checklist (FVS, inspeção) → NC do plano de ação
+const ncsDoCheck = (ck, b) => Object.entries(ck||{}).filter(([,v])=>v==="NC").map(([it])=>({chave:it, data:b.data,
+  dados:{desc:b.det ? `${it} (${b.det})` : it, origem:b.origem, local:b.local||"", acao:b.acao||"", resp:b.resp||"", prazo:b.prazo||somaDias(hojeISO(),7)}}));
+function resumoNc(mod){
+  const L=regs2De(mod,"nc"), ab=L.filter(ncAberta), v=ab.filter(ncVencida).length;
+  return L.length ? [el("div",{class:"kpis"}, kpi("Em aberto",nf0.format(ab.length), v?`${v} vencida${v>1?"s":""}`:"nenhuma vencida"), kpi("Resolvidas",nf0.format(L.length-ab.length),"registradas no app"))]
+    : [el("p",{class:"info",text:"As não conformidades marcadas nas fichas e inspeções entram aqui sozinhas. Também dá para criar uma à mão."})];
+}
+// ---------- Corpos de prova do concreto (Qualidade) ----------
+// Moldagem por caminhão da concretagem; rompimento aos 7 e 28 dias, 2 CPs por idade (vale o maior do par, como na NBR 12655).
+// Resultado de 28 dias abaixo do fck vira uma não conformidade no plano de ação da Qualidade.
+const rotConc = c => `${c.estrutura}${c.local?" · "+c.local:""} · ${ddmm(c.data)}`;
+const CP_IDADES=[7,28];
+const cpRes = (d, i) => { const v=[d["r"+i+"a"], d["r"+i+"b"]].filter(x=>x!=null && x!=="" && !isNaN(x)).map(Number); return v.length ? Math.max(...v) : null; };
+// rompimentos ainda sem resultado, com a data prevista (moldagem + idade)
+const cpPendentes = () => regs2De("qual","cp").flatMap(r=>CP_IDADES.filter(i=>cpRes(r.dados,i)==null).map(i=>({r, idade:i, data:somaDias(r.data,i)})))
+  .sort((a,b)=>a.data.localeCompare(b.data));
+const tipoCp = {id:"cp", nome:"Corpos de prova", novo:"Nova moldagem",
+  campos:[{k:"conc",rot:"Concretagem",t:"sel",obrig:true,ops:()=>concs().sort((a,b)=>b.data.localeCompare(a.data)).map(rotConc)},
+    {k:"cam",rot:"Caminhão",t:"txt",dica:"Ex.: C2 · NF 1234",ops:ctx=>(concs().find(x=>rotConc(x)===ctx.dados.conc)?.cams||[]).map(k=>`C${k.n}${k.nf?" · NF "+k.nf:""}`)},
+    {k:"fck",rot:"fck",t:"num",un:"MPa",obrig:true},{k:"qtd",rot:"CPs moldados",t:"num",padrao:4},
+    {k:"local",rot:"Onde foi lançado",t:"txt",dica:"Ex.: parede 3, lance 2"},
+    {k:"r7a",rot:"7 dias · CP 1",t:"num",un:"MPa",semCard:true},{k:"r7b",rot:"7 dias · CP 2",t:"num",un:"MPa",semCard:true},
+    {k:"r28a",rot:"28 dias · CP 1",t:"num",un:"MPa",semCard:true},{k:"r28b",rot:"28 dias · CP 2",t:"num",un:"MPa",semCard:true},
+    {k:"lab",rot:"Laboratório",t:"txt"},{k:"obs",rot:"Observação",t:"area"}],
+  calc:d=>{ for(const i of CP_IDADES){ const v=cpRes(d,i); if(v!=null) d["res"+i]=v; else delete d["res"+i]; } },
+  statusAuto:d=> d.res28==null ? "Aguardando" : d.fck && d.res28<d.fck ? "Abaixo do fck" : "Aprovado",
+  aberto:r=>r.status==="Aguardando",
+  chip:r=>{ if(r.status!=="Aguardando") return null;
+    const i=CP_IDADES.find(x=>cpRes(r.dados,x)==null), dt=somaDias(r.data,i), h=hojeISO();
+    return [`Romper ${i} dias · ${dt===h?"hoje":ddmm(dt)}`, dt<h?"bad":dt===h?"and":""]; },
+  ordem:(a,b)=>((b.status==="Aguardando")-(a.status==="Aguardando")) || String(b.data).localeCompare(String(a.data)),
+  aoSalvar:(id,d,st)=> st!=="Abaixo do fck" ? "" : criarNCs("qual", id, [{chave:"fck", data:hojeISO(), dados:{
+    desc:`Concreto abaixo do fck: ${nf1.format(d.res28)} MPa aos 28 dias (fck ${nf1.format(d.fck)} MPa) · ${d.conc}${d.cam?" · "+d.cam:""}`,
+    origem:"Corpo de prova", local:concs().find(x=>rotConc(x)===d.conc)?.estrutura||"", resp:"", prazo:somaDias(hojeISO(),7)}}]),
+  titulo:d=>`${d.conc||"Concretagem"}${d.cam?" · "+d.cam:""}`+(d.res28!=null?` · 28d ${nf1.format(d.res28)} MPa`:d.res7!=null?` · 7d ${nf1.format(d.res7)} MPa`:"")};
+// agenda dos rompimentos (atrasados e próximos 7 dias)
+function agendaCp(){
+  const h=hojeISO(), L=cpPendentes().filter(x=>x.data<=somaDias(h,7));
+  return [el("div",{class:"card"}, el("h3",{text:`Rompimentos · ${L.length} até ${ddmm(somaDias(h,7))}`}),
+    L.length ? tabelaSimples(["Data","Idade","Concretagem",""], L.map(x=>[ddmm(x.data), `${x.idade} dias`, tituloReg2(tipoCp,x.r), x.data<h?"atrasado":x.data===h?"hoje":""]))
+      : el("p",{class:"info",text:"Nenhum rompimento atrasado nem nos próximos 7 dias."}))];
+}
+// botão da concretagem: nova moldagem ou ver as desta concretagem
+function cpDaConc(c){
+  const L=regs2De("qual","cp").filter(r=>r.dados.conc===rotConc(c));
+  const ver=()=>{ RG.tipo.qual="cp"; abrirModulo("qual"); RG.busca=c.estrutura; renderReg2(); };
+  if(!pode("qual-edit")) return ver();
+  escolher(`Corpos de prova · ${c.estrutura}`, [
+    ["+ Nova moldagem", "Caminhão, fck e quantidade de CPs", ()=>formReg2("qual","cp",null,{conc:rotConc(c), fck:c.cams.at(-1)?.fck||"", local:c.local||""})],
+    ["Ver os desta concretagem", `${L.length} moldage${L.length===1?"m":"ns"} · lançar resultados de 7 e 28 dias`, ver]]);
+}
+// avisos da tela inicial: NC em aberto/vencidas e rompimentos de hoje ou atrasados
+function pendInicio(){
+  const bts=[];
+  for(const [mod,nome] of [["qual","Qualidade"],["seg","Segurança"]]){
+    if(!pode(mod)) continue;
+    const ab=regs2De(mod,"nc").filter(ncAberta), v=ab.filter(ncVencida).length; if(!ab.length) continue;
+    bts.push(el("button",{class:"btn",type:"button",style:v?"color:var(--bad)":"",text:`⚠ ${nome}: ${ab.length} não conformidade${ab.length>1?"s":""} em aberto${v?` · ${v} vencida${v>1?"s":""}`:""}`,
+      onclick:()=>{ RG.tipo[mod]="nc"; abrirModulo(mod); }}));
+  }
+  const n=pode("qual") ? cpPendentes().filter(x=>x.data<=hojeISO()).length : 0;
+  if(n) bts.push(el("button",{class:"btn",type:"button",text:`🧪 ${n} rompimento${n>1?"s":""} de corpo de prova para hoje ou atrasado${n>1?"s":""}`,onclick:()=>{ RG.tipo.qual="cp"; abrirModulo("qual"); }}));
+  return bts.length ? el("div",{class:"row"}, ...bts) : null;
+}
 const MOD2={
   equip:{nome:"Equipamentos", desc:"Cadastro e apontamento diário", edit:"equip-edit", tipos:[
     {id:"apont", nome:"Apontamentos", novo:"Novo apontamento", status:["Trabalhando","Parado","Em manutenção"],
@@ -7081,6 +7278,7 @@ const MOD2={
     {id:"insp", nome:"Inspeções", novo:"Nova inspeção", fotos:"Foto", status:["Aberta","Resolvida"],
       campos:[{k:"local",rot:"Local",t:"est",obrig:true},{k:"ck",rot:"Checklist",t:"check",itens:CHECK_SEG},{k:"prazo",rot:"Prazo de correção",t:"data"},
         {k:"resp",rot:"Responsável pela correção",t:"pessoa"},{k:"obs",rot:"O que precisa corrigir",t:"area"}],
+      aoSalvar:(id,d,st,mod,data)=>criarNCs("seg", id, ncsDoCheck(d.ck, {data, origem:"Inspeção de segurança", local:d.local, acao:d.obs, resp:d.resp, prazo:d.prazo})),
       titulo:d=>`Inspeção · ${d.local||""}`},
     {id:"maq", nome:"Checklists de máquinas", semNovo:true, status:["Conforme","Não conforme"],
       vazio:"Nenhum checklist preenchido no período. Escolha a máquina acima.",
@@ -7091,19 +7289,23 @@ const MOD2={
     {id:"ocor", nome:"Ocorrências", novo:"Nova ocorrência", fotos:"Foto", status:["Aberta","Resolvida"],
       campos:[{k:"classe",rot:"Tipo",t:"sel",ops:["Incidente","Quase-acidente","Acidente"],obrig:true},{k:"local",rot:"Local",t:"est"},{k:"desc",rot:"O que aconteceu",t:"area",obrig:true},
         {k:"env",rot:"Envolvidos",t:"pessoas"},{k:"acao",rot:"Ação tomada",t:"area"}],
-      titulo:d=>`${d.classe||"Ocorrência"}${d.local?" · "+d.local:""}`}],
-    topo:T=>T.id==="maq" ? menuMaq() : []},
-  qual:{nome:"Qualidade", desc:"Fichas de verificação (FVS)", edit:"qual-edit", tipos:[
+      titulo:d=>`${d.classe||"Ocorrência"}${d.local?" · "+d.local:""}`},
+    tipoNc()],
+    topo:T=>T.id==="maq" ? menuMaq() : T.id==="nc" ? resumoNc("seg") : []},
+  qual:{nome:"Qualidade", desc:"FVS, plano de ação e corpos de prova", edit:"qual-edit", tipos:[
     {id:"fvs", nome:"FVS", novo:"Nova FVS", fotos:"Foto", status:["Conforme","Não conforme","Reinspecionada"],
       campos:[{k:"servico",rot:"Serviço",t:"sel",ops:()=>[...new Set([...Object.keys(FVS_PADRAO), ...regs2De("qual","modelo").map(r=>r.dados.servico)])],obrig:true,mudou:(v,ctx)=>ctx.recheck?.(itensFvs(v))},
         {k:"local",rot:"Local (estrutura)",t:"est",obrig:true},{k:"det",rot:"Detalhe do local",t:"txt",dica:"Ex.: parede 3"},
         {k:"ck",rot:"Itens verificados",t:"check",itens:ctx=>itensFvs(ctx.dados.servico)},{k:"resp",rot:"Responsável",t:"pessoa",padrao:()=>nomeRel(U?.nome)},
         {k:"reinsp",rot:"Reinspeção em",t:"data"},{k:"obs",rot:"Observação",t:"area"}],
+      aoSalvar:(id,d,st,mod,data)=>criarNCs("qual", id, ncsDoCheck(d.ck, {data, origem:`FVS ${d.servico||""}`.trim(), local:d.local, det:d.det, resp:d.resp, prazo:d.reinsp})),
       titulo:d=>`${d.servico||"FVS"} · ${[d.local,d.det].filter(Boolean).join(" ")}`},
+    tipoNc(), tipoCp,
     {id:"modelo", nome:"Itens por serviço", novo:"Novo modelo", semData:true,
       campos:[{k:"servico",rot:"Serviço",t:"txt",obrig:true,ops:Object.keys(FVS_PADRAO)},{k:"itens",rot:"Itens (um por linha)",t:"area",obrig:true}],
       pre:()=>({}), titulo:d=>`${d.servico} · ${String(d.itens||"").split("\n").filter(s=>s.trim()).length} itens`}],
-    topo:T=>T.id==="modelo" ? [el("p",{class:"info",text:"Sem modelo, a FVS usa os itens padrão do serviço. Para mudar, crie um modelo com o mesmo nome do serviço."})] : [],
+    topo:T=>T.id==="modelo" ? [el("p",{class:"info",text:"Sem modelo, a FVS usa os itens padrão do serviço. Para mudar, crie um modelo com o mesmo nome do serviço."})]
+      : T.id==="nc" ? resumoNc("qual") : T.id==="cp" ? agendaCp() : [],
     rodape:T=>{ if(T.id!=="fvs") return [];
       // consulta: checklists de concretagem das Frentes (aço)
       const ls=[]; for(const e of S.els) for(const [L,x] of Object.entries(e.lances||{})) if(x?.data) ls.push([x.data, e.est, e.loc, L, x.resp||"", x.conc?"concretado "+ddmm(x.conc):"liberado"]);
@@ -7248,6 +7450,7 @@ function renderRelatorios(box){
     el("h2",{class:"tela-tit",text:"Do dia (data em “Até”)"}),
     bt(["📄 RDO do dia","Diário de obra em PDF"], b=>pdfRdo(RL.fim,b), pode("rdo")),
     bt(["📄 Efetivo do dia","Quem veio, faltas e quadro por empresa"], b=>pdfEfetivoDia(RL.fim,b), pode("ponto")),
+    bt(["📊 Presença por pessoa (mês)",`Excel do mês de ${mesTxt(RL.fim.slice(0,7))}: OK, faltas, atestados e folgas`], b=>relatorioMensalPessoas(RL.fim.slice(0,7),b), pode("ponto")),
     el("h2",{class:"tela-tit",text:"Aço"}),
     bt(["📄 Relatório semanal do aço","Semana escolhida no topo do Painel"], ()=>irAco("painel"), pode("prod")),
     bt(["📦 Pedido de aço","PDF ou Excel por estrutura"], ()=>abrirTela("supped"), pode("sup")),

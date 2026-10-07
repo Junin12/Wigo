@@ -165,8 +165,8 @@ section.view{padding-block:14px;display:grid;gap:14px}
 @media (max-width:520px){ #reg2 .kpis,#fpainel .kpis{grid-template-columns:1fr 1fr} #reg2 .kpi b,#fpainel .kpi b{display:block;font-size:1.5rem} }
 .kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px}
 .kpi span{display:block;font-size:.72rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600}
-.kpi b{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-size:1.9rem;font-weight:600;line-height:1.1}
-.kpi small{color:var(--muted)}
+.kpi b{display:block;font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-size:1.9rem;font-weight:600;line-height:1.1}
+.kpi small{display:block;color:var(--muted)} /* número e explicação em linhas próprias (antes ficavam grudados: "9,2 t/semmédia…") */
 .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:grid;gap:10px}
 .chart svg{width:100%;height:auto;display:block}
 .chart text{fill:var(--muted);font-size:11px;font-family:"Barlow",sans-serif}
@@ -203,6 +203,8 @@ tr.cur td{background:var(--surface2)}
 .chart .meta{stroke:var(--warn);stroke-width:3;stroke-linecap:round}
 .chart .ln2{fill:none;stroke:var(--muted);stroke-width:2;stroke-dasharray:7 5}
 .chart .ln3{fill:none;stroke:var(--warn);stroke-width:2.5;stroke-dasharray:2 5;stroke-linecap:round}
+.lg-linhas{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:.8rem;color:var(--muted);margin-bottom:4px}
+.lg-linhas span{display:inline-flex;align-items:center;gap:6px} .chart .lg-linhas svg{width:26px;height:8px;display:inline-block;overflow:visible}
 .chart .ln2.pt{fill:var(--muted);stroke:none}.chart .ln3.pt{fill:var(--warn);stroke:none}.chart .ln.pt{fill:var(--accent);stroke:none}
 .chart .prazo{stroke:var(--bad);stroke-width:1.5;stroke-dasharray:4 4}
 .aviso{margin-top:12px;border:1px solid var(--bad);background:var(--bad-bg);color:var(--ink);border-radius:var(--r);padding:12px;font-size:.88rem;line-height:1.45}
@@ -1850,7 +1852,7 @@ $("#tema").addEventListener("click", e=>{ const b=e.target.closest("button[data-
   renderTema(); });
 renderTema();
 
-const VERSAO_APP = "v79"; // igual ao número em sw.js (armacao-v79)
+const VERSAO_APP = "v80"; // igual ao número em sw.js (armacao-v80)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -1873,10 +1875,23 @@ const carregarScript = src => { if(!SCRIPTS.has(src)) SCRIPTS.set(src, new Promi
   return SCRIPTS.get(src); };
 const blobDataURL = b => new Promise((res,rej)=>{ const fr=new FileReader(); fr.onload=()=>res(fr.result); fr.onerror=rej; fr.readAsDataURL(b); });
 const imgDims = src => new Promise(res=>{ const im=new Image(); im.onload=()=>res([im.naturalWidth,im.naturalHeight]); im.onerror=()=>res([4,3]); im.src=src; });
-async function fotoParaRelatorio(r){
-  const b=await fotoLocal(r.id); if(b) return await blobDataURL(b);
-  if(!r.url || !navigator.onLine) return null;
-  try{ const j=await post({acao:"miniatura",url:r.url}); return `data:${j.tipo||"image/jpeg"};base64,${j.b64}`; }catch{ return null; }
+// Reduz em etapas (metade por vez) com suavização alta. Reduzir direto, com a suavização padrão do navegador, serrilha o
+// ruído do sensor: a foto fica pior E o arquivo maior. Medido (Chrome e Safari/WebKit): ~30-40% menor com SSIM melhor.
+function reduzirImagem(src, W, H){
+  let cur=src, w=src.naturalWidth||src.width, h=src.naturalHeight||src.height;
+  const passo=(cw,ch)=>{ const c=document.createElement("canvas"); c.width=cw; c.height=ch; const g=c.getContext("2d"); g.imageSmoothingEnabled=true; g.imageSmoothingQuality="high"; g.drawImage(cur,0,0,cw,ch); return c; };
+  while(w/2>=W && h/2>=H){ cur=passo(Math.round(w/2), Math.round(h/2)); w=cur.width; h=cur.height; }
+  return passo(W, H);
+}
+// foto para os PDFs: maxPx = lado maior que basta para o tamanho impresso (~250 dpi); o PDF fica bem mais leve sem perder nitidez
+async function fotoParaRelatorio(r, maxPx){
+  let src; const b=await fotoLocal(r.id);
+  if(b) src=await blobDataURL(b);
+  else { if(!r.url || !navigator.onLine) return null;
+    try{ const j=await post({acao:"miniatura",url:r.url}); src=`data:${j.tipo||"image/jpeg"};base64,${j.b64}`; }catch{ return null; } }
+  if(!maxPx) return src;
+  try{ const im=new Image(); im.src=src; await im.decode(); const s=maxPx/Math.max(im.naturalWidth,im.naturalHeight); if(s>=1) return src;
+    return reduzirImagem(im, Math.round(im.naturalWidth*s), Math.round(im.naturalHeight*s)).toDataURL("image/jpeg",0.8); }catch{ return src; }
 }
 $("#rel-pdf").addEventListener("click", async ()=>{
   const btn=$("#rel-pdf"), msg=$("#rel-msg"); btn.disabled=true; msg.textContent="Montando o relatório…";
@@ -2014,7 +2029,7 @@ async function montarRelatorio(aviso){
     const cw=(W-2*M-8)/3; let col=0;
     for(const [k,r] of fotos.entries()){
       aviso(`Fotos ${k+1} de ${fotos.length}…`);
-      const src=await fotoParaRelatorio(r); if(!src) continue;
+      const src=await fotoParaRelatorio(r, 700); if(!src) continue; // 3 por linha (~6 cm): 700 px bastam
       const [iw,ih]=await imgDims(src), h=Math.min(cw*ih/iw,cw*1.1);
       if(col===0) novaPagina(h+12);
       const x=M+col*(cw+4);
@@ -2516,9 +2531,12 @@ function textoGps(){
 }
 // abre a tela do carimbo e devolve a foto pronta (ou null se cancelar)
 async function carimbarFoto(file, contexto){
-  const bmp=await createImageBitmap(file), s=Math.min(1,1600/Math.max(bmp.width,bmp.height));
+  const orig=await createImageBitmap(file), s=Math.min(1,1600/Math.max(orig.width,orig.height));
   const agora=Date.now(), quando=new Date(file.lastModified && Math.abs(agora-file.lastModified)<36e5 ? file.lastModified : agora);
-  Object.assign(CB,{bmp, W:Math.round(bmp.width*s), H:Math.round(bmp.height*s), info:{quando, ctx:contexto}});
+  // reduz uma vez só, em etapas (foto mais nítida e arquivo menor); a prévia e o carimbo desenham sobre essa cópia
+  const W=Math.round(orig.width*s), H=Math.round(orig.height*s), bmp=s<1 ? reduzirImagem(orig, W, H) : orig;
+  if(bmp!==orig) orig.close?.();
+  Object.assign(CB,{bmp, W, H, info:{quando, ctx:contexto}});
   if(CB.cfg.logo && !CB.logo) carregarLogoCarimbo();
   $("#cb").hidden=false; sincronizarControles(); textoGps(); desenharPrevia();
   localizacao().then(async g=>{
@@ -2537,8 +2555,11 @@ $("#cb-cancelar").onclick=()=>fecharCarimbo(null);
 // cópia no celular: um app da web não grava direto na galeria. No Android vai para Downloads (aparece na Galeria e no Google Fotos);
 // no iPhone abre o compartilhar ("Salvar imagem" → Fotos). A cópia é feita na hora do toque: o iPhone só abre o compartilhar com o toque ainda "valendo".
 const ehIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform==="MacIntel" && navigator.maxTouchPoints>1);
+// qualidade JPEG (com a redução em etapas): medido em 6 fotos com ruído de sensor, Chrome e Safari/WebKit —
+// app 0,76: ~93-108 KB contra 155 KB antes, SSIM melhor; cópia no celular 0,86: ~150-180 KB contra ~335 KB antes, SSIM melhor
+const JPEG_APP=0.76, JPEG_CELULAR=0.86;
 function copiarParaCelular(canvas, quando){
-  const url=canvas.toDataURL("image/jpeg",0.92), bin=atob(url.split(",")[1]), u8=new Uint8Array(bin.length);
+  const url=canvas.toDataURL("image/jpeg",JPEG_CELULAR), bin=atob(url.split(",")[1]), u8=new Uint8Array(bin.length);
   for(let i=0;i<bin.length;i++) u8[i]=bin.charCodeAt(i);
   const d=quando||new Date(), p2=n=>String(n).padStart(2,"0");
   const nome=`Foto_obra_${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}_${p2(d.getHours())}-${p2(d.getMinutes())}-${p2(d.getSeconds())}.jpg`;
@@ -2550,7 +2571,7 @@ function salvarCarimbo(celular){
   CB.cfg.celular=celular; salvarCfgCarimbo(); desenharPrevia();
   const c=$("#cb-prev");
   if(celular){ try{ copiarParaCelular(c, CB.info?.quando); }catch{ toast("Não foi possível salvar a cópia no celular. A foto fica no app."); } }
-  c.toBlob(b=>fecharCarimbo(b),"image/jpeg",0.8);
+  c.toBlob(b=>fecharCarimbo(b),"image/jpeg",JPEG_APP);
 }
 $("#cb-salvar").onclick=()=>salvarCarimbo(false);
 $("#cb-salvar-cel").onclick=()=>salvarCarimbo(true);
@@ -2791,10 +2812,18 @@ function svgMeta(data){
     const cx=pl+bw*k+bw/2, w=bw*0.56, mostra=(data.length-1-k)%passo===0 || d.hl;
     mk("rect",{x:cx-w/2,y:y(d.real),width:w,height:Math.max(0,pt+ih-y(d.real)),rx:3,class:"b"+(d.hl?" hl":"")});
     if(d.meta>0) mk("line",{x1:cx-w/2-4,x2:cx+w/2+4,y1:y(d.meta),y2:y(d.meta),class:"meta"});
-    if(mostra) mk("text",{x:cx,y:Math.min(y(d.real),d.meta>0?y(d.meta):H)-6,"text-anchor":"middle",class:"val"}, d.meta>0 ? Math.round(d.real/d.meta*100)+"%" : nf1.format(d.real));
+    // semana sem lançamento e sem equipe informada: nada escrito (antes aparecia um "0,0" que parecia resultado)
+    if(mostra && (d.meta>0 || d.real>0)) mk("text",{x:cx,y:Math.min(y(d.real),d.meta>0?y(d.meta):H)-6,"text-anchor":"middle",class:"val"}, d.meta>0 ? Math.round(d.real/d.meta*100)+"%" : nf1.format(d.real));
     if(mostra) mk("text",{x:cx,y:H-8,"text-anchor":"middle"},d.label);
   });
   return s;
+}
+// legenda em HTML (quebra linha sozinha no celular): amostra do traço de cada série + nome
+function legendaLinhas(itens){
+  const ns="http://www.w3.org/2000/svg";
+  return el("div",{class:"lg-linhas"}, ...itens.map(([cls,txt])=>{ const s=document.createElementNS(ns,"svg"); s.setAttribute("viewBox","0 0 26 8"); s.setAttribute("aria-hidden","true");
+    const l=document.createElementNS(ns,"line"); for(const [k,v] of Object.entries({x1:1,x2:25,y1:4,y2:4,class:cls})) l.setAttribute(k,v); s.append(l);
+    return el("span",{}, s, txt); }));
 }
 function svgCurva(series, labels, maxY, extras){
   const W=640,H=260,pl=44,pr=12,pt=16,pb=30, ns="http://www.w3.org/2000/svg";
@@ -2803,7 +2832,8 @@ function svgCurva(series, labels, maxY, extras){
   const n=labels.length, iw=W-pl-pr, ih=H-pt-pb, x=i=>pl+(n>1?i/(n-1):0)*iw, y=v=>pt+ih-(v/maxY)*ih;
   for(const g of [0,0.25,0.5,0.75,1]){ mk("line",{x1:pl,x2:W-pr,y1:y(maxY*g),y2:y(maxY*g),class:"grid"}); mk("text",{x:pl-6,y:y(maxY*g)+4,"text-anchor":"end"},nf0.format(maxY*g)); }
   const passo=Math.max(1,Math.ceil(n/8));
-  labels.forEach((l,i)=>{ if(i%passo===0||i===n-1) mk("text",{x:x(i),y:H-10,"text-anchor":"middle"},l); });
+  // o último rótulo encosta na borda direita (antes saía cortado: "out/2…")
+  labels.forEach((l,i)=>{ if(i%passo===0||i===n-1) mk("text",{x:x(i),y:H-10,"text-anchor":i===n-1&&n>1?"end":i===0?"start":"middle"},l); });
   if(extras?.prazoIdx!=null && extras.prazoIdx<n){ mk("line",{x1:x(extras.prazoIdx),x2:x(extras.prazoIdx),y1:pt,y2:pt+ih,class:"prazo"}); mk("text",{x:x(extras.prazoIdx)+4,y:pt+12},"prazo"); }
   for(const se of series){ if(se.pts.length<1) continue;
     mk("polyline",{points:se.pts.map(([i,v])=>x(i)+","+y(v)).join(" "),class:se.cls});
@@ -2838,7 +2868,8 @@ function renderMetaCurva(){
   const base=hist.length-1, proj=[[base,p.E/1000]];
   for(let i=1;i<=horiz;i++){ acM+=p.metaFut; plan.push([base+i,Math.min(acM,p.P)/1000]); if(p.ritmo>0) proj.push([base+i,Math.min(p.E+p.ritmo*i,p.P)/1000]); }
   const prazoIdx = p.prazo ? base+p.semPrazo : null;
-  $("#ch-s").replaceChildren(svgCurva([{pts:plan,cls:"ln2"},{pts:proj,cls:"ln3"},{pts:real,cls:"ln"}], labels, p.P/1000, {prazoIdx}));
+  $("#ch-s").replaceChildren(legendaLinhas([["ln","Realizado"],["ln2","Planejado pela meta"],["ln3","Projeção no ritmo real"]]),
+    svgCurva([{pts:plan,cls:"ln2"},{pts:proj,cls:"ln3"},{pts:real,cls:"ln"}], labels, p.P/1000, {prazoIdx}));
   $("#s-nota").textContent=`Toneladas acumuladas. Linha cheia: realizado · tracejada cinza: planejado pela meta (semanas passadas com a equipe real, futuras com ${p.arm} armadores × ${DIAS()} dias) · pontilhada: projeção no ritmo real. Teto do gráfico = ${t(p.P)} t previstas.`;
 }
 
@@ -5996,7 +6027,7 @@ async function pdfRdo(d, btn){
       const cw=(W-2*M-6)/2; let col=0, alt=0;
       for(const [k,f] of fts.entries()){
         btn.textContent=`Fotos ${k+1} de ${fts.length}…`;
-        const src=await fotoParaRelatorio(f); if(!src) continue;
+        const src=await fotoParaRelatorio(f, 1000); if(!src) continue; // 2 por linha (~9 cm): 1000 px bastam
         const [iw,ih]=await imgDims(src), hh=Math.min(cw*ih/iw, 95);
         if(col===0 && y+hh+8>285){ doc.addPage(); y=16; }
         const x=M+col*(cw+6), w=hh*iw/ih>cw?cw:hh*iw/ih;

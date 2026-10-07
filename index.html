@@ -1830,7 +1830,7 @@ $("#tema").addEventListener("click", e=>{ const b=e.target.closest("button[data-
   renderTema(); });
 renderTema();
 
-const VERSAO_APP = "v76"; // igual ao número em sw.js (armacao-v76)
+const VERSAO_APP = "v77"; // igual ao número em sw.js (armacao-v77)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -4327,7 +4327,7 @@ async function gerarArquivoPedido(tipo, btn){
 // (quem não chegou conta como falta). Função sem nomes: as quantidades são digitadas.
 const EF_SIT={P:"Chegou",F:"Falta",AT:"Atestado",FO:"Folga"};
 const EF_COLS=["1ª TURMA","FALTAS","ATESTADO","FOLGA","EMPREITEIROS"];
-const EF={aba:LS.get("efAba")||"dia", data:hojeISO(), busca:"", imp:null, abertos:new Set()};
+const EF={aba:LS.get("efAba")||"dia", data:hojeISO(), busca:"", imp:null, abertos:new Set(), grupo:""};
 const EF_DIAS_EDICAO=30; // dias para trás que podem ser lançados ou corrigidos no app
 const savePendEf = () => { MEMO_EF.clear(); LS.set("pendEf", S.pendEf); };
 const efId = () => uid().slice(0,10);
@@ -4337,6 +4337,26 @@ const dataBR = iso => `${iso.slice(8,10)}/${iso.slice(5,7)}/${iso.slice(0,4)}`;
 const dataLonga = iso => { const s=new Date(iso+"T12:00").toLocaleDateString("pt-BR",{weekday:"long",day:"numeric",month:"long"}); return s[0].toUpperCase()+s.slice(1); };
 const totalEf = v => Math.max(0, v[0]-v[1]-v[2]-v[3]+v[4]);
 const vinculoPadrao = emp => /CONSORCIO|HECA/.test(normTxt(emp)) ? "Próprio" : "Terceirizado";
+// Grupos do efetivo: "producao" (quem executa ou apoia a execução no campo) e "gestao" (administração e gestão: escritório,
+// engenharia, planejamento, qualidade, segurança, RH, social, suprimentos e o apoio que não produz, como vigias e serviços gerais).
+// O padrão sai do nome da função; quem escolher outro grupo grava a exceção na aba Config (EF_GRUPOS = {id da função: grupo}).
+const EF_GRUPOS=[["producao","Produção"],["gestao","Administração e gestão"]];
+const nomeGrupo = g => g==="gestao" ? "Administração e gestão" : "Produção";
+const RE_GESTAO=/GERENTE|^ENG|ENGENHEIR|PLANEJ|ALMOX|SUPRIMENT|ANALISTA|ASSISTENTE|ADMINISTR|\bDP\b|\bRH\b|SUPERV|SEGURANCA|SERVICOS GERAIS|VIGIA|VIGILAN|PORTARIA|PORTEIR|GEOLOG|QUALIDADE|SOCIAL|ESTAGI|COMPRAS|COMPRADOR|SECRETAR|COPEIR|RECEPCION|ORCAMENT|CUSTOS|FINANCEIR|CONTAB/;
+const grupoPadrao = fun => RE_GESTAO.test(normTxt(fun)) ? "gestao" : "producao";
+let GRC={s:null, m:{}};
+const gruposCfg = () => { const s=cfgv("EF_GRUPOS","")||""; if(s!==GRC.s){ let m={}; try{ m=JSON.parse(s||"{}")||{}; }catch{} GRC={s,m}; } return GRC.m; };
+const grupoFun = f => f ? (gruposCfg()[f.id] || grupoPadrao(f.funcao)) : "producao";
+function setGrupoFun(fid, funcao, g){
+  const m={...gruposCfg()}; if(g===grupoPadrao(funcao)) delete m[fid]; else m[fid]=g;
+  if(JSON.stringify(m)!==JSON.stringify(gruposCfg())) setCfg("EF_GRUPOS", JSON.stringify(m));
+}
+// botões Produção / Administração e gestão (formulários de função e de funcionário novo)
+function escolhaGrupo(g){
+  let v=g; const box=el("div",{class:"modo ef-grupo",role:"group","aria-label":"Grupo da função"});
+  const des=()=>repor(box, ...EF_GRUPOS.map(([k,rot])=>el("button",{type:"button",class:"chipbtn"+(v===k?" on":""),"aria-pressed":String(v===k),text:rot,onclick:()=>{ v=k; des(); }})));
+  des(); return {box, valor:()=>v, set:x=>{ v=x; des(); }};
+}
 
 // --- dados: o que veio do Google + a fila do aparelho ---
 function mesclar(lista, pend, del){
@@ -4371,10 +4391,11 @@ function contaNomes(d, fid, empr=0){
 }
 function resumoEfDia(d){
   const vals=diaVals(d); if(!Object.keys(vals).length) return null;
-  const fs=new Map(funcoes().map(f=>[f.id,f])), r={turma:0,f:0,at:0,fo:0,tot:0,prop:0,terc:0};
+  const fs=new Map(funcoes().map(f=>[f.id,f])), r={turma:0,f:0,at:0,fo:0,tot:0,prop:0,terc:0,producao:0,gestao:0};
   for(const [id,v] of Object.entries(vals)){
     const t=totalEf(v); r.turma+=v[0]; r.f+=v[1]; r.at+=v[2]; r.fo+=v[3]; r.tot+=t;
     if(fs.get(id)?.vinculo==="Próprio") r.prop+=t; else r.terc+=t;
+    r[grupoFun(fs.get(id))]+=t;
   }
   return r;
 }
@@ -4469,19 +4490,25 @@ function editarFuncao(f, empresaFixa){
   iVin.value=f?.vinculo || vinculoPadrao(iEmp.value); iEmp.oninput=()=>{ if(nova){ const e=fs.find(x=>normTxt(x.empresa)===normTxt(iEmp.value)); iVin.value=e?.vinculo||vinculoPadrao(iEmp.value); } };
   const iQ=el("input",{type:"number",min:0,step:1,inputMode:"numeric",value:f?.quadro??0});
   const iAt=el("input",{type:"checkbox",checked:f?f.ativo:true});
+  // grupo: segue o nome da função enquanto ninguém escolher outro
+  const G=escolhaGrupo(f ? grupoFun(f) : grupoPadrao("")); let mexeu=!!f;
+  G.box.addEventListener("click", ()=>{ mexeu=true; }); iFun.addEventListener("input", ()=>{ if(!mexeu) G.set(grupoPadrao(iFun.value)); });
   const salvar=()=>{
     const emp=iEmp.value.trim(), fun=iFun.value.trim(), q=Math.max(0,Math.round(num(iQ.value)));
     if(!emp||!fun) return toast("Informe a empresa e a função.");
     if(fs.some(x=>x.id!==f?.id && normTxt(x.empresa)===normTxt(emp) && normTxt(x.funcao)===normTxt(fun))) return toast("Esta função já existe nesta empresa.");
+    let id=f?.id;
     if(nova){
       const daEmp=fs.filter(x=>normTxt(x.empresa)===normTxt(emp)), ordem=(daEmp.length?Math.max(...daEmp.map(x=>x.ordem||0)):Math.max(0,...fs.map(x=>x.ordem||0))+1000)+1;
-      const id=efId(); setFun(id,{empresa:emp, funcao:fun, vinculo:iVin.value, quadro:q, ordem, ativo:iAt.checked});
+      id=efId(); setFun(id,{empresa:emp, funcao:fun, vinculo:iVin.value, quadro:q, ordem, ativo:iAt.checked});
       if(iAt.checked && diaAberto(hojeISO())) setDia(hojeISO(), id, [q,0,0,0,0]);
     } else setFun(f.id,{empresa:emp, funcao:fun, vinculo:iVin.value, quadro:q, ativo:iAt.checked});
+    setGrupoFun(id, fun, G.valor());
     toast(nova?"Função adicionada.":"Função atualizada."); fecharEf();
   };
   efModal(nova?"Nova função no quadro":"Editar função",
-    [campoEf("Empresa",iEmp,true), listaDatalist("ef-dl-emp", fs.map(x=>x.empresa)), campoEf("Função",iFun,true), campoEf("Vínculo",iVin),
+    [campoEf("Empresa",iEmp,true), listaDatalist("ef-dl-emp", fs.map(x=>x.empresa)), campoEf("Função",iFun,true),
+     el("div",{class:"campo full"}, "Grupo", G.box), campoEf("Vínculo",iVin),
      campoEf("Quadro padrão (1ª turma)",iQ), el("label",{class:"chk full"}, iAt, "Ativa (aparece no lançamento do dia)")],
     [el("button",{class:"btn pri",type:"button",text:"Salvar",onclick:salvar}),
      nova?null:el("button",{class:"btn",type:"button",text:"Excluir",style:"color:var(--bad);margin-left:auto",onclick:()=>{ if(excluirFuncao(f)) fecharEf(); }})]);
@@ -4506,15 +4533,21 @@ function editarPessoa(p, fid){
   const iNome=el("input",{type:"text",maxLength:120,value:p?.nome||"",autocomplete:"off"}), iFun=opcoesFuncao(p?.fid||fid);
   const iMat=el("input",{type:"text",maxLength:40,value:p?.matricula||"",autocomplete:"off"}), iObs=el("input",{type:"text",maxLength:200,value:p?.obs||""});
   const iAt=el("input",{type:"checkbox",checked:p?p.ativo:true});
+  // nome novo: confirma o grupo da função (trocar aqui muda a função inteira)
+  const G=nova ? escolhaGrupo(grupoFun(funcoes().find(f=>f.id===iFun.value))) : null;
+  if(G) iFun.addEventListener("change", ()=>G.set(grupoFun(funcoes().find(f=>f.id===iFun.value))));
   const salvar=()=>{
     const nome=iNome.value.trim().replace(/\s+/g," "); if(!nome) return toast("Informe o nome.");
     if(pessoas().some(x=>x.id!==p?.id && normTxt(x.nome)===normTxt(nome)) && !confirm(`Já existe "${nome}" cadastrado. Cadastrar mesmo assim?`)) return;
+    if(G){ const f=funcoes().find(x=>x.id===iFun.value), g=G.valor();
+      if(f && grupoFun(f)!==g){ if(nomesDa(f.id).length && !confirm(`Passar a função "${f.funcao}" inteira para ${nomeGrupo(g)}? Vale para todos dessa função.`)) return; setGrupoFun(f.id, f.funcao, g); } }
     const id=p?.id||efId();
     setPes(id,{nome, fid:iFun.value, matricula:iMat.value.trim(), obs:iObs.value.trim(), ativo:iAt.checked});
     recontar(hojeISO(), [iFun.value, p?.fid]); toast(nova?"Nome adicionado.":"Cadastro atualizado."); fecharEf();
   };
   efModal(nova?"Adicionar nome":"Editar nome",
-    [campoEf("Nome",iNome,true), campoEf("Empresa · função",iFun,true), campoEf("Matrícula (opcional)",iMat), campoEf("Observação",iObs),
+    [campoEf("Nome",iNome,true), campoEf("Empresa · função",iFun,true), G ? el("div",{class:"campo full"}, "A função faz parte de qual grupo?", G.box) : null,
+     campoEf("Matrícula (opcional)",iMat), campoEf("Observação",iObs),
      el("label",{class:"chk full"}, iAt, "Ainda trabalha na obra (desmarque se foi desligado)")],
     [el("button",{class:"btn pri",type:"button",text:"Salvar",onclick:salvar}),
      nova?null:el("button",{class:"btn",type:"button",text:"Excluir",style:"color:var(--bad);margin-left:auto",onclick:()=>{ if(excluirPessoa(p)) fecharEf(); }})]);
@@ -4733,28 +4766,32 @@ async function exportarEf(de, ate, btn){
   btn.disabled=true;
   try{
     await loadXLSX();
-    const fs=funcoes(), ps=pessoas(), abas=[], res=[["DATA","1ª TURMA","FALTAS","ATESTADO","FOLGA","EMPREITEIROS","TOTAL NA OBRA","PRÓPRIO","TERCEIROS"]];
+    const fs=funcoes(), ps=pessoas(), abas=[], res=[["DATA","1ª TURMA","FALTAS","ATESTADO","FOLGA","EMPREITEIROS","TOTAL NA OBRA","PRODUÇÃO","ADM. E GESTÃO","PRÓPRIO","TERCEIROS"]];
     for(const d of dias){
       const vals=diaVals(d), tot=[0,0,0,0,0,0];
       const aoa=[["EFETIVO DIÁRIO DE OBRA — SAA RIO GRANDE"],["DATA",dataBR(d)],[],["EMPRESA/FUNÇÃO",...EF_COLS,"TOTAL DO DIA","Subtotal"]];
-      for(const E of empresas(fs.filter(f=>vals[f.id]))){
-        aoa.push([E.nome]); const sub=E.fs.reduce((s,f)=>s+totalEf(vals[f.id]),0);
-        E.fs.forEach((f,k)=>{ const v=vals[f.id]; aoa.push([f.funcao,...v,totalEf(v),k?"":sub]); v.forEach((x,i)=>tot[i]+=x); tot[5]+=totalEf(v); });
-        aoa.push([]);
+      for(const [g,rot] of EF_GRUPOS){
+        const doG=fs.filter(f=>vals[f.id] && grupoFun(f)===g); if(!doG.length) continue;
+        aoa.push([rot.toUpperCase(),"","","","","",doG.reduce((s,f)=>s+totalEf(vals[f.id]),0)]);
+        for(const E of empresas(doG)){
+          aoa.push([E.nome]); const sub=E.fs.reduce((s,f)=>s+totalEf(vals[f.id]),0);
+          E.fs.forEach((f,k)=>{ const v=vals[f.id]; aoa.push([f.funcao,...v,totalEf(v),k?"":sub]); v.forEach((x,i)=>tot[i]+=x); tot[5]+=totalEf(v); });
+          aoa.push([]);
+        }
       }
       aoa.push(["TOTAL EFETIVO",...tot,tot[5]]);
       const ws=XLSX.utils.aoa_to_sheet(aoa); ws["!cols"]=[{wch:36},...Array(7).fill({wch:13})];
       abas.push([ws,"DIA "+dataBR(d).replace(/\//g,"-")]);
-      const r=resumoEfDia(d); res.push([dataBR(d),r.turma,r.f,r.at,r.fo,tot[4],r.tot,r.prop,r.terc]);
+      const r=resumoEfDia(d); res.push([dataBR(d),r.turma,r.f,r.at,r.fo,tot[4],r.tot,r.producao,r.gestao,r.prop,r.terc]);
     }
     const wb=XLSX.utils.book_new();
-    const wr=XLSX.utils.aoa_to_sheet(res); wr["!cols"]=Array(9).fill({wch:13}); XLSX.utils.book_append_sheet(wb,wr,"Resumo");
+    const wr=XLSX.utils.aoa_to_sheet(res); wr["!cols"]=Array(11).fill({wch:13}); XLSX.utils.book_append_sheet(wb,wr,"Resumo");
     if(ps.length){
       const fm=new Map(fs.map(f=>[f.id,f])), pd=dias.map(presDia);
-      const aoa=[["NOME","EMPRESA","FUNÇÃO","MATRÍCULA","ATIVO",...dias.map(dataBR)],
-        ...ps.map(p=>[p.nome, fm.get(p.fid)?.empresa||"", fm.get(p.fid)?.funcao||"", p.matricula, p.ativo?"SIM":"NÃO",
+      const aoa=[["NOME","GRUPO","EMPRESA","FUNÇÃO","MATRÍCULA","ATIVO",...dias.map(dataBR)],
+        ...ps.map(p=>[p.nome, nomeGrupo(grupoFun(fm.get(p.fid))), fm.get(p.fid)?.empresa||"", fm.get(p.fid)?.funcao||"", p.matricula, p.ativo?"SIM":"NÃO",
           ...pd.map(o=>{ const [st,h]=(o[p.id]||"").split(" "); return st==="P" ? (h||"Chegou") : st ? EF_SIT[st] : ""; })])];
-      const wn=XLSX.utils.aoa_to_sheet(aoa); wn["!cols"]=[{wch:32},{wch:26},{wch:22},{wch:12},{wch:7},...dias.map(()=>({wch:11}))];
+      const wn=XLSX.utils.aoa_to_sheet(aoa); wn["!cols"]=[{wch:32},{wch:22},{wch:26},{wch:22},{wch:12},{wch:7},...dias.map(()=>({wch:11}))];
       XLSX.utils.book_append_sheet(wb,wn,"Chegadas por nome");
     }
     for(const [ws,n] of abas) XLSX.utils.book_append_sheet(wb,ws,n);
@@ -4800,23 +4837,29 @@ function efSimples(){
   if(!ativos.length) return [dia, el("div",{class:"vazio"}, el("b",{text:"Nenhum funcionário cadastrado ainda"}),
     el("span",{text:"Toque em Novo funcionário para cadastrar. Para trazer a lista inteira de uma planilha, use Gerenciar › Nomes."}), novo),
     ...equipesSemNomes(d, fs)];
-  const conta={veio:0, faltou:0, "":0}; for(const p of ativos) conta[situacao(pr,p.id)]++;
+  const conta={veio:0, faltou:0, "":0}; for(const p of ativos) if(!EF.grupo || grupoFun(fm.get(p.fid))===EF.grupo) conta[situacao(pr,p.id)]++;
   const filtro=(k,rot,cls)=>el("button",{class:`${cls}${EF.filtro===k?" on":""}`,type:"button","aria-pressed":String(EF.filtro===k),
     onclick:()=>{ EF.filtro = EF.filtro===k ? null : k; renderPonto(); }}, el("b",{text:conta[k]}), el("span",{text:rot}));
   const cont=el("div",{class:"ps-cont"}, filtro("veio","OK","ok"), filtro("faltou","Faltaram","bad"), filtro("","Falta marcar",""));
   const busca=el("input",{type:"search",placeholder:"Procurar pelo nome…","aria-label":"Procurar funcionário",value:EF.busca});
   busca.oninput=()=>{ EF.busca=busca.value; const pos=busca.selectionStart; renderPonto(); const b=$("#ponto input[type=search]"); b?.focus(); b?.setSelectionRange(pos,pos); };
-  const q=normTxt(EF.busca);
-  const lista=ativos.filter(p=>(EF.filtro==null || situacao(pr,p.id)===EF.filtro) && (!q || normTxt(p.nome).includes(q)));
-  // agrupa por empresa, na ordem do quadro
-  const grupos=new Map();
-  for(const p of lista.sort((a,b)=>((fm.get(a.fid)?.ordem??1e9)-(fm.get(b.fid)?.ordem??1e9)) || a.nome.localeCompare(b.nome,"pt-BR"))){
-    const e=fm.get(p.fid)?.empresa||"Sem empresa"; if(!grupos.has(e)) grupos.set(e,[]); grupos.get(e).push(p); }
-  const blocos=[...grupos].map(([e,ps])=>el("div",{class:"ps-grupo"},
-    el("h2",{class:"tela-tit",text:`${e} · ${ps.length}`}), ...ps.map(p=>linhaPresenca(p,d,pr,fm.get(p.fid)))));
+  const q=normTxt(EF.busca), gp=p=>grupoFun(fm.get(p.fid));
+  // filtro de grupo: todos, produção ou administração e gestão
+  const nG=g=>ativos.filter(p=>gp(p)===g).length;
+  const filtroG=el("div",{class:"modo ef-grupo",role:"group","aria-label":"Grupo"},
+    ...[["","Todos",ativos.length], ...EF_GRUPOS.map(([g,rot])=>[g,rot,nG(g)])].map(([g,rot,n])=>el("button",{type:"button",class:"chipbtn"+((EF.grupo||"")===g?" on":""),
+      "aria-pressed":String((EF.grupo||"")===g),text:`${rot} · ${n}`,onclick:()=>{ EF.grupo=g; renderPonto(); }})));
+  const lista=ativos.filter(p=>(EF.filtro==null || situacao(pr,p.id)===EF.filtro) && (!q || normTxt(p.nome).includes(q)) && (!EF.grupo || gp(p)===EF.grupo));
+  // agrupa por grupo (produção primeiro) e, dentro dele, por empresa, na ordem do quadro
+  const ordenada=lista.sort((a,b)=>((fm.get(a.fid)?.ordem??1e9)-(fm.get(b.fid)?.ordem??1e9)) || a.nome.localeCompare(b.nome,"pt-BR"));
+  const blocos=EF_GRUPOS.flatMap(([g,rot])=>{
+    const doG=ordenada.filter(p=>gp(p)===g); if(!doG.length) return [];
+    const porEmp=new Map(); for(const p of doG){ const e=fm.get(p.fid)?.empresa||"Sem empresa"; if(!porEmp.has(e)) porEmp.set(e,[]); porEmp.get(e).push(p); }
+    return [el("h2",{class:"ef-gtit",text:`${rot} · ${doG.length}`}),
+      ...[...porEmp].map(([e,ps])=>el("div",{class:"ps-grupo"}, el("h2",{class:"tela-tit",text:`${e} · ${ps.length}`}), ...ps.map(p=>linhaPresenca(p,d,pr,fm.get(p.fid)))))]; });
   const filtroTxt={veio:"marcados OK", faltou:"que faltaram", "":"que falta marcar"}[EF.filtro];
   const pdf=el("button",{class:"btn ps-novo",type:"button",text:"📄 Relatório do dia em PDF",onclick:e=>pdfEfetivoDia(d,e.currentTarget)});
-  return [dia, cont, novo, pdf, busca,
+  return [dia, cont, novo, pdf, filtroG, busca,
     EF.filtro!=null ? el("p",{class:"info"}, `Mostrando só os ${filtroTxt}. `, el("button",{class:"linkbtn",type:"button",text:"Mostrar todos",onclick:()=>{ EF.filtro=null; renderPonto(); }})) : null,
     ...(blocos.length ? blocos : [el("p",{class:"info",text:"Ninguém encontrado."})]),
     ...equipesSemNomes(d, fs)];
@@ -4854,26 +4897,32 @@ async function pdfEfetivoDia(d, btn){
       doc.setFont("helvetica","bold"); doc.setFontSize(16); doc.setTextColor(...cor); doc.text(String(v),x+3,y+14.5); doc.setFont("helvetica","normal");
       if(sub){ doc.setFontSize(6.5); doc.setTextColor(110); doc.text(sub,x+cw-2.5,y+14.5,{align:"right"}); } });
     y+=24; doc.setFontSize(8.5); doc.setTextColor(60);
+    doc.text(`Produção: ${r.producao||0} · Administração e gestão: ${r.gestao||0}`,M,y); y+=5;
     doc.text(`Próprio: ${r.prop} · Terceiros: ${r.terc}`+(ps.length?` · Nomes: ${ps.filter(p=>sit(p)==="veio").length} OK, ${ps.filter(p=>sit(p)==="faltou").length} faltaram, ${ps.filter(p=>!sit(p)).length} sem marcação`:""),M,y); y+=8;
     // quadro por empresa e função (modelo da obra)
     if(Object.keys(vals).length){
       tit("Efetivo por empresa e função");
       const body=[];
-      for(const E of empresas(fs.filter(f=>vals[f.id]))){
-        const sub=E.fs.reduce((s,f)=>s+totalEf(vals[f.id]),0);
-        body.push([{content:`${E.nome} (${E.vinculo}) — ${sub} na obra`,colSpan:6,styles:{fontStyle:"bold",fillColor:[230,236,242]}}]);
-        for(const f of E.fs){ const v=vals[f.id]; body.push([f.funcao,v[0],v[1],v[2],v[3],totalEf(v)]); }
+      for(const [g,rot] of EF_GRUPOS){
+        const doG=fs.filter(f=>vals[f.id] && grupoFun(f)===g); if(!doG.length) continue;
+        body.push([{content:`${rot.toUpperCase()} — ${doG.reduce((s,f)=>s+totalEf(vals[f.id]),0)} na obra`,colSpan:6,styles:{fontStyle:"bold",fillColor:PDF_AZ,textColor:255}}]);
+        for(const E of empresas(doG)){
+          const sub=E.fs.reduce((s,f)=>s+totalEf(vals[f.id]),0);
+          body.push([{content:`${E.nome} (${E.vinculo}) — ${sub} na obra`,colSpan:6,styles:{fontStyle:"bold",fillColor:[230,236,242]}}]);
+          for(const f of E.fs){ const v=vals[f.id]; body.push([f.funcao,v[0],v[1],v[2],v[3],totalEf(v)]); }
+        }
       }
       tab(["Função","1ª turma","Faltas","Atestado","Folga","Na obra"], body,
         {columnStyles:{1:dir,2:dir,3:dir,4:dir,5:{halign:"right",fontStyle:"bold"}},foot:[["TOTAL",r.turma,r.f,r.at,r.fo,r.tot]],footStyles:{fillColor:[230,236,242],textColor:20,fontStyle:"bold",halign:"right"}});
     }
     // listas por nome
-    const linhas=lst=>lst.sort((a,b)=>((fm.get(a.fid)?.ordem??1e9)-(fm.get(b.fid)?.ordem??1e9))||a.nome.localeCompare(b.nome,"pt-BR"))
-      .map(p=>{ const f=fm.get(p.fid), [st,h]=(pr[p.id]||"").split(" "); return [p.nome, f?.empresa||"", f?.funcao||"", st==="P"?(h||"OK"):st?EF_SIT[st]:""]; });
+    const gOrd=p=>grupoFun(fm.get(p.fid))==="gestao"?1:0; // produção primeiro
+    const linhas=lst=>lst.sort((a,b)=>gOrd(a)-gOrd(b)||((fm.get(a.fid)?.ordem??1e9)-(fm.get(b.fid)?.ordem??1e9))||a.nome.localeCompare(b.nome,"pt-BR"))
+      .map(p=>{ const f=fm.get(p.fid), [st,h]=(pr[p.id]||"").split(" "); return [p.nome, gOrd(p)?"Gestão":"Produção", f?.empresa||"", f?.funcao||"", st==="P"?(h||"OK"):st?EF_SIT[st]:""]; });
     const ok=ps.filter(p=>sit(p)==="veio"), fal=ps.filter(p=>sit(p)==="faltou"), sem=ps.filter(p=>!sit(p));
-    if(ok.length){ tit(`OK — vieram (${ok.length})`,VD); tab(["Nome","Empresa","Função","Chegada"], linhas(ok), {cor:VD}); }
-    if(fal.length){ tit(`Faltaram (${fal.length})`,VM); tab(["Nome","Empresa","Função","Motivo"], linhas(fal), {cor:VM}); }
-    if(sem.length){ tit(`Sem marcação (${sem.length})`,[90,102,116]); tab(["Nome","Empresa","Função",""], linhas(sem), {cor:[90,102,116]}); }
+    if(ok.length){ tit(`OK — vieram (${ok.length})`,VD); tab(["Nome","Grupo","Empresa","Função","Chegada"], linhas(ok), {cor:VD}); }
+    if(fal.length){ tit(`Faltaram (${fal.length})`,VM); tab(["Nome","Grupo","Empresa","Função","Motivo"], linhas(fal), {cor:VM}); }
+    if(sem.length){ tit(`Sem marcação (${sem.length})`,[90,102,116]); tab(["Nome","Grupo","Empresa","Função",""], linhas(sem), {cor:[90,102,116]}); }
     rodapePdf(doc);
     await entregarPdf(doc, `Efetivo_${d}.pdf`, `Efetivo do dia ${dataBR(d)}`);
   }catch(e){ toast(e.message||"Não foi possível gerar o PDF."); }
@@ -4881,7 +4930,7 @@ async function pdfEfetivoDia(d, btn){
 }
 // funções sem lista de nomes (ex.: empreiteira que só manda a quantidade): quantos vieram, com − e +
 function equipesSemNomes(d, fs){
-  const sem=fs.filter(f=>f.ativo && !nomesDa(f.id).length); if(!sem.length) return [];
+  const sem=fs.filter(f=>f.ativo && !nomesDa(f.id).length && (!EF.grupo || grupoFun(f)===EF.grupo)); if(!sem.length) return [];
   const vals=diaVals(d), vAnt=diaAnterior(d);
   const passo=(f,delta)=>{
     if(!diaAberto(d)) abrirDia(d);
@@ -4894,7 +4943,7 @@ function equipesSemNomes(d, fs){
     el("p",{class:"info",text:"Use − e + para dizer quantos vieram."}),
     ...empresas(sem).map(E=>el("div",{class:"ps-grupo"}, ...E.fs.map(f=>{ const v=vals[f.id]||valorInicial(d,f,vAnt);
       return el("div",{class:"ps-linha"},
-        el("div",{class:"ps-nome"}, el("b",{text:f.funcao}), el("small",{text:`${E.nome} · de ${v[0]} no quadro`})),
+        el("div",{class:"ps-nome"}, el("b",{text:f.funcao}), el("small",{text:`${E.nome} · ${nomeGrupo(grupoFun(f))} · de ${v[0]} no quadro`})),
         el("div",{class:"ps-step"},
           el("button",{type:"button",text:"−","aria-label":`Um a menos: ${f.funcao}`,onclick:()=>passo(f,-1)}),
           el("b",{text:totalEf(v),"aria-label":`${totalEf(v)} vieram`}),
@@ -4908,12 +4957,16 @@ function novoFuncionario(){
   const iEmpNova=el("input",{type:"text",maxLength:120,placeholder:"Nome da empresa"});
   const iFun=el("select",{}), iFunNova=el("input",{type:"text",maxLength:120,placeholder:"Ex.: Pedreiro"});
   const boxEmpNova=campoEf("Nome da nova empresa",iEmpNova,true), boxFunNova=campoEf("Nome da nova função",iFunNova,true);
+  // grupo da função: vem da função escolhida (ou do nome da função nova); trocar aqui muda a função inteira
+  const G=escolhaGrupo("producao");
+  const grupoDaEscolha=()=>{ const f=funcoes().find(x=>x.id===iFun.value); G.set(f ? grupoFun(f) : grupoPadrao(iFunNova.value)); };
+  iFunNova.addEventListener("input", ()=>{ if(!iFun.value || !iEmp.value) G.set(grupoPadrao(iFunNova.value)); });
   const atualizar=()=>{
     const E=emps.find(x=>x.nome===iEmp.value);
     repor(iFun, ...(E?E.fs.filter(f=>f.ativo):[]).map(f=>el("option",{value:f.id,text:f.funcao})), el("option",{value:"",text:"Outra função…"}));
-    boxEmpNova.hidden=!!iEmp.value; boxFunNova.hidden=!!iFun.value;
+    boxEmpNova.hidden=!!iEmp.value; boxFunNova.hidden=!!iFun.value; grupoDaEscolha();
   };
-  iEmp.onchange=atualizar; iFun.onchange=()=>{ boxFunNova.hidden=!!iFun.value; };
+  iEmp.onchange=atualizar; iFun.onchange=()=>{ boxFunNova.hidden=!!iFun.value; grupoDaEscolha(); };
   const salvar=()=>{
     const nome=iNome.value.trim().replace(/\s+/g," "); if(!nome) return toast("Escreva o nome do funcionário.");
     const emp=iEmp.value || iEmpNova.value.trim(); if(!emp) return toast("Escolha ou escreva a empresa.");
@@ -4929,13 +4982,17 @@ function novoFuncionario(){
         fid=efId(); setFun(fid,{empresa:emp, funcao:fun, vinculo:daEmp[0]?.vinculo||vinculoPadrao(emp), quadro:0, ordem, ativo:true});
       }
     }
+    const fx=funcoes().find(x=>x.id===fid)||{id:fid, funcao:iFunNova.value.trim()}, g=G.valor();
+    if(funcoes().some(x=>x.id===fid) && grupoFun(fx)!==g && nomesDa(fid).length && !confirm(`Passar a função "${fx.funcao}" inteira para ${nomeGrupo(g)}? Vale para todos dessa função.`)) return;
+    setGrupoFun(fid, fx.funcao, g);
     const jaContava=nomesDa(fid).length>0;
     setPes(efId(),{nome, fid, matricula:"", obs:"", ativo:true});
     if(jaContava) recontar(hojeISO(), [fid]);
-    toast(`${nome} cadastrado.`); fecharEf();
+    toast(`${nome} cadastrado em ${nomeGrupo(g)}.`); fecharEf();
   };
   efModal("Novo funcionário",
-    [campoEf("Nome",iNome,true), campoEf("Empresa",iEmp,true), boxEmpNova, campoEf("Função",iFun,true), boxFunNova],
+    [campoEf("Nome",iNome,true), campoEf("Empresa",iEmp,true), boxEmpNova, campoEf("Função",iFun,true), boxFunNova,
+     el("div",{class:"campo full"}, "A função faz parte de qual grupo?", G.box)],
     [el("button",{class:"btn pri",type:"button",text:"Cadastrar",onclick:salvar})]);
   if(!emps.length){ iEmp.value=""; }
   atualizar();
@@ -4971,6 +5028,8 @@ function efDiaTela(){
   const r=resumoEfDia(d), pr=presDia(d), ps=pessoas().filter(p=>p.ativo);
   const kpis=el("div",{class:"kpis"},
     kpi("Na obra", nf0.format(r.tot), `próprio ${r.prop} · terceiros ${r.terc}`),
+    kpi("Produção", nf0.format(r.producao), "na obra"),
+    kpi("Administração e gestão", nf0.format(r.gestao), "na obra"),
     kpi("1ª turma", nf0.format(r.turma), "efetivo do dia"),
     kpi("Faltas", nf0.format(r.f), r.turma?`${pct(r.f/r.turma)} da turma`:""),
     kpi("Atestado e folga", nf0.format(r.at+r.fo), `${r.at} atestado · ${r.fo} folga`));
@@ -4983,7 +5042,11 @@ function efDiaTela(){
   const editar=(f,i,inp)=>{ const v=[...(diaVals(d)[f.id]||[0,0,0,0,0])]; v[i]=Math.max(0,Math.round(num(inp.value)));
     if(v[1]+v[2]+v[3]>v[0]){ toast("Faltas + atestado + folga passam da 1ª turma."); return renderPonto(); }
     setDia(d,f.id,v); renderPonto(); };
-  const cards=empresas(fs.filter(f=>f.ativo||vals[f.id])).map(E=>{
+  // por grupo (produção primeiro) e, dentro dele, por empresa
+  const cards=EF_GRUPOS.flatMap(([g,rot])=>{ const doG=fs.filter(f=>(f.ativo||vals[f.id]) && grupoFun(f)===g); if(!doG.length) return [];
+    const tg=doG.reduce((s,f)=>s+(vals[f.id]?totalEf(vals[f.id]):0),0);
+    return [el("h2",{class:"ef-gtit",text:`${rot} · ${tg} na obra`}), ...cardsEmp(doG)]; });
+  function cardsEmp(lista){ return empresas(lista).map(E=>{
     const tot=E.fs.reduce((s,f)=>s+(vals[f.id]?totalEf(vals[f.id]):0),0), tur=E.fs.reduce((s,f)=>s+(vals[f.id]?.[0]||0),0);
     const linhas=E.fs.map(f=>{
       const v=vals[f.id]||[0,0,0,0,0], n=nomesDa(f.id).length;
@@ -5011,7 +5074,7 @@ function efDiaTela(){
         el("thead",{}, el("tr",{}, el("th",{text:"Função"}), el("th",{text:"Turma"}), el("th",{text:"Faltas"}), el("th",{text:"Total"}), el("th",{text:"Atest."}), el("th",{text:"Folga"}), el("th",{text:"Empr."}))),
         el("tbody",{}, ...linhas))),
       ...comNomes);
-  });
+  }); }
   return [nav, kpis, ps.length?busca:null, ...cards,
     el("p",{class:"info",text:"Total = turma − faltas − atestado − folga + empreiteiros. Com nomes, quem não foi marcado conta como falta."})];
 }
@@ -5027,12 +5090,13 @@ function efQuadro(){
     el("div",{class:"i-top"}, el("h3",{text:E.nome}), el("span",{class:"chip"+(E.vinculo==="Próprio"?" ok":""),text:E.vinculo})),
     el("div",{}, ...E.fs.map(f=>{ const n=nomesDa(f.id).length;
       return el("div",{class:"ef-lin"+(f.ativo?"":" inativa")}, el("span",{class:"nm",text:f.funcao}),
-        el("span",{class:"info",text:`quadro ${f.quadro||0}`+(n?` · ${n} nome${n>1?"s":""}`:"")+(f.ativo?"":" · inativa")}),
+        el("span",{class:"info"}, el("span",{class:"chip ef-gchip"+(grupoFun(f)==="gestao"?" gestao":""),text:grupoFun(f)==="gestao"?"Gestão":"Produção"}),
+          ` quadro ${f.quadro||0}`+(n?` · ${n} nome${n>1?"s":""}`:"")+(f.ativo?"":" · inativa")),
         el("button",{class:"linkbtn",type:"button",text:"Editar","aria-label":`Editar ${f.funcao}`,onclick:()=>editarFuncao(f)})); })),
     el("div",{class:"row"}, el("button",{class:"btn",type:"button",text:"+ Função",onclick:()=>editarFuncao(null,E.nome)}),
       el("button",{class:"btn",type:"button",text:"Editar empresa",onclick:()=>editarEmpresa(E)}))));
   return [
-    el("p",{class:"info",text:"Desative o que saiu da obra (o histórico fica). Exclua só cadastro feito por engano."}),
+    el("p",{class:"info",text:"Desative o que saiu da obra (o histórico fica). Exclua só cadastro feito por engano. O grupo (Produção ou Gestão) de cada função muda em Editar."}),
     el("div",{class:"row"}, el("button",{class:"btn pri",type:"button",text:"+ Nova empresa ou função",onclick:()=>editarFuncao(null)}),
       el("button",{class:"btn",type:"button",text:"Importar planilha de efetivo",onclick:()=>arq.click()}), arq),
     imp, ...(cards.length ? cards : [el("div",{class:"vazio",text:"Nenhuma função cadastrada ainda."})])];
@@ -5067,7 +5131,7 @@ function efHist(){
   const linhas=dias.map(d=>{ const r=resumoEfDia(d);
     return el("tr",{title:d>=min?"Abrir este dia":"", onclick:()=>{ if(d<min) return toast(`Só dá para corrigir os últimos ${EF_DIAS_EDICAO} dias no app.`); EF.data=d; EF.aba="dia"; LS.set("efAba","dia"); renderPonto(); }},
       el("td",{text:`${ddmm(d)} · ${new Date(d+"T12:00").toLocaleDateString("pt-BR",{weekday:"short"}).replace(".","")}`}),
-      el("td",{text:r.turma}), el("td",{text:r.f}), el("td",{text:r.at+r.fo}), el("td",{}, el("b",{text:r.tot})), el("td",{text:r.prop}), el("td",{text:r.terc})); });
+      el("td",{text:r.turma}), el("td",{text:r.f}), el("td",{text:r.at+r.fo}), el("td",{}, el("b",{text:r.tot})), el("td",{text:r.producao}), el("td",{text:r.gestao}), el("td",{text:r.prop}), el("td",{text:r.terc})); });
   return [
     el("div",{class:"card"}, el("h3",{text:"Exportar Excel (modelo da obra)"}),
       el("p",{class:"info",text:"Uma aba por dia no formato da planilha da obra, com resumo e chegadas por nome."}),
@@ -5075,7 +5139,7 @@ function efHist(){
       el("div",{class:"row"}, el("button",{class:"btn pri",type:"button",text:"Exportar Excel",onclick:e=>{ if(!de.value||!ate.value||de.value>ate.value) return toast("Confira o período."); exportarEf(de.value,ate.value,e.currentTarget); }}))),
     dias.length ? el("div",{class:"card"}, el("h3",{text:`Últimos ${dias.length} dias lançados`}),
       el("div",{class:"tbl ef-hist"}, el("table",{},
-        el("thead",{}, el("tr",{}, el("th",{text:"Dia"}), el("th",{text:"Turma"}), el("th",{text:"Faltas"}), el("th",{text:"Atest./folga"}), el("th",{text:"Na obra"}), el("th",{text:"Próprio"}), el("th",{text:"Terceiros"}))),
+        el("thead",{}, el("tr",{}, el("th",{text:"Dia"}), el("th",{text:"Turma"}), el("th",{text:"Faltas"}), el("th",{text:"Atest./folga"}), el("th",{text:"Na obra"}), el("th",{text:"Produção"}), el("th",{text:"Gestão"}), el("th",{text:"Próprio"}), el("th",{text:"Terceiros"}))),
         el("tbody",{}, ...linhas))),
       el("p",{class:"info",text:"O app mostra 45 dias; o histórico completo fica na planilha."}))
     : el("div",{class:"vazio",text:"Nenhum dia lançado ainda."})];
@@ -5310,6 +5374,8 @@ function limparPendAt(snap, snapDel, j){
 // equipes guardadas por dia: só os últimos 10 dias
 const aparar = eq => Object.fromEntries(Object.entries(eq||{}).filter(([d,ids])=>d>=somaDias(hojeISO(),-10) && ids.length).sort());
 const presentesHoje = () => { const pr=presDia(hojeISO()); return pessoas().filter(p=>p.ativo && situacao(pr,p.id)==="veio"); };
+// só o grupo Produção (a tela do mestre e a escolha de equipe das atividades)
+const presentesProducao = () => { const fm=new Map(funcoes().map(f=>[f.id,f])); return presentesHoje().filter(p=>grupoFun(fm.get(p.fid))==="producao"); };
 const nomePessoa = id => memoEf("pesId", ()=>new Map(pessoas().map(p=>[p.id,p.nome]))).get(id) || "?";
 // nome curto: primeiro + último ("JAILSON DOS SANTOS CRUZ" → "JAILSON CRUZ")
 const primeiroNome = n => { const p=String(n).trim().split(/\s+/); return p.length>2 ? p[0]+" "+p[p.length-1] : p.join(" "); };
@@ -5336,18 +5402,24 @@ function definirEquipe(a, ids){
 // marcação de pessoas: quem já está nesta atividade primeiro, depois os livres, depois quem está em outra
 function listaEscolha(pres, marcados, atual){
   const h=hojeISO(), ocup=new Map(); for(const o of ativs()) for(const id of o.equipes?.[h]||[]) ocup.set(id,o);
-  const ordem=p=>marcados.has(p.id)?0:!ocup.has(p.id)?1:2;
+  const fm=new Map(funcoes().map(f=>[f.id,f])), emp=p=>fm.get(p.fid)?.empresa||"";
+  // a empresa filtrada na Produção vem primeiro
+  const ordem=p=>marcados.has(p.id)?0:!ocup.has(p.id)?1:2, daEmp=p=>PRD.emp && normTxt(emp(p))!==PRD.emp ? 1 : 0;
   const caixas=[];
-  const box=el("div",{class:"pr-escolha full"}, ...pres.slice().sort((a,b)=>ordem(a)-ordem(b)||a.nome.localeCompare(b.nome,"pt-BR")).map(p=>{
+  const box=el("div",{class:"pr-escolha full"}, ...pres.slice().sort((a,b)=>ordem(a)-ordem(b)||daEmp(a)-daEmp(b)||emp(a).localeCompare(emp(b),"pt-BR")||a.nome.localeCompare(b.nome,"pt-BR")).map(p=>{
     const c=el("input",{type:"checkbox",checked:marcados.has(p.id),value:p.id,"aria-label":p.nome}); caixas.push(c);
     const o=ocup.get(p.id);
-    return el("label",{class:"chk pr-pessoa"}, c, el("span",{}, p.nome, o && o.id!==atual ? el("small",{text:` (está em ${o.atividade})`}) : !o ? el("small",{class:"livre",text:" · livre"}) : null));
+    return el("label",{class:"chk pr-pessoa"}, c, el("span",{}, p.nome, el("small",{class:"pr-emp",text:` · ${[fm.get(p.fid)?.funcao, emp(p)].filter(Boolean).join(" · ")}`}),
+      o && o.id!==atual ? el("small",{text:` (está em ${o.atividade})`}) : !o ? el("small",{class:"livre",text:" · livre"}) : null));
   }));
   return {box, ids:()=>caixas.filter(c=>c.checked).map(c=>c.value)};
 }
+// quem pode entrar numa atividade: a produção com OK hoje, mais quem já está nela (mesmo sendo da gestão)
+const presentesParaAtividade = a => { const h=hojeISO(), ja=new Set(a?.equipes?.[h]||[]), pr=presentesProducao(), ids=new Set(pr.map(p=>p.id));
+  return [...pr, ...presentesHoje().filter(p=>ja.has(p.id) && !ids.has(p.id))]; };
 function escolherPessoas(a){
-  const pres=presentesHoje();
-  if(!pres.length) return toast("Ninguém com OK na presença hoje ainda.");
+  const pres=presentesParaAtividade(a);
+  if(!pres.length) return toast("Ninguém da produção com OK na presença hoje ainda.");
   const L=listaEscolha(pres, new Set(a.equipes?.[hojeISO()]||[]), a.id);
   efModal(`Quem está em: ${a.atividade}`, [el("p",{class:"info full",text:`📍 ${ondeTxt(a)} · marque quem está trabalhando nesta atividade hoje.`}), L.box],
     [el("button",{class:"btn pri",type:"button",text:"Salvar equipe",onclick:()=>{ definirEquipe(ativs().find(x=>x.id===a.id)||a, L.ids()); toast("Equipe atualizada."); fecharEf(); }})]);
@@ -5367,7 +5439,7 @@ function editarAtividade(a){
   const ajEst=()=>{ boxEstOutro.hidden=iEst.value!=="__outro"; }; iEst.onchange=ajEst;
   const iLocal=el("input",{type:"text",maxLength:120,placeholder:"Ex.: parede 3, laje de fundo (opcional)",value:a?.local||""});
   const iObs=el("input",{type:"text",maxLength:300,placeholder:"Opcional",value:a?.obs||""});
-  const pres=presentesHoje(), L=nova && pres.length ? listaEscolha(pres, new Set(), null) : null;
+  const pres=presentesProducao(), L=nova && pres.length ? listaEscolha(pres, new Set(), null) : null;
   const salvar=()=>{
     const atividade = escolha==="__outra" ? outra.value.trim() : escolha;
     if(!atividade) return toast("Escolha a atividade.");
@@ -5511,10 +5583,14 @@ const fotosDoDia = d => regsAll().filter(r=>r.tipo==="foto" && r.data===d);
 // retrato do dia (o que vem de outros módulos); no RDO fechado usa o que foi congelado
 function retratoDia(d){
   const vals=diaVals(d), fs=funcoes();
-  const emp=empresas(fs.filter(f=>vals[f.id])).map(E=>({nome:E.nome, vinculo:E.vinculo,
+  const porEmp=lista=>empresas(lista).map(E=>({nome:E.nome, vinculo:E.vinculo,
     turma:E.fs.reduce((s,f)=>s+vals[f.id][0],0), tot:E.fs.reduce((s,f)=>s+totalEf(vals[f.id]),0),
     funcoes:E.fs.map(f=>({funcao:f.funcao, turma:vals[f.id][0], tot:totalEf(vals[f.id])}))}));
-  return {ef:{r:resumoEfDia(d), emp}, ativs:atividadesDoDia(d).map(a=>({id:a.id, atividade:a.atividade, onde:ondeTxt(a), status:a.status, progresso:a.progresso, n:(a.equipes?.[d]||[]).length}))};
+  const emp=porEmp(fs.filter(f=>vals[f.id]));
+  // por grupo (produção e administração e gestão); RDOs fechados antes desta divisão só têm "emp"
+  const grupos=EF_GRUPOS.map(([g,rot])=>{ const e=porEmp(fs.filter(f=>vals[f.id] && grupoFun(f)===g));
+    return {g, rot, turma:e.reduce((s,x)=>s+x.turma,0), tot:e.reduce((s,x)=>s+x.tot,0), emp:e}; }).filter(x=>x.emp.length);
+  return {ef:{r:resumoEfDia(d), emp, grupos}, ativs:atividadesDoDia(d).map(a=>({id:a.id, atividade:a.atividade, onde:ondeTxt(a), status:a.status, progresso:a.progresso, n:(a.equipes?.[d]||[]).length}))};
 }
 function renderRdo(){
   const box=$("#rdo"); if(!box) return;
@@ -5547,10 +5623,12 @@ function renderRdo(){
     onclick:()=>{ setRdo(d,x=>{ x.cond = x.cond===c ? "" : c; }, `Condição: ${c}`); renderRdo(); }}));
 
   // 2. efetivo (Ponto)
-  const ef=ret.ef, rr=ef.r;
-  const efetivo = rr ? [el("div",{class:"kpis"}, kpi("Na obra",nf0.format(rr.tot),`próprio ${rr.prop} · terceiros ${rr.terc}`), kpi("1ª turma",nf0.format(rr.turma),`faltas ${rr.f} · atest./folga ${rr.at+rr.fo}`)),
+  const ef=ret.ef, rr=ef.r, gEf=ef.grupos || [{rot:"", emp:ef.emp}];
+  const efetivo = rr ? [el("div",{class:"kpis"}, kpi("Na obra",nf0.format(rr.tot),`próprio ${rr.prop} · terceiros ${rr.terc}`), kpi("1ª turma",nf0.format(rr.turma),`faltas ${rr.f} · atest./folga ${rr.at+rr.fo}`),
+        ef.grupos ? kpi("Produção",nf0.format(rr.producao??0),"na obra") : null, ef.grupos ? kpi("Administração e gestão",nf0.format(rr.gestao??0),"na obra") : null),
       el("div",{class:"tbl"}, el("table",{}, el("thead",{}, el("tr",{}, el("th",{text:"Empresa"}), el("th",{text:"Turma"}), el("th",{text:"Na obra"}))),
-        el("tbody",{}, ...ef.emp.map(E=>el("tr",{}, el("td",{}, E.nome, el("small",{class:"i-sub",text:` · ${E.vinculo}`})), el("td",{text:E.turma}), el("td",{}, el("b",{text:E.tot})))))))]
+        el("tbody",{}, ...gEf.flatMap(G=>[G.rot ? el("tr",{class:"rd-grupo"}, el("th",{text:G.rot}), el("th",{text:G.turma}), el("th",{text:G.tot})) : null,
+          ...G.emp.map(E=>el("tr",{}, el("td",{}, E.nome, el("small",{class:"i-sub",text:` · ${E.vinculo}`})), el("td",{text:E.turma}), el("td",{}, el("b",{text:E.tot}))))].filter(Boolean)))))]
     : [el("p",{class:"info",text:"A presença deste dia ainda não foi lançada no Ponto e efetivo."}),
        pode("ponto") && !fechado ? el("button",{class:"btn",type:"button",text:"Abrir Ponto e efetivo",onclick:()=>{ EF.data=d; abrirTela("ponto"); }}) : null];
 
@@ -5764,8 +5842,11 @@ async function pdfRdo(d, btn){
     if(ret.ef.r){
       const rr=ret.ef.r, body=[];
       // só as funções que tiveram gente no dia, para o RDO não ficar comprido
-      for(const E of ret.ef.emp.filter(E=>E.turma||E.tot)){ body.push([{content:`${E.nome} (${E.vinculo}) — ${E.tot} na obra`,colSpan:3,styles:{fontStyle:"bold",fillColor:[230,236,242]}}]);
-        for(const f of (E.funcoes||[]).filter(f=>f.turma||f.tot)) body.push([f.funcao,f.turma,f.tot]); }
+      for(const G of ret.ef.grupos || [{rot:"", emp:ret.ef.emp}]){
+        if(G.rot) body.push([{content:`${G.rot.toUpperCase()} — ${G.tot} na obra`,colSpan:3,styles:{fontStyle:"bold",fillColor:PDF_AZ,textColor:255}}]);
+        for(const E of G.emp.filter(E=>E.turma||E.tot)){ body.push([{content:`${E.nome} (${E.vinculo}) — ${E.tot} na obra`,colSpan:3,styles:{fontStyle:"bold",fillColor:[230,236,242]}}]);
+          for(const f of (E.funcoes||[]).filter(f=>f.turma||f.tot)) body.push([f.funcao,f.turma,f.tot]); }
+      }
       tab(["Empresa / função","1ª turma","Na obra"], body, {styles:{fontSize:7.8,cellPadding:1.1,textColor:20}, columnStyles:{1:dir,2:{halign:"right",fontStyle:"bold"}},
         foot:[[`TOTAL · próprio ${rr.prop} · terceiros ${rr.terc} · faltas ${rr.f} · atest./folga ${rr.at+rr.fo}`, rr.turma, rr.tot]],footStyles:{fillColor:[230,236,242],textColor:20,fontStyle:"bold",halign:"right"}});
     } else paragrafo("Presença do dia não lançada.");

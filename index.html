@@ -9,6 +9,24 @@
 // aplica o tema salvo antes de desenhar a tela (evita piscar claro→escuro ao abrir)
 try{ const t=JSON.parse(localStorage.getItem("arm:tema")); if(t==="light"||t==="dark") document.documentElement.dataset.theme=t; }catch{}
 </script>
+<script>
+// Celular antigo (ex.: iPhone sem atualização) não entende o código do app e a tela ficava branca.
+// Este trecho usa só JavaScript antigo: guarda o erro e, se o app não iniciar, mostra o motivo na tela.
+window.__wigoErros = [];
+window.addEventListener("error", function(e){ window.__wigoErros.push((e && e.message) || "erro"); });
+window.addEventListener("load", function(){ setTimeout(function(){
+  if(window.__wigoOk) return;
+  var ua = navigator.userAgent, ios = ua.match(/OS (\d+)_(\d+)/), ver = ios ? "iOS " + ios[1] + "." + ios[2] : "";
+  var d = document.createElement("div");
+  d.setAttribute("style", "position:fixed;top:0;left:0;right:0;bottom:0;z-index:99999;background:#1F3A5F;color:#fff;font:16px/1.45 system-ui,-apple-system,sans-serif;padding:32px 20px;overflow:auto");
+  d.innerHTML = "<h2 style='margin:0 0 12px'>O WIGO não conseguiu abrir neste celular</h2>" +
+    "<p>" + (ios && +ios[1] < 15 ? "Este iPhone está com o <b>" + ver + "</b>. O app precisa do <b>iOS 15.4 ou mais novo</b>: Ajustes → Geral → Atualização de Software." :
+      "Atualize o navegador (ou o sistema do celular) e abra o link de novo.") + "</p>" +
+    "<p style='opacity:.8;font-size:13px'>Para o suporte (tire um print): " + (ver || ua.slice(0, 120)) + "<br>" +
+    (window.__wigoErros.slice(0, 3).map(function(x){ return String(x).replace(/</g, "&lt;"); }).join("<br>") || "sem mensagem de erro") + "</p>";
+  document.body.appendChild(d);
+}, 1500); });
+</script>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-wigo-192.png">
 <link rel="apple-touch-icon" href="icon-wigo-192.png">
@@ -1800,18 +1818,20 @@ function renderCfgLink(){
       el("p",{class:"info",text:"No outro celular: aponte a câmera para o QR (ou abra o link) e confirme."}), qr, el("div",{class:"row"}, env)); };
   box.replaceChildren(d);
 }
-// abriu o app por um link de configuração: pergunta e configura
-function lerLinkCfg(){
-  const m=location.hash.match(/^#cfg=([\w-]+)/); if(!m) return;
-  history.replaceState(null,"",location.href.replace(/#.*$/,""));
+// abriu o app por um link de configuração (ou colou o link no campo do banco): pergunta e configura.
+// Devolve true quando configurou.
+function lerLinkCfg(texto){
+  const m=(texto ?? location.hash).match(/#cfg=([\w-]+)/); if(!m) return false;
+  if(texto==null) history.replaceState(null,"",location.href.replace(/#.*$/,""));
   let o; try{ o=JSON.parse(deB64url(m[1])); }catch{ o=null; }
-  if(!o || !/^https:\/\/script\.google(usercontent)?\.com\/.+\/exec$/.test(o.u||"") || !o.t){ toast("Link de configuração inválido."); return; }
-  if(S.cfg?.url===o.u && S.cfg?.token===o.t){ toast("Este celular já está ligado a este banco."); return; }
+  if(!o || !/^https:\/\/script\.google(usercontent)?\.com\/.+\/exec$/.test(o.u||"") || !o.t){ toast("Link de configuração inválido."); return false; }
+  if(S.cfg?.url===o.u && S.cfg?.token===o.t){ toast("Este celular já está ligado a este banco."); return false; }
   // celular novo (convite): conecta direto; celular já ligado a outro banco: pergunta antes de trocar
   const novo=!S.cfg?.url, curto=o.u.replace(/^https:\/\/script\.google\.com\/macros\/s\//,"…/");
-  if(!novo && !confirm(`Conectar a este banco?\n\n${curto.length>40 ? curto.slice(0,40)+"…" : curto}\n\nO app passa a ler e gravar nesta planilha.`)) return;
+  if(!novo && !confirm(`Conectar a este banco?\n\n${curto.length>40 ? curto.slice(0,40)+"…" : curto}\n\nO app passa a ler e gravar nesta planilha.`)) return false;
   S.cfg={url:o.u, token:o.t}; LS.set("cfg",S.cfg); $("#cfg-url").value=o.u; $("#cfg-tok").value=o.t;
   if(novo) LG.convite=true; else toast("Banco configurado. Sincronizando…");
+  return true;
 }
 function renderDados(){
   renderAcomp(); renderCfgLink();
@@ -1830,7 +1850,7 @@ $("#tema").addEventListener("click", e=>{ const b=e.target.closest("button[data-
   renderTema(); });
 renderTema();
 
-const VERSAO_APP = "v77"; // igual ao número em sw.js (armacao-v77)
+const VERSAO_APP = "v78"; // igual ao número em sw.js (armacao-v78)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -5151,13 +5171,15 @@ const LG={escolher:false, criar:false, erro:"", enviando:false};
 const bemVindo = () => toast(`Bem-vindo, ${U.nome.split(" ")[0]}!`);
 // o pedido precisa do banco: link/QR do desenvolvedor ou endereço + senha do app
 function blocoBanco(depois){
-  const iU=el("input",{type:"url",placeholder:"https://script.google.com/macros/s/…/exec",autocomplete:"off",spellcheck:false,"aria-label":"Endereço do banco"});
+  const iU=el("input",{type:"url",placeholder:"https://…",autocomplete:"off",spellcheck:false,"aria-label":"Endereço do banco"});
   const iT=el("input",{type:"password",autocomplete:"off","aria-label":"Senha do app"});
   return el("div",{class:"card"}, el("h3",{text:"Conecte o banco"}),
-    el("p",{class:"info",text:"Abra o link ou leia o QR que o desenvolvedor enviou. Ou cole o endereço e a senha do app:"}),
-    el("label",{class:"campo"}, "Endereço (/exec)", iU), el("label",{class:"campo"}, "Senha do app", iT),
+    // no iPhone, o app da tela inicial não enxerga o que foi feito no Safari: aqui dá para colar o link do convite
+    el("p",{class:"info",text:"Abra o link ou leia o QR do convite. Ou cole aqui o link do convite (ou o endereço /exec e a senha do app):"}),
+    el("label",{class:"campo"}, "Link do convite ou endereço (/exec)", iU), el("label",{class:"campo"}, "Senha do app", iT),
     el("div",{class:"row"}, el("button",{class:"btn",type:"button",text:"Conectar",onclick:()=>{
       const url=iU.value.trim(), token=iT.value.trim();
+      if(/#cfg=/.test(url)){ if(lerLinkCfg(url)) depois(); return; }
       if(!/^https:\/\/script\.google(usercontent)?\.com\/.+\/exec$/.test(url)) return toast("O endereço termina em /exec.");
       if(!token) return toast("Informe a senha do app.");
       S.cfg={url,token}; LS.set("cfg",S.cfg); $("#cfg-url").value=url; $("#cfg-tok").value=token; depois(); }})));
@@ -5256,7 +5278,10 @@ function renderEspera(box){
     el("button",{class:"btn pri ps-novo",type:"button",text:LG.enviando?"Aguarde…":enviado?"Verificar agora":"Enviar pedido",disabled:LG.enviando,onclick:()=>pedirAcesso()}),
     outro,
     // quem chegou pelo QR está no navegador: dica para instalar o app (abre sem internet e fica com ícone)
-    !matchMedia("(display-mode: standalone)").matches ? el("p",{class:"info",text:"Enquanto espera: no menu do navegador (⋮ ou ⎙), toque em “Adicionar à tela inicial” para ter o WIGO como app no celular."}) : null);
+    // no iPhone, o app da tela inicial guarda os dados separados do Safari: lá é preciso colar o link do convite de novo
+    matchMedia("(display-mode: standalone)").matches || navigator.standalone ? null
+      : /iPhone|iPad|iPod/.test(navigator.userAgent) ? el("p",{class:"info",text:"No iPhone: ⎙ Compartilhar → “Adicionar à Tela de Início”. Ao abrir pelo ícone, cole o link do convite no campo do banco; o pedido vai de novo para o desenvolvedor."})
+      : el("p",{class:"info",text:"Enquanto espera: no menu do navegador (⋮ ou ⎙), toque em “Adicionar à tela inicial” para ter o WIGO como app no celular."}));
 }
 // com a tela de espera aberta, confere a cada 20 s se já foi liberado
 setInterval(()=>{ if(document.visibilityState==="visible" && !$("#tela-login").hidden && U && !liberado() && !LG.escolher && !LG.enviando
@@ -7264,6 +7289,9 @@ function renderRelatorios(box){
     afterData(); renderData(); if(!$("#inicio").hidden) renderInicio(); };
   document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="visible") virouDia(); });
   setInterval(()=>{ if(document.visibilityState==="visible") virouDia(); }, 60000);
+  // QR lido com o app já aberto no Safari: o endereço muda só depois do # e a página não recarrega
+  addEventListener("hashchange", ()=>{ if(lerLinkCfg()) abrirTela(U?"inicio":"login",false); });
+  window.__wigoOk=true; // o app iniciou (sem isto, o aviso do <head> mostra o motivo no lugar da tela branca)
 })();
 </script>
 </body>

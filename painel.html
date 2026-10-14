@@ -100,7 +100,7 @@ td.txt{text-align:left;white-space:normal}
       <h2 class="sec">Formas · paredes dos floculadores (ULMA)</h2>
       <div class="kpis" id="f-kpis"></div>
       <div class="grid2">
-        <div class="card"><h3>m² de forma montados por dia</h3><div class="chart" id="f-ch"></div><p class="info" id="f-nota"></p></div>
+        <div class="card"><h3>m² de forma montados por semana</h3><div class="chart" id="f-ch"></div><p class="info" id="f-nota"></p></div>
         <div class="card"><h3>Avanço por etapa</h3><div class="tbl" id="f-et"></div></div>
       </div>
     </section>
@@ -304,21 +304,28 @@ function render(){
     el("td",{text:nf1.format(+r.horas||0)}),el("td",{class:"txt",text:r.texto||""})))):el("p",{class:"info",text:"Nenhuma ocorrência registrada."}));
   renderForma();
 }
-// formas: vem do Code.gs 22+ (sem nomes); etapas concluídas sem lançamento contam no avanço, não na produtividade
-const brl=v=>(v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
+// formas: vem do Code.gs 22+ (sem nomes); etapas concluídas sem lançamento contam no avanço, não na produtividade.
+// Acompanhamento semanal (app v84): agrupa por semana (segunda-feira). Pessoas-dia: semanal = pessoas × dias (a equipe conta uma vez
+// por semana); diário = pessoas do dia de montagem (uma vez por dia). Com o Code.gs 23 (sem "dias"), cada lançamento conta como 1 dia.
+const segSemana=iso=>{ const d=new Date(iso+"T12:00:00"); d.setDate(d.getDate()-(d.getDay()+6)%7); return d.toISOString().slice(0,10); };
 function renderForma(){
   const f=D.forma; $("#forma").hidden=!f; if(!f) return;
-  const mont=f.dias.filter(x=>x.ativ==="Montagem"), m2=f.dias.reduce((s,x)=>s+x.mont,0), pdM=mont.reduce((s,x)=>s+x.pessoas,0), porDia=new Map();
-  for(const x of mont) if(x.mont) porDia.set(x.data,(porDia.get(x.data)||0)+x.mont);
+  const sems=new Map();
+  for(const x of f.dias){ const k=segSemana(x.data), s=sems.get(k)||{m2:0,pdSem:0,pdDia:0,dia:new Map()}; s.m2+=x.mont;
+    if(x.semanal) s.pdSem=Math.max(s.pdSem, x.pessoas*x.dias);
+    else if(x.ativ==="Montagem"){ s.dia.set(x.data, Math.max(s.dia.get(x.data)||0, x.pessoas)); s.pdDia=[...s.dia.values()].reduce((a,v)=>a+v,0); }
+    sems.set(k,s); }
+  const comMont=[...sems].filter(([,s])=>s.m2>0).sort((a,b)=>a[0].localeCompare(b[0]));
+  const m2=comMont.reduce((s,[,x])=>s+x.m2,0), pd=comMont.reduce((s,[,x])=>s+x.pdSem+x.pdDia,0), m2p=comMont.filter(([,x])=>x.pdSem+x.pdDia).reduce((s,[,x])=>s+x.m2,0);
+  const ult4=comMont.slice(-4), ritmo=ult4.length?ult4.reduce((s,[,x])=>s+x.m2,0)/ult4.length:0;
   const proj=f.etapas.reduce((s,e)=>s+e.projeto,0), av=f.etapas.reduce((s,e)=>s+e.avanco,0);
-  const pago=f.dias.filter(x=>x.equipe==="Terceirizada").reduce((s,x)=>s+x.mont,0)*f.preco, ritmo=porDia.size?m2/porDia.size:0;
   $("#f-kpis").replaceChildren(kpi("Avanço",pct(proj?av/proj:0),`${nf1.format(av)} de ${nf1.format(proj)} m²`),
-    kpi("Produtividade",pdM?nf1.format(m2/pdM)+" m²":"–","por pessoa/dia de montagem"),
-    kpi("Ritmo da equipe",ritmo?nf1.format(ritmo)+" m²":"–",`por dia · ${porDia.size} dia${porDia.size===1?"":"s"} de montagem`),
-    kpi("Pago à terceirizada",brl(pago),`${brl(f.preco)} por m² montado`));
-  const ds=[...porDia].sort((a,b)=>a[0].localeCompare(b[0])).slice(-15);
-  $("#f-ch").replaceChildren(svgBarras(ds.map(([d,v])=>({label:ddmm(d),v}))));
-  $("#f-nota").textContent=porDia.size>15?"Últimos 15 dias de montagem.":"m² de painéis montados em cada dia.";
+    kpi("Ritmo",ritmo?nf1.format(ritmo)+" m²":"–",`por semana · média das últimas ${Math.min(4,comMont.length)} com montagem`),
+    kpi("Produtividade",pd?nf1.format(m2p/pd)+" m²":"–","por pessoa/dia trabalhado"),
+    kpi("Semanas com montagem",String(comMont.length),`${nf1.format(m2)} m² lançados`));
+  const ds=comMont.slice(-12);
+  $("#f-ch").replaceChildren(svgBarras(ds.map(([d,x])=>({label:ddmm(d),v:x.m2}))));
+  $("#f-nota").textContent=(comMont.length>12?"Últimas 12 semanas. ":"")+"Cada barra é a semana que começa na segunda-feira indicada.";
   $("#f-et").replaceChildren(tabela(["Etapa","Projeto (m²)","Avanço"],f.etapas.map(e=>el("tr",{},
     el("td",{},el("b",{text:e.etapa}),e.concluida?el("div",{class:"info",text:"concluída sem lançamento"}):null),el("td",{text:nf1.format(e.projeto)}),
     el("td",{},pct(e.pct),el("span",{class:"bar"},el("i",{style:`width:${Math.min(100,e.pct*100)}%`})))))));

@@ -166,7 +166,15 @@ section.view{padding-block:14px;display:grid;gap:14px}
 .kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px}
 .kpi span{display:block;font-size:.72rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600}
 .kpi b{display:block;font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-size:1.9rem;font-weight:600;line-height:1.1}
-.kpi small{display:block;color:var(--muted)} /* número e explicação em linhas próprias (antes ficavam grudados: "9,2 t/semmédia…") */
+.kpi small{display:block;color:var(--muted)}
+/* concretagem: lista de paredes do mapa */
+.cc-par .cc-pars{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:4px 10px;max-height:240px;overflow:auto;margin:6px 0;padding:6px;border:1px solid var(--line,#d0d7de);border-radius:8px}
+.cc-parl{display:flex;gap:6px;align-items:center;font-size:.85rem;font-weight:400}
+.cc-parl b{font-weight:700}
+.cc-nova{display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto;gap:6px;margin:4px 0}
+.cc-faixa{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:.85rem;font-weight:400;margin-top:6px}
+.cc-faixa input{width:5.5em}
+@media (max-width:520px){ .cc-nova{grid-template-columns:1fr 1fr 1fr 1fr} .cc-nova input:first-child{grid-column:1/-1} } /* número e explicação em linhas próprias (antes ficavam grudados: "9,2 t/semmédia…") */
 .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:grid;gap:10px}
 .chart svg{width:100%;height:auto;display:block}
 .chart text{fill:var(--muted);font-size:11px;font-family:"Barlow",sans-serif}
@@ -1861,7 +1869,7 @@ $("#tema").addEventListener("click", e=>{ const b=e.target.closest("button[data-
   renderTema(); });
 renderTema();
 
-const VERSAO_APP = "v84"; // igual ao número em sw.js (armacao-v84)
+const VERSAO_APP = "v85"; // igual ao número em sw.js (armacao-v85)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -3183,6 +3191,7 @@ function atualizarPdfFundo(f){
     .finally(()=>PDF_ATUALIZANDO.delete(f.id));
 }
 async function obterPdf(f, prog){
+  if(f.gerar) return f.gerar(); // PDF feito pelo app (mapa de concretagem das paredes): não vem do Drive nem fica guardado
   const local=await pdfGuardado(f.id);
   if(local){ if(PJ.off[f.id]!==f.atualizado) atualizarPdfFundo(f); return local; }
   try{ return await pdfBaixar(f, prog); }
@@ -3367,7 +3376,7 @@ async function desenhar(){
     if(e?.name!=="RenderingCancelledException" && V.task===task) vmsg(`Não foi possível desenhar a folha ${V.n}: ${e?.message||e}.`+DICA_FORA);
     return;
   }finally{ clearTimeout(lento); }
-  if(Math.abs(snap.z-V.fit)<=V.fit*0.01 && fid0) salvarPrevia(c, snap, vp, dpr, fid0, n0); // folha inteira na tela: guarda a imagem
+  if(Math.abs(snap.z-V.fit)<=V.fit*0.01 && fid0 && !String(fid0).startsWith("mapa-")) salvarPrevia(c, snap, vp, dpr, fid0, n0); // folha inteira na tela: guarda a imagem (o mapa gerado é leve e muda com os caminhões)
   V.Rn=n0;
   desenharMarcas(ctx, vp, snap.tx*dpr, snap.ty*dpr, dpr);
   if(CC.conc) desenharPintura(ctx, vp, snap.tx*dpr, snap.ty*dpr, CC.conc, V.n, dpr);
@@ -6393,11 +6402,15 @@ function listaCaminhoes(c){
 
 // --- concretagens ---
 async function abrirConcretagem(c){
-  if(!c.pdfId) return toast("Escolha o PDF da forma em Editar.");
-  const f=PJ.lista.find(x=>x.id===c.pdfId) || {id:c.pdfId, nome:c.pdfNome||"Forma", atualizado:""};
+  if(!c.pdfId) return toast("Escolha o PDF da forma (ou as paredes) em Editar.");
+  const m=mapaDe(c);
+  // paredes: o mapa é gerado na hora (o id muda quando mudam as paredes, os caminhões ou a data: aí o app gera de novo)
+  const f = m ? {id:"mapa-"+cyrb53(c.id+c.pdfId+JSON.stringify(c.cams)+c.data+c.local), nome:c.pdfNome||"Mapa das paredes", atualizado:"",
+      gerar:async()=>(await docMapa(c)).output("arraybuffer")}
+    : PJ.lista.find(x=>x.id===c.pdfId) || {id:c.pdfId, nome:c.pdfNome||"Forma", atualizado:""};
   CC.cam=c.cams.at(-1)?.n ?? null; CC.desfazer=[];
   CC.modo = pode("producao-edit") && c.status!=="Concluída" && CC.cam!=null ? "pintar" : "mover";
-  const pag=(tracosDe(c.id).at(-1)?.pag) || LS.get("ccPag:"+c.id) || 1;
+  const pag=(tracosDe(c.id).at(-1)?.pag) || LS.get("ccPag:"+c.id) || (m ? 2 : 1); // mapa: abre na 1ª elevação
   await abrirPdf(f, pag, null, c.id);
   $("#v-tit").textContent=`Concretagem · ${c.estrutura}${c.local?" · "+c.local:""}`;
   await buscarTracos(c.id); if(CC.conc===c.id){ mudou(0); renderCcBar(); }
@@ -6414,53 +6427,111 @@ function editarConc(c){
   const iLoc=el("input",{type:"text",maxLength:120,placeholder:"Ex.: parede 3 · lance 2, laje de fundo",value:c?.local||""});
   const iVol=el("input",{type:"number",min:0,step:0.5,inputMode:"decimal",value:c?.volPrev||"",placeholder:"m³"});
   const iObs=el("input",{type:"text",maxLength:300,value:c?.obs||"",placeholder:"Opcional"});
+  const estAtual=()=>iEst.value==="__outro"?iEstO.value:iEst.value;
+  // o que vai ser pintado: laje (PDF da forma do projeto) ou só paredes (mapa gerado pelo app)
+  const m0=mapaDe(c); let tipo = m0 ? "par" : c ? "laje" : "par";
+  const boxTipo=el("div",{class:"pr-bts full",role:"group","aria-label":"O que vai ser concretado"}), boxLaje=el("div",{class:"campo full"}), boxPar=el("div",{class:"campo full cc-par"});
+  const desTipo=()=>{ repor(boxTipo, ...[["par","Só paredes · mapa das paredes"],["laje","Laje · PDF da forma"]].map(([v,t])=>el("button",{type:"button",class:"chipbtn"+(tipo===v?" on":""),text:t,"aria-pressed":String(tipo===v),
+    onclick:()=>{ tipo=v; tipoManual=true; desTipo(); atualizarVol(); }}))); boxLaje.hidden=tipo!=="laje"; boxPar.hidden=tipo!=="par"; };
+  // sem escolha manual, o elemento/lance decide: "laje", "fundo", "passarela"… = forma; "parede", "lance 1/2" = mapa
+  let tipoManual=!!c; iLoc.oninput=()=>{ if(tipoManual) return; const t=normTxt(iLoc.value);
+    const v=/LAJE|FUNDO|PASSARELA|TAMPA|COBERTURA|SUPERIOR/.test(t) ? "laje" : /PAREDE|PAR|LANCE/.test(t) ? "par" : tipo; if(v!==tipo){ tipo=v; desTipo(); atualizarVol(); } };
   // PDF da forma: os que combinam com a estrutura aparecem primeiro
   const busca=el("input",{type:"search",placeholder:"Filtrar PDFs: forma, parede, DE-0…","aria-label":"Filtrar PDFs"});
   const iPdf=el("select",{"aria-label":"PDF da forma"});
-  const montarPdfs=()=>{ const est=iEst.value==="__outro"?iEstO.value:iEst.value, q=normTxt(busca.value), pal=tokensEf(est).filter(t=>t.length>3);
+  const pdfAnt = c?.pdfId && !m0 ? c.pdfId : "";
+  const montarPdfs=()=>{ const q=normTxt(busca.value), pal=tokensEf(estAtual()).filter(t=>t.length>3);
     // compara pelo começo da palavra (DECANTADORES × DECANTADOR)
     const nota=f=>{ const n=normTxt(f.nome); return (pal.some(p=>n.includes(p.slice(0,7)))?2:0)+(/FORMA|FOR-|FORM/.test(n)?1:0); };
     const fs=PJ.lista.filter(f=>!q || normTxt(f.nome).includes(q)).sort((a,b)=>nota(b)-nota(a) || a.nome.localeCompare(b.nome));
-    const atual=iPdf.value || c?.pdfId || "";
+    const atual=iPdf.value || pdfAnt;
     repor(iPdf, el("option",{value:"",text:fs.length?"Escolha o PDF da forma…":"Nenhum PDF encontrado"}), ...fs.map(f=>el("option",{value:f.id,text:pjTitulo(f.nome)+(nota(f)>=2?" ★":"")})),
-      c?.pdfId && !PJ.lista.some(f=>f.id===c.pdfId) ? el("option",{value:c.pdfId,text:c.pdfNome||"PDF atual"}) : null);
+      pdfAnt && !PJ.lista.some(f=>f.id===pdfAnt) ? el("option",{value:pdfAnt,text:c.pdfNome||"PDF atual"}) : null);
     iPdf.value=atual; };
-  busca.oninput=montarPdfs; iEst.onchange=()=>{ boxEstO.hidden=iEst.value!=="__outro"; montarPdfs(); }; iEstO.oninput=montarPdfs;
+  repor(boxLaje, "PDF da forma (pasta Projetos do Drive) · laje de fundo, de passarela ou superior", busca, iPdf,
+    !PJ.lista.length ? el("small",{class:"i-sub",text:"Lista de PDFs vazia: toque em Atualizar lista de projetos."}) : null);
+  // paredes: conjunto do catálogo (os da estrutura escolhida primeiro), paredes marcadas, faixa de altura do lance e paredes a mais
+  const iConj=el("select",{"aria-label":"Paredes de qual estrutura"}), boxLista=el("div",{class:"cc-pars"}), iVolTxt=el("small",{class:"i-sub"});
+  const iDe=el("input",{type:"text",inputMode:"decimal",placeholder:"0,00",value:m0?.de!=null?String(m0.de).replace(".",","):"","aria-label":"Lance: altura inicial (m)"});
+  const iAte=el("input",{type:"text",inputMode:"decimal",placeholder:"topo",value:m0?.ate!=null?String(m0.ate).replace(".",","):"","aria-label":"Lance: altura final (m)"});
+  let extras = m0 ? m0.p.filter(p=>!catParedes(m0.k)?.par.some(x=>x.id===p.id)) : [], marcadas = new Set(m0 ? m0.p.map(p=>p.id) : []), volAuto = !c?.volPrev;
+  const conjs=()=>{ const t=normTxt(estAtual()), igual=x=>t && (normTxt(x.est)===t || tokensEf(x.est).some(w=>w.length>4 && t.includes(w.slice(0,7))));
+    return [...PAREDES_CAT.filter(igual), ...PAREDES_CAT.filter(x=>!igual(x))].map(x=>[x, igual(x)]); };
+  const montarConj=(trocou)=>{ const L=conjs(), atual=trocou ? (L.find(([,i])=>i)?.[0].k || iConj.value) : iConj.value || m0?.k || L.find(([,i])=>i)?.[0].k || "";
+    repor(iConj, ...L.map(([x,i])=>el("option",{value:x.k,text:`${x.nome}${x.sub?" ("+x.sub+")":""}${i?" ★":""} · ${x.est.toLowerCase()}`})), el("option",{value:"",text:"Nenhuma do catálogo (só as que eu cadastrar)"}));
+    iConj.value=atual; if(trocou || !m0) marcadas=new Set((catParedes(iConj.value)?.par||[]).map(p=>p.id)); montarLista(); };
+  const paredesDisp=()=>[...(catParedes(iConj.value)?.par||[]), ...extras];
+  const lerFaixa=()=>{ const de=iDe.value.trim()===""?null:num(iDe.value), ate=iAte.value.trim()===""?null:num(iAte.value); return {de:de>0?de:null, ate:ate>0?ate:null}; };
+  const atualizarVol=()=>{ const {de,ate}=lerFaixa(), ps=paredesDisp().filter(p=>marcadas.has(p.id)), v=ps.reduce((s,p)=>s+volPar(p,de,ate),0);
+    iVolTxt.textContent=ps.length ? `${ps.length} parede${ps.length>1?"s":""} · volume teórico ${nf2(v)} m³${de!=null||ate!=null?" (só a faixa do lance)":""}` : "Marque as paredes desta concretagem.";
+    if(volAuto && tipo==="par" && ps.length) iVol.value=String(Math.round(v*10)/10); };
+  const montarLista=()=>{ const ps=paredesDisp();
+    repor(boxLista, ...ps.map(p=>{ const ck=el("input",{type:"checkbox",checked:marcadas.has(p.id)}); ck.onchange=()=>{ if(ck.checked) marcadas.add(p.id); else marcadas.delete(p.id); atualizarVol(); };
+      return el("label",{class:"cc-parl"}, ck, el("span",{}, el("b",{text:p.id}), ` ${nf2(p.c)} × ${nf2(p.h)} × ${nf2(p.e)} m`)); }),
+      !ps.length ? el("p",{class:"info",text:"Nenhuma parede ainda: toque em + Parede."}) : null);
+    atualizarVol(); };
+  const novaParede=()=>{ const i=(ph,lab)=>el("input",{type:"text",inputMode:ph?"decimal":"text",placeholder:ph||"Ex.: PAR 13",maxLength:40,"aria-label":lab});
+    const n=i("","Nome"), cp=i("9,90","Comprimento (m)"), al=i("4,55","Altura (m)"), es=i("0,30","Espessura (m)");
+    const caixa=el("div",{class:"cc-nova"}, n, cp, al, es, el("button",{class:"btn",type:"button",text:"Incluir",onclick:()=>{
+      const id=n.value.trim().toUpperCase().replace(/^PAREDE\s*/,"PAR "), cc=num(cp.value), hh=num(al.value), ee=num(es.value);
+      if(!id || !(cc>0) || !(hh>0) || !(ee>0)) return toast("Preencha nome, comprimento, altura e espessura (m).");
+      if(paredesDisp().some(p=>p.id===id)) return toast("Já existe uma parede com esse nome.");
+      extras.push(P_(id,cc,hh,ee)); marcadas.add(id); caixa.remove(); montarLista(); }}));
+    boxLista.after(caixa); n.focus(); };
+  iConj.onchange=()=>{ marcadas=new Set((catParedes(iConj.value)?.par||[]).map(p=>p.id)); montarLista(); };
+  iDe.oninput=iAte.oninput=atualizarVol; iVol.oninput=()=>{ volAuto=false; };
+  repor(boxPar, "Paredes (o app gera o mapa com uma elevação para cada parede)", iConj,
+    el("div",{class:"row"}, el("button",{class:"linkbtn",type:"button",text:"Marcar todas",onclick:()=>{ marcadas=new Set(paredesDisp().map(p=>p.id)); montarLista(); }}),
+      el("button",{class:"linkbtn",type:"button",text:"Desmarcar todas",onclick:()=>{ marcadas.clear(); montarLista(); }}),
+      el("button",{class:"linkbtn",type:"button",text:"+ Parede",onclick:novaParede})),
+    boxLista, iVolTxt,
+    el("div",{class:"cc-faixa"}, "Lance: de", iDe, "até", iAte, "m a partir da base (opcional)"));
+  busca.oninput=montarPdfs; iEst.onchange=()=>{ boxEstO.hidden=iEst.value!=="__outro"; montarPdfs(); montarConj(true); }; iEstO.oninput=()=>{ montarPdfs(); montarConj(true); };
   const salvar=()=>{
-    const estrutura=iEst.value==="__outro"?iEstO.value.trim():iEst.value; if(!estrutura) return toast("Escolha a estrutura.");
+    const estrutura=estAtual().trim(); if(!estrutura) return toast("Escolha a estrutura.");
     if(!iData.value) return toast("Informe a data.");
-    const f=PJ.lista.find(x=>x.id===iPdf.value), campos={data:iData.value, estrutura, local:iLoc.value.trim(), volPrev:Math.max(0,num(iVol.value)), obs:iObs.value.trim(),
-      pdfId:iPdf.value, pdfNome:f?.nome || (iPdf.value===c?.pdfId ? c.pdfNome : "")};
+    let pdfId, pdfNome;
+    if(tipo==="par"){
+      const ps=paredesDisp().filter(p=>marcadas.has(p.id)); if(!ps.length) return toast("Marque pelo menos uma parede.");
+      const cat=catParedes(iConj.value), {de,ate}=lerFaixa(); if(de!=null && ate!=null && ate<=de) return toast("No lance, a altura final tem que ser maior que a inicial.");
+      const m={k:cat?.k||"", nome:cat ? cat.nome : estrutura, p:ps, ...(de!=null?{de}:{}), ...(ate!=null?{ate}:{})};
+      // pintura já feita fica na folha de cada parede: mudar a lista de paredes muda as folhas
+      if(m0 && tracosDe(c.id).length && JSON.stringify(m0.p.map(p=>p.id))!==JSON.stringify(m.p.map(p=>p.id))
+        && !confirm("Já há áreas pintadas neste mapa. Mudando as paredes, as folhas mudam e a pintura pode ficar na parede errada. Continuar?")) return;
+      pdfId="mapa:"+JSON.stringify(m); pdfNome=`Mapa das paredes · ${m.nome}`;
+    } else { pdfId=iPdf.value; pdfNome=PJ.lista.find(x=>x.id===iPdf.value)?.nome || (iPdf.value===pdfAnt ? c.pdfNome : ""); }
+    const campos={data:iData.value, estrutura, local:iLoc.value.trim(), volPrev:Math.max(0,num(iVol.value)), obs:iObs.value.trim(), pdfId, pdfNome};
     if(nova){ setConc(uid().slice(0,10), {...campos, status:"Programada", cams:[]}, "Programada"); toast("Concretagem programada."); }
     else { setConc(c.id, campos, "Dados editados"); toast("Concretagem atualizada."); }
     fecharEf();
   };
   efModal(nova?"Nova concretagem":"Editar concretagem",
     [campoEf("Data",iData), campoEf("Volume previsto (m³)",iVol), campoEf("Estrutura",iEst,true), boxEstO, campoEf("Elemento / lance",iLoc,true),
-     el("div",{class:"campo full"}, "PDF da forma (pasta Projetos do Drive)", busca, iPdf,
-       !PJ.lista.length ? el("small",{class:"i-sub",text:"Lista de PDFs vazia: toque em Atualizar lista de projetos."}) : null),
+     boxTipo, boxPar, boxLaje,
      campoEf("Observação",iObs,true)],
     [el("button",{class:"btn pri",type:"button",text:nova?"Programar concretagem":"Salvar",onclick:salvar}),
      nova ? null : el("button",{class:"btn",type:"button",text:"Excluir",style:"color:var(--bad);margin-left:auto",onclick:()=>{
        if(!confirm(`Excluir a concretagem ${c.estrutura}${c.local?" · "+c.local:""}? Os caminhões e as áreas pintadas também somem.`)) return;
        delete S.pendCc[c.id]; for(const [id,x] of Object.entries(S.pendTr)) if(x.conc===c.id) delete S.pendTr[id];
        if(S.cc.some(x=>x.id===c.id)) S.pendCcDel.push(c.id); savePendCc(); scheduleSync(); toast("Concretagem excluída."); fecharEf(); }})]);
-  boxEstO.hidden=iEst.value!=="__outro"; montarPdfs();
+  boxEstO.hidden=iEst.value!=="__outro"; montarPdfs(); montarConj(false); desTipo();
 }
 function cardConc(c, ed){
-  const lanc=volLancado(c), frac=c.volPrev?lanc/c.volPrev:0, edSt=ed && pode("producao-edit");
+  const lanc=volLancado(c), frac=c.volPrev?lanc/c.volPrev:0, edSt=ed && pode("producao-edit"), m=mapaDe(c);
+  const onde = m ? `🧱 ${m.nome} · ${m.p.length} parede${m.p.length>1?"s":""}${m.de!=null||m.ate!=null?` · lance ${nf2(m.de||0)} a ${m.ate!=null?nf2(m.ate)+" m":"topo"}`:""}`
+    : `📄 ${c.pdfNome?pjTitulo(c.pdfNome):"sem PDF da forma"}`;
   const dots=el("div",{class:"cc-dots"}, ...c.cams.map(k=>{ const s=el("span",{class:"cc-dot",text:`C${k.n}`}); s.style.setProperty("--cor",k.cor); return s; }));
   return el("div",{class:"card pr-card "+(CC_COR_ST[c.status]||"")},
     el("div",{class:"i-top"}, el("b",{class:"pr-tit",text:`${c.estrutura}${c.local?" · "+c.local:""}`}), el("span",{class:"chip "+(CC_COR_ST[c.status]||""),text:c.status})),
-    el("div",{class:"pr-onde",text:`📅 ${dataBR(c.data)} · 📄 ${c.pdfNome?pjTitulo(c.pdfNome):"sem PDF da forma"}`}),
+    el("div",{class:"pr-onde",text:`📅 ${dataBR(c.data)} · ${onde}`}),
     el("div",{class:"i-prog"}, barra(frac), el("b",{text:`${nf1.format(lanc)}${c.volPrev?` / ${nf1.format(c.volPrev)}`:""} m³`})),
     c.cams.length ? dots : el("span",{class:"info",text:"Nenhum caminhão ainda."}),
     c.obs ? el("div",{class:"i-sub",text:c.obs}) : null,
     el("div",{class:"row"},
-      el("button",{class:"btn pri",type:"button",text:edSt&&c.status!=="Concluída"?"🖌 Abrir a forma e pintar":"📄 Ver a forma",onclick:()=>abrirConcretagem(c)}),
+      el("button",{class:"btn pri",type:"button",text:edSt&&c.status!=="Concluída"?(m?"🖌 Abrir o mapa e pintar":"🖌 Abrir a forma e pintar"):(m?"🧱 Ver o mapa":"📄 Ver a forma"),onclick:()=>abrirConcretagem(c)}),
       el("button",{class:"btn",type:"button",text:`🚚 Caminhões (${c.cams.length})`,onclick:()=>listaCaminhoes(c)}),
       pode("qual") ? el("button",{class:"btn",type:"button",text:`🧪 Corpos de prova (${regs2De("qual","cp").filter(r=>r.dados.conc===rotConc(c)).length})`,onclick:()=>cpDaConc(c)}) : null,
-      el("button",{class:"btn",type:"button",text:"📄 Relatório",onclick:e=>relatorioConc(c,e.currentTarget)})),
+      el("button",{class:"btn",type:"button",text:m?"📄 Mapa (PDF)":"📄 Relatório",onclick:e=>relatorioConc(c,e.currentTarget)})),
     edSt ? el("div",{class:"pr-bts"}, ...CC_STATUS.map(s=>el("button",{class:"chipbtn"+(c.status===s?" on":""),type:"button",text:s,"aria-pressed":String(c.status===s),
       onclick:()=>{ if(c.status===s) return; if(s==="Concluída" && !confirm("Marcar a concretagem como concluída? Depois disso a pintura fica travada.")) return; setConc(c.id,{status:s},`Status: ${s}`); renderConc(); }}))) : null,
     edSt ? el("button",{class:"linkbtn",type:"button",text:"Editar ou excluir",onclick:()=>editarConc(c)}) : null,
@@ -6471,7 +6542,7 @@ function renderConc(){
   const ed=pode("producao-edit"), L=concs(), ord=c=>CC_STATUS.indexOf(c.status);
   const abertas=L.filter(c=>c.status!=="Concluída").sort((a,b)=>ord(b)-ord(a) || a.data.localeCompare(b.data)), feitas=L.filter(c=>c.status==="Concluída").sort((a,b)=>b.data.localeCompare(a.data));
   repor(box,
-    el("p",{class:"saud"}, "Concreto", el("small",{text:"Concretagens: forma da estrutura, caminhões e área concretada por cada um"})),
+    el("p",{class:"saud"}, "Concreto", el("small",{text:"Concretagens: mapa das paredes ou forma da laje, caminhões e área concretada por cada um"})),
     el("div",{class:"card"}, el("h3",{text:"Levantamento de volumes"}), el("p",{class:"info",text:"Em breve: previsto × executado, quando a planilha de concreto chegar."})),
     ed ? el("button",{class:"btn pri ps-novo",type:"button",text:"+ Nova concretagem",onclick:()=>editarConc(null)}) : null,
     S.cfg?.url ? el("div",{class:"row"}, el("button",{class:"btn",type:"button",text:"Atualizar lista de projetos (PDFs)",onclick:async e=>{
@@ -6487,6 +6558,9 @@ async function relatorioConc(c, btn){
   const txt=btn.textContent; btn.disabled=true; btn.textContent="Gerando…";
   try{
     await buscarTracos(c.id);
+    // paredes: o relatório é o próprio mapa, com as áreas pintadas e a tabela dos caminhões preenchida
+    if(mapaDe(c)){ const doc=await docMapa(c,{pintura:true});
+      return await entregarPdf(doc, `Mapa_concretagem_${c.estrutura.replace(/\W+/g,"_")}_${c.data}.pdf`, `Mapa de concretagem ${c.estrutura}`); }
     const doc=await novoPdf(`Relatório de concretagem — ${nomeObra()}`, `${c.estrutura}${c.local?" · "+c.local:""} · ${dataBR(c.data)} · ${c.status}`,
       `Gerado em ${new Date().toLocaleString("pt-BR")} por ${nomeRel(quemSou())}`), W=210, M=12, AZ=PDF_AZ;
     let y=38;
@@ -6524,6 +6598,273 @@ async function relatorioConc(c, btn){
     await entregarPdf(doc, `Concretagem_${c.estrutura.replace(/\W+/g,"_")}_${c.data}.pdf`, `Concretagem ${c.estrutura}`);
   }catch(e){ toast(e.message||"Não foi possível gerar o relatório."); }
   finally{ btn.disabled=false; btn.textContent=txt; }
+}
+
+// ================= Mapa de concretagem das paredes =================
+// Concretagem só de paredes (lances 1 e 2 e parte do 3): em vez do PDF da forma, o app gera o mapa das paredes, como o
+// "Floculador A — Mapa de Concretagem das Paredes": folha 1 com a planta-chave, os caminhões e as paredes; depois uma elevação
+// com malha de 10 cm para cada parede (falta a partir do topo à esquerda, altura a partir da base à direita). Quem acompanha pinta
+// na elevação, com a cor de cada caminhão, até onde ele chegou (a mesma pintura da forma). Lajes de fundo, de passarela e superior
+// continuam no PDF da forma. Dimensões: LEVANTAMENTO DE CONCRETO.xlsx (comprimento × altura × espessura de cada parede).
+// O mapa vai no campo do PDF da concretagem como "mapa:{...}" (sem coluna nova na planilha), com a lista de paredes junto:
+// se o catálogo mudar depois, a pintura já feita continua no lugar.
+const P_ = (id, c, h, e, x={}) => ({id, c, h, e, ...x});
+const lista_ = (ids, c, h, e, x) => ids.split(",").map(s=>P_("PAR "+s.trim(), c, h, e, x));
+// floculador: 4 câmaras em 2 × 2. b = parede do eixo 1, m = central horizontal, t = eixo 2, r = lateral direita,
+// v = central vertical (2 trechos, passagem de 1,00 × 1,00 m na base de cada um), l = lateral esquerda
+function floculador(letra, cam, [b,m,t,r,v,l]){
+  const H=4.55, E=0.3, P=n=>"PAR "+n, vi=P(v)+" inf.", vs=P(v)+" sup.";
+  const par=[
+    P_(P(b),9.9,H,E,{d:`Parede ${b} — eixo 1 (externa)`, enc:[[0,0.3,P(l)],[4.8,5.1,vi],[9.6,9.9,P(r)]], ld:[`lado ${P(l)}`,`lado ${P(r)}`]}),
+    P_(P(m),9.3,H,E,{d:`Parede ${m} — central horizontal`, enc:[[4.5,4.8,`${P(v)} (sup. e inf.)`]], ld:[`face ${P(l)}`,`face ${P(r)}`]}),
+    P_(P(t),9.9,H,E,{d:`Parede ${t} — eixo 2 (externa)`, enc:[[0,0.3,P(l)],[4.8,5.1,vs],[9.6,9.9,P(r)]], ld:[`lado ${P(l)}`,`lado ${P(r)}`]}),
+    P_(P(r),9.3,H,E,{d:`Parede ${r} — lateral direita (externa)`, enc:[[4.5,4.8,P(m)]], ld:[`lado ${P(b)} (eixo 1)`,`lado ${P(t)} (eixo 2)`]}),
+    P_(vi,4.5,H,E,{d:`Parede ${v} — trecho inferior (entre ${P(b)} e ${P(m)})`, pass:[[0,0,1,1]], ld:[`face ${P(b)}`,`face ${P(m)}`]}),
+    P_(vs,4.5,H,E,{d:`Parede ${v} — trecho superior (entre ${P(m)} e ${P(t)})`, pass:[[0,0,1,1]], ld:[`face ${P(m)}`,`face ${P(t)}`]}),
+    P_(P(l),9.3,H,E,{d:`Parede ${l} — lateral esquerda (externa)`, enc:[[4.5,4.8,P(m)]], ld:[`lado ${P(b)} (eixo 1)`,`lado ${P(t)} (eixo 2)`]})];
+  // planta em metros, origem no canto de baixo à esquerda: [x, y, largura, altura]
+  const planta={W:9.9, H:9.9, r:{[P(b)]:[0,0,9.9,0.3], [P(t)]:[0,9.6,9.9,0.3], [P(l)]:[0,0.3,0.3,9.3], [P(r)]:[9.6,0.3,0.3,9.3],
+    [P(m)]:[0.3,4.8,9.3,0.3], [vi]:[4.8,0.3,0.3,4.5], [vs]:[4.8,5.1,0.3,4.5]}, pass:[[4.8,0.3,0.3,1],[4.8,5.1,0.3,1]], extra:{[P(b)]:"eixo 1",[P(t)]:"eixo 2"}};
+  return {k:"FLOC-"+letra, est:"FLOCULADORES", nome:`Floculador ${letra}`, sub:`câmara ${cam}`, planta, par,
+    nota: letra==="A" ? "" : "Mesmo arranjo do Floculador A: confira no projeto a posição das paredes."};
+}
+const PAREDES_CAT=[
+  floculador("A",1,[1,4,7,10,11,12]), floculador("B",2,[2,5,8,13,14,15]), floculador("C",3,[3,6,9,16,17,18]),
+  {k:"FLOC-CX", est:"FLOCULADORES", nome:"Caixas de manobra de descarga", par:[...lista_("19,20",3.18,2.7,0.25), ...lista_("21,22",1.05,2.7,0.25), P_("PAR 23",2.3,2.7,0.25)]},
+  {k:"DEC", est:"DECANTADORES", nome:"Decantadores", par:[
+    ...lista_("1,1A,1B",11.5,4.9,0.3,{obs:"passagem de entrada 1,45 × 0,80 m (posição no projeto)"}), ...lista_("2,2A,2B",11.5,5.7,0.3,{obs:"passagens 0,60 × 0,60 e 0,50 × 0,50 m (posição no projeto)"}),
+    ...lista_("3,9B",16.6,5.1,0.3), ...lista_("3A,3B,9,9A",16.6,4.9,0.3), ...lista_("6,6A,6B",16.6,4.9,0.3),
+    ...lista_("4,4A,4B,8,8A,8B",18.05,5.1,0.25), ...lista_("5,5A,5B,7,7A,7B",16,5.1,0.25), ...lista_("10,10A,10B",11.5,2.25,0.25),
+    ...lista_("11,12",2.25,1.75,0.25), ...lista_("14,14A,14B,14C,14D,14E",1.75,1.2,0.25), ...lista_("15,16,17,18,19,20",1.65,1.225,0.25)],
+    nota:"PAR 13 (13A a 13E) sem dimensões no levantamento: use + Parede."},
+  {k:"FIL", est:"FILTROS", nome:"Filtros", par:[...lista_("1,2",33.35,5.9,0.3), P_("PAR 3",33.35,3.97,0.3), P_("PAR 4",33.35,5.2,0.3), P_("PAR 5",33.35,1.2,0.25),
+    ...lista_("7,8,9,10,11",7.8,3.98,0.25)], nota:"PAR 6 e PAR 12 sem dimensões no levantamento: use + Parede."},
+  {k:"TC", est:"TANQUE DE CONTATO", nome:"Tanque de contato", par:[...lista_("1,3",15.65,4.5,0.3), P_("PAR 2",13.75,4.5,0.25), ...lista_("4,12",10.05,4.5,0.3),
+    P_("PAR 5",9.8,4.5,0.25,{obs:"4 passagens 1,20 × 1,20 m (posição no projeto)"}), ...lista_("6,8,10,14,15,16",3.9,4.5,0.25), ...lista_("7,9,11",7.8,4.5,0.25),
+    P_("PAR 13",4.9,4.5,0.25,{obs:"2 passagens 1,20 × 0,75 m (posição no projeto)"}), ...lista_("17,18",2,2.5,0.25), ...lista_("19,20",2.7,2.5,0.25)]},
+  {k:"RALF", est:"RESERVATÓRIO DE ÁGUA PARA LAVAGEM DOS FILTROS (RALF)", nome:"Reservatório de água para lavagem dos filtros", par:[...lista_("1,2",18.6,4.95,0.3),
+    ...lista_("3,4",10,4.95,0.3), P_("PAR 5",2.7,2.5,0.25), ...lista_("6,7",2.65,2.5,0.25)]},
+  {k:"EEALF", est:"E. ELEVATÓRIA DE ÁGUA P/ LAVAGEM DOS FILTROS (EEALF)", nome:"Elevatória de água de lavagem dos filtros", par:[...lista_("1,2",10.97,3,0.3), P_("PAR 3",10,3,0.3)]},
+  {k:"RAT", est:"RESERVATÓRIO ÁGUA TRATADA", nome:"Reservatório de água tratada", par:[...lista_("1,2",44.8,5.95,0.3), ...lista_("5,6,7",23.6,5.95,0.3),
+    ...lista_("10,12",4,3.4,0.3), ...lista_("13,16",2.4,3.4,0.3), P_("PAR 11",7.8,2.25,0.3), ...lista_("14,15",3.3,2.25,0.3)]},
+  {k:"EEAT", est:"ESTAÇÃO ELEVATÓRIA DE ÁGUA TRATADA (EEAT)", nome:"Elevatória de água tratada", par:[P_("PAR 3",39.6,6.65,0.3), P_("PAR 4",33.7,3.2,0.3),
+    ...lista_("8,9",9,3.2,0.3), ...["6","7","8"].map(n=>P_(`PAR ${n} (sucção)`,6.65,2.5,0.3))]},
+  {k:"TRV", est:"TANQUE DE REGULARIZAÇÃO DE VAZÃO (TRV) - UTRR", nome:"Tanque de regularização de vazão", par:[...lista_("1,2",26.9,8.15,0.3), ...lista_("3,4",10,8.15,0.3)]},
+  {k:"CLA", est:"CLARIFICADOR - UTRR", nome:"Clarificador", par:[...lista_("1,2,3",5.1,5,0.25), ...lista_("4,5",5.75,5.1,0.25), P_("PAR 6",5.75,1.15,0.2),
+    ...lista_("7,8,9,10",5,0.45,0.2), ...lista_("11,12,15,16",4.4,1,0.2), ...lista_("13,17",1.3,0.5,0.2), ...lista_("14,18",1,0.5,0.2)]},
+  {k:"ADE", est:"ADENSADOR - UTRR", nome:"Adensadores gravitacionais", par:[...lista_("1,2",5.97,0.8,0.3), ...lista_("3,4",31.92,2.27,0.3), ...lista_("5,6",36.13,1,0.25),
+    ...lista_("7,8",1.6,0.9,0.2), ...lista_("9,10",1.6,1.2,0.2)], nota:"Paredes curvas: o comprimento é o desenvolvido."},
+  {k:"TAR", est:"TANQUE DE LODO ADENSADO (TLA) - UTRR / TANQUE DE ÁGUA RECUPERADA (TAR) - UTRR", nome:"TAR e TLA", par:[
+    ...lista_("1,2",5,3.75,0.25,{d:"tanque de água recuperada"}), ...lista_("3,4",6.75,3.75,0.25,{d:"tanque de água recuperada"}),
+    ...lista_("5,6",5,2.5,0.25,{d:"tanque de lodo adensado"}), ...lista_("7,8",6.75,2.5,0.25,{d:"tanque de lodo adensado"})]}];
+const catParedes = k => PAREDES_CAT.find(x=>x.k===k);
+const descPar = p => p.d && /—/.test(p.d) ? p.d : `${p.id.replace(/^PAR /,"Parede ")}${p.d?" — "+p.d:""}`;
+const mapaDe = c => { const s=String(c?.pdfId||""); if(!s.startsWith("mapa:")) return null; try{ return JSON.parse(s.slice(5)); }catch{ return null; } };
+const nf2 = v => (+v||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
+// volume teórico da parede (ou da faixa de altura do lance), sem as passagens desenhadas
+function volPar(p, de, ate){
+  const a=de??0, b=Math.min(ate??p.h, p.h); if(b<=a) return 0;
+  const vaz=(p.pass||[]).reduce((s,[,y,w,h])=>s+w*Math.max(0, Math.min(b,y+h)-Math.max(a,y)),0);
+  return (p.c*(b-a)-vaz)*p.e;
+}
+// folhas do mapa: 1 = resumo; depois uma elevação por parede (duas curtas na mesma folha; parede longa em trechos).
+// Não depende dos caminhões: a pintura fica sempre na mesma folha e no mesmo ponto.
+const MP={W:297, H:210, x0:32, x1:265, y0:40, y1:150};
+const ESCALAS=[20,25,40,50,75,100,125,150,200,250,300,400,500];
+const escalaPara = (c, h, larg, alt) => ESCALAS.find(d=>c*1000/d<=larg && h*1000/d<=alt) || 500;
+function folhasMapa(m){
+  const larg=MP.x1-MP.x0, alt=MP.y1-MP.y0, meia=(larg-26)/2, ps=m.p, fs=[];
+  for(let i=0;i<ps.length;i++){
+    const p=ps[i], q=ps[i+1];
+    if(q){ const d=Math.max(escalaPara(p.c,p.h,meia,alt), escalaPara(q.c,q.h,meia,alt)); if(d<=50){ fs.push({d, ws:[{p,a:0,b:p.c},{p:q,a:0,b:q.c}]}); i++; continue; } }
+    const d=escalaPara(p.c,p.h,larg,alt);
+    if(d<=100){ fs.push({d, ws:[{p,a:0,b:p.c}]}); continue; }
+    // longa demais para caber em 1:100: trechos iguais numa escala que ainda dá para pintar
+    const d2=Math.max(100, ESCALAS.find(x=>p.h*1000/x<=alt)||500), n=Math.ceil(p.c*1000/d2/larg), L=p.c/n;
+    for(let k=0;k<n;k++) fs.push({d:d2, ws:[{p,a:k*L,b:(k+1)*L,tr:[k+1,n]}]});
+  }
+  // posição de cada elevação na folha (mm): a base fica na mesma linha; duas paredes lado a lado
+  for(const f of fs){ const s=1000/f.d, n=f.ws.length, larg1=n>1?meia:larg;
+    f.ws.forEach((w,k)=>{ const bx=MP.x0+k*(meia+26); w.s=s; w.w=(w.b-w.a)*s; w.h=w.p.h*s; w.x=bx+(larg1-w.w)/2; w.y=MP.y1-w.h; }); }
+  return fs;
+}
+// pintura (pontos do PDF, origem embaixo) → mm na folha
+const ptMm = (x,y) => [x*25.4/72, MP.H-y*25.4/72];
+// paredes que cada caminhão pintou: algum ponto do traço dentro da elevação
+function paredesPintadas(c, fs){
+  const r=new Map();
+  for(const t of tracosDe(c.id)){ const f=fs[t.pag-2]; if(!f) continue;
+    for(let i=0;i<t.pts.length;i+=2){ const [x,y]=ptMm(t.pts[i],t.pts[i+1]);
+      for(const w of f.ws) if(x>=w.x-1 && x<=w.x+w.w+1 && y>=w.y-1 && y<=w.y+w.h+1) (r.get(t.cam)||r.set(t.cam,new Set()).get(t.cam)).add(w.p.id); } }
+  return r;
+}
+function desenharPlanta(doc, pl, bx, by, bw, bh, destaque, rotulos){
+  const k=Math.min(bw/pl.W, bh/pl.H), ox=bx+(bw-pl.W*k)/2, oy=by+(bh-pl.H*k)/2, R=([x,y,w,h])=>[ox+x*k, oy+(pl.H-y-h)*k, w*k, h*k];
+  for(const [id,r] of Object.entries(pl.r)){ const [x,y,w,h]=R(r), on=!destaque || destaque.has(id);
+    doc.setFillColor(...(on?[20,20,20]:[205,205,205])); doc.rect(x,y,w,h,"F"); }
+  doc.setLineDashPattern([0.8,0.6],0); doc.setDrawColor(90); doc.setLineWidth(0.15);
+  for(const p of pl.pass||[]){ const [x,y,w,h]=R(p); doc.setFillColor(255,255,255); doc.rect(x,y,w,h,"FD"); }
+  doc.setLineDashPattern([],0);
+  if(!rotulos) return;
+  doc.setFont("helvetica","bold"); doc.setFontSize(8); doc.setTextColor(20);
+  for(const [id,r] of Object.entries(pl.r)){ const [x,y,w,h]=R(r), cx=x+w/2, cy=y+h/2, rot=id.replace(/ (inf|sup)\.$/,"");
+    if(w>=h){ const cima=r[1]+r[3]>=pl.H-0.01, baixo=r[1]<=0.01, ty=cima?y-2.2:baixo?y+h+4:y-1.8, tx=cima||baixo?cx:x+w*0.25;
+      doc.text(rot, tx, ty, {align:"center"});
+      if(pl.extra?.[id]){ doc.setFont("helvetica","normal"); doc.setFontSize(6); doc.text(pl.extra[id], tx, cima?ty-3.2:ty+3, {align:"center"}); doc.setFont("helvetica","bold"); doc.setFontSize(8); } }
+    else { const esq=r[0]<=0.01, dir=r[0]+r[2]>=pl.W-0.01;
+      doc.text(rot, esq?x-2:x+w+2, cy+1, {align:esq?"right":"left"}); }
+  }
+}
+// uma elevação: malha, escalas, encontros com outras paredes, passagens e (opcional) a faixa do lance
+function desenharElevacao(doc, w, m){
+  const {p,a,b,s,x,y}=w, W=w.w, H=w.h, X=v=>x+(v-a)*s, Y=alt=>y+(p.h-alt)*s; // alt = altura a partir da base
+  const passo = 0.1*s>=1.4 ? 0.1 : 0.25*s>=1.4 ? 0.25 : 0.5, ap=v=>Math.abs(v/0.5-Math.round(v/0.5))<1e-6;
+  doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.setTextColor(20);
+  doc.text(descPar(p)+(w.tr?` — trecho ${w.tr[0]} de ${w.tr[1]}`:""), x, y-13);
+  // fora da faixa do lance: cinza claro
+  if(m.de!=null || m.ate!=null){ doc.setFillColor(236,236,236);
+    if((m.de||0)>0) doc.rect(x, Y(Math.min(m.de,p.h)), W, Math.min(m.de,p.h)*s, "F");
+    if(m.ate!=null && m.ate<p.h) doc.rect(x, y, W, (p.h-m.ate)*s, "F"); }
+  // malha referida ao topo: linhas a cada 10 cm (25 ou 50 cm se a escala for pequena), fortes a cada 50 cm
+  doc.setFont("helvetica","normal"); doc.setFontSize(6);
+  for(let f=0, i=0; f<=p.h+1e-6; i++, f=Math.round(i*passo*1000)/1000){
+    const yy=y+f*s, forte=ap(f); doc.setDrawColor(...(forte?[150,150,150]:[222,222,222])); doc.setLineWidth(forte?0.25:0.1); doc.line(x, yy, x+W, yy);
+    // linha forte colada na base (ex.: 4,50 com H = 4,55): o número da base fica no lugar, para não sobrepor
+    if(forte && !(p.h-f>1e-6 && p.h-f<0.15)){ doc.setTextColor(60); doc.text(nf2(f), x-1.5, yy+0.8, {align:"right"}); doc.text(nf2(Math.max(0,p.h-f)), x+W+1.5, yy+0.8); } }
+  // base (fora da malha quando a altura não é múltiplo de 50 cm)
+  if(!ap(p.h)){ doc.setTextColor(60); doc.text(nf2(p.h), x-1.5, y+H+0.8, {align:"right"}); doc.text("0,00", x+W+1.5, y+H+0.8); }
+  // verticais a cada 50 cm (cotas a cada 1, 2 ou 5 m, conforme a escala)
+  const cot = s>=8 ? 1 : s>=4 ? 2 : 5;
+  for(let v=Math.ceil(a*2)/2; v<=b+1e-6; v=Math.round((v+0.5)*1000)/1000){
+    if(v>a+1e-6 && v<b-1e-6){ doc.setDrawColor(210); doc.setLineWidth(0.12); doc.line(X(v), y, X(v), y+H); }
+    if(Math.abs(v/cot-Math.round(v/cot))<1e-6 && v>a+1e-6 && v<b-1e-6){ doc.setTextColor(90); doc.setFontSize(5.5); doc.text(nf2(v), X(v), y+H+3.2, {align:"center"}); } }
+  // passagens: hachura (sem concreto)
+  for(const [px,py,pw,ph] of p.pass||[]){
+    const x0=Math.max(a,px), x1=Math.min(b,px+pw); if(x1<=x0) continue;
+    const rx=X(x0), ry=Y(py+ph), rw=(x1-x0)*s, rh=ph*s;
+    doc.setFillColor(255,255,255); doc.rect(rx,ry,rw,rh,"F"); doc.setDrawColor(170); doc.setLineWidth(0.12);
+    for(let t=-rh; t<rw; t+=1.6){ const ax=Math.max(0,t), bx=Math.min(rw,t+rh); if(bx>ax) doc.line(rx+ax, ry+rh-(ax-t), rx+bx, ry+rh-(bx-t)); }
+    doc.setDrawColor(20); doc.setLineWidth(0.3); doc.rect(rx,ry,rw,rh);
+    doc.setTextColor(40); doc.setFontSize(5.5); doc.text("PASSAGEM", rx+rw/2, ry+rh/2+0.8, {align:"center"}); doc.text(`${nf2(pw)}×${nf2(ph)}`, rx+rw/2, ry-1, {align:"center"}); }
+  // encontros com outras paredes: tracejado nas faces
+  doc.setLineDashPattern([1.4,0.9],0); doc.setDrawColor(40); doc.setLineWidth(0.2); doc.setFontSize(6); doc.setTextColor(30);
+  for(const [ea,eb,rot] of p.enc||[]){
+    for(const v of [ea,eb]) if(v>a+1e-6 && v<b-1e-6 && v>0 && v<p.c) doc.line(X(v), y-1, X(v), y+H);
+    const mid=Math.min(b,Math.max(a,(ea+eb)/2)); if(mid>=a && mid<=b) doc.text(rot, X(mid), y-2, {align:"center"}); }
+  doc.setLineDashPattern([],0);
+  // faixa do lance
+  if(m.de!=null || m.ate!=null){ doc.setDrawColor(31,58,95); doc.setLineWidth(0.45);
+    for(const v of [m.de, m.ate]) if(v!=null && v>0 && v<p.h) doc.line(x-3, Y(v), x+W+3, Y(v));
+    doc.setFontSize(6); doc.setTextColor(31,58,95); doc.text(`lance: ${nf2(m.de||0)} a ${nf2(Math.min(m.ate??p.h,p.h))} m`, x+W, y-5.5, {align:"right"}); }
+  // contorno, rótulos das escalas e cotas
+  doc.setDrawColor(20); doc.setLineWidth(0.5); doc.rect(x, y, W, H);
+  doc.setFontSize(5.5); doc.setTextColor(60); doc.text("FALTA (m)", x-1.5, y-5.5, {align:"right"}); doc.text("ALTURA (m)", x+W+1.5, y-5.5);
+  doc.setFontSize(6.5); doc.setTextColor(30); doc.text(`H = ${nf2(p.h)} m`, x-13, y+H/2, {angle:90, align:"center"});
+  const yc=y+H+7; doc.setLineWidth(0.2); doc.line(x, yc, x+W, yc); doc.line(x, yc-1.2, x, yc+1.2); doc.line(x+W, yc-1.2, x+W, yc+1.2);
+  const cota=w.tr ? `${nf2(b-a)} m (de ${nf2(a)} a ${nf2(b)} m · parede com ${nf2(p.c)} m)` : `${nf2(p.c)} m`;
+  doc.setFontSize(7); const tw=doc.getTextWidth(cota)+3; doc.setFillColor(255,255,255); doc.rect(x+W/2-tw/2, yc-2, tw, 4, "F"); doc.text(cota, x+W/2, yc+1, {align:"center"});
+  if(p.ld){ doc.setFontSize(5.5); doc.setTextColor(80); doc.text(`« ${p.ld[0]}`, x, yc+4.5); doc.text(`${p.ld[1]} »`, x+W, yc+4.5, {align:"right"}); }
+}
+function cabecalhoMapa(doc, c, titulo, sub){
+  doc.setTextColor(20); doc.setFont("helvetica","bold"); doc.setFontSize(titulo.length>40?13:16); doc.text(titulo, 12, 15);
+  const tw=doc.getTextWidth(titulo); doc.setFont("helvetica","normal"); doc.setFontSize(9); doc.setTextColor(80);
+  if(sub){ const lim=192-(12+tw+3); let t=sub; while(t.length>4 && doc.getTextWidth(t)>lim) t=t.slice(0,-2); if(t!==sub) t=t.replace(/\s*\S*$/,"")+"…"; doc.text(t, 12+tw+3, 15); }
+  doc.setFontSize(8.5); doc.setTextColor(30); doc.text("Data da concretagem:", 232, 9, {align:"right"}); doc.text("Responsável:", 232, 15, {align:"right"});
+  doc.setDrawColor(40); doc.setLineWidth(0.25); doc.line(233, 9.6, 285, 9.6); doc.line(233, 15.6, 285, 15.6);
+  doc.setFont("helvetica","bold"); doc.text(dataBR(c.data), 235, 8.6);
+  doc.setLineWidth(0.6); doc.line(12, 19, 285, 19); doc.setFont("helvetica","normal");
+}
+// gera o mapa (jsPDF). pintura: desenha por cima as áreas pintadas no app, com a cor de cada caminhão
+async function docMapa(c, {pintura=false}={}){
+  const m=mapaDe(c); if(!m) throw new Error("Esta concretagem não tem mapa de paredes.");
+  await carregarJsPdf();
+  const {jsPDF}=window.jspdf, doc=new jsPDF({unit:"mm",format:"a4",orientation:"landscape"}), fs=folhasMapa(m), cat=catParedes(m.k), pl=cat?.planta;
+  const folhaDe=new Map(); fs.forEach((f,i)=>f.ws.forEach(w=>{ if(!folhaDe.has(w.p.id)) folhaDe.set(w.p.id, i+2); }));
+  const atend=paredesPintadas(c, fs), cams=c.cams||[], resto=[];
+  const cps=n=>regs2De("qual","cp").filter(r=>r.dados.conc===rotConc(c) && new RegExp(`^C${n}\\b`).test(String(r.dados.cam||""))).reduce((s,r)=>s+(+r.dados.qtd||0),0);
+  // ---- folha 1: planta-chave, caminhões e paredes (sempre uma folha só: o que não cabe vai para o fim) ----
+  cabecalhoMapa(doc, c, `${m.nome} — Mapa de Concretagem das Paredes`, `${c.local||c.estrutura}`);
+  const tx = pl ? 128 : 12, tw=285-tx;
+  if(pl){ desenharPlanta(doc, pl, 22, 32, 92, 92, null, true);
+    doc.setFontSize(6.5); doc.setTextColor(90); doc.text(doc.splitTextToSize("Planta-chave (sem escala)"+(pl.pass?.length?" · tracejado = passagens na base":""), 100), 14, 135); }
+  doc.setFont("helvetica","bold"); doc.setFontSize(10); doc.setTextColor(20); doc.text("Caminhões betoneira", tx, 28);
+  const MAXC=9, linhasC=(cams.length?cams:[1,2,3,4,5].map(n=>({n, vazio:true}))).map((k,i)=>k.vazio ? [`${i+1}º`,"","","","","","","",""] :
+    [`${i+1}º`, k.nf||`C${k.n}`, k.inicio||"", k.fim||"", k.vol?nf1.format(+k.vol):"", k.slump!==""&&k.slump!=null?String(k.slump).replace(".",","):"", cps(k.n)||"", [...(atend.get(k.n)||[])].join(", "), ""]);
+  const corDe=i=>cams[i]?.cor;
+  const tabC=(rows, startY, extra={})=>doc.autoTable({startY, margin:{left:tx,right:12}, tableWidth:tw, theme:"grid",
+    head:[["Ordem","Caminhão","Início","Fim","Volume (m³)","Slump (cm)","Nº CPs","Paredes atendidas","Cor"]], body:rows,
+    styles:{fontSize:7.5, cellPadding:1.4, halign:"center", valign:"middle", textColor:20, lineColor:120, lineWidth:0.15, minCellHeight:7},
+    headStyles:{fillColor:[235,235,235], textColor:20, fontStyle:"bold"}, columnStyles:{1:{fontStyle:"bold"},7:{cellWidth:34},8:{cellWidth:14}},
+    didParseCell:d=>{ if(d.section==="body" && d.column.index===8){ const cor=corDe(d.row.index+(extra.off||0)); if(cor) d.cell.styles.fillColor=hexRgb(cor); } }});
+  tabC(linhasC.slice(0,MAXC), 30); if(linhasC.length>MAXC) resto.push(["c", linhasC.slice(MAXC), MAXC]);
+  let y=doc.lastAutoTable.finalY+7;
+  doc.setFont("helvetica","bold"); doc.setFontSize(10); doc.text("Paredes concretadas", tx, y);
+  const fx=m.de!=null||m.ate!=null, linhasP=m.p.map(p=>[p.id, nf2(p.c), nf2(p.h), nf2(p.e), nf2(volPar(p,m.de,m.ate)), String(folhaDe.get(p.id)||"")]);
+  const total=m.p.reduce((s,p)=>s+volPar(p,m.de,m.ate),0), cabeP=Math.max(1, Math.floor((196-y-14)/5.2)), visP=linhasP.length>cabeP ? linhasP.slice(0,cabeP-1) : linhasP;
+  if(visP.length<linhasP.length){ visP.push([`… mais ${linhasP.length-visP.length} paredes na última folha`,"","","","",""]); resto.push(["p", linhasP]); }
+  doc.autoTable({startY:y+2, margin:{left:tx,right:12}, tableWidth:tw, theme:"grid",
+    head:[["Parede","Comprimento (m)","Altura (m)","Espessura (m)",fx?"Volume do lance (m³)":"Volume teórico (m³)","Folha"]], body:visP,
+    foot:[[{content:"Total",colSpan:4,styles:{halign:"right"}}, nf2(total), ""]],
+    styles:{fontSize:7.5, cellPadding:1.1, halign:"center", textColor:20, lineColor:120, lineWidth:0.15}, headStyles:{fillColor:[235,235,235], textColor:20, fontStyle:"bold"},
+    footStyles:{fillColor:[235,235,235], textColor:20, fontStyle:"bold"}});
+  // observações (só o que couber na folha 1)
+  y=doc.lastAutoTable.finalY+5;
+  const notas=[cat?`Dimensões do levantamento de concreto (comprimento × altura × espessura)${pl?"; planta e encontros conforme o mapa do Floculador A":""}.`:"Paredes cadastradas na concretagem.",
+    fx?`Lance: de ${nf2(m.de||0)} m a ${m.ate!=null?nf2(m.ate)+" m":"o topo"} a partir da base (fora da faixa aparece em cinza nas elevações).`:"",
+    cat?.nota||"", ...m.p.filter(p=>p.obs).map(p=>`${p.id}: ${p.obs}.`), "Volume teórico sem as passagens desenhadas; confira o volume real pelas notas fiscais."].filter(Boolean);
+  doc.setFont("helvetica","normal"); doc.setFontSize(7); doc.setTextColor(50);
+  for(const n of notas){ const ls=doc.splitTextToSize("• "+n, tw); if(y+ls.length*3.2>203) break; doc.text(ls, tx, y); y+=ls.length*3.2+0.8; }
+  // ---- uma folha por elevação ----
+  for(const f of fs){
+    doc.addPage("a4","landscape");
+    const ids=f.ws.map(w=>w.p.id), tit=f.ws.length>1 && ids[0].replace(/ (inf|sup)\.$/,"")===ids[1].replace(/ (inf|sup)\.$/,"") ? ids[0].replace(/ (inf|sup)\.$/,"") : ids.join(" · ");
+    cabecalhoMapa(doc, c, tit, f.ws.length>1 ? (tit===ids.join(" · ") ? m.nome : `${descPar({id:tit})} (2 trechos) · ${m.nome}`) : `${descPar(f.ws[0].p)} · ${m.nome}`);
+    for(const w of f.ws) desenharElevacao(doc, w, m);
+    // rodapé da folha: planta com a parede destacada, caminhões com as cores e a legenda
+    if(pl) desenharPlanta(doc, pl, 12, 165, 34, 34, new Set(ids), false);
+    const lx=pl?52:12; doc.setFont("helvetica","bold"); doc.setFontSize(8); doc.setTextColor(20); doc.text("Caminhões:", lx, 180);
+    const ks=cams.length ? cams.slice(0,10) : [1,2,3,4,5].map(n=>({n, vazio:true}));
+    ks.forEach((k,i)=>{ const bx=lx+20+i*23; doc.setFont("helvetica","normal"); doc.setFontSize(6.5);
+      doc.text(k.vazio?`${i+1}º`:`${i+1}º ${k.nf||"C"+k.n}`.slice(0,12), bx, 180, {maxWidth:12});
+      if(!k.vazio && k.cor){ doc.setFillColor(...hexRgb(k.cor)); doc.rect(bx+12.5, 176.5, 8, 5, "F"); }
+      doc.setDrawColor(40); doc.setLineWidth(0.25); doc.rect(bx+12.5, 176.5, 8, 5); });
+    const p0=f.ws[0].p, passo=0.1*f.ws[0].s>=1.4?10:0.25*f.ws[0].s>=1.4?25:50;
+    const leg=`Elevação esc. 1:${f.d} · H = ${nf2(p0.h)} m · e = ${nf2(p0.e)} m · volume teórico: ${nf2(f.ws.reduce((s,w)=>s+volPar(w.p,m.de,m.ate),0))} m³`
+      +`${(f.ws.some(w=>w.p.pass?.length))?" · passagem hachurada = sem concreto":""} · Malha: linhas a cada ${passo} cm (fortes a cada 50 cm), referidas ao topo — escala da esquerda = falta, da direita = altura a partir da base.`
+      +`${f.ws.some(w=>w.p.enc?.length)?" Tracejado = encontro com outra parede.":""}`;
+    doc.setFontSize(6.5); doc.setTextColor(60); doc.text(doc.splitTextToSize(leg, 285-lx-20), lx, 190);
+  }
+  // ---- o que não coube na folha 1 (no fim, para não mudar a folha das elevações) ----
+  for(const [t, rows, off] of resto){
+    doc.addPage("a4","landscape"); cabecalhoMapa(doc, c, m.nome, t==="c" ? "Caminhões (continuação)" : "Paredes concretadas (lista completa)");
+    if(t==="c") { const cor=corDe; doc.autoTable({startY:24, margin:{left:12,right:12}, theme:"grid", head:[["Ordem","Caminhão","Início","Fim","Volume (m³)","Slump (cm)","Nº CPs","Paredes atendidas","Cor"]], body:rows,
+      styles:{fontSize:7.5, cellPadding:1.4, halign:"center", textColor:20, lineColor:120, lineWidth:0.15}, headStyles:{fillColor:[235,235,235], textColor:20},
+      didParseCell:d=>{ if(d.section==="body" && d.column.index===8){ const x=cor(d.row.index+off); if(x) d.cell.styles.fillColor=hexRgb(x); } }}); }
+    else doc.autoTable({startY:24, margin:{left:12,right:12}, theme:"grid", head:[["Parede","Comprimento (m)","Altura (m)","Espessura (m)",fx?"Volume do lance (m³)":"Volume teórico (m³)","Folha"]], body:rows,
+      foot:[[{content:"Total",colSpan:4,styles:{halign:"right"}}, nf2(total), ""]], styles:{fontSize:7.5, cellPadding:1.2, halign:"center", textColor:20, lineColor:120, lineWidth:0.15},
+      headStyles:{fillColor:[235,235,235], textColor:20}, footStyles:{fillColor:[235,235,235], textColor:20, fontStyle:"bold"}});
+  }
+  // ---- áreas pintadas no app, com a cor de cada caminhão (relatório) ----
+  if(pintura){
+    const porFolha=new Map(); for(const t of tracosDe(c.id)) if(t.pag>=2 && t.pag<=fs.length+1) (porFolha.get(t.pag)||porFolha.set(t.pag,[]).get(t.pag)).push(t);
+    for(const [pag, ts] of porFolha){ doc.setPage(pag);
+      const grupos=new Map(); for(const t of ts) (grupos.get(t.cam)||grupos.set(t.cam,[]).get(t.cam)).push(t);
+      for(const [cam, lista] of grupos){ const cor=hexRgb(cams.find(k=>k.n===cam)?.cor||"#888888"); let sx=0, sy=0, n=0;
+        doc.saveGraphicsState(); doc.setGState(new doc.GState({"stroke-opacity":0.5, opacity:0.5})); doc.setDrawColor(...cor); doc.setLineCap("round"); doc.setLineJoin("round");
+        for(const t of lista){ const ps=[]; for(let i=0;i<t.pts.length;i+=2){ const q=ptMm(t.pts[i],t.pts[i+1]); ps.push(q); sx+=q[0]; sy+=q[1]; n++; }
+          doc.setLineWidth(Math.max(0.3, t.w*25.4/72));
+          if(ps.length===1) ps.push([ps[0][0]+0.01, ps[0][1]]);
+          doc.lines(ps.slice(1).map((q,i)=>[q[0]-ps[i][0], q[1]-ps[i][1]]), ps[0][0], ps[0][1], [1,1], "S"); }
+        doc.restoreGraphicsState();
+        if(n){ const lx=sx/n, ly=sy/n; doc.setFont("helvetica","bold"); doc.setFontSize(9); const tw2=doc.getTextWidth("C"+cam)+2;
+          doc.setFillColor(255,255,255); doc.roundedRect(lx-tw2/2, ly-3, tw2, 4.4, 0.8, 0.8, "F"); doc.setTextColor(...cor); doc.text("C"+cam, lx, ly+0.4, {align:"center"}); }
+      }
+    }
+  }
+  const n=doc.getNumberOfPages();
+  for(let p=1;p<=n;p++){ doc.setPage(p); doc.setFont("helvetica","normal"); doc.setFontSize(6.5); doc.setTextColor(120);
+    doc.text(`${nomeObra()} · WIGO · folha ${p} de ${n}`, 285, 206, {align:"right"}); }
+  return doc;
 }
 
 // ================= Módulos novos: motor genérico de registros (aba Registros2) =================

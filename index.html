@@ -1861,7 +1861,7 @@ $("#tema").addEventListener("click", e=>{ const b=e.target.closest("button[data-
   renderTema(); });
 renderTema();
 
-const VERSAO_APP = "v82"; // igual ao número em sw.js (armacao-v82)
+const VERSAO_APP = "v83"; // igual ao número em sw.js (armacao-v83)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -4143,21 +4143,73 @@ async function pdfConf(n, btn){
 }
 
 // --- Pedido de aço: o que falta pedir de cada estrutura, dividido em caminhões ---
-// barras já pedidas de cada posição: remessas 1 e 2 pela coluna PEDIDO da planilha, 3 e 4 pelos romaneios, as demais pelos pedidos do app
+// barras já pedidas de cada posição: o que veio em cada romaneio (OS ligadas às posições, abaixo) e os pedidos do app.
+// Sem a lista de OS carregada (romaneios-os.json), usa a coluna PEDIDO (remessas 1 e 2) e a lista ITENS_REMESSA (3 a 5).
 // devolve Map código -> barras pedidas; .origem = Map código -> remessas em que a posição apareceu
 function barrasPedidas(){
   const m=new Map(), origem=new Map();
   const add=(c,q,n)=>{ const i=S.byCode.get(c); if(!i || !(q>0)) return; m.set(c, Math.min(i.qp, (m.get(c)||0)+q));
     (origem.get(c)||origem.set(c,new Set()).get(c)).add(n); };
-  for(const i of S.items) if(i.ped==="1"||i.ped==="2") add(i.c, i.qp, Number(i.ped));
-  for(const [n,txt] of Object.entries(ITENS_REMESSA)) for(const s of txt.split(" ")){ const [c,q]=s.split(":"); add(c, q ? Number(q) : (S.byCode.get(c)?.qp||0), Number(n)); }
+  const lig=ligarRomaneios();
+  if(lig) for(const x of ROMANEIOS) for(const [c,q] of lig.get(x.n)||[]) add(c, q, x.rem);
+  else {
+    for(const i of S.items) if(i.ped==="1"||i.ped==="2") add(i.c, i.qp, Number(i.ped));
+    for(const [n,txt] of Object.entries(ITENS_REMESSA)) for(const s of txt.split(" ")){ const [c,q]=s.split(":"); add(c, q ? Number(q) : (S.byCode.get(c)?.qp||0), Number(n)); }
+  }
   for(const p of pedidosApp()) for(const [c,q] of Object.entries(p.itens)) add(c, Number(q)||0, p.n);
   m.origem=origem; return m;
 }
+// ---------- romaneio → posições da base ----------
+// Cada OS de cada romaneio (romaneios-os.json, lido dos PDFs) é ligada às posições da base: folha + posição + bitola +
+// comprimento (±3 cm); o que sobrar, sem a folha; e depois sem o comprimento (revisão do projeto). Peças emendadas contam
+// como uma barra com o comprimento somado ("17" + "17.1", "N1" + "N1.1", "1" + "1."). As estruturas de cada remessa vêm
+// das posições listadas para ela. Barras iguais (mesma posição, bitola e comprimento) são intercambiáveis na obra.
+// Conferido em 14/10/2026 com os 19 PDFs: 16 romaneios ligam 100%; o resto são OS de revisões que não estão na base.
+// Barra longa (traspasse) vem cortada em várias peças: "13" com 396 peças de 12 m e "13.1" com 132 de 6,5 m são 132 barras
+// de (396×12 + 132×6,5) ÷ 132 = 42,5 m. Número de barras = a menor quantidade entre as peças; comprimento = soma ÷ barras.
+function osJuntas(oss){
+  const out=[], base=p=>String(p).replace(/\.\d*$/,"");
+  for(let k=0;k<oss.length;k++){
+    const o=oss[k], b=base(o[2]); let j=k+1;
+    while(j<oss.length && base(oss[j][2])===b && String(oss[j][2])!==String(o[2]) && +oss[j][3]===+o[3]) j++;
+    const pecas=oss.slice(k,j), n=Math.min(...pecas.map(x=>+x[4])), comp=pecas.reduce((s,x)=>s+(+x[4])*(+x[5]),0)/n;
+    const p=b.toUpperCase(), fl=/^\d+\/\d+$/.test(String(o[1])) ? +String(o[1]).split("/")[0] : null;
+    out.push({pos:p.startsWith("N")?p:"N"+p, bit:+o[3], q:n, comp, fl}); k=j-1;
+  }
+  return out;
+}
+let LIG={items:null, lista:null, res:null};
+function ligarRomaneios(){
+  if(!CF.lista || !S.items.length) return null;
+  if(LIG.items===S.items && LIG.lista===CF.lista) return LIG.res;
+  // estruturas de cada remessa: as das posições que a planilha (PEDIDO) e a lista ITENS_REMESSA dão para ela
+  const ests=new Map(), addE=(n,c)=>{ const i=S.byCode.get(c); if(i) (ests.get(n)||ests.set(n,new Set()).get(n)).add(i.est); };
+  for(const i of S.items) if(i.ped==="1"||i.ped==="2") addE(Number(i.ped), i.c);
+  for(const [n,txt] of Object.entries(ITENS_REMESSA)) for(const s of txt.split(" ")) addE(Number(n), s.split(":")[0]);
+  const usado=new Map(), res=new Map(); res.semPar=new Map(); // semPar: romaneio → OS que não acharam posição na base
+  for(const x of ROMANEIOS){
+    const cand=S.items.filter(i=>ests.get(x.rem)?.has(i.est)), m=new Map(), sp=[];
+    for(const [el,oss] of CF.lista[x.n]||[]) for(const o of osJuntas(oss)){
+      let q=o.q;
+      // tolerância do comprimento: 3 cm; na última tentativa, até 15% (revisão do projeto mudou a barra um pouco).
+      // Sem limite nenhum, barra curta do romaneio casava com posição de barra longa e o peso em obra ficava inflado.
+      for(const [usaFl,tol] of [[true,3],[false,3],[true,0.15]]){
+        for(const i of cand){ if(q<=0) break;
+          const r=i.qp-(usado.get(i.c)||0); if(r<=0 || posNorm(i.pos)!==o.pos || +i.bit!==o.bit) continue;
+          if(usaFl && o.fl && folhaDe(i.pr)!==o.fl) continue;
+          if(Math.abs(i.cu*100-o.comp) > (tol<1 ? Math.max(3, o.comp*tol) : tol)) continue;
+          const a=Math.min(q,r); usado.set(i.c,(usado.get(i.c)||0)+a); m.set(i.c,(m.get(i.c)||0)+a); q-=a; }
+        if(q<=0) break;
+      }
+      if(q>0) sp.push({el, pos:o.pos, bit:o.bit, q, comp:Math.round(o.comp)});
+    }
+    res.set(x.n, m); res.semPar.set(x.n, sp);
+  }
+  LIG={items:S.items, lista:CF.lista, res}; return res;
+}
 // ---------- aço em obra: barras que já chegaram, pelos romaneios com chegada confirmada (Suprimentos › Aço) ----------
-// Remessa recebida inteira: todas as barras pedidas nela. Remessa parcial: as OS dos romaneios que chegaram são ligadas às
-// posições da remessa por posição + bitola + comprimento (peças emendadas "1" + "1." somadas); sem par no comprimento
-// (revisão do projeto), por posição + bitola. Remessa ainda não recebida: nada em obra.
+// Romaneio com chegada confirmada (sozinho ou pela remessa inteira): as barras ligadas às OS dele. Pedido feito no app
+// (sem romaneio): as barras do pedido, quando a chegada é confirmada. Sem a lista de OS, usa as listas da remessa.
 function pedidasPorRemessa(){
   const m=new Map(), add=(n,c,q)=>{ if(!(q>0) || !S.byCode.has(c)) return; const r=m.get(n)||m.set(n,new Map()).get(n); r.set(c,(r.get(c)||0)+q); };
   for(const i of S.items) if(i.ped==="1"||i.ped==="2") add(Number(i.ped), i.c, i.qp);
@@ -4165,26 +4217,13 @@ function pedidasPorRemessa(){
   for(const p of pedidosApp()) for(const [c,q] of Object.entries(p.itens)) add(p.n, c, Number(q)||0);
   return m;
 }
-// OS do romaneio com as peças emendadas juntas: [posição "N1", bitola, barras, comprimento em cm]
-function osJuntas(oss){
-  const out=[];
-  for(let k=0;k<oss.length;k++){ const o=oss[k], prox=oss[k+1]; let comp=+o[5];
-    if(prox && String(prox[2])===String(o[2])+"." && +prox[4]===+o[4]){ comp+=+prox[5]; k++; }
-    out.push(["N"+String(o[2]).replace(/\.$/,""), +o[3], +o[4], comp]); }
-  return out;
-}
 const barrasNaObra = () => memoEf("naObra", ()=>{
-  const out=new Map(), porRem=pedidasPorRemessa();
+  const out=new Map(), lig=ligarRomaneios(), porRem=lig ? null : pedidasPorRemessa();
   const soma=(c,q)=>{ const i=S.byCode.get(c); if(i && q>0) out.set(c, Math.min(i.qp,(out.get(c)||0)+q)); };
   for(const R of remessas()){
-    const cods=porRem.get(R.n); if(!cods) continue;
-    if(R.rec){ for(const [c,q] of cods) soma(c,q); continue; }
-    if(!R.nRomRec || !CF.lista) continue;
-    const resto=new Map(cods);
-    const alocar=(o, comComp)=>{ for(const [c,rq] of resto){ if(!(rq>0) || !(o[2]>0)) continue; const i=S.byCode.get(c);
-      if(posNorm(i.pos)!==o[0] || +i.bit!==o[1] || (comComp && Math.abs(i.cu*100-o[3])>3)) continue;
-      const n=Math.min(o[2],rq); soma(c,n); resto.set(c,rq-n); o[2]-=n; } };
-    for(const x of R.roms.filter(x=>x.rec)) for(const [,oss] of CF.lista[x.n]||[]) for(const o of osJuntas(oss)){ alocar(o,true); alocar(o,false); }
+    if(R.app){ if(R.rec) for(const [c,q] of Object.entries(pedidosApp().find(p=>p.n===R.n)?.itens||{})) soma(c, Number(q)||0); continue; }
+    if(lig){ for(const x of R.roms) if(x.rec) for(const [c,q] of lig.get(x.n)||[]) soma(c,q); continue; }
+    if(R.rec) for(const [c,q] of porRem.get(R.n)||[]) soma(c,q); // lista de OS ainda não carregada
   }
   return out;
 });
@@ -7607,8 +7646,8 @@ function renderRelatorios(box){
   const cached=LS.get("base"); if(cached?.itens) setBase(cached.meta, cached.itens);
   lerLinkCfg();
   afterData(); renderData(); show(LS.get("aba")||"coleta");
-  // OS dos romaneios: a etiqueta "Em obra" de uma remessa que chegou só em parte depende delas
-  carregarOsRom().then(()=>{ if(S.items.length && remessas().some(R=>!R.rec && R.nRomRec)) renderLista(); }).catch(()=>{});
+  // OS dos romaneios: "Em obra" e "já pedido" vêm da ligação de cada OS às posições da base
+  carregarOsRom().then(()=>{ if(S.items.length) renderLista(); }).catch(()=>{});
   if(S.cfg?.url){ sync(); carregarProjetos().catch(()=>{}); }
   if("serviceWorker" in navigator){
     // quando chega uma versão nova do app, recarrega uma vez para já usá-la

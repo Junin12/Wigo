@@ -742,6 +742,8 @@ canvas.qr{display:block;width:min(260px,100%);height:auto;image-rendering:pixela
           <select id="f-emp" aria-label="Empreendimento"></select>
           <select id="f-pr" aria-label="Prancha"></select>
           <select id="f-loc" aria-label="Local ou elemento"></select>
+          <select id="f-obra" aria-label="Aço em obra"><option value="">Aço: em obra ou não</option><option value="tudo">Aço em obra (100%)</option>
+            <option value="parte">Aço chegou em parte</option><option value="nao">Aço não chegou</option></select>
           <label class="chk"><input type="checkbox" id="f-pend"> Esconder concluídas</label>
           <div class="modo" role="group" aria-label="Unidade do lançamento"><span class="info">Lançar em</span>
             <button class="chipbtn" type="button" data-m="pct">% da posição</button><button class="chipbtn" type="button" data-m="bar">barras</button></div>
@@ -1428,7 +1430,10 @@ function renderResumo(){
 }
 
 // ---------- coleta ----------
-const F = Object.assign({emp:"",est:"",pr:"",loc:"",q:"",pend:false}, LS.get("filtros")||{});
+const F = Object.assign({emp:"",est:"",pr:"",loc:"",q:"",pend:false,obra:""}, LS.get("filtros")||{});
+// filtro "aço em obra": tudo = chegou 100%, parte = chegou em parte, nao = não chegou
+const situacaoObra = i => { const ch=barrasNaObra().get(i.c)||0; return ch>0 && ch>=i.qp*0.999 ? "tudo" : ch>0 ? "parte" : "nao"; };
+const ROT_OBRA={tudo:"aço em obra", parte:"aço chegou em parte", nao:"aço não chegou"};
 function opts(sel, values, allLabel, val){
   sel.replaceChildren(el("option",{value:"",text:allLabel}), ...values.map(v=>el("option",{value:v,text:v})));
   sel.value = values.includes(val) ? val : "";
@@ -1443,10 +1448,10 @@ function renderFiltros(){
   F.pr = opts($("#f-pr"), uniq(b.map(i=>i.pr)), "Todas as pranchas", F.pr);
   const c = b.filter(i=>!F.pr||i.pr===F.pr);
   F.loc = opts($("#f-loc"), uniq(c.map(i=>i.loc).filter(Boolean)), "Todos os locais / elementos", F.loc);
-  $("#f-busca").value=F.q; $("#f-pend").checked=F.pend;
+  $("#f-busca").value=F.q; $("#f-pend").checked=F.pend; $("#f-obra").value=F.obra||"";
   // um empreendimento só: não precisa do filtro
   $("#f-emp").hidden = $("#f-emp").options.length<=2 && !F.emp;
-  const nMais=[F.emp,F.pr,F.loc,F.pend].filter(Boolean).length;
+  const nMais=[F.emp,F.pr,F.loc,F.pend,F.obra].filter(Boolean).length;
   $("#f-mais-tit").textContent = "Mais filtros" + (nMais ? ` (${nMais})` : "") + ` · lançar em ${S.modo==="bar"?"barras":"%"}`;
   if(nMais) $("#f-mais").open=true;
   const eqs=eqAtivas(), s=$("#f-eq");
@@ -1458,13 +1463,14 @@ function filtered(){
   const q=F.q.trim().toLowerCase();
   return S.items.filter(i=> (!F.emp||i.emp===F.emp) && (!F.est||i.est===F.est) && (!F.pr||i.pr===F.pr) && (!F.loc||i.loc===F.loc)
     && (!F.pend || (S.acum.get(i.c)||0) < i.qp)
+    && (!F.obra || situacaoObra(i)===F.obra)
     && (!q || [i.pos,i.c,i.loc,i.pr,i.it,i.tp,String(i.bit)].some(x=>String(x).toLowerCase().includes(q))));
 }
 function onFiltro(){
-  F.emp=$("#f-emp").value; F.est=$("#f-est").value; F.pr=$("#f-pr").value; F.loc=$("#f-loc").value; F.q=$("#f-busca").value; F.pend=$("#f-pend").checked;
+  F.emp=$("#f-emp").value; F.est=$("#f-est").value; F.pr=$("#f-pr").value; F.loc=$("#f-loc").value; F.q=$("#f-busca").value; F.pend=$("#f-pend").checked; F.obra=$("#f-obra").value;
   LS.set("filtros",F); S.limit=60; renderFiltros(); renderLista();
 }
-["#f-emp","#f-est","#f-pr","#f-loc","#f-pend"].forEach(s=>$(s).addEventListener("change",onFiltro));
+["#f-emp","#f-est","#f-pr","#f-loc","#f-pend","#f-obra"].forEach(s=>$(s).addEventListener("change",onFiltro));
 let buscaT; $("#f-busca").addEventListener("input",()=>{ clearTimeout(buscaT); buscaT=setTimeout(onFiltro,250); });
 $("#mais").addEventListener("click",()=>{ S.limit+=60; renderLista(); });
 
@@ -1483,7 +1489,7 @@ renderModo();
 function buildRow(i){
   const inp = el("input",{type:"text",inputMode:"decimal",autocomplete:"off",id:"q-"+i.c});
   const card = el("article",{class:"item","data-c":i.c},
-    el("div",{class:"i-top"}, el("span",{class:"pos",text:i.pos}), el("span",{class:"bit",text:bitLabel(i.bit)}), el("span",{class:"loc",text:i.loc}), el("span",{class:"chip"})),
+    el("div",{class:"i-top"}, el("span",{class:"pos",text:i.pos}), el("span",{class:"bit",text:bitLabel(i.bit)}), el("span",{class:"loc",text:i.loc}), el("span",{class:"chip obra"}), el("span",{class:"chip st"})),
     el("div",{class:"i-sub",text:`${i.est} · ${i.pr.replace(/^.*?-DE-/,"DE-")} · item ${i.it} · ${i.tp} · ${i.c}`,title:i.pr}),
     el("div",{class:"i-prog"}, el("div",{class:"bar"},el("i")), el("span",{class:"acc"})),
     el("div",{class:"i-in"},
@@ -1498,7 +1504,9 @@ function buildRow(i){
 function fillRow(card,i){
   const {wq,ac,max}=rowNums(i), [st,cls]=statusOf(ac,i.qp);
   card.classList.toggle("done", ac>=i.qp && i.qp>0);
-  const chip=card.querySelector(".chip"); chip.textContent=st; chip.className="chip "+cls;
+  const chip=card.querySelector(".chip.st"); chip.textContent=st; chip.className="chip st "+cls;
+  // aço em obra: chegou 100%, chegou em parte (%) ou não chegou
+  const [ot,oc,od]=etiquetaObra(i), ob=card.querySelector(".chip.obra"); ob.textContent=ot; ob.className="chip obra "+oc; ob.title=od; ob.setAttribute("aria-label",`Aço: ${ot}. ${od}`);
   card.querySelector(".bar i").style.width = (i.qp? Math.min(100,ac/i.qp*100):0)+"%";
   const P=emPct(i), emU = q => P ? nfp.format(q/i.qp*100) : nf0.format(q);
   card.querySelector(".acc").textContent = `${nf0.format(ac)} / ${nf0.format(i.qp)} barras (${i.qp?nfp.format(ac/i.qp*100):0}%) · ${nf0.format(i.kp)} kg`;
@@ -1532,15 +1540,16 @@ function renderLista(){
 }
 function renderInfo(f=filtered()){
   const kp=f.reduce((s,i)=>s+i.kp,0), ke=f.reduce((s,i)=>s+Math.min(S.acum.get(i.c)||0,i.qp)*i.ppb,0);
+  const ob=barrasNaObra(), ko=f.reduce((s,i)=>s+(ob.get(i.c)||0)*i.ppb,0); // aço que já chegou à obra
   // deixa claro quando os números são só de uma parte da obra
-  const filtro=[F.emp, F.est, F.pr, F.loc, F.q.trim()&&`"${F.q.trim()}"`, F.pend&&"sem concluídas"].filter(Boolean);
+  const filtro=[F.emp, F.est, F.pr, F.loc, F.q.trim()&&`"${F.q.trim()}"`, F.pend&&"sem concluídas", F.obra&&ROT_OBRA[F.obra]].filter(Boolean);
   const box=$("#lista-info");
   box.replaceChildren(
     el("b",{text: filtro.length ? `Filtro: ${filtro.join(" · ")}` : "Obra inteira"}), " — ",
-    `${nf0.format(f.length)} posições · previsto ${t(kp)} t · executado ${t(ke)} t (${pct(kp?ke/kp:0)})`);
+    `${nf0.format(f.length)} posições · previsto ${t(kp)} t · em obra ${t(ko)} t (${pct(kp?ko/kp:0)}) · executado ${t(ke)} t (${pct(kp?ke/kp:0)})`);
   if(filtro.length){
     const b=el("button",{class:"linkbtn",type:"button",text:"Limpar filtros"});
-    b.onclick=()=>{ Object.assign(F,{emp:"",est:"",pr:"",loc:"",q:"",pend:false}); LS.set("filtros",F); S.limit=60; renderFiltros(); renderLista(); };
+    b.onclick=()=>{ Object.assign(F,{emp:"",est:"",pr:"",loc:"",q:"",pend:false,obra:""}); LS.set("filtros",F); S.limit=60; renderFiltros(); renderLista(); };
     box.append(" ", b);
   }
 }
@@ -1852,7 +1861,7 @@ $("#tema").addEventListener("click", e=>{ const b=e.target.closest("button[data-
   renderTema(); });
 renderTema();
 
-const VERSAO_APP = "v80"; // igual ao número em sw.js (armacao-v80)
+const VERSAO_APP = "v82"; // igual ao número em sw.js (armacao-v82)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -3141,7 +3150,10 @@ async function pdfBaixar(f, prog){
 }
 async function guardarPdf(f, buf, atualizado){
   try{
-    await (await caches.open(PDFCACHE)).put("pdf/"+f.id, new Response(buf.slice(0),{headers:{"Content-Type":"application/pdf"}}));
+    const cc=await caches.open(PDFCACHE);
+    await cc.put("pdf/"+f.id, new Response(buf.slice(0),{headers:{"Content-Type":"application/pdf"}}));
+    // imagens prontas das folhas da versão anterior não servem mais
+    for(const r of await cc.keys()) if(r.url.includes(`/prev/${f.id}/`)) cc.delete(r).catch(()=>{});
     PJ.off[f.id]=atualizado; PJ.nomes[f.id]=f.nome; LS.set("pdfOff",PJ.off); LS.set("pdfNomes",PJ.nomes);
   }catch{ toast("Sem espaço para guardar o PDF no celular."); }
 }
@@ -3153,13 +3165,26 @@ async function pdfParecido(f){
   for(const id of ids){ const b=await pdfGuardado(id); if(b) return {buf:b, nome:PJ.nomes[id]}; }
   return null;
 }
+// A cópia guardada no celular abre NA HORA. Antes, se a data do Drive não batesse com a da cópia (arquivo mexido no Drive,
+// PDF aberto pelo "Abrir PDF do celular"…), o app baixava tudo de novo antes de mostrar: 4 MB levavam ~40 s com sinal bom
+// e minutos com sinal fraco. Agora a versão nova é baixada em segundo plano e o app avisa quando estiver guardada.
+const PDF_ATUALIZANDO=new Set();
+function atualizarPdfFundo(f){
+  if(PDF_ATUALIZANDO.has(f.id) || !navigator.onLine || !S.cfg?.url) return;
+  PDF_ATUALIZANDO.add(f.id);
+  toast(`Mostrando a cópia guardada. Baixando a versão nova de ${pjTitulo(f.nome)}…`);
+  pdfBaixar(f).then(()=>{ renderProjetos();
+      toast(V.fid===f.id && !$("#viewer").hidden ? `Versão nova de ${pjTitulo(f.nome)} guardada: feche e abra de novo para ver.` : `Versão nova de ${pjTitulo(f.nome)} guardada.`);
+      if(V.fid===f.id) V.fid=null; }) // na próxima abertura, lê a versão nova
+    .catch(()=>{}) // sem sinal: continua com a cópia guardada e tenta na próxima vez
+    .finally(()=>PDF_ATUALIZANDO.delete(f.id));
+}
 async function obterPdf(f, prog){
   const local=await pdfGuardado(f.id);
-  if(local && PJ.off[f.id]===f.atualizado) return local;
+  if(local){ if(PJ.off[f.id]!==f.atualizado) atualizarPdfFundo(f); return local; }
   try{ return await pdfBaixar(f, prog); }
   catch(e){
     const motivo = SENHA_ERRADA.test(e.message) ? "senha do app errada" : /conexão/i.test(e.message) ? "sem conexão" : "o Google não respondeu";
-    if(local){ toast(`Não deu para atualizar (${motivo}): mostrando a cópia guardada`); return local; }
     const outra=await pdfParecido(f);
     if(outra){ toast(`Não deu para baixar (${motivo}): mostrando a cópia guardada de ${outra.nome}`); return outra.buf; }
     throw e;
@@ -3221,16 +3246,21 @@ $("#pj-todos").addEventListener("click", async ()=>{
 
 // ---------- visualizador de PDF (pdf.js) ----------
 const PDFJS="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/";
-async function loadPdfjs(){
-  if(window.pdfjsLib?.GlobalWorkerOptions.workerSrc) return;
-  if(!window.pdfjsLib) await new Promise((res,rej)=>{ const s=document.createElement("script"); s.src=PDFJS+"pdf.min.js"; s.onload=res;
-    s.onerror=()=>rej(new Error("Não consegui carregar o leitor de PDF. Abra o app uma vez com internet.")); document.head.append(s); });
-  // o worker vem do mesmo cache do app (funciona offline) e roda a partir de um blob local
-  const js=await (await fetch(PDFJS+"pdf.worker.min.js")).blob();
-  pdfjsLib.GlobalWorkerOptions.workerSrc=URL.createObjectURL(js);
+// uma carga só, mesmo chamada várias vezes ao mesmo tempo (o leitor carrega em paralelo com o download do PDF)
+let PDFJS_P=null;
+function loadPdfjs(){
+  if(window.pdfjsLib?.GlobalWorkerOptions.workerSrc) return Promise.resolve();
+  return PDFJS_P ||= (async()=>{
+    if(!window.pdfjsLib) await new Promise((res,rej)=>{ const s=document.createElement("script"); s.src=PDFJS+"pdf.min.js"; s.onload=res;
+      s.onerror=()=>rej(new Error("Não consegui carregar o leitor de PDF. Abra o app uma vez com internet.")); document.head.append(s); });
+    // o worker vem do mesmo cache do app (funciona offline) e roda a partir de um blob local
+    const js=await (await fetch(PDFJS+"pdf.worker.min.js")).blob();
+    pdfjsLib.GlobalWorkerOptions.workerSrc=URL.createObjectURL(js);
+  })().catch(e=>{ PDFJS_P=null; throw e; }); // falhou (sem internet na 1ª vez): tenta de novo na próxima
 }
 // V = vista desejada; R = vista que está desenhada no canvas atual. O CSS leva R até V enquanto redesenha.
-const V={doc:null,fid:null,page:null,n:1,z:1,tx:0,ty:0,fit:1,canvas:null,task:null,R:null,rT:null,buf:null,nome:""};
+// Rn = folha que está desenhada de verdade (pdf.js) no canvas atual; null enquanto só há a imagem guardada ou nada
+const V={doc:null,fid:null,page:null,n:1,z:1,tx:0,ty:0,fit:1,canvas:null,task:null,R:null,rT:null,buf:null,nome:"",Rn:null};
 const stage=$("#v-stage"), vmsg=t=>{ $("#v-msg").textContent=t; $("#v-msg").hidden=!t; };
 const DICA_FORA=" Toque em ⤓ Abrir fora para ver no leitor de PDF do celular.";
 // plano B: entrega o PDF (já no celular) para o leitor de PDF do aparelho
@@ -3244,11 +3274,12 @@ async function abrirPdf(f, pag, alvo, conc){
   $("#v-tit").textContent=pjTitulo(f.nome);
   try{
     if(V.fid!==f.id){
-      vmsg("Carregando projeto…"); V.canvas?.remove(); V.canvas=null; V.buf=null; $("#v-fora").hidden=true;
+      vmsg("Carregando projeto…"); V.canvas?.remove(); V.canvas=null; V.Rn=null; V.buf=null; $("#v-fora").hidden=true;
+      const leitor=loadPdfjs(); leitor.catch(()=>{}); // o leitor de PDF carrega ao mesmo tempo que o arquivo (antes era um depois do outro)
       const buf=await obterPdf(f, (feito,total,nota)=>vmsg(`Baixando projeto (${mb(f.tamanho||0)})… ${total?Math.min(99,Math.round(feito*100/total)):0}%${nota?` · ${nota}`:""}`));
       V.buf=buf.slice(0); V.nome=f.nome; $("#v-fora").hidden=false; // cópia: o leitor do app consome o original
       vmsg("Abrindo projeto…");
-      await loadPdfjs();
+      await leitor;
       V.doc?.destroy(); V.doc=await pdfjsLib.getDocument({data:new Uint8Array(buf), isOffscreenCanvasSupported:false}).promise; V.fid=f.id;
       $("#v-pag").replaceChildren(...Array.from({length:V.doc.numPages},(_,k)=>el("option",{value:k+1,text:`Folha ${k+1}/${V.doc.numPages}`})));
       renderProjetos();
@@ -3266,10 +3297,41 @@ addEventListener("popstate", ()=>{ if(!$("#viewer").hidden) fecharViewer(); });
 async function irPagina(n){
   vmsg("Desenhando folha…");
   try{
+    // tira a folha anterior da tela (antes ela ficava visível enquanto a nova desenhava, parecendo a folha errada)
+    if(V.n!==n || V.Rn!==n){ V.canvas?.remove(); V.canvas=null; V.Rn=null; }
     V.n=n; $("#v-pag").value=n; V.page=await V.doc.getPage(n);
     await carregarMarcas(); MK.lista=marcasDaFolha(); MK.k=0; avisoMarca();
     if(MK.lista.length){ calcFit(); focarMarca(0); } else ajustar();
+    mostrarPrevia(n);
   }catch(e){ vmsg(`Não foi possível abrir a folha ${n}: ${e?.message||e}.`+DICA_FORA); }
+}
+// Imagem pronta de cada folha: prancha pesada leva vários segundos para desenhar no celular (o tempo é processar os traços,
+// não a resolução). No primeiro desenho da folha inteira, guarda uma imagem; nas próximas aberturas ela aparece na hora e o
+// desenho em alta resolução entra por cima quando terminar. A chave leva a versão do PDF: PDF novo = imagem nova.
+const chavePrev = (fid,n) => `prev/${fid}/${n}/${encodeURIComponent(PJ.off[fid]||"")}`;
+const PREV_FEITA=new Set();
+async function mostrarPrevia(n){
+  try{
+    const fid=V.fid, r=await (await caches.open(PDFCACHE)).match(chavePrev(fid,n)); if(!r || V.n!==n || V.fid!==fid || V.Rn===n) return;
+    const bmp=await createImageBitmap(await r.blob()); if(V.n!==n || V.fid!==fid || V.Rn===n) return;
+    const {width:w,height:h}=stage.getBoundingClientRect(), dpr=Math.min(devicePixelRatio||1,2.5), vp=V.page.getViewport({scale:V.z*dpr});
+    const c=document.createElement("canvas"); c.width=Math.round(w*dpr); c.height=Math.round(h*dpr); c.style.width=w+"px"; c.style.height=h+"px";
+    const ctx=c.getContext("2d"); ctx.imageSmoothingQuality="high"; ctx.drawImage(bmp, V.tx*dpr, V.ty*dpr, vp.width, vp.height); bmp.close?.();
+    desenharMarcas(ctx, vp, V.tx*dpr, V.ty*dpr, dpr);
+    if(CC.conc) desenharPintura(ctx, vp, V.tx*dpr, V.ty*dpr, CC.conc, n, dpr);
+    V.canvas?.remove(); stage.prepend(c); V.canvas=c; V.R={z:V.z,tx:V.tx,ty:V.ty}; aplicarCss();
+    vmsg("Melhorando a nitidez…");
+  }catch{ /* sem imagem guardada: segue o desenho normal */ }
+}
+// guarda a folha inteira (recortada do desenho, antes das marcas) como JPEG
+function salvarPrevia(c, snap, vp, dpr, fid, n){
+  const k=chavePrev(fid,n); if(PREV_FEITA.has(k)) return; PREV_FEITA.add(k);
+  try{
+    const sx=Math.max(0,snap.tx*dpr), sy=Math.max(0,snap.ty*dpr), sw=Math.min(vp.width, c.width-sx), sh=Math.min(vp.height, c.height-sy);
+    const pc=document.createElement("canvas"); pc.width=Math.round(sw); pc.height=Math.round(sh);
+    pc.getContext("2d").drawImage(c, sx, sy, sw, sh, 0, 0, pc.width, pc.height);
+    pc.toBlob(b=>{ if(b) caches.open(PDFCACHE).then(cc=>cc.put(k, new Response(b,{headers:{"Content-Type":"image/jpeg"}}))).catch(()=>{}); }, "image/jpeg", 0.85);
+  }catch{}
 }
 // zoom em que a folha inteira cabe na tela
 function calcFit(){ const {width:w,height:h}=stage.getBoundingClientRect(), vp=V.page.getViewport({scale:1}); V.fit=Math.min(w/vp.width, h/vp.height)*0.97; }
@@ -3290,7 +3352,7 @@ async function desenhar(){
   if(!V.page) return;
   V.task?.cancel();
   const {width:w,height:h}=stage.getBoundingClientRect(), dpr=Math.min(devicePixelRatio||1,2.5);
-  const snap={z:V.z,tx:V.tx,ty:V.ty}, c=document.createElement("canvas");
+  const snap={z:V.z,tx:V.tx,ty:V.ty}, c=document.createElement("canvas"), n0=V.n, fid0=V.fid;
   c.width=Math.round(w*dpr); c.height=Math.round(h*dpr); c.style.width=w+"px"; c.style.height=h+"px";
   const ctx=c.getContext("2d"), vp=V.page.getViewport({scale:snap.z*dpr});
   ctx.fillStyle="#fff"; ctx.fillRect(snap.tx*dpr, snap.ty*dpr, vp.width, vp.height); // folha branca, fundo escuro em volta
@@ -3302,6 +3364,8 @@ async function desenhar(){
     if(e?.name!=="RenderingCancelledException" && V.task===task) vmsg(`Não foi possível desenhar a folha ${V.n}: ${e?.message||e}.`+DICA_FORA);
     return;
   }finally{ clearTimeout(lento); }
+  if(Math.abs(snap.z-V.fit)<=V.fit*0.01 && fid0) salvarPrevia(c, snap, vp, dpr, fid0, n0); // folha inteira na tela: guarda a imagem
+  V.Rn=n0;
   desenharMarcas(ctx, vp, snap.tx*dpr, snap.ty*dpr, dpr);
   if(CC.conc) desenharPintura(ctx, vp, snap.tx*dpr, snap.ty*dpr, CC.conc, V.n, dpr);
   V.canvas?.remove(); stage.prepend(c); V.canvas=c; V.R=snap; aplicarCss(); vmsg("");
@@ -4089,6 +4153,47 @@ function barrasPedidas(){
   for(const [n,txt] of Object.entries(ITENS_REMESSA)) for(const s of txt.split(" ")){ const [c,q]=s.split(":"); add(c, q ? Number(q) : (S.byCode.get(c)?.qp||0), Number(n)); }
   for(const p of pedidosApp()) for(const [c,q] of Object.entries(p.itens)) add(c, Number(q)||0, p.n);
   m.origem=origem; return m;
+}
+// ---------- aço em obra: barras que já chegaram, pelos romaneios com chegada confirmada (Suprimentos › Aço) ----------
+// Remessa recebida inteira: todas as barras pedidas nela. Remessa parcial: as OS dos romaneios que chegaram são ligadas às
+// posições da remessa por posição + bitola + comprimento (peças emendadas "1" + "1." somadas); sem par no comprimento
+// (revisão do projeto), por posição + bitola. Remessa ainda não recebida: nada em obra.
+function pedidasPorRemessa(){
+  const m=new Map(), add=(n,c,q)=>{ if(!(q>0) || !S.byCode.has(c)) return; const r=m.get(n)||m.set(n,new Map()).get(n); r.set(c,(r.get(c)||0)+q); };
+  for(const i of S.items) if(i.ped==="1"||i.ped==="2") add(Number(i.ped), i.c, i.qp);
+  for(const [n,txt] of Object.entries(ITENS_REMESSA)) for(const s of txt.split(" ")){ const [c,q]=s.split(":"); add(Number(n), c, q ? Number(q) : (S.byCode.get(c)?.qp||0)); }
+  for(const p of pedidosApp()) for(const [c,q] of Object.entries(p.itens)) add(p.n, c, Number(q)||0);
+  return m;
+}
+// OS do romaneio com as peças emendadas juntas: [posição "N1", bitola, barras, comprimento em cm]
+function osJuntas(oss){
+  const out=[];
+  for(let k=0;k<oss.length;k++){ const o=oss[k], prox=oss[k+1]; let comp=+o[5];
+    if(prox && String(prox[2])===String(o[2])+"." && +prox[4]===+o[4]){ comp+=+prox[5]; k++; }
+    out.push(["N"+String(o[2]).replace(/\.$/,""), +o[3], +o[4], comp]); }
+  return out;
+}
+const barrasNaObra = () => memoEf("naObra", ()=>{
+  const out=new Map(), porRem=pedidasPorRemessa();
+  const soma=(c,q)=>{ const i=S.byCode.get(c); if(i && q>0) out.set(c, Math.min(i.qp,(out.get(c)||0)+q)); };
+  for(const R of remessas()){
+    const cods=porRem.get(R.n); if(!cods) continue;
+    if(R.rec){ for(const [c,q] of cods) soma(c,q); continue; }
+    if(!R.nRomRec || !CF.lista) continue;
+    const resto=new Map(cods);
+    const alocar=(o, comComp)=>{ for(const [c,rq] of resto){ if(!(rq>0) || !(o[2]>0)) continue; const i=S.byCode.get(c);
+      if(posNorm(i.pos)!==o[0] || +i.bit!==o[1] || (comComp && Math.abs(i.cu*100-o[3])>3)) continue;
+      const n=Math.min(o[2],rq); soma(c,n); resto.set(c,rq-n); o[2]-=n; } };
+    for(const x of R.roms.filter(x=>x.rec)) for(const [,oss] of CF.lista[x.n]||[]) for(const o of osJuntas(oss)){ alocar(o,true); alocar(o,false); }
+  }
+  return out;
+});
+// etiqueta da posição na Coleta: [texto, classe do chip, explicação]
+function etiquetaObra(i){
+  const ch=barrasNaObra().get(i.c)||0, pc=i.qp ? ch/i.qp : 0, ped=memoEf("pedidas", barrasPedidas).get(i.c)||0;
+  if(ch>0 && pc>=0.999) return ["Em obra · 100%","ok",`Todas as ${nf0.format(i.qp)} barras já chegaram`];
+  if(ch>0) return [`Em obra · ${Math.floor(pc*100)}%`,"and",`${nf0.format(ch)} de ${nf0.format(i.qp)} barras já chegaram`];
+  return ["Não chegou","bad", ped ? `Pedido (${nf0.format(ped)} barras), aguardando a entrega` : "Ainda não pedido"];
 }
 // estrutura conta como toda pedida quando o que falta é menos de 1% (ou 100 kg): são emendas e cortes que o
 // fornecedor dividiu diferente do projeto (ex.: Elevatória AT, 236 kg em 6 posições de 74,8 t)
@@ -7502,6 +7607,8 @@ function renderRelatorios(box){
   const cached=LS.get("base"); if(cached?.itens) setBase(cached.meta, cached.itens);
   lerLinkCfg();
   afterData(); renderData(); show(LS.get("aba")||"coleta");
+  // OS dos romaneios: a etiqueta "Em obra" de uma remessa que chegou só em parte depende delas
+  carregarOsRom().then(()=>{ if(S.items.length && remessas().some(R=>!R.rec && R.nRomRec)) renderLista(); }).catch(()=>{});
   if(S.cfg?.url){ sync(); carregarProjetos().catch(()=>{}); }
   if("serviceWorker" in navigator){
     // quando chega uma versão nova do app, recarrega uma vez para já usá-la

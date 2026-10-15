@@ -186,6 +186,18 @@ img.croqui{display:block;background:#fff;border-radius:6px;border:1px solid var(
 .pl-planta{flex:1 1 0;min-width:0;max-width:200px;text-align:center}
 .pl-svg{width:100%;height:auto} .pl-rot{font-size:13px;fill:var(--ink);font-weight:700}
 .pl-els .chipbtn,.pl-pos .chipbtn{font-size:.8rem}
+/* só as colunas do quadro rolam para o lado; a coluna da parede fica parada */
+#prelev .pl-tab{overflow-x:auto;max-width:100%;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain}
+#prelev .pl-el,#prelev .pl-topo{display:block;min-width:0;max-width:100%} #prelev .pl-el>*,#prelev .pl-topo>*{min-width:0;max-width:100%}
+.pl-svg{max-width:100%} #prelev select{width:100%;min-width:0;text-overflow:ellipsis}
+.pl-lista{display:flex;flex-direction:column;gap:6px}
+.pl-item{display:grid;grid-template-columns:28px 112px minmax(0,1fr);gap:8px;align-items:center;padding:6px;border:1px solid var(--line);border-radius:10px;background:var(--surface);cursor:pointer}
+.pl-item img.croqui{width:112px} .pl-txt{display:flex;flex-direction:column;gap:2px;min-width:0} .pl-txt small{overflow-wrap:anywhere}
+#prelev .pl-tab table{width:max-content;min-width:100%}
+#prelev .pl-tab tr>:first-child{position:sticky;left:0;z-index:1;background:var(--surface);box-shadow:1px 0 0 var(--line)}
+#prelev .pr-sum{overflow-wrap:anywhere} #prelev .pl-sub{font-size:.95rem;margin:12px 0 4px}
+.pl-lista input[type=checkbox]{width:24px;height:24px;min-height:0}
+.pl-item.pl-feita{opacity:.55;cursor:default} .pl-item.pl-on{background:rgba(251,140,0,.12);border-color:#FB8C00}
 .pl-topo{position:sticky;top:0;z-index:3;background:var(--bg);padding:4px 0 6px;max-height:52vh;overflow-y:auto;overflow-x:hidden;border-bottom:1px solid var(--line)}
 #prelev .modo{flex-wrap:wrap} #prelev{min-width:0;max-width:100%} #prelev .card{min-width:0}
 .pl-par{cursor:pointer} .pl-par.on{stroke:#7a3d00;stroke-width:1.5} .pl-par:focus{outline:none;stroke:var(--ink);stroke-width:1.5}
@@ -1895,7 +1907,7 @@ $("#tema").addEventListener("click", e=>{ const b=e.target.closest("button[data-
   renderTema(); });
 renderTema();
 
-const VERSAO_APP = "v90"; // igual ao número em sw.js (armacao-v90)
+const VERSAO_APP = "v91"; // igual ao número em sw.js (armacao-v91)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -3022,11 +3034,19 @@ function renderPrelev(){
   // um quadro por elemento: paredes em linhas, barras em colunas (croqui), % em cada célula
   const quadros=Object.entries(d.els).filter(([loc])=>G.has(loc) && (selP ? paredesDoEl(loc).includes(selP) : selE ? loc===selE : true)).map(([loc,e])=>{
     const rowsVer = selP ? [selP] : (e.rows||[]);
-    const its=G.get(loc).slice().sort(ordPos), posSel=its.filter(i=>(e.pos||[]).includes(i.c));
-    const chipsP=el("div",{class:"modo pl-pos",role:"group","aria-label":`Barras de ${loc}`}, el("span",{class:"info",text:"Barras:"}),
-      ...its.map(i=>{ const on=(e.pos||[]).includes(i.c), feito=(S.acum.get(i.c)||0)>=i.qp;
-        return el("button",{type:"button",class:"chipbtn"+(on?" on":""),"aria-pressed":String(on),text:`${i.pos} Ø${String(i.bit).replace(".",",")}${feito?" ✓":""}`,
-          onclick:()=>{ e.pos = on ? e.pos.filter(c=>c!==i.c) : its.filter(x=>x.c===i.c || e.pos.includes(x.c)).map(x=>x.c); plSalvar(d); renderPrelev(); }}); }));
+    // barras do elemento: as já armadas por inteiro (lançado = quantidade) aparecem marcadas e não entram no quadro de %
+    const its=G.get(loc).slice().sort(ordPos), feitaPos=i=>(S.acum.get(i.c)||0)>=i.qp, nPar=Math.max(1,paredesDoEl(loc).length);
+    const posSel=its.filter(i=>(e.pos||[]).includes(i.c) && !feitaPos(i)), nFeitas=its.filter(feitaPos).length;
+    const listaB=el("div",{class:"pl-lista",role:"list"}, ...its.map(i=>{ const ac=S.acum.get(i.c)||0, feita=feitaPos(i), on=!feita && (e.pos||[]).includes(i.c);
+        const ck=el("input",{type:"checkbox",checked:on,disabled:feita,"aria-label":`Preencher a % da barra ${i.pos}`});
+        ck.onchange=()=>{ e.pos = ck.checked ? its.filter(x=>x.c===i.c || (e.pos||[]).includes(x.c)).map(x=>x.c) : (e.pos||[]).filter(c=>c!==i.c); plSalvar(d); renderPrelev(); };
+        const im=el("img",{class:"croqui",alt:`Desenho da barra ${i.pos}`,hidden:true}); croquiPos(i.c).then(src=>{ if(src){ im.src=src; im.hidden=false; } });
+        const tr=el("div",{class:"pl-item"+(feita?" pl-feita":on?" pl-on":""),role:"listitem"}, ck, im,
+          el("div",{class:"pl-txt"}, el("b",{text:`${i.pos} Ø${String(i.bit).replace(".",",")}`}),
+            el("small",{text:`${nf2(i.cu)} m · ${nf0.format(i.qp/nPar)} barras/parede`+(nPar>1?` (${nf0.format(i.qp)} no elemento)`:"")}),
+            feita ? el("span",{class:"chip ok",text:"✓ já armada"}) : el("small",{class:"info",text:`lançado ${nf0.format(ac)} de ${nf0.format(i.qp)} (${pct(i.qp?ac/i.qp:0)})`})));
+        if(!feita) tr.onclick=ev=>{ if(ev.target!==ck){ ck.checked=!ck.checked; ck.onchange(); } };
+        return tr; }));
     const todas=paredesDoEl(loc), chipsR = todas.length>1 && !selP ? el("div",{class:"modo",role:"group","aria-label":`Paredes de ${loc}`}, el("span",{class:"info",text:"Paredes:"}),
       ...todas.map(r=>{ const on=(e.rows||[]).includes(r);
         return el("button",{type:"button",class:"chipbtn"+(on?" on":""),"aria-pressed":String(on),text:rotLinha(r),
@@ -3050,7 +3070,10 @@ function renderPrelev(){
       el("tfoot",{}, el("tr",{}, el("th",{text:"Estimado (barras)"}), ...pe_), el("tr",{}, el("th",{text:"Lançado"}), ...pl_), el("tr",{}, el("th",{text:"Diferença"}), ...pd_))));
     const card=el("details",{class:"card pl-el",open:true}, el("summary",{class:"pr-sum",text:selP ? `${rotLinha(selP)} · ${loc} · ${posSel.length} barra(s)` : `${loc} · ${(e.rows||[]).length} parede(s) · ${posSel.length} barra(s)`}),
       el("p",{class:"i-sub",text:[...new Set(its.map(i=>i.pr.replace(/^.*?-DE-/,"DE-")))].join(" · ")}),
-      chipsR, chipsP, posSel.length && rowsVer.length ? tab : el("p",{class:"info",text:"Escolha as paredes e as barras que estão sendo armadas."}), resumo);
+      chipsR,
+      el("h3",{class:"pl-sub",text:`Barras · marque as que estão sendo armadas${nFeitas?` (${nFeitas} já armada${nFeitas>1?"s":""})`:""}`}), listaB,
+      el("h3",{class:"pl-sub",text:"Andamento de cada barra (%)"}),
+      posSel.length && rowsVer.length ? tab : el("p",{class:"info",text:posSel.length ? "Escolha as paredes acima." : "Marque na lista acima as barras que estão sendo armadas."}), resumo);
     if(posSel.length && (e.rows||[]).length) atualizar();
     return card; });
   const temPct=Object.values(d.els).some(e=>Object.values(e.pct||{}).some(o=>Object.keys(o).length));
@@ -6831,9 +6854,10 @@ function floculador(letra, cam, [b,m,t,r,v,l]){
     P_(vi,4.5,H,E,{d:`Parede ${v} — trecho inferior (entre ${P(b)} e ${P(m)})`, pass:[[0,0,1,1]], ld:[`face ${P(b)}`,`face ${P(m)}`]}),
     P_(vs,4.5,H,E,{d:`Parede ${v} — trecho superior (entre ${P(m)} e ${P(t)})`, pass:[[0,0,1,1]], ld:[`face ${P(m)}`,`face ${P(t)}`]}),
     P_(P(l),9.3,H,E,{d:`Parede ${l} — lateral esquerda (externa)`, enc:[[4.5,4.8,P(m)]], ld:[`lado ${P(b)} (eixo 1)`,`lado ${P(t)} (eixo 2)`]})];
-  // planta em metros, origem no canto de baixo à esquerda: [x, y, largura, altura]
-  const planta={W:9.9, H:9.9, r:{[P(b)]:[0,0,9.9,0.3], [P(t)]:[0,9.6,9.9,0.3], [P(l)]:[0,0.3,0.3,9.3], [P(r)]:[9.6,0.3,0.3,9.3],
-    [P(m)]:[0.3,4.8,9.3,0.3], [vi]:[4.8,0.3,0.3,4.5], [vs]:[4.8,5.1,0.3,4.5]}, pass:[[4.8,0.3,0.3,1],[4.8,5.1,0.3,1]], extra:{[P(b)]:"eixo 1",[P(t)]:"eixo 2"}};
+  // planta em metros, origem no canto de baixo à esquerda: [x, y, largura, altura]. A PAR 1 (eixo 1) fica em cima, a PAR 7
+  // (eixo 2) embaixo; o trecho "inferior" da PAR 11 (entre a PAR 1 e a PAR 4) fica na metade de cima, com a passagem junto da PAR 1
+  const planta={W:9.9, H:9.9, r:{[P(b)]:[0,9.6,9.9,0.3], [P(t)]:[0,0,9.9,0.3], [P(l)]:[0,0.3,0.3,9.3], [P(r)]:[9.6,0.3,0.3,9.3],
+    [P(m)]:[0.3,4.8,9.3,0.3], [vi]:[4.8,5.1,0.3,4.5], [vs]:[4.8,0.3,0.3,4.5]}, pass:[[4.8,8.6,0.3,1],[4.8,3.8,0.3,1]], extra:{[P(b)]:"eixo 1",[P(t)]:"eixo 2"}};
   return {k:"FLOC-"+letra, est:"FLOCULADORES", nome:`Floculador ${letra}`, sub:`câmara ${cam}`, planta, par,
     nota: letra==="A" ? "" : "Mesmo arranjo do Floculador A: confira no projeto a posição das paredes."};
 }

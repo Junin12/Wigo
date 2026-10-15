@@ -1869,7 +1869,7 @@ $("#tema").addEventListener("click", e=>{ const b=e.target.closest("button[data-
   renderTema(); });
 renderTema();
 
-const VERSAO_APP = "v85"; // igual ao número em sw.js (armacao-v85)
+const VERSAO_APP = "v86"; // igual ao número em sw.js (armacao-v86)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -6267,18 +6267,23 @@ function desenharPintura(ctx, vp, ox, oy, conc, pag, dpr=1, letra=1){ // letra: 
   const off=document.createElement("canvas"); off.width=ctx.canvas.width; off.height=ctx.canvas.height; const o=off.getContext("2d");
   for(const [cam,lista] of grupos){
     o.clearRect(0,0,off.width,off.height); o.strokeStyle=cor(cam); o.lineCap=o.lineJoin="round";
-    let sx=0, sy=0, n=0;
+    let sx=0, sy=0, n=0; const rets=[];
     for(const t of lista){
+      // retângulo lançado por cota (mapa das paredes): w negativo = cota do topo em cm; pts = dois cantos
+      if(t.w<0){ const [x1,y1]=vp.convertToViewportPoint(t.pts[0],t.pts[1]), [x2,y2]=vp.convertToViewportPoint(t.pts[2],t.pts[3]);
+        const r=[Math.min(x1,x2)+ox, Math.min(y1,y2)+oy, Math.abs(x2-x1), Math.abs(y2-y1)]; o.fillStyle=cor(cam); o.fillRect(...r); rets.push([r, -t.w/100]); continue; }
       o.lineWidth=Math.max(1, t.w*vp.scale); o.beginPath();
       for(let i=0;i<t.pts.length;i+=2){ const [x,y]=vp.convertToViewportPoint(t.pts[i],t.pts[i+1]); if(i) o.lineTo(x+ox,y+oy); else o.moveTo(x+ox,y+oy); sx+=x+ox; sy+=y+oy; n++; }
       if(t.pts.length===2){ const [x,y]=vp.convertToViewportPoint(t.pts[0],t.pts[1]); o.lineTo(x+ox+0.01,y+oy); }
       o.stroke();
     }
     ctx.save(); ctx.globalAlpha=0.5; ctx.drawImage(off,0,0); ctx.restore();
-    // número do caminhão no meio da área dele
+    // número do caminhão no meio da área dele (no retângulo por cota: "C2 até 1,30 m")
     const fs=Math.max(12*dpr, Math.min(40*dpr, vp.scale*14))*letra;
-    ctx.save(); ctx.font=`700 ${fs}px Barlow, Arial, sans-serif`; ctx.textAlign="center"; ctx.textBaseline="middle";
-    ctx.lineWidth=fs*0.22; ctx.strokeStyle="#fff"; ctx.strokeText("C"+cam, sx/n, sy/n); ctx.fillStyle=cor(cam); ctx.fillText("C"+cam, sx/n, sy/n); ctx.restore();
+    const rotulo=(txt,x,y,f)=>{ ctx.save(); ctx.font=`700 ${f}px Barlow, Arial, sans-serif`; ctx.textAlign="center"; ctx.textBaseline="middle";
+      ctx.lineWidth=f*0.22; ctx.strokeStyle="#fff"; ctx.strokeText(txt, x, y); ctx.fillStyle=cor(cam); ctx.fillText(txt, x, y); ctx.restore(); };
+    if(n) rotulo("C"+cam, sx/n, sy/n, fs);
+    for(const [[x,y,w,h],ate] of rets) rotulo(`C${cam} até ${nf2(ate)} m`, x+w/2, y+h/2, Math.min(fs*0.8, Math.max(9*dpr, h*0.6)));
   }
 }
 
@@ -6323,7 +6328,7 @@ function apagarTraco(id){
 // toque no modo Apagar: tira o traço mais recente que passa por ali
 function apagarTracoEm(p){
   const [x,y]=pontoPdf(p), tol=8/V.z;
-  const dist=(t)=>{ let d=Infinity; for(let i=0;i<t.pts.length;i+=2){ const ax=t.pts[i], ay=t.pts[i+1], bx=t.pts[i+2]??ax, by=t.pts[i+3]??ay;
+  const dist=(t)=>{ if(t.w<0){ const [x1,y1,x2,y2]=t.pts; return x>=Math.min(x1,x2) && x<=Math.max(x1,x2) && y>=Math.min(y1,y2) && y<=Math.max(y1,y2) ? -Infinity : Infinity; } let d=Infinity; for(let i=0;i<t.pts.length;i+=2){ const ax=t.pts[i], ay=t.pts[i+1], bx=t.pts[i+2]??ax, by=t.pts[i+3]??ay;
     const l2=(bx-ax)**2+(by-ay)**2, k=l2?Math.max(0,Math.min(1,((x-ax)*(bx-ax)+(y-ay)*(by-ay))/l2)):0; d=Math.min(d,Math.hypot(x-ax-k*(bx-ax), y-ay-k*(by-ay))); } return d; };
   const alvo=tracosDe(CC.conc).filter(t=>t.pag===V.n && dist(t)<=t.w/2+tol).pop();
   if(!alvo) return toast("Nenhuma área pintada aqui.");
@@ -6343,6 +6348,7 @@ function renderCcBar(){
       onclick:()=>{ if(CC.cam===k.n && ed) return editarCaminhao(c, k); CC.cam=k.n; if(ed && CC.modo==="mover") CC.modo="pintar"; renderCcBar(); }});
       b.style.setProperty("--cor",k.cor); return b; }),
     ed ? el("button",{type:"button",text:"+ Caminhão",onclick:()=>editarCaminhao(c,null)}) : null,
+    ed && mapaDe(c) ? el("button",{type:"button",text:"📐 Por cota",title:"Pintar o caminhão por cota: altura e trecho da parede",onclick:()=>porCota(c)}) : null,
     el("span",{class:"cc-sep"}),
     ed ? (()=>{ const s=el("select",{"aria-label":"Espessura do pincel"}, ...Object.entries(CC_LARG).map(([k,[n]])=>el("option",{value:k,text:`Pincel ${n.toLowerCase()}`})));
       s.value=CC.larg; s.onchange=()=>{ CC.larg=s.value; LS.set("ccLarg",CC.larg); }; return s; })() : null,
@@ -6698,6 +6704,51 @@ function paredesPintadas(c, fs){
       for(const w of f.ws) if(x>=w.x-1 && x<=w.x+w.w+1 && y>=w.y-1 && y<=w.y+w.h+1) (r.get(t.cam)||r.set(t.cam,new Set()).get(t.cam)).add(w.p.id); } }
   return r;
 }
+// pintura por cota: o caminhão preencheu a parede de X1 a X2 (ao longo dela) e da altura H1 até H2 (a partir da base).
+// Vira um retângulo exato na cor do caminhão, com "C2 até 1,30 m". A altura inicial já vem com o topo do caminhão
+// anterior naquele trecho. Grava como traço: w negativo = cota do topo em cm, pts = dois cantos (pontos do PDF).
+const mmPt = (x,y) => [Math.round(x*72/25.4*10)/10, Math.round((MP.H-y)*72/25.4*10)/10];
+function porCota(c){
+  const m=mapaDe(c), f=m && folhasMapa(m)[V.n-2];
+  if(!f) return toast("Vá para a folha de uma parede (da folha 2 em diante).");
+  if(!c.cams.length) return toast("Cadastre o caminhão primeiro (+ Caminhão).");
+  const num2=v=>v.trim()==="" ? null : num(v), inp=(v,lab)=>el("input",{type:"text",inputMode:"decimal",value:v==null?"":String(Math.round(v*100)/100).replace(".",","),"aria-label":lab});
+  const iCam=el("select",{"aria-label":"Caminhão"}, ...c.cams.map(k=>el("option",{value:k.n,text:`C${k.n}${k.nf?" · NF "+k.nf:""} · ${nf1.format(+k.vol||0)} m³`})));
+  iCam.value=String(CC.cam ?? c.cams.at(-1).n);
+  const iPar=el("select",{"aria-label":"Parede"}, ...f.ws.map((w,i)=>el("option",{value:i,text:descPar(w.p)+(w.tr?` (trecho ${nf2(w.a)} a ${nf2(w.b)} m)`:"")})));
+  const iX1=inp(0,"Trecho: de (m)"), iX2=inp(0,"Trecho: até (m)"), iH1=inp(0,"Altura: de (m)"), iH2=inp(null,"Altura: até (m)");
+  const info=el("p",{class:"info full"}), cor=el("span",{class:"cc-dot",text:""});
+  // topo já pintado por cota neste trecho da parede (de todos os caminhões)
+  const topo=(w,x1,x2)=>tracosDe(c.id).filter(t=>t.pag===V.n && t.w<0).reduce((mx,t)=>{
+    const a=(Math.min(t.pts[0],t.pts[2])*25.4/72-w.x)/w.s+w.a, b=(Math.max(t.pts[0],t.pts[2])*25.4/72-w.x)/w.s+w.a;
+    return b>x1+0.01 && a<x2-0.01 ? Math.max(mx, -t.w/100) : mx; }, 0);
+  const W=()=>f.ws[+iPar.value];
+  const conta=()=>{ const w=W(), x1=num2(iX1.value)??w.a, x2=num2(iX2.value)??w.b, h1=num2(iH1.value)??0, h2=num2(iH2.value);
+    const k=c.cams.find(x=>x.n===+iCam.value); cor.style.setProperty("--cor",k?.cor||"#888"); cor.textContent=`C${k?.n}`;
+    info.textContent = h2!=null && h2>h1 && x2>x1 ? `Área: ${nf2(x2-x1)} × ${nf2(h2-h1)} m · ≈ ${nf2((x2-x1)*(h2-h1)*w.p.e)} m³ de concreto (e = ${nf2(w.p.e)} m)${k?.vol?` · caminhão com ${nf1.format(+k.vol)} m³`:""}`
+      : `Parede: ${nf2(w.a)} a ${nf2(w.b)} m no comprimento · altura de 0 a ${nf2(w.p.h)} m.`; };
+  const padrao=()=>{ const w=W(); iX1.value=nf2(w.a); iX2.value=nf2(w.b); const t=topo(w,w.a,w.b); iH1.value=nf2(t); iH2.value=""; conta(); };
+  iPar.onchange=padrao; iCam.onchange=conta; for(const i of [iX1,iX2,iH1,iH2]) i.oninput=conta;
+  const salvar=()=>{
+    const w=W(), x1=num2(iX1.value), x2=num2(iX2.value), h1=num2(iH1.value)??0, h2=num2(iH2.value), cam=+iCam.value;
+    if(h2==null) return toast("Informe até que altura o caminhão chegou.");
+    if(!(x1>=w.a-1e-6 && x2<=w.b+1e-6 && x2>x1)) return toast(`Trecho: de ${nf2(w.a)} até ${nf2(w.b)} m, com o final maior que o início.`);
+    if(!(h1>=0 && h2<=w.p.h+1e-6 && h2>h1)) return toast(`Altura: de 0 até ${nf2(w.p.h)} m, com o final maior que o início.`);
+    const id=uid().slice(0,12), [ax,ay]=mmPt(w.x+(x1-w.a)*w.s, w.y+(w.p.h-h1)*w.s), [bx,by]=mmPt(w.x+(x2-w.a)*w.s, w.y+(w.p.h-h2)*w.s);
+    S.pendTr[id]={conc:c.id, cam, pag:V.n, w:-Math.max(1,Math.round(h2*100)), pts:[ax,ay,bx,by]};
+    CC.desfazer.push(id); CC.cam=cam;
+    if(c.status==="Programada") setConc(c.id,{status:"Em andamento"},"Status: Em andamento");
+    savePendCc(); scheduleSync(2500); desenhar(); renderCcBar(); fecharEf();
+    toast(`C${cam} até ${nf2(h2)} m pintado.`);
+  };
+  efModal("Pintar por cota",
+    [el("div",{class:"campo full cc-cota"}, "Caminhão", el("div",{class:"row"}, iCam, cor)), campoEf("Parede",iPar,true),
+     el("div",{class:"campo full cc-faixa"}, "Trecho da parede (m, no comprimento): de", iX1, "até", iX2),
+     el("div",{class:"campo full cc-faixa"}, "Altura a partir da base (m): de", iH1, "até", iH2),
+     info, el("p",{class:"info full",text:"A altura inicial já vem com o topo do que foi pintado por cota neste trecho. Para outro trecho, mude o “de/até” do comprimento."})],
+    [el("button",{class:"btn pri",type:"button",text:"Pintar",onclick:salvar})]);
+  padrao(); iH2.focus();
+}
 function desenharPlanta(doc, pl, bx, by, bw, bh, destaque, rotulos){
   const k=Math.min(bw/pl.W, bh/pl.H), ox=bx+(bw-pl.W*k)/2, oy=by+(bh-pl.H*k)/2, R=([x,y,w,h])=>[ox+x*k, oy+(pl.H-y-h)*k, w*k, h*k];
   for(const [id,r] of Object.entries(pl.r)){ const [x,y,w,h]=R(r), on=!destaque || destaque.has(id);
@@ -6851,13 +6902,19 @@ async function docMapa(c, {pintura=false}={}){
       const grupos=new Map(); for(const t of ts) (grupos.get(t.cam)||grupos.set(t.cam,[]).get(t.cam)).push(t);
       for(const [cam, lista] of grupos){ const cor=hexRgb(cams.find(k=>k.n===cam)?.cor||"#888888"); let sx=0, sy=0, n=0;
         doc.saveGraphicsState(); doc.setGState(new doc.GState({"stroke-opacity":0.5, opacity:0.5})); doc.setDrawColor(...cor); doc.setLineCap("round"); doc.setLineJoin("round");
-        for(const t of lista){ const ps=[]; for(let i=0;i<t.pts.length;i+=2){ const q=ptMm(t.pts[i],t.pts[i+1]); ps.push(q); sx+=q[0]; sy+=q[1]; n++; }
+        const rets=[];
+        for(const t of lista){
+          if(t.w<0){ const [x1,y1]=ptMm(t.pts[0],t.pts[1]), [x2,y2]=ptMm(t.pts[2],t.pts[3]), r=[Math.min(x1,x2), Math.min(y1,y2), Math.abs(x2-x1), Math.abs(y2-y1)];
+            doc.setFillColor(...cor); doc.rect(...r, "F"); rets.push([r, -t.w/100]); continue; }
+          const ps=[]; for(let i=0;i<t.pts.length;i+=2){ const q=ptMm(t.pts[i],t.pts[i+1]); ps.push(q); sx+=q[0]; sy+=q[1]; n++; }
           doc.setLineWidth(Math.max(0.3, t.w*25.4/72));
           if(ps.length===1) ps.push([ps[0][0]+0.01, ps[0][1]]);
           doc.lines(ps.slice(1).map((q,i)=>[q[0]-ps[i][0], q[1]-ps[i][1]]), ps[0][0], ps[0][1], [1,1], "S"); }
         doc.restoreGraphicsState();
         if(n){ const lx=sx/n, ly=sy/n; doc.setFont("helvetica","bold"); doc.setFontSize(9); const tw2=doc.getTextWidth("C"+cam)+2;
           doc.setFillColor(255,255,255); doc.roundedRect(lx-tw2/2, ly-3, tw2, 4.4, 0.8, 0.8, "F"); doc.setTextColor(...cor); doc.text("C"+cam, lx, ly+0.4, {align:"center"}); }
+        for(const [[x,y,w,h],ate] of rets){ const txt=`C${cam} até ${nf2(ate)} m`; doc.setFont("helvetica","bold"); doc.setFontSize(Math.min(9, Math.max(5, h*2))); const tw3=doc.getTextWidth(txt)+2;
+          doc.setFillColor(255,255,255); doc.roundedRect(x+w/2-tw3/2, y+h/2-2, tw3, 3.6, 0.6, 0.6, "F"); doc.setTextColor(...cor); doc.text(txt, x+w/2, y+h/2+0.6, {align:"center"}); }
       }
     }
   }

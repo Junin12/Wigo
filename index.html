@@ -174,6 +174,23 @@ section.view{padding-block:14px;display:grid;gap:14px}
 .cc-nova{display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto;gap:6px;margin:4px 0}
 .cc-faixa{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:.85rem;font-weight:400;margin-top:6px}
 .cc-faixa input{width:5.5em}
+/* croquis das barras (romaneios) e pré-levantamento */
+img.croqui{display:block;background:#fff;border-radius:6px;border:1px solid var(--line);max-width:100%;height:auto}
+.cf-os img.croqui{width:190px;margin:6px 0 2px}
+.pl-tab th img.croqui{width:104px;margin:0 auto 3px}
+.pl-tab th b{display:block;white-space:nowrap} .pl-tab th small{display:block;color:var(--muted);font-weight:400;white-space:nowrap}
+.pl-tab td input{width:4.2em;min-height:40px;padding:4px;text-align:center}
+.pl-tab tbody th,.pl-tab tfoot th{text-align:left;white-space:nowrap}
+.pl-tab tfoot td{text-align:center;font-weight:600} .pl-mais{color:var(--ok,#1a7f37)} .pl-menos{color:var(--bad,#c62828)}
+.pl-plantas{display:flex;gap:8px;margin:6px 0}
+.pl-planta{flex:1 1 0;min-width:0;max-width:200px;text-align:center}
+.pl-svg{width:100%;height:auto} .pl-rot{font-size:13px;fill:var(--ink);font-weight:700}
+.pl-els .chipbtn,.pl-pos .chipbtn{font-size:.8rem}
+.pl-topo{position:sticky;top:0;z-index:3;background:var(--bg);padding:4px 0 6px;max-height:52vh;overflow-y:auto;overflow-x:hidden;border-bottom:1px solid var(--line)}
+#prelev .modo{flex-wrap:wrap} #prelev{min-width:0;max-width:100%} #prelev .card{min-width:0}
+.pl-par{cursor:pointer} .pl-par.on{stroke:#7a3d00;stroke-width:1.5} .pl-par:focus{outline:none;stroke:var(--ink);stroke-width:1.5}
+.chipbtn.sel{background:#FB8C00;border-color:#FB8C00;color:#111}
+#prelev .pl-el{scroll-margin-top:56vh}
 .fm-obras td:first-child{min-width:7em} .fm-obras td:not(:first-child){white-space:nowrap;font-size:.85rem} .fm-obras td,.fm-obras th{padding-inline:4px} .fm-obras input[type=checkbox]{width:22px;height:22px;min-height:0}
 @media (max-width:520px){ .cc-nova{grid-template-columns:1fr 1fr 1fr 1fr} .cc-nova input:first-child{grid-column:1/-1} } /* número e explicação em linhas próprias (antes ficavam grudados: "9,2 t/semmédia…") */
 .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:grid;gap:10px}
@@ -708,6 +725,13 @@ canvas.qr{display:block;width:min(260px,100%);height:auto;image-rendering:pixela
   </div></header>
   <div class="tela-corpo" id="reg2"></div>
 </section>
+<section id="tela-prelev" class="tela" aria-label="Pré-levantamento do aço" hidden>
+  <header class="tela-topo compacto"><div class="in">
+    <button class="tela-voltar" type="button" data-voltar><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>Voltar</button>
+    <img class="tela-logo" src="logo-relatorio.jpg" alt="Heca Construtora · GCE">
+  </div></header>
+  <div class="tela-corpo" id="prelev"></div>
+</section>
 <section id="tela-fpainel" class="tela" aria-label="Painel da forma" hidden>
   <header class="tela-topo compacto"><div class="in">
     <button class="tela-voltar" type="button" data-voltar><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>Voltar</button>
@@ -759,6 +783,7 @@ canvas.qr{display:block;width:min(260px,100%);height:auto;image-rendering:pixela
         </div>
       </details>
     </div>
+    <div class="row"><button class="btn" id="btn-prelev" type="button">📝 Pré-levantamento (% por parede)</button></div>
     <p class="info" id="lista-info"></p>
     <div class="elem" id="elem" hidden></div>
     <div class="lista" id="lista"></div>
@@ -1870,7 +1895,7 @@ $("#tema").addEventListener("click", e=>{ const b=e.target.closest("button[data-
   renderTema(); });
 renderTema();
 
-const VERSAO_APP = "v89"; // igual ao número em sw.js (armacao-v89)
+const VERSAO_APP = "v90"; // igual ao número em sw.js (armacao-v90)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -2891,6 +2916,176 @@ function renderMetaCurva(){
   $("#s-nota").textContent=`Toneladas acumuladas. Linha cheia: realizado · tracejada cinza: planejado pela meta (semanas passadas com a equipe real, futuras com ${p.arm} armadores × ${DIAS()} dias) · pontilhada: projeção no ritmo real. Teto do gráfico = ${t(p.P)} t previstas.`;
 }
 
+// ---------- croquis das barras (desenho com as medidas, recortado dos PDFs dos romaneios da Aços Campinas) ----------
+// croquis/<romaneio>.json = {OS: imagem} (documentos/croquis/extrair_croquis.py). O app busca só o romaneio que precisa
+// e o service worker guarda para usar sem internet.
+const CROQ={};
+const croquisDe = rom => CROQ[rom] ??= fetch(`croquis/${rom}.json`).then(r=>r.ok?r.json():{}).catch(()=>{ delete CROQ[rom]; return {}; });
+// croqui de uma posição da base: o da 1ª OS de romaneio ligada a ela (posição que ainda não veio em romaneio não tem)
+async function croquiPos(code){
+  await carregarOsRom(); const l=ligarRomaneios()?.osDe?.get(code); if(!l?.length) return null;
+  const [rom,os]=l[0]; return (await croquisDe(rom))[os] || null;
+}
+const imgCroqui = (src, alt) => el("img",{class:"croqui",src,alt,decoding:"async"});
+
+// ---------- pré-levantamento do aço: % de cada barra em cada parede ----------
+// No sol, conferir peça por peça é difícil. O jeito de campo: desenhar a estrutura, listar as paredes de cada elemento em
+// linhas e as barras em colunas (com o desenho de cada uma) e marcar só a % aproximada já armada. O app converte em barras:
+// % × (quantidade da posição ÷ nº de paredes do elemento — na base as paredes iguais vêm juntas, ex.: "PAREDE 1, PAREDE 2,
+// PAREDE 3" = uma de cada floculador) e compara com o lançado. É só apoio: pode ser apagado, ou virar o lançamento da semana
+// (só soma o que passa do que já foi lançado; nunca diminui). Fica em Registros2 (módulo "aco", tipo "prelev"), um por estrutura.
+function paredesDoEl(loc){
+  const u=normTxt(loc).replace(/\([^)]*\)/g," ");
+  if(!/^(ARM\.?\s*)?(PAREDES?|PAR\.?|POAREDE)\s*\d/.test(u)) return [];
+  const out=[];
+  for(const pedaco of u.replace(/^ARM\.?\s*/,"").split(/,|=|\bE\b/)){
+    const t=pedaco.replace(/(PAREDES?|POAREDE|PAR\.?)\s*/g," ").replace(/\s-\s.*$/,"").trim();
+    const fx=t.match(/^(\d+)\s+A\s+(\d+)\b/);
+    if(fx){ for(let k=+fx[1];k<=+fx[2];k++) out.push("PAR "+k); continue; }
+    for(const m of t.matchAll(/\b(\d+[A-Z]?)\b/g)) out.push("PAR "+m[1]);
+  }
+  return [...new Set(out)];
+}
+// floculador (A, B ou C) de uma parede, pelo catálogo do mapa de concretagem
+const flocDaParede = p => PAREDES_CAT.find(c=>/^FLOC-[ABC]$/.test(c.k) && c.par.some(x=>x.id.replace(/ (inf|sup)\.$/,"")===p))?.k.slice(-1) || "";
+const PL={est:LS.get("plEst")||"", buf:null, t:null, sel:null}; // sel: "par:PAR 1" (parede tocada na planta) ou "el:<elemento>"
+const plId = est => "pl"+cyrb53("prelev|"+est).slice(0,10);
+function plDados(est){
+  if(PL.buf?.est===est) return PL.buf;
+  const r=regs2De("aco","prelev").find(x=>x.id===plId(est));
+  return r ? JSON.parse(JSON.stringify(r.dados)) : {est, unid:["A","B","C"], els:{}};
+}
+function plSalvar(d){ PL.buf=d; clearTimeout(PL.t);
+  PL.t=setTimeout(()=>{ const x=PL.buf; PL.buf=null; setReg2(plId(x.est), {modulo:"aco", tipo:"prelev", data:hojeISO(), status:"", dados:x}, `Pré-levantamento: ${x.est}`); }, 800); }
+const plGrupos = est => { const g=new Map(); for(const i of S.items) if(i.est===est) (g.get(i.loc)||g.set(i.loc,[]).get(i.loc)).push(i); return g; };
+const ordPos = (a,b) => String(a.pos).localeCompare(String(b.pos),"pt",{numeric:true}) || +a.bit-+b.bit;
+// barras estimadas de uma posição num elemento: % de cada parede × (quantidade ÷ nº de paredes do elemento)
+function plEstimado(loc, e, i){
+  const todas=paredesDoEl(loc), n=Math.max(1,todas.length), share=i.qp/n;
+  return Math.round((e.rows||[]).reduce((s,r)=>s+(+e.pct?.[r]?.[i.c]||0)/100*share,0));
+}
+const plCor = f => f<=0 ? "#C5CDD6" : `hsl(${Math.round(205-95*Math.min(1,f))} 60% ${Math.round(52-8*f)}%)`; // cinza → azul → verde
+function renderPrelev(){
+  const box=$("#prelev"); if(!box) return;
+  const ests=[...new Set(S.items.map(i=>i.est))];
+  if(!ests.length) return repor(box, el("p",{class:"vazio",text:"Base de aço ainda não carregada."}));
+  if(!ests.includes(PL.est)) PL.est=ests.includes("FLOCULADORES")?"FLOCULADORES":ests[0];
+  const d=plDados(PL.est), G=plGrupos(PL.est), locs=[...G.keys()], floc=PL.est==="FLOCULADORES";
+  d.unid ??= ["A","B","C"];
+  const linhasDe = loc => { const ps=paredesDoEl(loc); return ps.length ? ps.filter(p=>!floc || !flocDaParede(p) || d.unid.includes(flocDaParede(p))) : [loc]; };
+  const rotLinha = r => floc && flocDaParede(r) ? `${r} · ${flocDaParede(r)}` : r;
+  const sel=el("select",{"aria-label":"Estrutura"}, ...ests.map(e=>el("option",{value:e,text:e,selected:e===PL.est})));
+  sel.onchange=()=>{ PL.est=sel.value; LS.set("plEst",PL.est); renderPrelev(); };
+  // floculadores em montagem: escolhe as paredes de todos os elementos de uma vez
+  const unidades = floc ? el("div",{class:"modo",role:"group","aria-label":"Floculadores em montagem"}, el("span",{class:"info",text:"Em montagem:"}),
+    ...["A","B","C"].map(u=>{ const on=d.unid.includes(u); return el("button",{type:"button",class:"chipbtn"+(on?" on":""),"aria-pressed":String(on),text:`Floculador ${u}`,
+      onclick:()=>{ d.unid = on ? d.unid.filter(x=>x!==u) : [...d.unid,u].sort(); for(const [loc,e] of Object.entries(d.els)) e.rows=linhasDe(loc); plSalvar(d); renderPrelev(); }}); })) : null;
+  const chipsEl=el("div",{class:"modo pl-els",role:"group","aria-label":"Elementos em análise"},
+    ...locs.map(loc=>{ const on=!!d.els[loc], its=G.get(loc), feito=its.reduce((s,i)=>s+Math.min(S.acum.get(i.c)||0,i.qp)*i.ppb,0), tot=its.reduce((s,i)=>s+i.kp,0);
+      return el("button",{type:"button",class:"chipbtn"+(on?" on":""),"aria-pressed":String(on),text:`${on?"✓ ":""}${loc} · ${pct(tot?feito/tot:0)}`,
+        onclick:()=>{ if(on){ if(Object.values(d.els[loc].pct||{}).some(o=>Object.keys(o).length) && !confirm(`Tirar ${loc} do pré-levantamento? As % marcadas nele são apagadas.`)) return; delete d.els[loc]; }
+          else d.els[loc]={rows:linhasDe(loc), pos:its.filter(i=>(S.acum.get(i.c)||0)<i.qp).sort(ordPos).map(i=>i.c), pct:{}};
+          plSalvar(d); renderPrelev(); }}); }));
+  // desenho: % média de cada parede (pelo peso das barras marcadas)
+  const pctParede=new Map();
+  for(const [loc,e] of Object.entries(d.els)){ const its=G.get(loc)||[], n=Math.max(1,paredesDoEl(loc).length);
+    for(const r of e.rows||[]){ let s=0, w=0; for(const c of e.pos||[]){ const i=S.byCode.get(c); if(!i) continue; const k=i.kp/n; s+=(+e.pct?.[r]?.[c]||0)/100*k; w+=k; }
+      const a=pctParede.get(r)||[0,0]; pctParede.set(r,[a[0]+s,a[1]+w]); } }
+  // tocar numa parede (ou num elemento sem desenho): abre só o quadro dela, com a parede marcada no desenho
+  const selP = PL.sel?.startsWith("par:") ? PL.sel.slice(4) : null, selE = PL.sel?.startsWith("el:") ? PL.sel.slice(3) : null;
+  const plSelecionar = sel => { PL.sel = PL.sel===sel ? null : sel;
+    if(PL.sel?.startsWith("par:")){ const pp=PL.sel.slice(4);
+      for(const [loc,its] of G) if(paredesDoEl(loc).includes(pp)){ const e=d.els[loc] ??= {rows:[], pos:its.filter(i=>(S.acum.get(i.c)||0)<i.qp).sort(ordPos).map(i=>i.c), pct:{}}; if(!e.rows.includes(pp)) e.rows.push(pp); } }
+    else if(PL.sel?.startsWith("el:")){ const loc=PL.sel.slice(3), its=G.get(loc); d.els[loc] ??= {rows:linhasDe(loc), pos:its.filter(i=>(S.acum.get(i.c)||0)<i.qp).sort(ordPos).map(i=>i.c), pct:{}}; }
+    plSalvar(d); renderPrelev(); if(PL.sel) requestAnimationFrame(()=>$("#prelev .pl-el")?.scrollIntoView({behavior:"smooth",block:"start"})); };
+  const naPlanta=new Set(floc ? d.unid.flatMap(u=>Object.keys(catParedes("FLOC-"+u)?.planta.r||{}).map(id=>id.replace(/ (inf|sup)\.$/,""))) : []);
+  // paredes que não estão em nenhum desenho e elementos sem parede (fundo, lajes…): botões ao lado do desenho
+  const soltas=[...new Set(locs.flatMap(loc=>linhasDe(loc).filter(r=>paredesDoEl(loc).includes(r) && !naPlanta.has(r))))].sort((a,b)=>a.localeCompare(b,"pt",{numeric:true}));
+  const semParede=locs.filter(loc=>!paredesDoEl(loc).length);
+  const botoesSel = el("div",{class:"modo pl-pos",role:"group","aria-label":"Escolher parede ou elemento"},
+    ...soltas.map(r=>el("button",{type:"button",class:"chipbtn"+(selP===r?" on sel":""),"aria-pressed":String(selP===r),text:rotLinha(r),onclick:()=>plSelecionar("par:"+r)})),
+    ...semParede.map(loc=>el("button",{type:"button",class:"chipbtn"+(selE===loc?" on sel":""),"aria-pressed":String(selE===loc),text:loc,onclick:()=>plSelecionar("el:"+loc)})),
+    PL.sel ? el("button",{type:"button",class:"chipbtn",text:"✕ Ver todos os quadros",onclick:()=>plSelecionar(PL.sel)}) : null);
+  const desenho = floc ? el("div",{class:"pl-plantas"}, ...d.unid.map(u=>{ const cat=catParedes("FLOC-"+u); if(!cat) return null; const pl=cat.planta, k=150/pl.W;
+    const svg=document.createElementNS("http://www.w3.org/2000/svg","svg"); svg.setAttribute("viewBox",`-30 -16 ${pl.W*k+60} ${pl.H*k+32}`); svg.setAttribute("class","pl-svg");
+    svg.setAttribute("role","img"); svg.setAttribute("aria-label",`Floculador ${u}: paredes coloridas pela % armada`);
+    for(const [id,[x,y,w,h]] of Object.entries(pl.r)){ const base=id.replace(/ (inf|sup)\.$/,""), v=pctParede.get(base), f=v&&v[1]?v[0]/v[1]:0, R=document.createElementNS(svg.namespaceURI,"rect");
+      const X=x*k, Y=(pl.H-y-h)*k, W2=Math.max(w*k,7), H2=Math.max(h*k,7), on=selP===base;
+      Object.entries({x:X-(W2-w*k)/2, y:Y-(H2-h*k)/2, width:W2, height:H2, fill:on?"#FB8C00":plCor(v?f:0), rx:1, class:"pl-par"+(on?" on":""), tabindex:0, role:"button",
+        "aria-label":`${base}${v?": "+pct(f):""}${on?" (selecionada)":""}`}).forEach(([a,b])=>R.setAttribute(a,b));
+      R.addEventListener("click", ()=>plSelecionar("par:"+base)); R.addEventListener("keydown", ev=>{ if(ev.key==="Enter"||ev.key===" "){ ev.preventDefault(); plSelecionar("par:"+base); } });
+      const tt=document.createElementNS(svg.namespaceURI,"title"); tt.textContent=`${base}: ${v?pct(f):"não marcada"} · toque para preencher`; R.append(tt); svg.append(R);
+      if(!/ sup\.$/.test(id)){ const T=document.createElementNS(svg.namespaceURI,"text"), hor=w>=h, cx=X+w*k/2, cy=Y+h*k/2;
+        Object.entries({x:hor?cx:(x<0.1?X-3:X+w*k+3), y:hor?(y<0.1?Y+h*k+11:Y-3):cy+3, "text-anchor":hor?"middle":(x<0.1?"end":"start"), class:"pl-rot"}).forEach(([a,b])=>T.setAttribute(a,b));
+        T.textContent=`${base.replace("PAR ","P")}${v?" "+Math.round(f*100)+"%":""}`; svg.append(T); } }
+    return el("div",{class:"pl-planta"}, el("b",{text:`Floculador ${u}`}), svg); })) : null;
+  // um quadro por elemento: paredes em linhas, barras em colunas (croqui), % em cada célula
+  const quadros=Object.entries(d.els).filter(([loc])=>G.has(loc) && (selP ? paredesDoEl(loc).includes(selP) : selE ? loc===selE : true)).map(([loc,e])=>{
+    const rowsVer = selP ? [selP] : (e.rows||[]);
+    const its=G.get(loc).slice().sort(ordPos), posSel=its.filter(i=>(e.pos||[]).includes(i.c));
+    const chipsP=el("div",{class:"modo pl-pos",role:"group","aria-label":`Barras de ${loc}`}, el("span",{class:"info",text:"Barras:"}),
+      ...its.map(i=>{ const on=(e.pos||[]).includes(i.c), feito=(S.acum.get(i.c)||0)>=i.qp;
+        return el("button",{type:"button",class:"chipbtn"+(on?" on":""),"aria-pressed":String(on),text:`${i.pos} Ø${String(i.bit).replace(".",",")}${feito?" ✓":""}`,
+          onclick:()=>{ e.pos = on ? e.pos.filter(c=>c!==i.c) : its.filter(x=>x.c===i.c || e.pos.includes(x.c)).map(x=>x.c); plSalvar(d); renderPrelev(); }}); }));
+    const todas=paredesDoEl(loc), chipsR = todas.length>1 && !selP ? el("div",{class:"modo",role:"group","aria-label":`Paredes de ${loc}`}, el("span",{class:"info",text:"Paredes:"}),
+      ...todas.map(r=>{ const on=(e.rows||[]).includes(r);
+        return el("button",{type:"button",class:"chipbtn"+(on?" on":""),"aria-pressed":String(on),text:rotLinha(r),
+          onclick:()=>{ e.rows = on ? e.rows.filter(x=>x!==r) : todas.filter(x=>x===r || e.rows.includes(x)); plSalvar(d); renderPrelev(); }}); })) : null;
+    const pe={}, pl={}, pd={};
+    const atualizar=()=>{ for(const i of posSel){ const est=plEstimado(loc,e,i), ac=S.acum.get(i.c)||0;
+      pe[i.c].textContent=nf0.format(est); pl[i.c].textContent=nf0.format(ac); const df=est-ac; pd[i.c].textContent=(df>0?"+":"")+nf0.format(df); pd[i.c].className=df>0?"pl-mais":df<0?"pl-menos":""; }
+      const kE=posSel.reduce((s,i)=>s+plEstimado(loc,e,i)*i.ppb,0), kL=posSel.reduce((s,i)=>s+Math.min(S.acum.get(i.c)||0,i.qp)*i.ppb,0);
+      resumo.textContent=`Estimado ${nf1.format(kE/1000)} t · lançado ${nf1.format(kL/1000)} t nas barras marcadas`; };
+    const resumo=el("p",{class:"info"});
+    const head=el("tr",{}, el("th",{text:"Parede"}), ...posSel.map(i=>{ const im=el("img",{class:"croqui",alt:`Desenho da barra ${i.pos}`,hidden:true});
+      croquiPos(i.c).then(src=>{ if(src){ im.src=src; im.hidden=false; } });
+      return el("th",{}, im, el("b",{text:`${i.pos} Ø${String(i.bit).replace(".",",")}`}), el("small",{text:`${nf2(i.cu)} m · ${nf0.format(i.qp)} br`})); }));
+    const corpo=rowsVer.map(r=>el("tr",{}, el("th",{text:rotLinha(r)}), ...posSel.map(i=>{
+      const v=e.pct?.[r]?.[i.c], inp=el("input",{type:"number",inputMode:"numeric",min:0,max:100,step:5,value:v??"",placeholder:"–","aria-label":`${r}, barra ${i.pos}: % armada`});
+      inp.onchange=()=>{ const n=inp.value===""?null:Math.max(0,Math.min(100,Math.round(num(inp.value)))); e.pct ??= {}; e.pct[r] ??= {};
+        if(n==null) delete e.pct[r][i.c]; else { e.pct[r][i.c]=n; inp.value=n; } plSalvar(d); atualizar(); };
+      return el("td",{}, inp); })));
+    const pe_=posSel.map(i=>{ pe[i.c]=el("td"); return pe[i.c]; }), pl_=posSel.map(i=>{ pl[i.c]=el("td"); return pl[i.c]; }), pd_=posSel.map(i=>{ pd[i.c]=el("td"); return pd[i.c]; });
+    const tab=el("div",{class:"tbl pl-tab"}, el("table",{}, el("thead",{},head), el("tbody",{},...corpo),
+      el("tfoot",{}, el("tr",{}, el("th",{text:"Estimado (barras)"}), ...pe_), el("tr",{}, el("th",{text:"Lançado"}), ...pl_), el("tr",{}, el("th",{text:"Diferença"}), ...pd_))));
+    const card=el("details",{class:"card pl-el",open:true}, el("summary",{class:"pr-sum",text:selP ? `${rotLinha(selP)} · ${loc} · ${posSel.length} barra(s)` : `${loc} · ${(e.rows||[]).length} parede(s) · ${posSel.length} barra(s)`}),
+      el("p",{class:"i-sub",text:[...new Set(its.map(i=>i.pr.replace(/^.*?-DE-/,"DE-")))].join(" · ")}),
+      chipsR, chipsP, posSel.length && rowsVer.length ? tab : el("p",{class:"info",text:"Escolha as paredes e as barras que estão sendo armadas."}), resumo);
+    if(posSel.length && (e.rows||[]).length) atualizar();
+    return card; });
+  const temPct=Object.values(d.els).some(e=>Object.values(e.pct||{}).some(o=>Object.keys(o).length));
+  repor(box,
+    el("p",{class:"saud"}, "Pré-levantamento do aço", el("small",{text:"Marque a % aproximada de cada barra em cada parede · só para apoiar o levantamento"})),
+    el("div",{class:"pl-topo"},
+      el("label",{class:"campo"}, "Estrutura", sel), unidades, desenho, botoesSel,
+      el("p",{class:"info",text: PL.sel ? `Preenchendo: ${selP?rotLinha(selP):selE}. Toque em outra parede para trocar.` : floc ? "Toque numa parede do desenho para abrir só o quadro dela." : "Toque numa parede ou elemento para abrir só o quadro dele."})),
+    el("details",{class:"card"}, el("summary",{class:"pr-sum",text:`Elementos em análise · ${Object.keys(d.els).length}`}), chipsEl),
+    ...(quadros.length ? quadros : [el("p",{class:"vazio",text:"Toque nos elementos que estão sendo armados para montar o quadro."})]),
+    el("div",{class:"row"},
+      el("button",{class:"btn pri",type:"button",text:"Usar como lançamento real…",disabled:!temPct,onclick:()=>plLancar(d,G)}),
+      el("button",{class:"btn",type:"button",text:"Apagar pré-levantamento",disabled:!Object.keys(d.els).length,onclick:()=>{
+        if(!confirm(`Apagar o pré-levantamento de ${PL.est}? Os lançamentos não mudam.`)) return;
+        clearTimeout(PL.t); PL.buf=null; if(regs2De("aco","prelev").some(x=>x.id===plId(PL.est))) delReg2(plId(PL.est)); toast("Pré-levantamento apagado."); renderPrelev(); }})),
+    el("p",{class:"info",text:"Barras estimadas = % de cada parede × quantidade da posição ÷ nº de paredes do elemento (na base as paredes iguais vêm juntas). Paredes não marcadas contam 0. Os desenhos das barras vêm dos romaneios; posição que ainda não veio em romaneio fica sem desenho."}));
+}
+// transforma o pré-levantamento em lançamento da semana atual (equipe atual): só o que passa do já lançado
+function plLancar(d, G){
+  const w=curW(); if(!w) return toast("Cadastre a semana atual em Semanas primeiro.");
+  const L=[];
+  for(const [loc,e] of Object.entries(d.els)) for(const c of e.pos||[]){ const i=S.byCode.get(c); if(!i || !G.get(loc)?.includes(i)) continue;
+    const est=Math.min(i.qp, plEstimado(loc,e,i)), {wq,ac,max}=rowNums(i), novo=Math.min(max, wq+Math.max(0,est-ac));
+    if(novo>wq) L.push({i, est, ac, wq, novo}); }
+  if(!L.length) return toast("Nada a lançar: o estimado não passa do que já foi lançado.");
+  const kg=L.reduce((s,x)=>s+(x.novo-x.wq)*x.i.ppb,0);
+  efModal("Usar como lançamento real",
+    [el("p",{class:"info full",text:`Semana ${w.n} (${w.periodo||""}) · equipe ${eqAtual()} · ${L.length} posições · +${nf1.format(kg)} kg. Só entra o que passa do já lançado; nada é diminuído.`}),
+     el("div",{class:"tbl full"}, el("table",{}, el("thead",{}, el("tr",{}, ...["Posição","Elemento","Estimado","Já lançado","Entra agora"].map(h=>el("th",{text:h})))),
+       el("tbody",{}, ...L.map(x=>el("tr",{}, el("td",{text:`${x.i.pos} Ø${String(x.i.bit).replace(".",",")}`}), el("td",{text:x.i.loc}), el("td",{text:nf0.format(x.est)}),
+         el("td",{text:nf0.format(x.ac)}), el("td",{text:`+${nf0.format(x.novo-x.wq)}`}))))))],
+    [el("button",{class:"btn pri",type:"button",text:"Lançar",onclick:()=>{ setMany(L.map(x=>[x.i.c, x.novo])); fecharEf(); toast(`Lançado: ${L.length} posições, +${nf1.format(kg)} kg na semana ${w.n}.`); renderPrelev(); }})]);
+}
+$("#btn-prelev").addEventListener("click", ()=>abrirTela("prelev"));
+
 // ---------- frentes de serviço e liberação para concretagem ----------
 const CHECK=[["armadura","Armadura conforme projeto (posições e quantidades)"],["bitolas","Bitolas e espaçamentos conferidos"],["cobrimento","Cobrimento garantido (espaçadores/pastilhas)"],
   ["arranques","Arranques e esperas posicionados"],["amarracao","Amarração firme, sem barras soltas"],["limpeza","Forma limpa e estanque, sem sobras de arame"],["embutidos","Embutidos, passagens e insertos conferidos"]];
@@ -3625,10 +3820,10 @@ const SERVICOS=[
 ];
 
 // --- navegação entre telas: início → produtividade → aço (o app de armação) ---
-const TELAS={inicio:"#inicio", prod:"#tela-prod", sup:"#tela-sup", supaco:"#tela-sup-aco", supped:"#tela-sup-pedido", supconf:"#tela-sup-conf", ponto:"#tela-ponto", fotos:"#tela-fotos",
+const TELAS={inicio:"#inicio", prod:"#tela-prod", sup:"#tela-sup", supaco:"#tela-sup-aco", supped:"#tela-sup-pedido", supconf:"#tela-sup-conf", prelev:"#tela-prelev", ponto:"#tela-ponto", fotos:"#tela-fotos",
   producao:"#tela-producao", login:"#tela-login", rdo:"#tela-rdo", conc:"#tela-conc", reg:"#tela-reg", acessos:"#tela-acessos", fpainel:"#tela-fpainel"};
 // módulo exigido por cada tela (o cargo precisa ter acesso)
-const TELA_MOD={prod:"prod", aco:"prod", fpainel:"prod", sup:"sup", supaco:"sup", supped:"sup", supconf:"sup", ponto:"ponto", fotos:"fotos", producao:"producao", rdo:"rdo", conc:"prod"};
+const TELA_MOD={prod:"prod", aco:"prod", fpainel:"prod", sup:"sup", supaco:"sup", supped:"sup", supconf:"sup", prelev:"prod", ponto:"ponto", fotos:"fotos", producao:"producao", rdo:"rdo", conc:"prod"};
 function abrirTela(t, empilhar=true, forcar=false){
   if(!liberado() && t!=="login") t="login"; // sem login ou sem liberação: só a tela de entrada/espera
   if(!forcar && TELA_MOD[t] && !pode(TELA_MOD[t])){ toast("Seu cargo não tem acesso a esta parte do app."); t="inicio"; }
@@ -3636,7 +3831,7 @@ function abrirTela(t, empilhar=true, forcar=false){
   for(const [k,s] of Object.entries(TELAS)) $(s).hidden = t!==k;
   document.body.style.overflow = t==="aco" ? "" : "hidden";
   if(t==="inicio") renderInicio(); if(t==="prod") renderProdMenu();
-  if(t==="sup") renderSupMenu(); if(t==="supaco") renderSupAco(); if(t==="supped") renderSupPedido(); if(t==="supconf") renderSupConf();
+  if(t==="sup") renderSupMenu(); if(t==="supaco") renderSupAco(); if(t==="supped") renderSupPedido(); if(t==="supconf") renderSupConf(); if(t==="prelev") renderPrelev();
   if(t==="ponto") renderPonto(); if(t!=="ponto") $("#ef-modal").hidden=true;
   if(t==="fotos") renderFotos(); if(t==="producao") renderProducao(); if(t==="login") renderLogin(); if(t==="rdo") renderRdo(); if(t==="conc") renderConc(); if(t==="reg") renderReg2(); if(t==="acessos") renderAcessos(); if(t==="fpainel") renderPainelForma();
   if(empilhar) history.pushState({tela:t},"");
@@ -4030,6 +4225,7 @@ async function renderSupConf(){
   // C: conferência de cada romaneio; c0 (o aberto) guarda o que é da carreta: pesagem, observações e conclusão
   const C=Object.fromEntries(ns.map(k=>[k,confDe(k)])), c0=C[n], trav=ns.some(k=>C[k].ok);
   const OSS=Object.fromEntries(ns.map(k=>[k, L[k].flatMap(([,l])=>l)]));
+  const CR=Object.fromEntries(await Promise.all(ns.map(async k=>[k, await croquisDe(k)]))); // desenho de cada OS (dos PDFs dos romaneios)
   const todas=ns.flatMap(k=>OSS[k].map(o=>[k,o]));
   const kgRom=todas.reduce((s,[,o])=>s+o[6],0), nOk=todas.filter(([k,o])=>C[k].m[o[0]]==="111").length;
   const salvar=()=>{
@@ -4063,6 +4259,7 @@ async function renderSupConf(){
       "aria-label":`${CF_MARCAS[i]} certo: OS ${os}${junto?" do romaneio "+k:""}`,onclick:()=>{ const a=v.split(""); a[i]=a[i]==="1"?"0":"1"; c.m[os]=a.join(""); salvar(); }});
     return el("div",{class:"cf-os"+(ok?" ok":"")},
       el("div",{class:"cf-top"}, el("b",{text:`OS ${os}`}), el("span",{text:`Pos. ${pos}`}), el("span",{text:bitola(bit)+" mm"}), el("span",{class:"info",text:`folha ${folha} · ${kgF(kg)}`})),
+      CR[k]?.[os] ? imgCroqui(CR[k][os], `Desenho da barra da OS ${os}`) : null,
       el("div",{class:"cf-bts"}, marca(0,"Entregue"), marca(1,`${nf0.format(q)} barras`), marca(2,cmF(cm)),
         !trav && !ok ? el("button",{type:"button",class:"chipbtn",text:"Tudo certo",onclick:()=>{ c.m[os]="111"; salvar(); }}) : null));
   };
@@ -4191,7 +4388,7 @@ function osJuntas(oss){
     while(j<oss.length && base(oss[j][2])===b && String(oss[j][2])!==String(o[2]) && +oss[j][3]===+o[3]) j++;
     const pecas=oss.slice(k,j), n=Math.min(...pecas.map(x=>+x[4])), comp=pecas.reduce((s,x)=>s+(+x[4])*(+x[5]),0)/n;
     const p=b.toUpperCase(), fl=/^\d+\/\d+$/.test(String(o[1])) ? +String(o[1]).split("/")[0] : null;
-    out.push({pos:p.startsWith("N")?p:"N"+p, bit:+o[3], q:n, comp, fl}); k=j-1;
+    out.push({pos:p.startsWith("N")?p:"N"+p, bit:+o[3], q:n, comp, fl, os:String(o[0])}); k=j-1;
   }
   return out;
 }
@@ -4203,7 +4400,7 @@ function ligarRomaneios(){
   const ests=new Map(), addE=(n,c)=>{ const i=S.byCode.get(c); if(i) (ests.get(n)||ests.set(n,new Set()).get(n)).add(i.est); };
   for(const i of S.items) if(i.ped==="1"||i.ped==="2") addE(Number(i.ped), i.c);
   for(const [n,txt] of Object.entries(ITENS_REMESSA)) for(const s of txt.split(" ")) addE(Number(n), s.split(":")[0]);
-  const usado=new Map(), res=new Map(); res.semPar=new Map(); // semPar: romaneio → OS que não acharam posição na base
+  const usado=new Map(), res=new Map(); res.semPar=new Map(); res.osDe=new Map(); // semPar: romaneio → OS sem posição na base; osDe: código → [[romaneio, OS]]
   for(const x of ROMANEIOS){
     const cand=S.items.filter(i=>ests.get(x.rem)?.has(i.est)), m=new Map(), sp=[];
     for(const [el,oss] of CF.lista[x.n]||[]) for(const o of osJuntas(oss)){
@@ -4215,7 +4412,8 @@ function ligarRomaneios(){
           const r=i.qp-(usado.get(i.c)||0); if(r<=0 || posNorm(i.pos)!==o.pos || +i.bit!==o.bit) continue;
           if(usaFl && o.fl && folhaDe(i.pr)!==o.fl) continue;
           if(Math.abs(i.cu*100-o.comp) > (tol<1 ? Math.max(3, o.comp*tol) : tol)) continue;
-          const a=Math.min(q,r); usado.set(i.c,(usado.get(i.c)||0)+a); m.set(i.c,(m.get(i.c)||0)+a); q-=a; }
+          const a=Math.min(q,r); usado.set(i.c,(usado.get(i.c)||0)+a); m.set(i.c,(m.get(i.c)||0)+a); q-=a;
+          if(a>0) (res.osDe.get(i.c)||res.osDe.set(i.c,[]).get(i.c)).push([x.n, o.os]); }
         if(q<=0) break;
       }
       if(q>0) sp.push({el, pos:o.pos, bit:o.bit, q, comp:Math.round(o.comp)});

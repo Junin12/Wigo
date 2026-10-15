@@ -1870,7 +1870,7 @@ $("#tema").addEventListener("click", e=>{ const b=e.target.closest("button[data-
   renderTema(); });
 renderTema();
 
-const VERSAO_APP = "v87"; // igual ao número em sw.js (armacao-v87)
+const VERSAO_APP = "v88"; // igual ao número em sw.js (armacao-v88)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -3784,6 +3784,9 @@ const REMESSAS_ACO={
   3:{est:"DECANTADORES", ini:"2026-10-06", fim:"2026-10-08"},
   4:{est:"ELEVATÓRIA AT", ini:"2026-10-15", fim:"2026-10-20"},
   5:{est:"POÇO DE SUCÇÃO", ini:"2026-10-27", fim:"2026-10-27"}, // pedido feito fora do app (Tanque Pulmão / Poço de Sucção, Alto Recalque)
+  // aço em barras retas de 12 m (sem romaneio de corte e dobra): só o peso total; a dobra é feita na obra
+  6:{est:"ETA · PRÉDIO ADMINISTRATIVO E VESTIÁRIOS", entregue:true, kg:15236.74, barras12:true,
+    obs:"Carregamentos do prédio administrativo e dos vestiários da ETA. Veio em barras de 12 m e será dobrado na obra pela equipe do Salgadeiro (dono da empresa dos armadores)."},
 };
 // Posições (códigos da base) que vieram nos romaneios das remessas 3 a 5: "CÓDIGO" = posição inteira, "CÓDIGO:n" = n barras.
 // Cruzamento feito pelos PDFs (folha + posição + bitola + elemento). As remessas 1 e 2 estão na coluna PEDIDO da planilha.
@@ -3836,7 +3839,7 @@ function remessas(){
   const L=[];
   for(const [n,R] of Object.entries(REMESSAS_ACO)){
     const roms=ROMANEIOS.filter(x=>x.rem===Number(n));
-    L.push({n:Number(n), est:R.est, ini:R.ini, fim:R.fim, fixo:!!R.entregue, roms, kg:somaKg(roms), b:roms.reduce((o,x)=>somaBit(o,x.b),{})});
+    L.push({n:Number(n), est:R.est, ini:R.ini, fim:R.fim, fixo:!!R.entregue, roms, kg:R.kg ?? somaKg(roms), b:roms.reduce((o,x)=>somaBit(o,x.b),{}), obs:R.obs, barras12:!!R.barras12});
   }
   for(const p of pedidosApp()) L.push({n:p.n, est:p.est, ini:p.ini, fim:p.fim, data:p.data, cam:p.cam||[], kg:Number(p.kg)||0, b:p.b||{}, app:true});
   for(const R of L){
@@ -3922,8 +3925,9 @@ function remessaBloco(R){
     if(!R.rec) caps.push(el("div",{class:"row"}, el("button",{class:"btn",type:"button",text:"Cancelar pedido",
       onclick:()=>{ if(confirm(`Cancelar o pedido ${R.n}? As posições voltam a aparecer como "falta pedir".`)) gravarCfg("ACO_PEDIDO_"+R.n, ""); }})));
   }
-  return [el("div",{class:"i-top"}, el("b",{text:`Remessa ${R.n} · ${R.app?"pedido do app":R.roms.length+" romaneios"} · ${t(R.kg)} t`}), el("span",{class:"chip "+s.cls,text:s.txt})),
+  return [el("div",{class:"i-top"}, el("b",{text:`Remessa ${R.n} · ${R.app?"pedido do app":R.barras12?"barras de 12 m":R.roms.length+" romaneios"} · ${t(R.kg)} t`}), el("span",{class:"chip "+s.cls,text:s.txt})),
     controleRecebimento(R), ...caps,
+    R.obs ? el("p",{class:"info",text:`${nf1.format(R.kg)} kg · ${R.obs}`}) : null,
     R.roms?.length>1 && !R.rec && !R.fixo ? el("p",{class:"info",text:"Chegou só uma parte? Abra o romaneio e confirme só ele."}) : null,
     R.roms?.length ? el("div",{class:"lista"}, ...R.roms.map(x=>romaneioItem(x, R))) : null];
 }
@@ -3959,7 +3963,7 @@ function renderSupAco(){
       el("div",{class:"tbl"}, el("table",{},
         el("thead",{}, el("tr",{}, el("th",{text:"Bitola (mm)"}), el("th",{text:"Recebido"}), el("th",{text:"A receber"}), el("th",{text:"Total"}))),
         el("tbody",{}, ...linhas)))),
-    el("p",{class:"rodape-ini",text:"Pesos conforme romaneios do fornecedor. Datas de entrega informadas pela obra."}));
+    el("p",{class:"rodape-ini",text:"Pesos conforme romaneios do fornecedor (barras de 12 m: peso total informado pela obra, sem divisão por bitola). Datas de entrega informadas pela obra."}));
 }
 
 // --- Conferência do romaneio: OS por OS (veio, quantidade de barras, comprimento) e pesagem da carreta ---

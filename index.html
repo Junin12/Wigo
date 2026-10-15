@@ -1870,7 +1870,7 @@ $("#tema").addEventListener("click", e=>{ const b=e.target.closest("button[data-
   renderTema(); });
 renderTema();
 
-const VERSAO_APP = "v88"; // igual ao número em sw.js (armacao-v88)
+const VERSAO_APP = "v89"; // igual ao número em sw.js (armacao-v89)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -3785,7 +3785,7 @@ const REMESSAS_ACO={
   4:{est:"ELEVATÓRIA AT", ini:"2026-10-15", fim:"2026-10-20"},
   5:{est:"POÇO DE SUCÇÃO", ini:"2026-10-27", fim:"2026-10-27"}, // pedido feito fora do app (Tanque Pulmão / Poço de Sucção, Alto Recalque)
   // aço em barras retas de 12 m (sem romaneio de corte e dobra): só o peso total; a dobra é feita na obra
-  6:{est:"ETA · PRÉDIO ADMINISTRATIVO E VESTIÁRIOS", entregue:true, kg:15236.74, barras12:true,
+  6:{est:"ETA · PRÉDIO ADMINISTRATIVO E VESTIÁRIOS", entregue:true, recebida:"2026-10-15", kg:15236.74, barras12:true,
     obs:"Carregamentos do prédio administrativo e dos vestiários da ETA. Veio em barras de 12 m e será dobrado na obra pela equipe do Salgadeiro (dono da empresa dos armadores)."},
 };
 // Posições (códigos da base) que vieram nos romaneios das remessas 3 a 5: "CÓDIGO" = posição inteira, "CÓDIGO:n" = n barras.
@@ -3839,12 +3839,12 @@ function remessas(){
   const L=[];
   for(const [n,R] of Object.entries(REMESSAS_ACO)){
     const roms=ROMANEIOS.filter(x=>x.rem===Number(n));
-    L.push({n:Number(n), est:R.est, ini:R.ini, fim:R.fim, fixo:!!R.entregue, roms, kg:R.kg ?? somaKg(roms), b:roms.reduce((o,x)=>somaBit(o,x.b),{}), obs:R.obs, barras12:!!R.barras12});
+    L.push({n:Number(n), est:R.est, ini:R.ini, fim:R.fim, fixo:!!R.entregue, roms, kg:R.kg ?? somaKg(roms), b:roms.reduce((o,x)=>somaBit(o,x.b),{}), obs:R.obs, barras12:!!R.barras12, recData:R.recebida});
   }
   for(const p of pedidosApp()) L.push({n:p.n, est:p.est, ini:p.ini, fim:p.fim, data:p.data, cam:p.cam||[], kg:Number(p.kg)||0, b:p.b||{}, app:true});
   for(const R of L){
     // recebimento da remessa inteira (ACO_REC_<n>) ou romaneio a romaneio (ACO_REC_ROM_<número>)
-    R.recRem = R.fixo ? "sim" : cfgv("ACO_REC_"+R.n, "");
+    R.recRem = R.fixo ? (R.recData||"sim") : cfgv("ACO_REC_"+R.n, ""); // entregue: com data (recebida) ou só "sim"
     R.roms = (R.roms||[]).map(x=>({...x, rec: R.recRem || cfgv("ACO_REC_ROM_"+x.n, ""), recSo: !R.recRem && !!cfgv("ACO_REC_ROM_"+x.n, "")}));
     const rRec = R.roms.filter(x=>x.rec);
     // todos os romaneios confirmados = remessa recebida (na data do último)

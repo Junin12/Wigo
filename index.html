@@ -1907,7 +1907,7 @@ $("#tema").addEventListener("click", e=>{ const b=e.target.closest("button[data-
   renderTema(); });
 renderTema();
 
-const VERSAO_APP = "v91"; // igual ao número em sw.js (armacao-v91)
+const VERSAO_APP = "v92"; // igual ao número em sw.js (armacao-v92)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -3077,8 +3077,12 @@ function renderPrelev(){
     if(posSel.length && (e.rows||[]).length) atualizar();
     return card; });
   const temPct=Object.values(d.els).some(e=>Object.values(e.pct||{}).some(o=>Object.keys(o).length));
+  // o último pré-levantamento fica guardado (planilha): da próxima vez é só ajustar as % a partir dele
+  const regPl=regs2De("aco","prelev").find(x=>x.id===plId(PL.est));
+  const salvoTxt = PL.buf ? "Salvando…" : regPl ? `Último pré-levantamento salvo em ${dataBR(String(regPl.atualizadoEm||regPl.criadoEm||regPl.data).slice(0,10))}${regPl.atualizadoPor||regPl.criadoPor?" por "+(regPl.atualizadoPor||regPl.criadoPor):""}${regPl.pend?" · a enviar":""}. As % abaixo continuam dele: é só ajustar.` : "";
   repor(box,
     el("p",{class:"saud"}, "Pré-levantamento do aço", el("small",{text:"Marque a % aproximada de cada barra em cada parede · só para apoiar o levantamento"})),
+    salvoTxt ? el("p",{class:"okmsg",text:salvoTxt}) : null,
     el("div",{class:"pl-topo"},
       el("label",{class:"campo"}, "Estrutura", sel), unidades, desenho, botoesSel,
       el("p",{class:"info",text: PL.sel ? `Preenchendo: ${selP?rotLinha(selP):selE}. Toque em outra parede para trocar.` : floc ? "Toque numa parede do desenho para abrir só o quadro dela." : "Toque numa parede ou elemento para abrir só o quadro dele."})),
@@ -6843,20 +6847,23 @@ async function relatorioConc(c, btn){
 const P_ = (id, c, h, e, x={}) => ({id, c, h, e, ...x});
 const lista_ = (ids, c, h, e, x) => ids.split(",").map(s=>P_("PAR "+s.trim(), c, h, e, x));
 // floculador: 4 câmaras em 2 × 2. b = parede do eixo 1, m = central horizontal, t = eixo 2, r = lateral direita,
-// v = central vertical (2 trechos, passagem de 1,00 × 1,00 m na base de cada um), l = lateral esquerda
+// v = central vertical (2 trechos, passagem de 1,00 × 1,00 m na base de cada um), l = a outra lateral (na planta: r à esquerda, l à direita)
 function floculador(letra, cam, [b,m,t,r,v,l]){
   const H=4.55, E=0.3, P=n=>"PAR "+n, vi=P(v)+" inf.", vs=P(v)+" sup.";
+  // vista em planta: PAR b (eixo 1) em cima, PAR t (eixo 2) embaixo, PAR r à esquerda, PAR l à direita, PAR v no meio.
+  // As elevações correm da esquerda para a direita da planta (das paredes horizontais) e de cima para baixo (das verticais).
   const par=[
-    P_(P(b),9.9,H,E,{d:`Parede ${b} — eixo 1 (externa)`, enc:[[0,0.3,P(l)],[4.8,5.1,vi],[9.6,9.9,P(r)]], ld:[`lado ${P(l)}`,`lado ${P(r)}`]}),
-    P_(P(m),9.3,H,E,{d:`Parede ${m} — central horizontal`, enc:[[4.5,4.8,`${P(v)} (sup. e inf.)`]], ld:[`face ${P(l)}`,`face ${P(r)}`]}),
-    P_(P(t),9.9,H,E,{d:`Parede ${t} — eixo 2 (externa)`, enc:[[0,0.3,P(l)],[4.8,5.1,vs],[9.6,9.9,P(r)]], ld:[`lado ${P(l)}`,`lado ${P(r)}`]}),
-    P_(P(r),9.3,H,E,{d:`Parede ${r} — lateral direita (externa)`, enc:[[4.5,4.8,P(m)]], ld:[`lado ${P(b)} (eixo 1)`,`lado ${P(t)} (eixo 2)`]}),
+    P_(P(b),9.9,H,E,{d:`Parede ${b} — eixo 1 (externa)`, enc:[[0,0.3,P(r)],[4.8,5.1,vi],[9.6,9.9,P(l)]], ld:[`lado ${P(r)}`,`lado ${P(l)}`]}),
+    P_(P(m),9.3,H,E,{d:`Parede ${m} — central horizontal`, enc:[[4.5,4.8,`${P(v)} (sup. e inf.)`]], ld:[`face ${P(r)}`,`face ${P(l)}`]}),
+    P_(P(t),9.9,H,E,{d:`Parede ${t} — eixo 2 (externa)`, enc:[[0,0.3,P(r)],[4.8,5.1,vs],[9.6,9.9,P(l)]], ld:[`lado ${P(r)}`,`lado ${P(l)}`]}),
+    P_(P(r),9.3,H,E,{d:`Parede ${r} — lateral esquerda (externa)`, enc:[[4.5,4.8,P(m)]], ld:[`lado ${P(b)} (eixo 1)`,`lado ${P(t)} (eixo 2)`]}),
     P_(vi,4.5,H,E,{d:`Parede ${v} — trecho inferior (entre ${P(b)} e ${P(m)})`, pass:[[0,0,1,1]], ld:[`face ${P(b)}`,`face ${P(m)}`]}),
     P_(vs,4.5,H,E,{d:`Parede ${v} — trecho superior (entre ${P(m)} e ${P(t)})`, pass:[[0,0,1,1]], ld:[`face ${P(m)}`,`face ${P(t)}`]}),
-    P_(P(l),9.3,H,E,{d:`Parede ${l} — lateral esquerda (externa)`, enc:[[4.5,4.8,P(m)]], ld:[`lado ${P(b)} (eixo 1)`,`lado ${P(t)} (eixo 2)`]})];
+    P_(P(l),9.3,H,E,{d:`Parede ${l} — lateral direita (externa)`, enc:[[4.5,4.8,P(m)]], ld:[`lado ${P(b)} (eixo 1)`,`lado ${P(t)} (eixo 2)`]})];
   // planta em metros, origem no canto de baixo à esquerda: [x, y, largura, altura]. A PAR 1 (eixo 1) fica em cima, a PAR 7
-  // (eixo 2) embaixo; o trecho "inferior" da PAR 11 (entre a PAR 1 e a PAR 4) fica na metade de cima, com a passagem junto da PAR 1
-  const planta={W:9.9, H:9.9, r:{[P(b)]:[0,9.6,9.9,0.3], [P(t)]:[0,0,9.9,0.3], [P(l)]:[0,0.3,0.3,9.3], [P(r)]:[9.6,0.3,0.3,9.3],
+  // (eixo 2) embaixo, a PAR 10 à esquerda e a PAR 12 à direita; o trecho "inferior" da PAR 11 (entre a PAR 1 e a PAR 4) fica na
+  // metade de cima, com a passagem junto da PAR 1
+  const planta={W:9.9, H:9.9, r:{[P(b)]:[0,9.6,9.9,0.3], [P(t)]:[0,0,9.9,0.3], [P(r)]:[0,0.3,0.3,9.3], [P(l)]:[9.6,0.3,0.3,9.3],
     [P(m)]:[0.3,4.8,9.3,0.3], [vi]:[4.8,5.1,0.3,4.5], [vs]:[4.8,0.3,0.3,4.5]}, pass:[[4.8,8.6,0.3,1],[4.8,3.8,0.3,1]], extra:{[P(b)]:"eixo 1",[P(t)]:"eixo 2"}};
   return {k:"FLOC-"+letra, est:"FLOCULADORES", nome:`Floculador ${letra}`, sub:`câmara ${cam}`, planta, par,
     nota: letra==="A" ? "" : "Mesmo arranjo do Floculador A: confira no projeto a posição das paredes."};

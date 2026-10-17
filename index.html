@@ -189,7 +189,7 @@ img.croqui{display:block;background:#fff;border-radius:6px;border:1px solid var(
 /* só as colunas do quadro rolam para o lado; a coluna da parede fica parada */
 #prelev .pl-tab{overflow-x:auto;max-width:100%;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain}
 #prelev .pl-el,#prelev .pl-topo{display:block;min-width:0;max-width:100%} #prelev .pl-el>*,#prelev .pl-topo>*{min-width:0;max-width:100%}
-.pl-svg{max-width:100%}
+.pl-svg{max-width:100%} .fm-etapas td{vertical-align:middle} .fm-etc{display:flex;flex-direction:column;align-items:center;gap:2px;white-space:nowrap} .fm-etc input{width:20px;height:20px;min-height:0;vertical-align:middle}
 #sup-conf .cf-cont{position:sticky;top:0;z-index:3;padding:8px 10px} #sup-conf .cf-cont .kpis{margin:0} #prelev select{width:100%;min-width:0;text-overflow:ellipsis}
 .pl-lista{display:flex;flex-direction:column;gap:6px}
 .pl-item{display:grid;grid-template-columns:28px 112px minmax(0,1fr);gap:8px;align-items:center;padding:6px;border:1px solid var(--line);border-radius:10px;background:var(--surface);cursor:pointer}
@@ -1301,8 +1301,10 @@ const SEMENTES=[
     if(regs2De("forma","apont").some(r=>fmObra(r.dados)==="Floculador C" && segSemana(r.data)==="2026-10-12" && r.dados.etapa==="2ª etapa")) return;
     const m2=Math.round(fmM2Etapa()[1]*100)/100;
     setReg2("fmflocC1l1", {modulo:"forma", tipo:"apont", data:"2026-10-12", status:"", dados:{per:"Semana", obra:"Floculador C", etapa:"2ª etapa", montagem:{modo:"area", m2}, mont:m2,
-      npes:6, n:6, dias:5, prod:Math.round(m2/30*10)/10, est:"FLOCULADORES", obs:"Floculador C (3), forma do lance 1: de segunda 12/10 a sexta 16/10/2026 com 6 funcionários."}},
+      npes:6, n:6, dias:5, prod:Math.round(m2/30*10)/10, est:"FLOCULADORES", emp:FORMA_MONTADORA, obs:`Floculador C (3), forma do lance 1: de segunda 12/10 a sexta 16/10/2026 com 6 funcionários da ${FORMA_MONTADORA}.`}},
       `Criou: Floculador C · 2ª etapa · ${nf1.format(m2)} m²`); }},
+  // Floculador C: forma do fundo + arranque (1ª etapa ULMA) já montada, sem datas nem equipe: concluída sem lançamento
+  {id:"FORMA_FLOCC_ARR", fazer:()=>{ const s=new Set(fmConcluidas()); s.add("Floculador C:1ª etapa"); S.pendCfg.FORMA_CONCLUIDAS=juntarConcluidas(s); }},
   // concretagem das paredes do Floculador C, lance 1, liberada para 17/10/2026 (mapa das paredes para a pintura por caminhão)
   {id:"CONC_FLOCC_L1", ate:"2026-10-17", fazer:()=>{
     if(concs().some(c=>c.data==="2026-10-17" && mapaDe(c)?.k==="FLOC-C")) return;
@@ -1935,7 +1937,7 @@ $("#tema").addEventListener("click", e=>{ const b=e.target.closest("button[data-
   renderTema(); });
 renderTema();
 
-const VERSAO_APP = "v94"; // igual ao número em sw.js (armacao-v94)
+const VERSAO_APP = "v95"; // igual ao número em sw.js (armacao-v95)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -7712,7 +7714,8 @@ const QTD_ETA=[["RESERV./EEAT", 7529.29, 6939.81, 1636.1, 1477.13], ["GEOC. E CO
 const FORMA_OBRAS = QTD_ETA.flatMap(([nome,fc,fm,cc,cm]) => nome==="FLOCULADORES"
   ? ["A","B","C"].map(x=>({nome:`Floculador ${x}`, grupo:nome, codau:fc/3, maior:fm/3, concCodau:cc/3, concMaior:cm/3, floc:true}))
   : [{nome, grupo:nome, codau:fc, maior:fm, concCodau:cc, concMaior:cm}]);
-const FORMA_OBRA_PADRAO = "Floculador A"; // os lançamentos de antes da v87 (sem obra) eram da forma ULMA do Floculador A
+const FORMA_OBRA_PADRAO = "Floculador A";
+const FORMA_MONTADORA = "Águia"; // empresa que monta as formas (terceirizada); a CODAU é o cliente: só a referência do contrato // os lançamentos de antes da v87 (sem obra) eram da forma ULMA do Floculador A
 const fmObra = d => d.obra || FORMA_OBRA_PADRAO;
 const obraForma = nome => FORMA_OBRAS.find(o=>o.nome===nome);
 // obras concluídas (contam a área inteira no avanço): aba Config FORMA_OBRAS_OK, separadas por "|"
@@ -7727,7 +7730,7 @@ function lancarFlocA(){
   for(const k of FLOC_A.etapas){ const m2=Math.round(m2e[k]*100)/100, e=FORMA.etapas[k], oque=k===0?"fundo + arranque (laje de fundo 30 cm e 40 cm de parede)":"lance 1 (1,95 m de parede)";
     setReg2(uid().slice(0,12), {modulo:"forma", tipo:"apont", data:FLOC_A.seg, status:"", dados:{per:"Semana", obra:"Floculador A", etapa:e, montagem:{modo:"area", m2}, mont:m2,
       npes:FLOC_A.pessoas, n:FLOC_A.pessoas, dias:FLOC_A.dias, prod:Math.round(tot/(FLOC_A.pessoas*FLOC_A.dias)*10)/10, est:"FLOCULADORES",
-      obs:`Floculador A, ${oque}: de terça 06/10 a domingo 11/10/2026 com 6 montadores.`}}, `Criou: Floculador A · ${e} · ${nf1.format(m2)} m²`); }
+      emp:FORMA_MONTADORA, obs:`Floculador A, ${oque}: de terça 06/10 a domingo 11/10/2026 com 6 montadores da ${FORMA_MONTADORA}.`}}, `Criou: Floculador A · ${e} · ${nf1.format(m2)} m²`); }
   toast("Floculador A lançado: fundo + arranque e lance 1 (06 a 11/10, 6 montadores)."); renderReg2();
 }
 const fmAtiv = d => d.ativ || "Montagem"; // lançamentos diários antigos (sem atividade) eram de montagem
@@ -7738,11 +7741,18 @@ const semTxt = seg => `${ddmm(seg)} a ${ddmm(somaDias(seg,6))}`;
 const fmSemanal = d => d.dias!=null;
 // etapas concluídas sem lançamento (a 1ª foi montada antes do controle): contam no avanço, não na produtividade.
 // Fica na aba Config (FORMA_CONCLUIDAS, separadas por "|"); sem a chave, vale a 1ª etapa. O Code.gs usa a mesma regra.
-const fmConcluidas = () => String(cfgv("FORMA_CONCLUIDAS","1ª etapa")).split("|").filter(e=>FORMA.etapas.includes(e));
-function setConcluida(e, on){ const s=new Set(fmConcluidas()); if(on) s.add(e); else s.delete(e); setCfg("FORMA_CONCLUIDAS", FORMA.etapas.filter(x=>s.has(x)).join("|")); renderReg2(); }
+// O projeto ULMA é de UM floculador; a mesma forma é usada no A, no B e no C. Etapa concluída sem lançamento é por floculador:
+// "Floculador A:1ª etapa|Floculador C:1ª etapa" (o formato antigo, só "1ª etapa", era do Floculador A).
+const FLOCS = ["Floculador A","Floculador B","Floculador C"];
+const fmConcluidas = () => String(cfgv("FORMA_CONCLUIDAS","Floculador A:1ª etapa")).split("|").map(x=>x.includes(":")?x:"Floculador A:"+x)
+  .filter(x=>{ const [o,e]=x.split(":"); return FLOCS.includes(o) && FORMA.etapas.includes(e); });
+const juntarConcluidas = set => FLOCS.flatMap(o=>FORMA.etapas.map(x=>o+":"+x)).filter(x=>set.has(x)).join("|");
+function setConcluida(obra, e, on){ const s=new Set(fmConcluidas()), k=obra+":"+e; if(on) s.add(k); else s.delete(k);
+  setCfg("FORMA_CONCLUIDAS", juntarConcluidas(s)); renderReg2(); }
 function fmCalc(){
   const L=regs2De("forma","apont"), par=fmPar(), proj=fmM2Etapa(), totProj=proj.reduce((s,x)=>s+x,0), conc=fmConcluidas();
   const porEt=FORMA.etapas.map(()=>({mont:0,desm:0})), sems=new Map(), porObra=new Map(); // segunda-feira -> semana; obra -> m² lançado
+  const porEtObra=new Map(FLOCS.map(o=>[o, FORMA.etapas.map(()=>0)])); // m² lançados por floculador e etapa
   let m2=0, desm=0;
   for(const r of L){
     const d=r.dados, n=d.n||0, mont=d.mont||0, seg=segSemana(r.data);
@@ -7754,15 +7764,18 @@ function fmCalc(){
     if(fmSemanal(d)){ x.pdSem=Math.max(x.pdSem, n*(d.dias||0)); x.diasSem=Math.max(x.diasSem, d.dias||0); }
     else if(fmAtiv(d)==="Montagem") x.diaN.set(r.data, Math.max(x.diaN.get(r.data)||0, n));
     sems.set(seg,x);
-    const k=FORMA.etapas.indexOf(d.etapa); if(k>=0){ porEt[k].mont+=mont; porEt[k].desm+=d.desm||0; }
+    const k=FORMA.etapas.indexOf(d.etapa); if(k>=0){ porEt[k].mont+=mont; porEt[k].desm+=d.desm||0; if(porEtObra.has(fmObra(d))) porEtObra.get(fmObra(d))[k]+=mont; }
   }
-  // etapas do projeto ULMA (floculadores): a área do projeto se está concluída; senão o lançado, sem passar do projeto
-  const av=FORMA.etapas.map((e,k)=>conc.includes(e) ? proj[k] : Math.min(proj[k], porEt[k].mont)), etAv=av.reduce((s,x)=>s+x,0);
-  // obras: meta = comparativo maior; concluída conta inteira; senão o lançado, sem passar da meta
-  const ok=fmObrasOk(), obras=FORMA_OBRAS.map(o=>{ const mont=porObra.get(o.nome)||0, fim=ok.includes(o.nome);
-    return {...o, mont, ok:fim, av: fim ? o.maior : Math.min(o.maior, mont)}; });
+  // etapas ULMA por floculador: a área do projeto se a etapa está concluída naquele floculador; senão o lançado nela, sem passar do projeto
+  const etObra=FLOCS.map(o=>{ const lan=porEtObra.get(o), ck=FORMA.etapas.map(e=>conc.includes(o+":"+e));
+    const av=FORMA.etapas.map((e,k)=>ck[k] ? proj[k] : Math.min(proj[k], lan[k]));
+    return {obra:o, lan, ck, av, extra:FORMA.etapas.reduce((s,e,k)=>s+(ck[k] ? Math.max(0, proj[k]-lan[k]) : 0),0)}; });
+  const av=FORMA.etapas.map((e,k)=>etObra.reduce((s,x)=>s+x.av[k],0)), etAv=av.reduce((s,x)=>s+x,0), etTot=totProj*FLOCS.length;
+  // obras: meta = comparativo maior; concluída conta inteira; senão o lançado (+ etapas ULMA concluídas sem lançamento), sem passar da meta
+  const ok=fmObrasOk(), obras=FORMA_OBRAS.map(o=>{ const mont=porObra.get(o.nome)||0, fim=ok.includes(o.nome), ex=etObra.find(x=>x.obra===o.nome)?.extra||0;
+    return {...o, mont, semLanc:ex, ok:fim, av: fim ? o.maior : Math.min(o.maior, mont+ex)}; });
   const totObras=obras.reduce((s,o)=>s+o.maior,0), avanco=obras.reduce((s,o)=>s+o.av,0);
-  const semLanc=obras.reduce((s,o)=>s+(o.ok ? Math.max(0, o.maior-o.mont) : 0),0);
+  const semLanc=obras.reduce((s,o)=>s+(o.ok ? Math.max(0, o.maior-o.mont) : Math.min(o.semLanc, Math.max(0,o.maior-o.mont))),0);
   let ac=semLanc;
   const serie=[...sems.values()].sort((a,b)=>a.seg.localeCompare(b.seg)).map(x=>{ const pd=x.pdSem+[...x.diaN.values()].reduce((s,v)=>s+v,0); ac+=x.m2;
     return {seg:x.seg, m2:x.m2, desm:x.desm, pd, dias:x.diasSem+x.diaN.size, prod:pd?x.m2/pd:0, acum:Math.min(ac,totObras), etapas:[...x.etapas], obras:[...x.obras]}; });
@@ -7770,7 +7783,7 @@ function fmCalc(){
   // ritmo: média das últimas 4 semanas com montagem (a semana de agora só entra depois de lançada)
   const ult4=comMont.slice(-4), porSem=ult4.length ? ult4.reduce((s,x)=>s+x.m2,0)/ult4.length : 0;
   const falta=Math.max(0,totObras-avanco), semFalta=porSem ? Math.ceil(falta/porSem) : 0, ultSeg=comMont.at(-1)?.seg || segSemana(hojeISO());
-  return {L, par, proj, etTot:totProj, etAv, conc, porEt, av, obras, totProj:totObras, avanco, semLanc, serie, m2, desm, pd:pdMont, semanas:comMont.length,
+  return {L, par, proj, etTot, etAv, etObra, conc, porEt, av, obras, totProj:totObras, avanco, semLanc, serie, m2, desm, pd:pdMont, semanas:comMont.length,
     prod:pdMont?m2Prod/pdMont:0, porSem, falta, semFalta,
     fim: porSem && falta ? somaDias(ultSeg, 7*semFalta+4) : ""}; // sexta-feira da semana em que termina
 }
@@ -7867,7 +7880,7 @@ function painelForma(){
       ed ? el("button",{class:"btn pri",type:"button",text:"+ Lançar (semana ou dia)",onclick:()=>formReg2("forma","apont",null)}) : null,
       el("button",{class:"btn",type:"button",text:"📈 Painel",onclick:()=>abrirTela("fpainel")})),
     el("div",{class:"kpis"},
-      kpi("Forma montada", `${nf1.format(c.avanco)} m²`, `de ${nf1.format(c.totProj)} m² (comparativo maior, ETA) · ${pct(c.totProj?c.avanco/c.totProj:0)} · contrato CODAU ${nf1.format(totCodau)} m²`),
+      kpi("Forma montada", `${nf1.format(c.avanco)} m²`, `de ${nf1.format(c.totProj)} m² (comparativo maior, ETA) · ${pct(c.totProj?c.avanco/c.totProj:0)} · contrato do cliente (CODAU) ${nf1.format(totCodau)} m²`),
       kpi("Ritmo", c.porSem ? `${nf1.format(c.porSem)} m²` : "–", c.porSem ? `por semana · média das últimas ${Math.min(4,c.semanas)} com montagem` : "lance a montagem"),
       kpi("Produtividade", c.prod ? `${nf1.format(c.prod)} m²` : "–", c.prod ? "por pessoa/dia trabalhado" : "informe pessoas e dias"),
       kpi("Término previsto", c.fim ? ddmm(c.fim) : c.m2 && !c.falta ? "concluída" : "–", c.fim ? `faltam ${nf1.format(c.falta)} m² · ~${c.semFalta} semana${c.semFalta===1?"":"s"}` : "depende do ritmo")),
@@ -7876,24 +7889,25 @@ function painelForma(){
     semFlocA ? el("div",{class:"row"}, el("p",{class:"info",style:"flex:1",text:`Floculador A: de terça 06/10 a domingo 11/10, 6 montadores montaram o fundo + arranque e o lance 1 (1ª e 2ª etapas ULMA, ${nf1.format(fmM2Etapa()[0]+fmM2Etapa()[1])} m² de ${nf1.format(obraForma("Floculador A").maior)} m²). Faltam o lance 2 e o lance 3 com a laje de cobertura.`}),
       el("button",{class:"btn",type:"button",text:"Lançar Floculador A",onclick:lancarFlocA})) : null,
     secao("obras", `Obras · ${c.obras.filter(o=>o.mont||o.ok).length} com forma lançada · meta = comparativo maior`,
-      tab(["Obra","CODAU (m²)","Meta (m²)","Montado (m²)","%","Concluída"], [...obrasOrd.map(o=>{
+      tab(["Obra","Contrato CODAU (m²)","Meta (m²)","Montado (m²)","%","Concluída"], [...obrasOrd.map(o=>{
         const ck=el("input",{type:"checkbox",checked:o.ok,disabled:!ed,"aria-label":`${o.nome} concluída`}); ck.onchange=()=>setObraOk(o.nome, ck.checked);
         return [o.nome, nf0.format(o.codau), nf0.format(o.maior), o.mont?nf0.format(o.mont):"–", pct(o.maior?o.av/o.maior:0), ck]; }),
         ["Total ETA", nf0.format(totCodau), nf0.format(c.totProj), nf0.format(c.m2), pct(c.totProj?c.avanco/c.totProj:0), ""]], "fm-obras"),
-      el("p",{class:"info",text:"Quantitativos da planilha Comparativo Levantamento de Quantidades (aba RESUMO F): CODAU = planilha contratual (referência do cliente); meta = COMPARATIVO MAIOR (a nossa; diferença por obra na planilha Excel). Floculadores divididos em 3 (A, B e C). Marque “Concluída” na obra terminada sem todo o lançamento: ela conta inteira no avanço, não na produtividade."})),
+      el("p",{class:"info",text:"Quantitativos da planilha Comparativo Levantamento de Quantidades (aba RESUMO F): CODAU = cliente (planilha contratual, só referência; quem monta as formas é a Águia); meta = COMPARATIVO MAIOR (a nossa; diferença por obra na planilha Excel). Floculadores divididos em 3 (A, B e C). Marque “Concluída” na obra terminada sem todo o lançamento: ela conta inteira no avanço, não na produtividade."})),
     secao("sem", `Semana a semana · ${c.serie.length} semana${c.serie.length===1?"":"s"} lançada${c.serie.length===1?"":"s"}`,
       sems.length ? tab(["Semana","Montado (m²)","Desmontado (m²)","Pessoas-dia","m² por pessoa/dia","Acumulado"],
         sems.map(x=>[semTxt(x.seg)+` · ${x.obras.join(", ")}`+(x.etapas.length?` (${x.etapas.join(", ")})`:""), nf1.format(x.m2), x.desm?nf1.format(x.desm):"–", x.pd?nf0.format(x.pd):"–",
           x.prod?nf1.format(x.prod):"–", `${nf1.format(x.acum)} m² (${pct(c.totProj?x.acum/c.totProj:0)})`]))
         : el("p",{class:"vazio",text:"Nada lançado ainda. Toque em + Lançar (semana ou dia)."}),
       el("p",{class:"info",text:"Pessoas-dia = pessoas na equipe × dias trabalhados (no lançamento semanal) ou as pessoas de cada dia (no diário). Duas etapas no mesmo período contam a equipe uma vez só."})),
-    secao("etapas", `Etapas do projeto ULMA (floculadores) · ${pct(c.etTot?c.etAv/c.etTot:0)} montado`,
-      tab(["Etapa","Projeto (m²)","Montado (m²)","%","Concluída"], [...FORMA.etapas.map((e,k)=>{
-        const ck=el("input",{type:"checkbox",checked:c.conc.includes(e),disabled:!ed,"aria-label":`${e} concluída`});
-        ck.onchange=()=>setConcluida(e, ck.checked);
-        return [e, nf1.format(c.proj[k]), nf1.format(c.av[k]), pct(c.proj[k]?c.av[k]/c.proj[k]:0), ck]; }),
-        ["Total", nf1.format(c.etTot), nf1.format(c.etAv), pct(c.etTot?c.etAv/c.etTot:0), ""]]),
-      el("p",{class:"info",text:"Projeto ULMA B291468 (paredes de um floculador, 4 etapas): serve para lançar por peças ou por % da etapa. Marque “Concluída” na etapa montada sem lançamento."+(c.desm?` Desmontado até agora: ${nf1.format(c.desm)} m².`:"")})),
+    secao("etapas", `Etapas ULMA por floculador · ${pct(c.etTot?c.etAv/c.etTot:0)} das 3 formas`,
+      tab(["Etapa","Projeto (m², por floc.)",...FLOCS.map(o=>o.replace("Floculador ","Floc. ")),"Total"], [...FORMA.etapas.map((e,k)=>[e, nf1.format(c.proj[k]),
+        ...c.etObra.map(x=>{ const f=c.proj[k]?x.av[k]/c.proj[k]:0, ck=el("input",{type:"checkbox",checked:x.ck[k],disabled:!ed,"aria-label":`${x.obra}: ${e} concluída sem lançamento`});
+          ck.onchange=()=>setConcluida(x.obra, e, ck.checked);
+          return el("div",{class:"fm-etc"}, el("b",{class:f>=0.999?"pl-mais":"",text:pct(f)}), el("label",{class:"info"}, ck, x.ck[k]?" concluída":" concl.")); }),
+        pct(c.proj[k]?c.av[k]/(c.proj[k]*FLOCS.length):0)]),
+        ["Total", nf1.format(c.etTot/FLOCS.length), ...c.etObra.map(x=>pct(c.etTot?x.av.reduce((s,v)=>s+v,0)/(c.etTot/FLOCS.length):0)), pct(c.etTot?c.etAv/c.etTot:0)]], "fm-etapas"),
+      el("p",{class:"info",text:"Projeto ULMA B291468: a forma das paredes de UM floculador, em 4 etapas (1ª = fundo + arranque, 2ª = lance 1, 3ª = lance 2, 4ª = lance 3), usada no A, no B e no C. % = montado naquele floculador ÷ projeto da etapa. Marque “concl.” no floculador em que a etapa foi montada sem lançamento: conta no avanço, não na produtividade."+(c.desm?` Desmontado até agora: ${nf1.format(c.desm)} m².`:"")})),
     docs,
     kit,
     secao("crono", "Linha do tempo",
@@ -7921,10 +7935,10 @@ function renderPainelForma(){
       `Meta: ${nf1.format(c.totProj)} m² (comparativo maior)`+(c.semLanc?` · começa em ${nf1.format(c.semLanc)} m² das obras concluídas sem lançamento.`:".")),
     el("div",{class:"card"}, el("h3",{text:"Obras"}),
       ...(c.obras.some(o=>o.mont||o.ok) ? c.obras.filter(o=>o.mont||o.ok) : c.obras.slice(0,6)).map(o=>el("div",{class:"fm-et"}, el("b",{text:o.nome}), barra(o.maior?o.av/o.maior:0),
-        el("span",{class:"info",text:`${pct(o.maior?o.av/o.maior:0)} de ${nf0.format(o.maior)} m² · CODAU ${nf0.format(o.codau)} m²`+(o.ok?" ✓":"")})))),
+        el("span",{class:"info",text:`${pct(o.maior?o.av/o.maior:0)} de ${nf0.format(o.maior)} m² · contrato CODAU ${nf0.format(o.codau)} m²`+(o.ok?" ✓":"")})))),
     el("div",{class:"card"}, el("h3",{text:"Etapas ULMA (floculadores)"}),
-      ...FORMA.etapas.map((e,k)=>el("div",{class:"fm-et"}, el("b",{text:e}), barra(c.proj[k]?c.av[k]/c.proj[k]:0),
-        el("span",{class:"info",text:`${pct(c.proj[k]?c.av[k]/c.proj[k]:0)} de ${nf0.format(c.proj[k])} m²`+(c.conc.includes(e)?" ✓":"")})))),
+      ...FORMA.etapas.map((e,k)=>el("div",{class:"fm-et"}, el("b",{text:e}), barra(c.proj[k]?c.av[k]/(c.proj[k]*FLOCS.length):0),
+        el("span",{class:"info",text:`${c.etObra.map(x=>`${x.obra.slice(-1)} ${pct(c.proj[k]?x.av[k]/c.proj[k]:0)}${x.ck[k]?" ✓":""}`).join(" · ")} · ${nf0.format(c.proj[k])} m² cada`})))),
     el("div",{class:"row"}, el("button",{class:"btn pri",type:"button",text:"Ir para os lançamentos",onclick:()=>abrirModulo("forma")}),
       el("button",{class:"btn",type:"button",text:"📊 Planilha (Excel)",onclick:e=>excelForma(e.currentTarget)})));
 }
@@ -8039,18 +8053,18 @@ async function planilhaForma(){
 
   // ===== Etapas =====
   titulo(we,"m² de forma por etapa: projeto x montado",sub);
-  cab(we,4,["Etapa","m² no projeto","m² montado (avanço)","% montado","m² desmontado","Concluída sem lançamento?"]);
+  cab(we,4,["Etapa","m² no projeto (por floculador)","m² montado (avanço, 3 floculadores)","% das 3 formas","m² desmontado","Concluída sem lançamento em"]);
   const cols={0:"I",1:"J",2:"K",3:"L"};
   FORMA.etapas.forEach((e,k)=>{ const r=5+k;
     // concluída sem lançamento: conta a etapa inteira; senão o lançado no Diário, sem passar do projeto
     we.getRow(r).values=[e, F(`SUMPRODUCT(Material!$D$${m0}:$D$${m1},Material!$${cols[k]}$${m0}:$${cols[k]}$${m1})`,c.proj[k]),
-      F(`IF(F${r}="Sim",B${r},MIN(B${r},SUMIFS(${D("F")},${D("B")},A${r})))`,c.av[k]), F(`IFERROR(C${r}/B${r},0)`,c.proj[k]?c.av[k]/c.proj[k]:0),
-      F(`SUMIFS(${D("G")},${D("B")},A${r})`,c.porEt[k].desm), c.conc.includes(e)?"Sim":"Não"];
+      Math.round(c.av[k]*100)/100, F(`IFERROR(C${r}/(3*B${r}),0)`,c.proj[k]?c.av[k]/(3*c.proj[k]):0),
+      F(`SUMIFS(${D("G")},${D("B")},A${r})`,c.porEt[k].desm), c.etObra.filter(x=>x.ck[k]).map(x=>x.obra).join(", ")||"—"];
     borda(we,r,6); we.getCell(r,2).numFmt=we.getCell(r,3).numFmt=we.getCell(r,5).numFmt=M2; we.getCell(r,4).numFmt="0.0%";
-    we.getCell(r,6).fill=fill("FFF2CC"); we.getCell(r,6).alignment={horizontal:"center"}; we.getCell(r,6).dataValidation={type:"list",allowBlank:false,formulae:['"Sim,Não"']}; });
-  we.getRow(9).values=["Total",F("SUM(B5:B8)",c.etTot),F("SUM(C5:C8)",c.etAv),F("IFERROR(C9/B9,0)",c.etTot?c.etAv/c.etTot:0),F("SUM(E5:E8)",undefined),""];
+    we.getCell(r,6).alignment={horizontal:"center"}; });
+  we.getRow(9).values=["Total",F("SUM(B5:B8)",c.etTot/3),F("SUM(C5:C8)",c.etAv),F("IFERROR(C9/(3*B9),0)",c.etTot?c.etAv/c.etTot:0),F("SUM(E5:E8)",undefined),""];
   borda(we,9,6,{total:true}); we.getCell(9,2).numFmt=we.getCell(9,3).numFmt=we.getCell(9,5).numFmt=M2; we.getCell(9,4).numFmt="0.0%";
-  we.getCell(11,1).value="m² no projeto = soma (área de cada painel, canto interno e compensador × quantidade da etapa). Montado = soma dos Lançamentos com a etapa escolhida; etapa concluída sem lançamento (coluna F = Sim) conta inteira no avanço, mas não na produtividade."; we.getCell(11,1).font=A({italic:true,size:9});
+  we.getCell(11,1).value="m² no projeto = forma de UM floculador (área de cada painel, canto interno e compensador × quantidade da etapa); a mesma forma é usada no A, no B e no C. Montado = por floculador, o lançado na etapa (sem passar do projeto) ou o projeto inteiro onde a etapa foi concluída sem lançamento."; we.getCell(11,1).font=A({italic:true,size:9});
   [14,14,16,12,14,16].forEach((w,k)=>we.getColumn(k+1).width=w);
 
   // ===== Resumo =====
@@ -8243,7 +8257,7 @@ const MOD2={
       const cams=concs().flatMap(c=>(c.cams||[]).map(k=>[c.data, c.estrutura, `C${k.n}`, k.usina||"", k.nf||"", nf1.format(+k.vol||0)])).sort((a,b)=>b[0].localeCompare(a[0]));
       return [el("details",{class:"card"}, el("summary",{class:"pr-sum",text:`Caminhões lançados nas concretagens · ${cams.length}`}),
         cams.length ? tabelaSimples(["Data","Estrutura","Caminhão","Concreteira","NF","m³"], cams.slice(0,80).map(l=>[ddmm(l[0]),...l.slice(1)])) : el("p",{class:"info",text:"Nenhum caminhão lançado ainda (Produtividade › Concreto)."}))]; }},
-  forma:{nome:"Forma", desc:"Acompanhamento das formas por obra (comparativo maior × contrato CODAU)", edit:"producao-edit", acesso:"prod", tipos:[
+  forma:{nome:"Forma", desc:"Acompanhamento das formas por obra · montagem: Águia · meta = comparativo maior (CODAU = contrato do cliente)", edit:"producao-edit", acesso:"prod", tipos:[
     {id:"apont", nome:"Lançamentos", nomeForm:"lançamento da forma", novo:"Lançar", semNovo:true, vazio:"Nada lançado no período. Toque em + Lançar.",
       // o operador escolhe: semanal (a data vira a segunda-feira da semana, com os dias trabalhados) ou diário (vale o dia)
       rotData:"Data (no semanal, qualquer dia da semana)", dataNorm:(data,d)=>fmSemanal(d) ? segSemana(data) : data,
@@ -8256,6 +8270,7 @@ const MOD2={
         {k:"montagem",rot:"Montado",t:"custom",render:campoMontagem,fmt:fmtMontagem},{k:"desm",rot:"Desmontado",t:"num",un:"m²"},
         {k:"npes",rot:"Pessoas na equipe",t:"num",padrao:()=>regs2De("forma","apont").find(r=>r.dados.npes)?.dados.npes||fmPar().equipe||""},
         {k:"dias",rot:"Dias trabalhados na semana",t:"num",padrao:5,dica:"Dias em que a equipe montou ou desmontou forma"},
+        {k:"emp",rot:"Empresa (montagem)",t:"txt",padrao:()=>regs2De("forma","apont").find(r=>r.dados.emp)?.dados.emp||FORMA_MONTADORA,ops:()=>[...new Set([FORMA_MONTADORA,...regs2De("forma","apont").map(r=>r.dados.emp).filter(Boolean)])]},
         {k:"est",rot:"Estrutura",t:"est",obrig:true,padrao:()=>FORMA.est},{k:"det",rot:"Detalhe",t:"txt",dica:"Ex.: paredes 3 e 4"},
         {k:"equipe",rot:"Nomes (opcional)",t:"pessoas",padrao:()=>equipeProducao(/forma|desforma|escoramento/i),semCard:true},{k:"obs",rot:"Observação",t:"area"}],
       validar:d=> fmSemanal(d) && !(typeof d.dias==="number" && d.dias>=0 && d.dias<=7) ? "Dias trabalhados na semana: de 0 a 7." : !d.mont && !d.desm && !d.obs ? "Informe o montado, o desmontado ou uma observação." : "",

@@ -333,8 +333,12 @@ function renderForma(){
   $("#f-ch").replaceChildren(svgBarras(ds.map(([d,x])=>({label:ddmm(d),v:x.m2}))));
   $("#f-nota").textContent=(comMont.length>12?"Últimas 12 semanas. ":"")+"Cada barra é a semana que começa na segunda-feira indicada.";
   $("#f-et").replaceChildren(tabela(["Etapa","Projeto (m²)","Avanço"],f.etapas.map(e=>el("tr",{},
-    el("td",{},el("b",{text:e.etapa}),e.concluida?el("div",{class:"info",text:"concluída sem lançamento"}):null),el("td",{text:nf1.format(e.projeto)}),
+    el("td",{},el("b",{text:e.etapa}),
+      e.porFloc ? el("div",{class:"info",text:e.porFloc.map(x=>`${x.obra.slice(-1)} ${pct(e.projetoFloc?x.avanco/e.projetoFloc:0)}${x.concluida?" ✓":""}`).join(" · ")})
+        : e.concluida ? el("div",{class:"info",text:"concluída sem lançamento"}) : null),
+    el("td",{text:nf1.format(e.projeto)}),
     el("td",{},pct(e.pct),el("span",{class:"bar"},el("i",{style:`width:${Math.min(100,e.pct*100)}%`})))))));
+  $("#f-et").append(el("p",{class:"info",text:"Forma ULMA de um floculador usada no A, no B e no C: cada etapa = 3 × o projeto. ✓ = concluída sem lançamento."}));
 }
 carregar(); setInterval(carregar,10*60*1000);
 </script>

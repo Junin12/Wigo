@@ -189,7 +189,8 @@ img.croqui{display:block;background:#fff;border-radius:6px;border:1px solid var(
 /* só as colunas do quadro rolam para o lado; a coluna da parede fica parada */
 #prelev .pl-tab{overflow-x:auto;max-width:100%;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain}
 #prelev .pl-el,#prelev .pl-topo{display:block;min-width:0;max-width:100%} #prelev .pl-el>*,#prelev .pl-topo>*{min-width:0;max-width:100%}
-.pl-svg{max-width:100%} #prelev select{width:100%;min-width:0;text-overflow:ellipsis}
+.pl-svg{max-width:100%}
+#sup-conf .cf-cont{position:sticky;top:0;z-index:3;padding:8px 10px} #sup-conf .cf-cont .kpis{margin:0} #prelev select{width:100%;min-width:0;text-overflow:ellipsis}
 .pl-lista{display:flex;flex-direction:column;gap:6px}
 .pl-item{display:grid;grid-template-columns:28px 112px minmax(0,1fr);gap:8px;align-items:center;padding:6px;border:1px solid var(--line);border-radius:10px;background:var(--surface);cursor:pointer}
 .pl-item img.croqui{width:112px} .pl-txt{display:flex;flex-direction:column;gap:2px;min-width:0} .pl-txt small{overflow-wrap:anywhere}
@@ -1289,6 +1290,33 @@ function applyServer(j){
   if(j.leitura){ S.leitura=j.leitura; LS.set("leitura",j.leitura); }
   if(j.acessos){ S.acessos=j.acessos; LS.set("acessos",j.acessos); }
   S.lastSync=j.agora; LS.set("lastSync",j.agora);
+  setTimeout(rodarSementes, 0);
+}
+// ---------- lançamentos combinados com a obra: rodam uma vez, depois de uma sincronização com a planilha ----------
+// Cada um deixa a marca SEMENTE_<id> na aba Config: não repete em outro celular nem volta se for apagado depois.
+// Se o mesmo lançamento já existir (feito à mão), só grava a marca.
+const SEMENTES=[
+  // Floculador C (3): forma do lance 1 (2ª etapa ULMA), de segunda 12/10 a sexta 16/10/2026, 6 funcionários × 5 dias
+  {id:"FORMA_FLOCC_L1", fazer:()=>{
+    if(regs2De("forma","apont").some(r=>fmObra(r.dados)==="Floculador C" && segSemana(r.data)==="2026-10-12" && r.dados.etapa==="2ª etapa")) return;
+    const m2=Math.round(fmM2Etapa()[1]*100)/100;
+    setReg2("fmflocC1l1", {modulo:"forma", tipo:"apont", data:"2026-10-12", status:"", dados:{per:"Semana", obra:"Floculador C", etapa:"2ª etapa", montagem:{modo:"area", m2}, mont:m2,
+      npes:6, n:6, dias:5, prod:Math.round(m2/30*10)/10, est:"FLOCULADORES", obs:"Floculador C (3), forma do lance 1: de segunda 12/10 a sexta 16/10/2026 com 6 funcionários."}},
+      `Criou: Floculador C · 2ª etapa · ${nf1.format(m2)} m²`); }},
+  // concretagem das paredes do Floculador C, lance 1, liberada para 17/10/2026 (mapa das paredes para a pintura por caminhão)
+  {id:"CONC_FLOCC_L1", ate:"2026-10-17", fazer:()=>{
+    if(concs().some(c=>c.data==="2026-10-17" && mapaDe(c)?.k==="FLOC-C")) return;
+    const cat=catParedes("FLOC-C"), m={k:"FLOC-C", nome:cat.nome, p:cat.par, de:0.4, ate:2.35};
+    const vol=Math.round(m.p.reduce((s,p)=>s+volPar(p,m.de,m.ate),0)*10)/10;
+    setConc("ccflocC1017", {data:"2026-10-17", estrutura:"FLOCULADORES", local:"Floculador C · paredes · lance 1", volPrev:vol, status:"Programada", cams:[],
+      obs:"Liberada para concretagem: paredes do lance 1 (de 0,40 a 2,35 m, acima do arranque).", pdfId:"mapa:"+JSON.stringify(m), pdfNome:`Mapa das paredes · ${m.nome}`}, "Programada"); }},
+];
+function rodarSementes(){
+  if(!S.cfg?.url || !S.lastSync || LS.get("semSementes")) return; // semSementes: teste automático (testa à parte)
+  for(const x of SEMENTES){
+    if(cfgv("SEMENTE_"+x.id,"") || (x.ate && hojeISO()>x.ate)) continue;
+    try{ x.fazer(); S.pendCfg["SEMENTE_"+x.id]=hojeISO(); savePendExtra(); scheduleSync(); }catch(e){ console.warn("semente", x.id, e); }
+  }
 }
 
 function savePend(){ LS.set("pend", S.pend); }
@@ -1907,7 +1935,7 @@ $("#tema").addEventListener("click", e=>{ const b=e.target.closest("button[data-
   renderTema(); });
 renderTema();
 
-const VERSAO_APP = "v92"; // igual ao número em sw.js (armacao-v92)
+const VERSAO_APP = "v94"; // igual ao número em sw.js (armacao-v94)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -4197,7 +4225,12 @@ async function carregarOsRom(){
   if(!CF.lista){ try{ CF.lista=await (await fetch("romaneios-os.json")).json(); }catch{ CF.lista=null; } }
   return CF.lista;
 }
-function confDe(n){ try{ const c=JSON.parse(cfgv("ACO_CONF_"+n,"")||"null"); return c&&typeof c==="object" ? {m:{}, ...c} : {m:{}}; }catch{ return {m:{}}; } }
+// OS corrigidas depois da conferência (o PDF do fornecedor estava errado): as marcas feitas na OS antiga passam para a nova.
+// 004768: a "OS 19 · 930 cm" do PDF é, na obra, a OS 49 com 610 cm (16/10/2026).
+const OS_TROCADAS={"004768":{"19":"49"}};
+function confDe(n){ try{ const c=JSON.parse(cfgv("ACO_CONF_"+n,"")||"null"), r=c&&typeof c==="object" ? {m:{}, ...c} : {m:{}};
+  for(const [de,para] of Object.entries(OS_TROCADAS[n]||{})) if(r.m[de]!=null && r.m[para]==null){ r.m[para]=r.m[de]; delete r.m[de]; }
+  return r; }catch{ return {m:{}}; } }
 function salvarConf(n, c, oss){
   c.n=oss.length; c.nOk=oss.filter(o=>c.m[o[0]]==="111").length; c.por=U?.nome||""; c.em=new Date().toISOString();
   S.pendCfg["ACO_CONF_"+n]=JSON.stringify(c); savePendExtra(); scheduleSync();
@@ -4308,10 +4341,15 @@ async function renderSupConf(){
       ...L[k].map(([elem,l])=>{ const e=l.filter(o=>C[k].m[o[0]]==="111").length;
         return el("div",{class:"card"}, el("div",{class:"i-top"}, el("h3",{text:elem||"Sem elemento"}), el("span",{class:"chip"+(e===l.length?" ok":""),text:`${e}/${l.length}`})),
           el("div",{class:"lista"}, ...l.map(o=>linha(k,o)))); })]; });
-  repor(box, topo,
-    el("div",{class:"kpis"}, kpi("OS conferidas", `${nOk} de ${todas.length}`, trav?"conferência concluída":"marque as três em cada OS"),
-      kpi(junto?"Peso dos romaneios":"Peso do romaneio", kgF(kgRom), `${todas.length} OS${junto?` · ${ns.length} romaneios`:""}`)),
-    barra(todas.length?nOk/todas.length:0),
+  // contador: o peso das OS marcadas como "Entregue" × o peso do romaneio (atualiza a cada marca)
+  const ent=todas.filter(([k,o])=>(C[k].m[o[0]]||"")[0]==="1"), kgEnt=ent.reduce((s2,[,o])=>s2+o[6],0), brEnt=ent.reduce((s2,[,o])=>s2+o[4],0);
+  const contador=el("div",{class:"card cf-cont",role:"status","aria-live":"polite"},
+    el("div",{class:"kpis"},
+      kpi("Entregue (marcado)", kgF(kgEnt), `${pct(kgRom?kgEnt/kgRom:0)} de ${kgF(kgRom)} · ${ent.length} de ${todas.length} OS · ${nf0.format(brEnt)} barras`),
+      kpi("Falta marcar", kgF(Math.max(0,kgRom-kgEnt)), pz ? `peso real da pesagem: ${kgF(pz.real)} (${sg(pz.real-kgEnt)}${kgF(pz.real-kgEnt)} do marcado)` : `${todas.length-ent.length} OS`),
+      kpi("OS conferidas", `${nOk} de ${todas.length}`, trav?"conferência concluída":"as três marcas em cada OS")),
+    barra(kgRom?kgEnt/kgRom:0));
+  repor(box, topo, contador,
     carreta,
     el("div",{class:"card"}, el("h3",{text:"Pesagem da carreta"}),
       el("div",{class:"cf-peso"}, el("label",{class:"campo"}, "Cheia, antes de descarregar (kg)", iCh), el("label",{class:"campo"}, "Peso real de aço entregue (kg)", iRe), el("label",{class:"campo"}, "Tara, peso do caminhão (kg)", iTa)), resPeso),

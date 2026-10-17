@@ -84,6 +84,7 @@ td.txt{text-align:left;white-space:normal}
 <div class="wrap">
   <header class="top">
     <select id="emp" aria-label="Empreendimento"></select>
+    <select id="est" aria-label="Estrutura"></select>
     <select id="sem" aria-label="Posição até a semana"></select>
     <button id="atualizar" type="button">Atualizar</button>
   </header>
@@ -136,7 +137,7 @@ const guardado=(()=>{ try{ return JSON.parse(localStorage.getItem("painel:acesso
 const H=new URLSearchParams(location.hash.slice(1)), Q=new URLSearchParams(location.search);
 const URLD=H.get("u")||Q.get("u")||guardado.u, CHAVE=H.get("k")||Q.get("k")||guardado.k;
 if(URLD&&CHAVE){ try{ localStorage.setItem("painel:acesso",JSON.stringify({u:URLD,k:CHAVE})); }catch{} }
-let D=null, EMP="", SEM=null;
+let D=null, EMP="", EST="", SEM=null;
 
 async function carregar(){
   if(!URLD||!CHAVE){ pedirAcesso(); return; }
@@ -195,10 +196,15 @@ function preparar(j){
   const ini=sem.filter(s=>s.ini<=hojeISO());
   if(SEM==null||!ini.some(s=>s.n===SEM)) SEM=(ini.find(s=>s.ini<=hojeISO()&&hojeISO()<=s.fim)||ini[ini.length-1]||sem[0])?.n;
   const emps=[...new Set(itens.map(i=>i.emp))].sort();
-  $("#emp").replaceChildren(el("option",{value:"",text:"Todos os empreendimentos"}),...emps.map(e=>el("option",{value:e,text:e}))); $("#emp").value=EMP;
+  $("#emp").replaceChildren(el("option",{value:"",text:"Todos os empreendimentos"}),...emps.map(e=>el("option",{value:e,text:e}))); $("#emp").value=EMP; opEst();
   $("#sem").replaceChildren(...[...ini].reverse().map(s=>el("option",{value:s.n,text:`Até a semana ${s.n} (${ddmm(s.ini)} a ${ddmm(s.fim)})`}))); $("#sem").value=SEM;
 }
-$("#emp").onchange=e=>{ EMP=e.target.value; render(); };
+$("#emp").onchange=e=>{ EMP=e.target.value; EST=""; opEst(); render(); };
+// estruturas do empreendimento escolhido (ex.: ETA → Decantadores, Floculadores…; Alto Recalque → Tanque Pulmão…)
+function opEst(){ const ests=[...new Set(D.itens.filter(i=>!EMP||i.emp===EMP).map(i=>i.est))].sort((a,b)=>a.localeCompare(b,"pt"));
+  if(!ests.includes(EST)) EST="";
+  $("#est").replaceChildren(el("option",{value:"",text:EMP?"Todas as estruturas":"Todas as estruturas da obra"}),...ests.map(e=>el("option",{value:e,text:e}))); $("#est").value=EST; }
+$("#est").onchange=e=>{ EST=e.target.value; render(); };
 $("#sem").onchange=e=>{ SEM=+e.target.value; render(); };
 $("#atualizar").onclick=carregar;
 
@@ -246,12 +252,12 @@ const metaSem=s=>D.meta*(+s.arm||0)*(+s.dias||0);
 function render(){
   if(!D) return;
   const ini=D.sem.filter(s=>s.ini<=hojeISO()), ate=ini.filter(s=>s.n<=SEM), w=ate[ate.length-1];
-  const its=D.itens.filter(i=>!EMP||i.emp===EMP), set=new Set(its.map(i=>i.c)), ac=new Map();
+  const its=D.itens.filter(i=>(!EMP||i.emp===EMP)&&(!EST||i.est===EST)), set=new Set(its.map(i=>i.c)), ac=new Map();
   for(const s of ate) for(const [c,q] of Object.entries(s.exec)) ac.set(c,(ac.get(c)||0)+q);
   const exe=i=>Math.min(ac.get(i.c)||0,i.qp)*i.ppb, P=its.reduce((s,i)=>s+i.kp,0), E=its.reduce((s,i)=>s+exe(i),0);
   const kgSem=s=>{ let k=0; for(const [c,q] of Object.entries(s.exec)) if(set.has(c)) k+=q*D.by.get(c).ppb; return k; };
   const hd=ate.filter(s=>s.kg>0&&s.arm*s.dias>0), prodMed=hd.reduce((a,s)=>a+s.kg,0)/(hd.reduce((a,s)=>a+s.arm*s.dias,0)||1);
-  $("#kpis").replaceChildren(kpi("Previsto",t(P)+" t",EMP||"obra inteira"), kpi("Executado",t(E)+" t",w?`${t(kgSem(w))} t na semana ${w.n}`:""), kpi("Saldo",t(P-E)+" t"),
+  $("#kpis").replaceChildren(kpi("Previsto",t(P)+" t",EST||EMP||"obra inteira"), kpi("Executado",t(E)+" t",w?`${t(kgSem(w))} t na semana ${w.n}`:""), kpi("Saldo",t(P-E)+" t"),
     kpi("Avanço",pct(P?E/P:0)), kpi("Produtividade média",nf0.format(prodMed),`kg/armador/dia · meta ${nf0.format(D.meta)}`));
   // meta × realizado (equipe inteira)
   $("#ch-meta").replaceChildren(svgMeta(ate.slice(-12).map(s=>({label:"S"+s.n,real:s.kg/1000,meta:metaSem(s)/1000,hl:s.n===SEM}))));

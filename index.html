@@ -1815,8 +1815,8 @@ function renderAcomp(){
   if(!S.cfg?.url || !k){ box.replaceChildren(el("p",{class:"info",text:"Disponível depois de atualizar o Code.gs e sincronizar."})); return; }
   const base=location.href.replace(/[#?].*$/,"").replace(/index\.html$/,"");
   const painel=`${base}painel.html#u=${encodeURIComponent(S.cfg.url)}&k=${k}`;
-  // o mesmo painel publicado no site da empresa (wiapps.com.br/painel/): mesma chave, só muda o endereço
-  const painelSite=`https://wiapps.com.br/painel/#u=${encodeURIComponent(S.cfg.url)}&k=${k}`;
+  // o mesmo painel publicado no site da empresa (wiapps.com.br/wigo/painel/): mesma chave, só muda o endereço
+  const painelSite=`https://wiapps.com.br/wigo/painel/#u=${encodeURIComponent(S.cfg.url)}&k=${k}`;
   const linha=(rot,url)=>{ const i=el("input",{type:"text",readOnly:true,value:url,"aria-label":rot});
     const b=el("button",{class:"btn",type:"button",text:"Copiar"});
     b.onclick=async()=>{ try{ await navigator.clipboard.writeText(url); toast("Link copiado"); }catch{ i.select(); toast("Selecione e copie o link"); } };
@@ -1825,7 +1825,7 @@ function renderAcomp(){
   const env=el("button",{class:"btn pri",type:"button",text:"Enviar link do painel"});
   env.onclick=async()=>{ try{ await navigator.share({title:`Painel da armação — ${nomeObra()}`,url:painel}); }catch{ try{ await navigator.clipboard.writeText(painel); toast("Link copiado"); }catch{} } };
   box.replaceChildren(linha("Painel (abre em qualquer navegador)",painel), el("div",{class:"row"},env),
-    linha("Painel no site wiapps.com.br (depois de subir a pasta painel no site)",painelSite),
+    linha("Painel no site wiapps.com.br/wigo/painel",painelSite),
     el("details",{}, el("summary",{text:"Endereços para o Power BI"}), el("p",{class:"info",text:"No Power BI: Obter dados → Web → cole o endereço. Veja o passo a passo no LEIA-ME."}),
       ...bi.map(tb=>linha(tb,`${S.cfg.url}?k=${k}&tabela=${tb}`))));
 }
@@ -1940,7 +1940,7 @@ $("#tema").addEventListener("click", e=>{ const b=e.target.closest("button[data-
   renderTema(); });
 renderTema();
 
-const VERSAO_APP = "v96"; // igual ao número em sw.js (armacao-v96)
+const VERSAO_APP = "v97"; // igual ao número em sw.js (armacao-v97)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");

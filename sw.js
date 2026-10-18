@@ -1,7 +1,7 @@
 // Guarda o app no aparelho para abrir sem internet.
 // Ao alterar index.html, suba o nÃºmero da versÃ£o para os celulares receberem a atualizaÃ§Ã£o.
 // Os PDFs dos projetos ficam num cache Ã  parte ("armacao-pdfs"), que nÃ£o Ã© apagado nas atualizaÃ§Ãµes.
-const VERSAO = "armacao-v96";
+const VERSAO = "armacao-v97";
 const APP = ["./", "index.html", "painel.html", "manifest.webmanifest", "icon-wigo-192.png", "icon-wigo-512.png", "icon-wigo-maskable-512.png", "logo-relatorio.jpg", "marcas.json", "romaneios-os.json", "checklists-maquinas.json"];
 const LIBS = [
   "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js",

@@ -1809,6 +1809,18 @@ $("#cfg-ok").addEventListener("click", async ()=>{
   else if(!liberado()){ m.className="msg"; m.textContent="Banco salvo, mas este celular ainda não foi liberado: entre com seu nome e cargo e aguarde a liberação."; }
   else { m.className="okmsg"; m.textContent=`Conectado. ${nf0.format(S.items.length)} posições e ${S.W.length} semanas carregadas.`; }
 });
+// painel para o site: o mesmo painel.html, com o endereço e a chave de leitura embutidos (abre sem pedir o link)
+async function baixarPainelSite(btn, k){
+  const txt=btn.textContent; btn.disabled=true; btn.textContent="Gerando…";
+  try{
+    const html=await (await fetch("painel.html",{cache:"no-cache"})).text();
+    if(!html.includes("/*ACESSO*/")) throw new Error("O painel deste app é antigo: atualize o app e tente de novo.");
+    const acesso=`window.PAINEL_ACESSO=${JSON.stringify({u:S.cfg.url, k})};`;
+    baixar("index.html", new Blob([html.replace("/*ACESSO*/", acesso)],{type:"text/html"}));
+    toast("index.html gerado: suba em public_html/wigo/painel no site.");
+  }catch(e){ toast(e.message||"Não foi possível gerar o painel."); }
+  finally{ btn.disabled=false; btn.textContent=txt; }
+}
 // links de leitura: painel HTML e tabelas do Power BI
 function renderAcomp(){
   const box=$("#acomp"), k=S.leitura||LS.get("leitura");
@@ -1826,6 +1838,8 @@ function renderAcomp(){
   env.onclick=async()=>{ try{ await navigator.share({title:`Painel da armação — ${nomeObra()}`,url:painel}); }catch{ try{ await navigator.clipboard.writeText(painel); toast("Link copiado"); }catch{} } };
   box.replaceChildren(linha("Painel (abre em qualquer navegador)",painel), el("div",{class:"row"},env),
     linha("Painel no site wiapps.com.br/wigo/painel",painelSite),
+    el("div",{class:"row"}, el("button",{class:"btn",type:"button",text:"⬇ Painel para o site (abre sem pedir o link)",onclick:e=>baixarPainelSite(e.currentTarget,k)})),
+    el("p",{class:"info",text:"Gera o index.html do painel já com o endereço e a chave de leitura: suba-o em public_html/wigo/painel no lugar do atual. Quem abrir wiapps.com.br/wigo/painel vê os dados direto (só leitura, sem nomes de pessoas). Para cortar o acesso: gere uma chave de leitura nova (rodar configurar no Apps Script) e suba um novo arquivo."}),
     el("details",{}, el("summary",{text:"Endereços para o Power BI"}), el("p",{class:"info",text:"No Power BI: Obter dados → Web → cole o endereço. Veja o passo a passo no LEIA-ME."}),
       ...bi.map(tb=>linha(tb,`${S.cfg.url}?k=${k}&tabela=${tb}`))));
 }
@@ -1940,7 +1954,7 @@ $("#tema").addEventListener("click", e=>{ const b=e.target.closest("button[data-
   renderTema(); });
 renderTema();
 
-const VERSAO_APP = "v97"; // igual ao número em sw.js (armacao-v97)
+const VERSAO_APP = "v98"; // igual ao número em sw.js (armacao-v98)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");

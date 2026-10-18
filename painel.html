@@ -40,6 +40,7 @@ h3{font-size:.95rem;text-transform:uppercase;letter-spacing:.07em;color:var(--mu
 .hero .marca{margin-right:auto}
 .hero img{height:42px;width:auto;max-width:56vw;object-fit:contain;background:#fff;border-radius:10px;padding:4px 7px}
 .hero .quando{font-size:.8rem;color:#C9DBEE;width:100%}
+.hero .quando .alt{color:#fff;font-weight:700;font-size:.92rem}
 /* barra fixa: filtros e abas */
 .barra{position:sticky;top:0;z-index:5;background:var(--surface);border-bottom:1px solid var(--line);box-shadow:var(--sh)}
 .barra .wrap{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;padding-block:10px}
@@ -214,6 +215,7 @@ tfoot td{font-weight:700;border-bottom:0}
   </section>
 </main>
 
+<script>/*ACESSO*/</script>
 <script>
 "use strict";
 const $=s=>document.querySelector(s);
@@ -251,7 +253,9 @@ const obraDe=o=>o||"Floculador A"; // lançamentos antigos sem obra eram do Floc
 // ---------- acesso: endereço e chave de leitura vêm no link (#u=...&k=...) e ficam guardados neste navegador ----------
 const guardado=(()=>{ try{ return JSON.parse(localStorage.getItem("painel:acesso")||"{}"); }catch{ return {}; } })();
 const H=new URLSearchParams(location.hash.slice(1)), Q=new URLSearchParams(location.search);
-const URLD=H.get("u")||Q.get("u")||guardado.u, CHAVE=H.get("k")||Q.get("k")||guardado.k;
+// cópia do painel para o site da empresa: o app grava o acesso (window.PAINEL_ACESSO) e o painel abre sem pedir o link
+const EMBUTIDO=window.PAINEL_ACESSO||{};
+const URLD=H.get("u")||Q.get("u")||guardado.u||EMBUTIDO.u, CHAVE=H.get("k")||Q.get("k")||guardado.k||EMBUTIDO.k;
 if(URLD&&CHAVE){ try{ localStorage.setItem("painel:acesso",JSON.stringify({u:URLD,k:CHAVE})); }catch{} }
 let D=null, EMP=H.get("emp")||"", EST=H.get("est")||"", ABA=H.get("aba")||"geral", G_TODAS=false;
 
@@ -276,11 +280,16 @@ async function carregar(){
     }
     if(!j.ok) throw new Error(j.erro||"Erro ao ler os dados.");
     preparar(j); $("#erro").hidden=true; $("#carregando").hidden=true; render();
-    $("#status").textContent=`Dados de ${new Date(j.agora).toLocaleString("pt-BR")} · atualiza sozinho a cada 10 minutos`;
+    // última alteração efetiva nos dados do painel (Code.gs 26+); sem ela, só a hora da consulta
+    const alt=j.alterado?new Date(j.alterado):null, fmt=d=>d.toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"});
+    $("#status").replaceChildren(...(alt&&!isNaN(alt) ? [el("b",{class:"alt",text:`Dados atualizados em ${fmt(alt)}`}), ` · ${desde(alt)} · consultado às ${new Date(j.agora).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}, atualiza sozinho a cada 10 minutos`]
+      : [`Consultado em ${fmt(new Date(j.agora))} · atualiza sozinho a cada 10 minutos`]));
   }catch(e){
     if(/Chave de leitura/.test(e.message)){ try{ localStorage.removeItem("painel:acesso"); }catch{} pedirAcesso(); return; }
     erro(e.message==="Failed to fetch"?"Sem conexão com o Google. Tente de novo em instantes.":e.message); }
 }
+// "há 2 horas", "há 3 dias"
+function desde(d){ const m=Math.max(0,Math.round((Date.now()-d)/6e4)); return m<1?"agora mesmo":m<60?`há ${m} min`:m<1440?`há ${Math.round(m/60)} h`:`há ${Math.round(m/1440)} dia${Math.round(m/1440)>1?"s":""}`; }
 function erro(m){ const b=$("#erro"); b.hidden=false; b.textContent=m; $("#status").textContent=""; $("#carregando").hidden=true; }
 function pedirAcesso(){
   const b=$("#erro"); b.hidden=false; $("#status").textContent=""; $("#carregando").hidden=true;

@@ -1990,7 +1990,7 @@ $("#tema").addEventListener("click", e=>{ const b=e.target.closest("button[data-
   renderTema(); });
 renderTema();
 
-const VERSAO_APP = "v99"; // igual ao número em sw.js (armacao-v99)
+const VERSAO_APP = "v100"; // igual ao número em sw.js (armacao-v100)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -4041,14 +4041,16 @@ function renderInicio(){
   // Lançamentos e Painéis: escolhe aço ou forma
   const avF=()=>{ const c=fmCalc(); return pct(c.totProj?c.avanco/c.totProj:0); };
   const at=[
-    {id:"lancar", nome:"Lançamentos", desc:"Aço e forma", c:["#1A9BDC","#0067A6"], ativo:true, acao:()=>escolher("Lançamentos", [
+    {id:"lancar", nome:"Lançamentos", desc:"Aço, forma e concreto", c:["#1A9BDC","#0067A6"], ativo:true, acao:()=>escolher("Lançamentos", [
       ["Aço","Coleta da semana: barras ou %",()=>irAco("coleta")],
-      ["Forma","Montagem por semana ou por dia: m², peças ou %",()=>abrirModulo("forma")]])},
+      ["Forma","Montagem por semana ou por dia: m², peças ou %",()=>abrirModulo("forma")],
+      ["Concreto","Levantamento por estrutura (5 etapas), concretagens, mapa e caminhões",()=>abrirTela("conc")]])},
     {id:"frentes",nome:"Frentes", desc:"Liberações e concretagem", c:["#36B37E","#1D7A48"], ativo:true, acao:()=>irAco("frentes")},
     {id:"pdf",    nome:"Relatório PDF", desc:"Aço · semana atual", c:["#8A6BE0","#5A3FB0"], ativo:true, acao:()=>{ irAco("painel"); setTimeout(()=>$("#rel-pdf").click(),300); }},
-    {id:"painel", nome:"Painéis", desc:"Gráficos do aço e da forma", c:["#45A1D6","#22709F"], ativo:true, acao:()=>escolher("Painéis", [
+    {id:"painel", nome:"Painéis", desc:"Aço, forma e concreto", c:["#45A1D6","#22709F"], ativo:true, acao:()=>escolher("Painéis", [
       ["Painel do aço",`Meta, curva S e equipes · ${pct(resumoAco().pct)} armado`,()=>irAco("painel")],
-      ["Painel da forma",`m² por semana, produtividade e etapas · ${avF()} montado`,()=>abrirTela("fpainel")]])},
+      ["Painel da forma",`m² por semana, produtividade e etapas · ${avF()} montado`,()=>abrirTela("fpainel")],
+      ["Concreto",`Etapas por estrutura · ${(c=>pct(c.projPrev?c.proj/c.projPrev:0))(ceCalc(""))} do concreto de projeto`,()=>abrirTela("conc")]])},
   ];
   let box=$("#atalhos");
   if(!box){ box=el("div",{class:"mods",id:"atalhos"}); $("#tit-mods").before(el("h2",{class:"tela-tit",id:"tit-atalhos",text:"Atalhos"}), box); }

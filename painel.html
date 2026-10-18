@@ -3,150 +3,264 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>WIGO · Painel da Armação — SAA Rio Grande</title>
-<meta name="theme-color" content="#1F3A5F">
+<title>Painel da obra · SAA Rio Grande</title>
+<meta name="description" content="Acompanhamento da obra SAA Rio Grande: armação e formas, por estrutura.">
+<meta name="theme-color" content="#14263D">
 <link rel="icon" href="icon-wigo-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap">
 <style>
 :root{
   color-scheme:light;
-  --bg:#EDF0F3; --surface:#FFFFFF; --surface2:#F6F8FA; --ink:#141B23; --muted:#5A6674; --line:#D3DAE2;
-  --accent:#23527E; --bar:#3C5E80; --bar-hl:#23527E;
-  --good:#1D7A48; --good-bg:#E2F3E9; --warn:#9A5B00; --warn-bg:#FDF0D8; --bad:#B42318; --bad-bg:#FBE6E4; --idle:#5A6674; --idle-bg:#E9EDF1;
-  --r:10px; font-family:"Barlow",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --bg:#EEF1F5; --surface:#FFFFFF; --surface2:#F5F7FA; --ink:#122033; --muted:#5B6878; --line:#DCE2EA;
+  --navy:#14263D; --navy2:#1F3A5F; --aco:#2563A8; --aco2:#9CC1E8; --forma:#C9772B; --forma2:#F0C79C;
+  --good:#1D7A48; --good-bg:#E2F3E9; --warn:#9A5B00; --warn-bg:#FDF0D8; --bad:#B42318; --bad-bg:#FBE6E4; --idle:#5B6878; --idle-bg:#E8EDF2;
+  --r:14px; --sh:0 1px 2px rgba(16,32,51,.06),0 4px 14px rgba(16,32,51,.06);
+  font-family:"Barlow",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
 }
 @media (prefers-color-scheme:dark){:root{
   color-scheme:dark;
-  --bg:#0E1318; --surface:#172029; --surface2:#1C2631; --ink:#E7ECF1; --muted:#98A4B2; --line:#2A3542;
-  --accent:#8BB8E3; --bar:#6F95BA; --bar-hl:#A9CCEE;
-  --good:#5BC98B; --good-bg:#16301F; --warn:#F0B35A; --warn-bg:#35270F; --bad:#F2877C; --bad-bg:#3A1A17; --idle:#98A4B2; --idle-bg:#222C37;
+  --bg:#0C1219; --surface:#141E29; --surface2:#1A2633; --ink:#E6ECF2; --muted:#97A4B3; --line:#263443;
+  --aco:#6EA8E5; --aco2:#2D4E75; --forma:#E59A55; --forma2:#5C3B1C;
+  --good:#5BC98B; --good-bg:#15301F; --warn:#F0B35A; --warn-bg:#35270F; --bad:#F2877C; --bad-bg:#3A1A17; --idle:#97A4B3; --idle-bg:#212D3A;
+  --sh:none;
 }}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font-size:15px;line-height:1.4;font-variant-numeric:tabular-nums;padding:0 16px calc(24px + env(safe-area-inset-bottom,0px))}
+body{margin:0;background:var(--bg);color:var(--ink);font-size:15px;line-height:1.45;font-variant-numeric:tabular-nums}
 [hidden]{display:none!important}
 h1,h2,h3{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-weight:600;margin:0;text-wrap:balance}
-h3{font-size:1.05rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
-.wrap{max-width:1100px;margin-inline:auto;display:grid;gap:14px;padding-block:14px}
-.top{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center}
-/* faixa da marca: azul-marinho do WIGO */
-.faixa{background:#1F3A5F;color:#fff;margin-inline:-16px;padding:calc(12px + env(safe-area-inset-top,0px)) 16px 12px}
-.faixa .in{max-width:1100px;margin-inline:auto;display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px}
-.faixa img{height:40px;width:auto;max-width:62vw;object-fit:contain;display:block;background:#fff;border-radius:10px;padding:4px 6px}
-.faixa .brand{color:#fff}
-.faixa .brand small{color:#D6E8F5}
-.brand{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-weight:700;font-size:1.5rem;margin-right:auto;line-height:1.1}
-.brand small{display:block;font-family:"Barlow",sans-serif;font-weight:500;font-size:.75rem;color:var(--muted);letter-spacing:.08em;text-transform:uppercase}
-select,button{font:inherit;color:inherit;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 10px;min-height:42px}
+h2{font-size:1.3rem}
+h3{font-size:.95rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
+.wrap{max-width:1180px;margin-inline:auto;padding-inline:16px}
+/* topo */
+.hero{background:linear-gradient(135deg,var(--navy) 0%,var(--navy2) 100%);color:#fff;padding:calc(14px + env(safe-area-inset-top,0px)) 0 18px}
+.hero .wrap{display:flex;flex-wrap:wrap;align-items:center;gap:12px 18px}
+.hero h1{font-size:1.9rem;font-weight:700;line-height:1.05}
+.hero h1 small{display:block;font-family:"Barlow",sans-serif;font-weight:500;font-size:.78rem;letter-spacing:.1em;text-transform:uppercase;color:#C9DBEE;margin-top:4px}
+.hero .marca{margin-right:auto}
+.hero img{height:42px;width:auto;max-width:56vw;object-fit:contain;background:#fff;border-radius:10px;padding:4px 7px}
+.hero .quando{font-size:.8rem;color:#C9DBEE;width:100%}
+/* barra fixa: filtros e abas */
+.barra{position:sticky;top:0;z-index:5;background:var(--surface);border-bottom:1px solid var(--line);box-shadow:var(--sh)}
+.barra .wrap{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;padding-block:10px}
+.filtros{display:flex;flex-wrap:wrap;gap:8px;align-items:center;min-width:0}
+select,button{font:inherit;color:inherit;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 12px;min-height:42px}
+select{min-width:0;max-width:100%}
 button{cursor:pointer;font-weight:600}
-.info{font-size:.85rem;color:var(--muted);margin:0}
-.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px}
-.kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px}
-.kpi span{display:block;font-size:.72rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600}
-.kpi b{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-size:1.9rem;font-weight:600;line-height:1.1}
-.kpi small{color:var(--muted)}
-.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,460px),1fr));gap:14px}
-.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:grid;gap:10px;align-content:start}
-.chart svg{width:100%;height:auto;display:block}
+button:focus-visible,select:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--aco);outline-offset:2px}
+.escopo{font-weight:600;color:var(--muted);font-size:.9rem;margin-left:auto}
+.escopo b{color:var(--ink)}
+.tabs{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;min-width:0}
+.tabs::-webkit-scrollbar{display:none}
+.tabs button{border:0;background:none;border-radius:999px;padding:8px 16px;color:var(--muted);white-space:nowrap}
+.tabs button[aria-selected=true]{background:var(--navy2);color:#fff}
+@media (prefers-color-scheme:dark){ .tabs button[aria-selected=true]{background:var(--aco2)} }
+/* conteúdo */
+main{padding-block:16px 32px;display:grid;gap:16px}
+.grid{display:grid;gap:16px;align-items:start;grid-template-columns:minmax(0,1fr)}
+.mais{justify-self:start;border:0;background:none;color:var(--aco);padding:6px 8px;min-height:0}
+.g2{grid-template-columns:repeat(auto-fit,minmax(min(100%,470px),1fr))}
+.g3{grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr))}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:grid;gap:12px;align-content:start;box-shadow:var(--sh);min-width:0}
+.card-top{display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.info{font-size:.84rem;color:var(--muted);margin:0}
+/* indicadores */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;box-shadow:var(--sh);display:grid;gap:2px;align-content:start;border-top:4px solid var(--line)}
+.kpi.aco{border-top-color:var(--aco)} .kpi.forma{border-top-color:var(--forma)} .kpi.prazo{border-top-color:var(--navy2)}
+.kpi span{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
+.kpi b{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-size:2rem;font-weight:600;line-height:1.05}
+.kpi small{color:var(--muted);font-size:.8rem}
+/* destaque com anel */
+.hero-kpi{display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:center}
+.anel{width:104px;height:104px}
+.anel .fundo{stroke:var(--idle-bg)} .anel .aco{stroke:var(--aco)} .anel .forma{stroke:var(--forma)}
+.anel text{font-family:"Barlow Condensed",sans-serif;font-weight:700;fill:var(--ink)}
+.hero-kpi b{font-family:"Barlow Condensed",sans-serif;font-size:1.65rem;font-weight:600;line-height:1.1;display:block}
+.hero-kpi span{font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
+.hero-kpi small{display:block;color:var(--muted)}
+/* gráficos */
+.chart svg{width:100%;height:auto;display:block;overflow:visible}
 .chart text{fill:var(--muted);font-size:11px;font-family:"Barlow",sans-serif}
-.chart .val{fill:var(--ink);font-weight:600}
-.chart .grid{stroke:var(--line);stroke-width:1}
-.chart .b{fill:var(--bar)} .chart .b.hl{fill:var(--bar-hl)}
-.chart .meta{stroke:var(--warn);stroke-width:3;stroke-linecap:round}
-.chart .ln{fill:none;stroke:var(--accent);stroke-width:2.5}
-.chart .ln2{fill:none;stroke:var(--muted);stroke-width:2;stroke-dasharray:7 5}
-.chart .ln3{fill:none;stroke:var(--warn);stroke-width:2.5;stroke-dasharray:2 5;stroke-linecap:round}
-.chart .pt{stroke:none} .chart .ln.pt{fill:var(--accent)} .chart .ln2.pt{fill:var(--muted)} .chart .ln3.pt{fill:var(--warn)}
-.chart .prazo{stroke:var(--bad);stroke-width:1.5;stroke-dasharray:4 4}
-.tbl{overflow-x:auto}
+.chart .val{fill:var(--ink);font-weight:700}
+.chart .grade{stroke:var(--line);stroke-width:1}
+.chart .ba{fill:var(--aco)} .chart .bf{fill:var(--forma)} .chart .ba.hl{fill:var(--navy2)} .chart .bf.hl{fill:#9C5A1C}
+.chart .meta{stroke:var(--bad);stroke-width:2.5;stroke-linecap:round}
+.chart .ln{fill:none;stroke:var(--aco);stroke-width:2.8;stroke-linejoin:round}
+.chart .lnf{fill:none;stroke:var(--forma);stroke-width:2.8;stroke-linejoin:round}
+.chart .area{fill:var(--aco);opacity:.12} .chart .areaf{fill:var(--forma);opacity:.12}
+.chart .plan{fill:none;stroke:var(--muted);stroke-width:2;stroke-dasharray:7 5}
+.chart .proj{fill:none;stroke:var(--aco);stroke-width:2.5;stroke-dasharray:2 6;stroke-linecap:round}
+.chart .hoje{stroke:var(--ink);stroke-width:1;stroke-dasharray:3 4;opacity:.5}
+.chart .prz{stroke:var(--bad);stroke-width:1.5;stroke-dasharray:5 4}
+.chart rect.b:hover,.chart rect.b:focus{opacity:.8}
+.legenda{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:.8rem;color:var(--muted)}
+.legenda i{display:inline-block;width:18px;height:0;border-top:3px solid;vertical-align:middle;margin-right:5px}
+/* barras horizontais (estruturas) */
+.hlist{display:grid;gap:4px}
+.hrow{display:grid;grid-template-columns:minmax(120px,1.3fr) 2fr;gap:10px;align-items:center;padding:8px;border-radius:10px;cursor:pointer;border:1px solid transparent}
+.hrow:hover{background:var(--surface2);border-color:var(--line)}
+.hrow .nome b{display:block;font-weight:600;line-height:1.2;overflow-wrap:anywhere}
+.hrow .nome small{color:var(--muted);font-size:.78rem}
+.trilho{display:grid;gap:4px}
+.trilho div{display:grid;grid-template-columns:44px 1fr 54px;gap:6px;align-items:center;font-size:.8rem}
+.trilho em{font-style:normal;color:var(--muted);font-size:.72rem;text-transform:uppercase;letter-spacing:.05em}
+.trilho span{text-align:right;font-weight:600}
+.bar{height:9px;border-radius:5px;background:var(--idle-bg);overflow:hidden}
+.bar i{display:block;height:100%;border-radius:5px;background:var(--aco)} .bar.f i{background:var(--forma)}
+/* tabelas */
+.tbl{overflow-x:auto;max-width:100%}
 table{border-collapse:collapse;width:100%;font-size:.88rem}
-th,td{padding:7px 6px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
-th{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600}
+th,td{padding:8px 7px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th{font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600}
 th:first-child,td:first-child{text-align:left;white-space:normal}
+tbody tr:hover{background:var(--surface2)}
+td .bar{display:inline-block;width:70px;vertical-align:middle;margin-left:6px}
 td.txt{text-align:left;white-space:normal}
-.bar{height:8px;border-radius:4px;background:var(--idle-bg);overflow:hidden;display:inline-block;width:80px;vertical-align:middle;margin-left:6px}
-.bar i{display:block;height:100%;background:var(--bar)}
-.chip{font-size:.7rem;font-weight:700;letter-spacing:.05em;padding:3px 8px;border-radius:999px;background:var(--idle-bg);color:var(--idle);white-space:nowrap}
+tfoot td{font-weight:700;border-bottom:0}
+.chip{font-size:.7rem;font-weight:700;letter-spacing:.04em;padding:3px 9px;border-radius:999px;background:var(--idle-bg);color:var(--idle);white-space:nowrap}
 .chip.ok{background:var(--good-bg);color:var(--good)} .chip.and{background:var(--warn-bg);color:var(--warn)} .chip.ruim{background:var(--bad-bg);color:var(--bad)}
+.nota{border-left:3px solid var(--line);padding:2px 0 2px 10px}
 .aviso{border:1px solid var(--bad);background:var(--bad-bg);border-radius:var(--r);padding:14px}
-.carregando{padding:40px 16px;text-align:center;color:var(--muted)}
-.sec{font-size:1.35rem;margin-top:6px}
-/* celular: tudo cabe na largura (sem arrastar para o lado) e o texto dos gráficos continua legível */
-@media (max-width:520px){ table{font-size:.8rem} th,td{padding:6px 3px;white-space:normal;overflow-wrap:anywhere}
-  .kpis{grid-template-columns:1fr 1fr} .kpi b{display:block;font-size:1.5rem} .chart text{font-size:21px} .bar{width:48px} }
+.vazio{padding:24px;text-align:center;color:var(--muted)}
+.carregando{padding:60px 16px;text-align:center;color:var(--muted)}
+/* contagem de frentes */
+.sit{display:flex;height:16px;border-radius:8px;overflow:hidden;background:var(--idle-bg)}
+.sit i{display:block;height:100%}
+@media (max-width:620px){
+  .hero h1{font-size:1.5rem} .escopo{margin-left:0;width:100%}
+  .kpis{grid-template-columns:1fr 1fr} .kpi b{font-size:1.55rem}
+  .hero-kpi{grid-template-columns:76px 1fr} .anel{width:76px;height:76px}
+  .chart text{font-size:19px}
+  .hrow{grid-template-columns:1fr} th,td{padding:7px 4px}
+  .filtros select{flex:1 1 140px}
+}
+@media print{ .barra{position:static} .tabs{display:none} [role=tabpanel][hidden]{display:grid!important} }
 </style>
 </head>
 <body>
-<div class="faixa"><div class="in">
-  <div class="brand">Armação e formas · SAA Rio Grande<small>Painel de acompanhamento · somente leitura</small></div>
+<header class="hero"><div class="wrap">
+  <h1 class="marca">SAA Rio Grande · Painel da obra<small>Armação e formas · acompanhamento somente leitura</small></h1>
   <img src="logo-relatorio.jpg" alt="Heca Construtora · GCE">
-</div></div>
-<div class="wrap">
-  <header class="top">
+  <p class="quando" id="status">Carregando dados…</p>
+</div></header>
+
+<div class="barra"><div class="wrap">
+  <div class="filtros">
     <select id="emp" aria-label="Empreendimento"></select>
     <select id="est" aria-label="Estrutura"></select>
-    <select id="sem" aria-label="Posição até a semana"></select>
+    <button id="limpar" type="button" hidden>Ver a obra inteira</button>
     <button id="atualizar" type="button">Atualizar</button>
-  </header>
-  <p class="info" id="status">Carregando dados…</p>
+    <span class="escopo" id="escopo"></span>
+  </div>
+  <div class="tabs" role="tablist" aria-label="Seções do painel">
+    <button role="tab" id="t-geral" aria-controls="p-geral" aria-selected="true">Visão geral</button>
+    <button role="tab" id="t-aco" aria-controls="p-aco" aria-selected="false">Armação</button>
+    <button role="tab" id="t-forma" aria-controls="p-forma" aria-selected="false">Formas</button>
+    <button role="tab" id="t-frentes" aria-controls="p-frentes" aria-selected="false">Frentes e ocorrências</button>
+  </div>
+</div></div>
+
+<main class="wrap">
   <div id="erro" class="aviso" hidden></div>
-  <main id="conteudo" class="wrap" style="padding:0" hidden>
-    <div class="kpis" id="kpis"></div>
-    <div class="grid2">
-      <div class="card"><h3>Meta × realizado por semana</h3><div class="chart" id="ch-meta"></div><p class="info" id="meta-nota"></p></div>
-      <div class="card"><h3>Curva S (obra inteira, t)</h3><div class="chart" id="ch-s"></div><p class="info" id="s-nota"></p></div>
-    </div>
-    <div class="kpis" id="k-prev"></div>
-    <section id="forma" class="wrap" style="padding:0" hidden>
-      <h2 class="sec">Formas · paredes dos floculadores (ULMA)</h2>
-      <div class="kpis" id="f-kpis"></div>
-      <div class="grid2">
-        <div class="card"><h3>m² de forma montados por semana</h3><div class="chart" id="f-ch"></div><p class="info" id="f-nota"></p></div>
-        <div class="card"><h3>Avanço por etapa</h3><div class="tbl" id="f-et"></div></div>
+  <div id="carregando" class="carregando">Carregando os dados da obra…</div>
+
+  <!-- VISÃO GERAL -->
+  <section id="p-geral" role="tabpanel" aria-labelledby="t-geral" class="grid" hidden>
+    <div class="grid g3" id="g-destaques"></div>
+    <div class="kpis" id="g-prazos"></div>
+    <div class="grid g2">
+      <div class="card"><div class="card-top"><h3>Avanço por estrutura</h3><span class="info">toque numa estrutura para ver só ela</span></div><div class="hlist" id="g-est"></div></div>
+      <div class="grid">
+        <div class="card"><h3>Armação por semana (t)</h3><div class="chart" id="g-ch-aco"></div><div class="legenda" id="g-leg-aco"></div></div>
+        <div class="card"><h3>Formas por semana (m²)</h3><div class="chart" id="g-ch-forma"></div></div>
       </div>
-    </section>
-    <div class="grid2">
-      <div class="card"><h3>Avanço por estrutura</h3><div class="tbl" id="t-est"></div></div>
-      <div class="card"><h3>Equipes</h3><div class="tbl" id="t-eq"></div></div>
     </div>
-    <div class="grid2">
-      <div class="card"><h3>Frentes de serviço</h3><div class="tbl" id="t-fr"></div></div>
-      <div class="card"><h3>Ocorrências recentes</h3><div class="tbl" id="t-oc"></div></div>
+  </section>
+
+  <!-- ARMAÇÃO -->
+  <section id="p-aco" role="tabpanel" aria-labelledby="t-aco" class="grid" hidden>
+    <div class="kpis" id="a-kpis"></div>
+    <div class="kpis" id="a-prazos"></div>
+    <div class="grid g2">
+      <div class="card"><h3>Produção semanal × meta (t)</h3><div class="chart" id="a-ch-sem"></div><div class="legenda" id="a-leg-sem"></div><p class="info nota" id="a-nota-sem"></p></div>
+      <div class="card"><h3>Curva S (t acumuladas)</h3><div class="chart" id="a-ch-s"></div><div class="legenda" id="a-leg-s"></div><p class="info nota" id="a-nota-s"></p></div>
     </div>
-  </main>
-</div>
+    <div class="grid g2">
+      <div class="card"><h3>Por elemento</h3><div class="tbl" id="a-el"></div></div>
+      <div class="card"><h3>Por bitola</h3><div class="tbl" id="a-bit"></div></div>
+    </div>
+    <div class="card"><h3>Equipes de armação</h3><div class="tbl" id="a-eq"></div></div>
+  </section>
+
+  <!-- FORMAS -->
+  <section id="p-forma" role="tabpanel" aria-labelledby="t-forma" class="grid" hidden>
+    <div class="kpis" id="f-kpis"></div>
+    <div class="grid g2">
+      <div class="card"><h3>m² de forma montados por semana</h3><div class="chart" id="f-ch"></div><p class="info nota" id="f-nota"></p></div>
+      <div class="card"><h3>Avanço acumulado (m²)</h3><div class="chart" id="f-ch-ac"></div><p class="info nota" id="f-nota-ac"></p></div>
+    </div>
+    <div class="card"><div class="card-top"><h3>Por obra</h3><span class="info">meta = comparativo maior · contrato = planilha CODAU (cliente)</span></div><div class="tbl" id="f-obras"></div></div>
+    <div class="card" id="f-ulma-card"><h3>Etapas da forma ULMA por floculador</h3><div class="tbl" id="f-ulma"></div><p class="info nota">A forma ULMA é de um floculador e é usada no A, no B e no C (1ª = fundo + arranque, 2ª = lance 1, 3ª = lance 2, 4ª = lance 3). ✓ = concluída sem lançamento.</p></div>
+  </section>
+
+  <!-- FRENTES -->
+  <section id="p-frentes" role="tabpanel" aria-labelledby="t-frentes" class="grid" hidden>
+    <div class="card"><h3>Situação dos elementos</h3><div id="fr-sit"></div></div>
+    <div class="grid g2">
+      <div class="card"><h3>Liberados e concretados</h3><div class="tbl" id="fr-lib"></div></div>
+      <div class="card"><h3>Ocorrências recentes</h3><div class="tbl" id="fr-oc"></div></div>
+    </div>
+  </section>
+</main>
+
 <script>
 "use strict";
 const $=s=>document.querySelector(s);
 const nf0=new Intl.NumberFormat("pt-BR",{maximumFractionDigits:0}), nf1=new Intl.NumberFormat("pt-BR",{minimumFractionDigits:1,maximumFractionDigits:1});
-const pct=v=>nf1.format(v*100)+"%", t=kg=>nf1.format(kg/1000), num=v=>{ const n=typeof v==="number"?v:parseFloat(String(v??"").replace(",",".")); return isFinite(n)?n:0; };
-const el=(tag,props={},...kids)=>{ const e=document.createElement(tag); for(const [k,v] of Object.entries(props)){ if(k==="class") e.className=v; else if(k==="text") e.textContent=v; else if(k.startsWith("aria-")) e.setAttribute(k,v); else e[k]=v; } e.append(...kids.filter(x=>x!=null)); return e; };
+const pct=v=>nf1.format((v||0)*100)+"%", t=kg=>nf1.format((kg||0)/1000), num=v=>{ const n=typeof v==="number"?v:parseFloat(String(v??"").replace(",",".")); return isFinite(n)?n:0; };
+const el=(tag,props={},...kids)=>{ const e=document.createElement(tag); for(const [k,v] of Object.entries(props)){ if(k==="class") e.className=v; else if(k==="text") e.textContent=v; else if(k.startsWith("aria-")||k==="role"||k==="tabindex") e.setAttribute(k,v); else e[k]=v; } e.append(...kids.filter(x=>x!=null&&x!==false)); return e; };
 const ddmm=iso=>iso?String(iso).slice(8,10)+"/"+String(iso).slice(5,7):"";
 const hojeISO=()=>{ const d=new Date(); return new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,10); };
-const addDias=(d,n)=>{ const x=new Date(d); x.setDate(x.getDate()+n); return x; };
-const fmtData=d=>d?d.toLocaleDateString("pt-BR"):"–";
+const somaDias=(iso,n)=>{ const d=new Date(iso+"T12:00:00"); d.setDate(d.getDate()+n); return d.toISOString().slice(0,10); };
+const dataBR=iso=>iso?`${iso.slice(8,10)}/${iso.slice(5,7)}/${iso.slice(0,4)}`:"–";
+const mesAno=iso=>new Date(iso+"T12:00:00").toLocaleDateString("pt-BR",{month:"short",year:"numeric"}).replace(". de "," ").replace(".","");
 const periodoISO=p=>{ const m=String(p).match(/(\d{2})\/(\d{2})\/(\d{2,4})\s*a\s*(\d{2})\/(\d{2})\/(\d{2,4})/); if(!m) return null; const y=v=>v.length===2?"20"+v:v; return {ini:`${y(m[3])}-${m[2]}-${m[1]}`,fim:`${y(m[6])}-${m[5]}-${m[4]}`}; };
+const segSemana=iso=>{ const d=new Date(iso+"T12:00:00"); d.setDate(d.getDate()-(d.getDay()+6)%7); return d.toISOString().slice(0,10); };
 const MESES=["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
 function consertaCod(c){ const s=String(c??""); let m,mes,ano;
   if((m=s.match(/^(\d{4})-(\d{2})-\d{2}$/))){ ano=+m[1]; mes=MESES[+m[2]-1]; } else if((m=s.match(/^[A-Z][a-z]{2} ([A-Z][a-z]{2}) \d{2} (\d{4}) /))){ ano=+m[2]; mes=m[1].toUpperCase(); } else return s;
   const n=ano>=2000&&ano<2030?ano-2000:ano>=1930&&ano<2000?ano-1900:ano; return mes+"-"+String(n).padStart(4,"0"); }
 
-// endereço e chave de leitura vêm no link (painel.html#u=...&k=... ou ?u=...&k=...);
-// ficam guardados neste navegador para abrir depois só com painel.html
+// ---------- quantitativos de forma (mesmos do app: Comparativo Levantamento de Quantidades.xlsx, aba RESUMO F) ----------
+// [obra, forma CODAU (contrato do cliente, m²), forma comparativo maior (meta, m²)]; floculadores divididos em 3 (A, B, C).
+// est: a estrutura da base de aço a que a obra pertence (para o filtro valer para aço e forma ao mesmo tempo)
+const ETA="ESTAÇÃO DE TRATAMENTO";
+const QTD_ETA=[["RESERV./EEAT",7529.29,6939.81,"RESERVATÓRIO ÁGUA TRATADA"],["GEOC. E COAG.",396.08,396.08],["EEEAT SOP.",828.59,706.79],["RE. LAV. FILTROS",773.31,892.36],
+  ["TQ. CONTATO",1645.92,1396.76,"TANQUE DE CONTATO"],["CALHA PARSHALL",749.07,670.32],["TQ. LODO",349.15,337.86,"TANQUE DE LODO ADENSADO (TLA) - UTRR / TANQUE DE ÁGUA RECUPERADA (TAR) - UTRR"],
+  ["ADENS. GRAV.",579.37,586.27,"ADENSADOR - UTRR"],["TQ. REGULARIZ.",1259.53,1620.97,"TANQUE DE REGULARIZAÇÃO DE VAZÃO (TRV) - UTRR"],["CONT. HIPOCLORITO",144.21,144.21],
+  ["CLARIFICADORES",302.65,462.66,"CLARIFICADOR - UTRR"],["FLOCULADORES",890.57,1723.98,"FLOCULADORES"],["DECANTADOR",4975.45,4950.16,"DECANTADORES"],["FILTROS",2733.36,2931,"FILTROS"],
+  ["ADMINISTRATIVO",651.55,625.57],["CASA DE FLÚOR",79.59,79.59],["PORTARIA",83.94,1.93],["GUARITA",43.16,0.29],["VESTIÁRIO",199.58,205.56],["PRÉDIO UTRR",648.78,420.58],
+  ["PRÉDIO CLORO",217.55,217.55],["SALA DE PAINÉIS - FLOCULADORES",104.9,116.08],["SALA DE PAINÉIS - UTRR",104.9,104.9,"SALA PAINÉIS-RESERV UTRR"],["AMOSTRAGEM",40.32,40.32],
+  ["SUBESTAÇÃO 01 - EEAT",187.71,187.71],["SUBESTAÇÃO 02 - ETA",187.71,187.71],["RESERV. TAÇA",4.7,4.7],["PROTEÇÃO E COMBATE A INCÊNDIO",40.76,40.76]];
+const OBRAS=QTD_ETA.flatMap(([nome,c,m,est])=>nome==="FLOCULADORES"
+  ? ["A","B","C"].map(x=>({nome:`Floculador ${x}`,codau:c/3,meta:m/3,est,emp:ETA}))
+  : [{nome,codau:c,meta:m,est:est||"",emp:ETA}]);
+const obraDe=o=>o||"Floculador A"; // lançamentos antigos sem obra eram do Floculador A
+
+// ---------- acesso: endereço e chave de leitura vêm no link (#u=...&k=...) e ficam guardados neste navegador ----------
 const guardado=(()=>{ try{ return JSON.parse(localStorage.getItem("painel:acesso")||"{}"); }catch{ return {}; } })();
 const H=new URLSearchParams(location.hash.slice(1)), Q=new URLSearchParams(location.search);
 const URLD=H.get("u")||Q.get("u")||guardado.u, CHAVE=H.get("k")||Q.get("k")||guardado.k;
 if(URLD&&CHAVE){ try{ localStorage.setItem("painel:acesso",JSON.stringify({u:URLD,k:CHAVE})); }catch{} }
-let D=null, EMP="", EST="", SEM=null;
+let D=null, EMP=H.get("emp")||"", EST=H.get("est")||"", ABA=H.get("aba")||"geral", G_TODAS=false;
 
 async function carregar(){
   if(!URLD||!CHAVE){ pedirAcesso(); return; }
   $("#status").textContent="Atualizando…";
   try{
-    // gz=1: o Google manda comprimido (Code.gs 21+); resposta grande sem compressão volta como página de erro do Drive
-    const gz=typeof DecompressionStream==="function";
-    // o Google às vezes devolve, ao acaso, a página "Drive: Não foi possível abrir o arquivo": tenta de novo até 5 vezes
-    let j;
+    const gz=typeof DecompressionStream==="function"; let j;
+    // o Google às vezes devolve, ao acaso, a página "Não foi possível abrir o arquivo": tenta de novo até 5 vezes
     for(let k=1;;k++){
       const r=await fetch(`${URLD}?k=${encodeURIComponent(CHAVE)}${gz?"&gz=1":""}`), txt=await r.text();
       try{ j=JSON.parse(txt);
@@ -154,191 +268,276 @@ async function carregar(){
           j=JSON.parse(await new Response(new Blob([u8]).stream().pipeThrough(new DecompressionStream("gzip"))).text()); }
         break;
       }catch{
-        // o Google devolveu uma página de erro (HTML): mostra o texto dela
-        const g=(new DOMParser().parseFromString(txt,"text/html").body?.innerText||"").replace(/\s+/g," ").trim().slice(0,240);
-        const drive=/abrir o arquivo|unable to open the file/i.test(g);
+        const g=(new DOMParser().parseFromString(txt,"text/html").body?.innerText||"").replace(/\s+/g," ").trim().slice(0,240), drive=/abrir o arquivo|unable to open the file/i.test(g);
         if(drive && k<5){ $("#status").textContent=`O Google falhou, tentando de novo (${k+1} de 5)…`; await new Promise(r=>setTimeout(r,1000*k)); continue; }
-        throw new Error("O Google não devolveu os dados"+(g?": “"+g.slice(0,drive?60:240)+"”":".")+(drive
-          ? " O Google falhou ao entregar os dados 5 vezes seguidas. Tente de novo em alguns minutos."
-          : " Confira se o Code.gs foi salvo sem erro e publicado em Implantar → Gerenciar implantações → Nova versão, com acesso “Qualquer pessoa”."));
+        throw new Error("O Google não devolveu os dados"+(g?": “"+g.slice(0,drive?60:240)+"”":".")+(drive?" Tente de novo em alguns minutos."
+          : " Confira se o Code.gs foi publicado em Implantar → Gerenciar implantações → Nova versão, com acesso “Qualquer pessoa”."));
       }
     }
     if(!j.ok) throw new Error(j.erro||"Erro ao ler os dados.");
-    preparar(j); $("#erro").hidden=true; $("#conteudo").hidden=false; render();
+    preparar(j); $("#erro").hidden=true; $("#carregando").hidden=true; render();
     $("#status").textContent=`Dados de ${new Date(j.agora).toLocaleString("pt-BR")} · atualiza sozinho a cada 10 minutos`;
   }catch(e){
     if(/Chave de leitura/.test(e.message)){ try{ localStorage.removeItem("painel:acesso"); }catch{} pedirAcesso(); return; }
     erro(e.message==="Failed to fetch"?"Sem conexão com o Google. Tente de novo em instantes.":e.message); }
 }
-function erro(m){ const b=$("#erro"); b.hidden=false; b.textContent=m; $("#status").textContent=""; }
-// link sem endereço/chave: permite colar o link completo do painel
+function erro(m){ const b=$("#erro"); b.hidden=false; b.textContent=m; $("#status").textContent=""; $("#carregando").hidden=true; }
 function pedirAcesso(){
-  const b=$("#erro"); b.hidden=false; $("#status").textContent="";
-  const inp=el("input",{type:"text",placeholder:"Cole aqui o link completo do painel (termina com …&k=…)","aria-label":"Link do painel",style:"width:100%;min-height:42px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;background:var(--surface);color:var(--ink)"});
-  const ok=el("button",{type:"button",text:"Abrir painel"});
+  const b=$("#erro"); b.hidden=false; $("#status").textContent=""; $("#carregando").hidden=true;
+  const inp=el("input",{type:"text",placeholder:"Cole aqui o link completo do painel (termina com …&k=…)","aria-label":"Link do painel",style:"width:100%;min-height:42px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;font:inherit;background:var(--surface);color:var(--ink)"});
+  const msg=el("p",{class:"info"}), ok=el("button",{type:"button",text:"Abrir painel"});
   ok.onclick=()=>{ const s=inp.value.trim(), i=s.indexOf("#"), q=s.indexOf("?"), p=new URLSearchParams(i>=0?s.slice(i+1):q>=0?s.slice(q+1):"");
-    if(!p.get("u")||!p.get("k")){ msg.textContent="Esse link não tem o endereço e a chave. Copie o link inteiro em Ajustes → Acompanhamento sem o app."; return; }
+    if(!p.get("u")||!p.get("k")){ msg.textContent="Esse link não tem o endereço e a chave. Copie o link inteiro no app (Ajustes → Acompanhamento sem o app)."; return; }
     try{ localStorage.setItem("painel:acesso",JSON.stringify({u:p.get("u"),k:p.get("k")})); }catch{}
     location.hash=`u=${encodeURIComponent(p.get("u"))}&k=${p.get("k")}`; location.reload(); };
-  const msg=el("p",{class:"info"});
-  b.replaceChildren(el("b",{text:"Falta o endereço de acesso."}), el("p",{class:"info",text:"O link do painel precisa terminar com a parte “#u=…&k=…”. Peça o link para quem usa o app (Ajustes → Acompanhamento sem o app → Enviar link do painel) ou cole-o abaixo. Depois disso este navegador lembra o acesso."}),
+  b.replaceChildren(el("b",{text:"Falta o endereço de acesso."}), el("p",{class:"info",text:"O link do painel precisa terminar com “#u=…&k=…”. Peça o link para quem usa o app (Ajustes → Acompanhamento sem o app → Enviar link do painel) ou cole-o abaixo."}),
     el("div",{style:"display:grid;gap:8px;margin-top:8px"}, inp, ok, msg));
 }
 
+// ---------- dados ----------
 function preparar(j){
-  const itens=j.itens.map(r=>{ const qp=num(r[9]),kp=num(r[11]); return {c:consertaCod(r[0]),emp:String(r[1]),est:String(r[2]),loc:String(r[8]||""),qp,kp,ppb:qp?kp/qp:0}; });
+  const itens=j.itens.map(r=>{ const qp=num(r[9]),kp=num(r[11]); return {c:consertaCod(r[0]),emp:String(r[1]),est:String(r[2]),pos:String(r[6]||""),bit:num(r[7]),loc:String(r[8]||""),qp,kp,ppb:qp?kp/qp:0}; });
   const by=new Map(itens.map(i=>[i.c,i]));
-  const sem=j.semanas.map(s=>({...s,...(periodoISO(s.periodo)||{}),exec:{},porEq:{},kg:0})).sort((a,b)=>a.n-b.n), bn=new Map(sem.map(s=>[s.n,s]));
+  const sem=j.semanas.map(s=>{ const p=periodoISO(s.periodo)||{}; return {...s, ini:s.ini||p.ini, fim:s.fim||p.fim, exec:new Map(), porEq:{}, kg:0}; })
+    .filter(s=>s.ini&&s.fim).sort((a,b)=>a.n-b.n), bn=new Map(sem.map(s=>[s.n,s]));
   for(const [n,c0,q,eq] of j.lanc){ const s=bn.get(n), c=consertaCod(c0), i=by.get(c); if(!s||!i) continue;
-    s.exec[c]=(s.exec[c]||0)+q; s.kg+=q*i.ppb; const e=(s.porEq[eq]??={kg:0}); e.kg+=q*i.ppb; }
+    s.exec.set(c,(s.exec.get(c)||0)+q); s.kg+=q*i.ppb; const e=(s.porEq[eq]??={kg:0}); e.kg+=q*i.ppb; }
   const meta=num(j.config?.META_KG_ARM_DIA)||200, dias=num(j.config?.DIAS_SEMANA)||6;
   D={itens,by,sem,eqs:j.equipes||[],ocs:(j.registros||[]).filter(r=>r.tipo==="ocorrencia"),els:j.elementos||[],meta,dias,prazo:j.config?.PRAZO||"",forma:j.forma||null};
-  const ini=sem.filter(s=>s.ini<=hojeISO());
-  if(SEM==null||!ini.some(s=>s.n===SEM)) SEM=(ini.find(s=>s.ini<=hojeISO()&&hojeISO()<=s.fim)||ini[ini.length-1]||sem[0])?.n;
-  const emps=[...new Set(itens.map(i=>i.emp))].sort();
-  $("#emp").replaceChildren(el("option",{value:"",text:"Todos os empreendimentos"}),...emps.map(e=>el("option",{value:e,text:e}))); $("#emp").value=EMP; opEst();
-  $("#sem").replaceChildren(...[...ini].reverse().map(s=>el("option",{value:s.n,text:`Até a semana ${s.n} (${ddmm(s.ini)} a ${ddmm(s.fim)})`}))); $("#sem").value=SEM;
+  const emps=[...new Set(itens.map(i=>i.emp))].sort((a,b)=>a.localeCompare(b,"pt"));
+  if(EMP && !emps.includes(EMP)) EMP="";
+  $("#emp").replaceChildren(el("option",{value:"",text:"Obra inteira (todos os empreendimentos)"}),...emps.map(e=>el("option",{value:e,text:e}))); $("#emp").value=EMP; opEst();
 }
-$("#emp").onchange=e=>{ EMP=e.target.value; EST=""; opEst(); render(); };
-// estruturas do empreendimento escolhido (ex.: ETA → Decantadores, Floculadores…; Alto Recalque → Tanque Pulmão…)
 function opEst(){ const ests=[...new Set(D.itens.filter(i=>!EMP||i.emp===EMP).map(i=>i.est))].sort((a,b)=>a.localeCompare(b,"pt"));
   if(!ests.includes(EST)) EST="";
-  $("#est").replaceChildren(el("option",{value:"",text:EMP?"Todas as estruturas":"Todas as estruturas da obra"}),...ests.map(e=>el("option",{value:e,text:e}))); $("#est").value=EST; }
-$("#est").onchange=e=>{ EST=e.target.value; render(); };
-$("#sem").onchange=e=>{ SEM=+e.target.value; render(); };
+  $("#est").replaceChildren(el("option",{value:"",text:EMP?"Todas as estruturas":"Todas as estruturas"}),...ests.map(e=>el("option",{value:e,text:e}))); $("#est").value=EST; }
+function filtrar(emp, est){ EMP=emp; EST=est; $("#emp").value=EMP; opEst(); EST=est; $("#est").value=EST; guardarHash(); render(); window.scrollTo({top:0,behavior:"smooth"}); }
+function guardarHash(){ const p=new URLSearchParams(location.hash.slice(1)); for(const [k,v] of [["emp",EMP],["est",EST],["aba",ABA]]) if(v && !(k==="aba"&&v==="geral")) p.set(k,v); else p.delete(k);
+  history.replaceState(null,"","#"+p.toString()); }
+$("#emp").onchange=e=>{ EMP=e.target.value; EST=""; opEst(); guardarHash(); render(); };
+$("#est").onchange=e=>{ EST=e.target.value; guardarHash(); render(); };
+$("#limpar").onclick=()=>filtrar("","");
 $("#atualizar").onclick=carregar;
+for(const b of document.querySelectorAll('[role=tab]')) b.onclick=()=>{ ABA=b.id.slice(2); guardarHash(); mostrarAba(); };
+function mostrarAba(){ for(const b of document.querySelectorAll('[role=tab]')){ const on=b.id==="t-"+ABA; b.setAttribute("aria-selected",String(on)); $("#"+b.getAttribute("aria-controls")).hidden=!on || !D; } }
 
-function svgMeta(data){
-  const W=640,H=230,pl=10,pr=10,pt=26,pb=26,ns="http://www.w3.org/2000/svg", s=document.createElementNS(ns,"svg"); s.setAttribute("viewBox",`0 0 ${W} ${H}`);
-  const mk=(tag,a,txt)=>{ const e=document.createElementNS(ns,tag); for(const k in a) e.setAttribute(k,a[k]); if(txt!=null) e.textContent=txt; s.append(e); return e; };
-  if(!data.length) return s;
-  const top=Math.max(...data.map(d=>Math.max(d.real,d.meta)),0.001), max=top*1.15, ih=H-pt-pb, bw=(W-pl-pr)/data.length, y=v=>pt+ih-(v/max)*ih;
-  mk("line",{x1:pl,x2:W-pr,y1:pt+ih,y2:pt+ih,class:"grid"}); mk("text",{x:W-pr,y:16,"text-anchor":"end"},"meta da semana"); mk("line",{x1:W-pr-200,x2:W-pr-178,y1:11,y2:11,class:"meta"});
-  const passo=Math.ceil(data.length/8); // no celular o texto é maior: rótulo a cada "passo"
-  data.forEach((d,k)=>{ const cx=pl+bw*k+bw/2, w=bw*0.56, mostra=(data.length-1-k)%passo===0||d.hl;
-    mk("rect",{x:cx-w/2,y:y(d.real),width:w,height:Math.max(0,pt+ih-y(d.real)),rx:3,class:"b"+(d.hl?" hl":"")});
-    if(d.meta>0) mk("line",{x1:cx-w/2-4,x2:cx+w/2+4,y1:y(d.meta),y2:y(d.meta),class:"meta"});
-    if(mostra) mk("text",{x:cx,y:Math.min(y(d.real),d.meta>0?y(d.meta):H)-6,"text-anchor":"middle",class:"val"},d.meta>0?Math.round(d.real/d.meta*100)+"%":nf1.format(d.real));
-    if(mostra) mk("text",{x:cx,y:H-8,"text-anchor":"middle"},d.label); });
-  return s;
+// ---------- escopo do filtro: aço (posições) e forma (obras) ----------
+const naObra=o=>(!EMP||o.emp===EMP)&&(!EST||o.est===EST);
+function escopo(){
+  const its=D.itens.filter(i=>(!EMP||i.emp===EMP)&&(!EST||i.est===EST)), set=new Set(its.map(i=>i.c));
+  const obras=OBRAS.filter(naObra), nomes=new Set(obras.map(o=>o.nome));
+  const fdias=(D.forma?.dias||[]).filter(x=>nomes.has(obraDe(x.obra)));
+  return {its, set, obras, fdias, geral:!EMP&&!EST};
 }
-// barras simples (m² de forma por dia)
-function svgBarras(data){
-  const W=640,H=230,pl=10,pr=10,pt=26,pb=26,ns="http://www.w3.org/2000/svg", s=document.createElementNS(ns,"svg"); s.setAttribute("viewBox",`0 0 ${W} ${H}`);
-  const mk=(tag,a,txt)=>{ const e=document.createElementNS(ns,tag); for(const k in a) e.setAttribute(k,a[k]); if(txt!=null) e.textContent=txt; s.append(e); return e; };
-  if(!data.length){ mk("text",{x:W/2,y:H/2,"text-anchor":"middle"},"Sem montagem lançada ainda"); return s; }
-  const top=Math.max(...data.map(d=>d.v),1), ih=H-pt-pb, bw=(W-pl-pr)/data.length, y=v=>pt+ih-(v/(top*1.12))*ih, passo=Math.ceil(data.length/8);
-  mk("line",{x1:pl,x2:W-pr,y1:pt+ih,y2:pt+ih,class:"grid"});
-  data.forEach((d,k)=>{ const cx=pl+bw*k+bw/2, mostra=(data.length-1-k)%passo===0;
-    mk("rect",{x:cx-bw*0.32,y:y(d.v),width:bw*0.64,height:Math.max(0,pt+ih-y(d.v)),rx:3,class:"b"});
-    if(mostra){ mk("text",{x:cx,y:y(d.v)-6,"text-anchor":"middle",class:"val"},nf1.format(d.v)); mk("text",{x:cx,y:H-8,"text-anchor":"middle"},d.label); } });
-  return s;
+// ---------- armação: semanas, avanço e previsão ----------
+// Ritmo = média das últimas 4 semanas JÁ ENCERRADAS com produção (a semana em andamento não entra: puxaria o ritmo para baixo).
+// Término = hoje + saldo ÷ ritmo. Na meta (só a obra inteira): meta × armadores da semana atual × dias por semana.
+function calcAco(E){
+  const h=hojeISO(), kgS=s=>{ let k=0; for(const [c,q] of s.exec) if(E.set.has(c)) k+=q*D.by.get(c).ppb; return k; };
+  const sems=D.sem.filter(s=>s.ini<=h).map(s=>({...s, kgE:kgS(s), fechada:s.fim<h}));
+  const ac=new Map(); for(const s of sems) for(const [c,q] of s.exec) if(E.set.has(c)) ac.set(c,(ac.get(c)||0)+q);
+  const P=E.its.reduce((a,i)=>a+i.kp,0), X=E.its.reduce((a,i)=>a+Math.min(ac.get(i.c)||0,i.qp)*i.ppb,0), saldo=Math.max(0,P-X);
+  const base=sems.filter(s=>s.fechada&&s.kgE>0).slice(-4), ritmo=base.length?base.reduce((a,s)=>a+s.kgE,0)/base.length:0;
+  const atual=sems.find(s=>s.ini<=h&&h<=s.fim)||sems[sems.length-1];
+  const armAtual=+atual?.arm||D.eqs.filter(e=>e.ativa).reduce((a,e)=>a+(+e.arm||0),0), metaSem=D.meta*armAtual*D.dias;
+  const fimRitmo=ritmo>0&&saldo>0?somaDias(h,Math.ceil(saldo/ritmo*7)):"", fimMeta=E.geral&&metaSem>0&&saldo>0?somaDias(h,Math.ceil(saldo/metaSem*7)):"";
+  // produtividade: kg ÷ (armadores × dias) das semanas encerradas com produção (só faz sentido na obra inteira: a equipe é uma só)
+  const pb=sems.filter(s=>s.fechada&&s.kg>0&&s.arm*s.dias>0).slice(-4), prod=pb.reduce((a,s)=>a+s.kg,0)/(pb.reduce((a,s)=>a+s.arm*s.dias,0)||1);
+  const prazo=D.prazo||"", semPrazo=prazo&&prazo>h?Math.max(1,Math.round((new Date(prazo)-new Date(h))/(7*864e5))):0;
+  return {sems, ac, P, X, saldo, ritmo, base, atual, armAtual, metaSem, fimRitmo, fimMeta, prod, pb, prazo, semPrazo, kgS};
 }
-function svgCurva(series,labels,maxY,prazoIdx){
-  const W=640,H=260,pl=44,pr=12,pt=16,pb=30,ns="http://www.w3.org/2000/svg", s=document.createElementNS(ns,"svg"); s.setAttribute("viewBox",`0 0 ${W} ${H}`);
-  const mk=(tag,a,txt)=>{ const e=document.createElementNS(ns,tag); for(const k in a) e.setAttribute(k,a[k]); if(txt!=null) e.textContent=txt; s.append(e); return e; };
-  const n=labels.length, iw=W-pl-pr, ih=H-pt-pb, x=i=>pl+(n>1?i/(n-1):0)*iw, y=v=>pt+ih-(v/maxY)*ih;
-  for(const g of [0,.25,.5,.75,1]){ mk("line",{x1:pl,x2:W-pr,y1:y(maxY*g),y2:y(maxY*g),class:"grid"}); mk("text",{x:pl-6,y:y(maxY*g)+4,"text-anchor":"end"},nf0.format(maxY*g)); }
-  const passo=Math.max(1,Math.ceil(n/8)); labels.forEach((l,i)=>{ if(i%passo===0||i===n-1) mk("text",{x:x(i),y:H-10,"text-anchor":"middle"},l); });
-  if(prazoIdx!=null&&prazoIdx<n){ mk("line",{x1:x(prazoIdx),x2:x(prazoIdx),y1:pt,y2:pt+ih,class:"prazo"}); mk("text",{x:x(prazoIdx)+4,y:pt+12},"prazo"); }
-  for(const se of series){ if(!se.pts.length) continue; mk("polyline",{points:se.pts.map(([i,v])=>x(i)+","+y(v)).join(" "),class:se.cls});
-    const [li,lv]=se.pts[se.pts.length-1]; mk("circle",{cx:x(li),cy:y(lv),r:3.5,class:se.cls+" pt"}); }
-  return s;
+// ---------- formas: semanas, avanço e previsão ----------
+function calcForma(E){
+  const sem=new Map(), porObra=new Map(), h=hojeISO();
+  for(const x of E.fdias){ const k=segSemana(x.data), s=sem.get(k)||{m2:0,pdSem:0,dia:new Map()}; s.m2+=x.mont;
+    // equipe uma vez por semana (lançamento semanal) ou por dia (diário)
+    if(x.semanal) s.pdSem=Math.max(s.pdSem,x.pessoas*x.dias); else if(x.ativ==="Montagem") s.dia.set(x.data,Math.max(s.dia.get(x.data)||0,x.pessoas));
+    sem.set(k,s); porObra.set(obraDe(x.obra),(porObra.get(obraDe(x.obra))||0)+x.mont); }
+  const serie=[...sem].sort((a,b)=>a[0].localeCompare(b[0])).map(([k,s])=>({seg:k, m2:s.m2, pd:s.pdSem+[...s.dia.values()].reduce((a,v)=>a+v,0)}));
+  // etapas ULMA concluídas sem lançamento (por floculador) também contam no avanço da obra
+  const extra=new Map(); for(const e of D.forma?.etapas||[]) for(const f of e.porFloc||[]) if(f.concluida) extra.set(f.obra,(extra.get(f.obra)||0)+Math.max(0,e.projetoFloc-f.lancado));
+  const obras=E.obras.map(o=>{ const mont=porObra.get(o.nome)||0, av=Math.min(o.meta,mont+(extra.get(o.nome)||0)); return {...o, mont, av}; });
+  const meta=obras.reduce((a,o)=>a+o.meta,0), codau=obras.reduce((a,o)=>a+o.codau,0), av=obras.reduce((a,o)=>a+o.av,0), m2=serie.reduce((a,s)=>a+s.m2,0);
+  const comM=serie.filter(s=>s.m2>0), ult=comM.slice(-4), ritmo=ult.length?ult.reduce((a,s)=>a+s.m2,0)/ult.length:0;
+  const pd=comM.reduce((a,s)=>a+s.pd,0), prod=pd?comM.filter(s=>s.pd).reduce((a,s)=>a+s.m2,0)/pd:0, falta=Math.max(0,meta-av);
+  return {serie, obras, meta, codau, av, m2, ritmo, ult, prod, falta, fim: ritmo>0&&falta>0?somaDias(h,Math.ceil(falta/ritmo*7)):""};
 }
-const kpi=(l,v,sm)=>el("div",{class:"kpi"},el("span",{text:l}),el("b",{text:v}),sm?el("small",{text:sm}):null);
-const tabela=(head,rows)=>el("table",{},el("thead",{},el("tr",{},...head.map(h=>el("th",{text:h})))),el("tbody",{},...rows));
-const metaSem=s=>D.meta*(+s.arm||0)*(+s.dias||0);
 
+// ---------- gráficos (SVG simples, sem biblioteca) ----------
+const NS="http://www.w3.org/2000/svg";
+function svg(W,H){ const s=document.createElementNS(NS,"svg"); s.setAttribute("viewBox",`0 0 ${W} ${H}`); s.setAttribute("role","img");
+  s.mk=(tag,a,txt)=>{ const e=document.createElementNS(NS,tag); for(const k in a) e.setAttribute(k,a[k]); if(txt!=null) e.textContent=txt; s.append(e); return e; }; return s; }
+function titulo(e,txt){ const tt=document.createElementNS(NS,"title"); tt.textContent=txt; e.append(tt); }
+function anel(f, cls, rot){ const s=svg(120,120); s.setAttribute("class","anel"); s.setAttribute("aria-label",`${rot}: ${pct(f)}`);
+  const r=50, C=2*Math.PI*r; s.mk("circle",{cx:60,cy:60,r,fill:"none","stroke-width":12,class:"fundo"});
+  s.mk("circle",{cx:60,cy:60,r,fill:"none","stroke-width":12,class:cls,"stroke-linecap":"round","stroke-dasharray":`${C*Math.min(1,f||0)} ${C}`,transform:"rotate(-90 60 60)"});
+  s.mk("text",{x:60,y:68,"text-anchor":"middle","font-size":26},pct(f).replace(",0%","%")); return s; }
+// barras por semana; meta (traço vermelho) opcional; destaca a semana atual
+function barras(data,{cls="ba",fmt=nf1.format,unid=""}={}){
+  const W=640,H=240,pl=8,pr=8,pt=24,pb=28, s=svg(W,H);
+  if(!data.length){ s.mk("text",{x:W/2,y:H/2,"text-anchor":"middle"},"Nada lançado ainda"); return s; }
+  const top=Math.max(...data.map(d=>Math.max(d.v,d.meta||0)),0.001)*1.15, ih=H-pt-pb, bw=(W-pl-pr)/data.length, y=v=>pt+ih-(v/top)*ih, passo=Math.ceil(data.length/10);
+  s.mk("line",{x1:pl,x2:W-pr,y1:pt+ih,y2:pt+ih,class:"grade"});
+  data.forEach((d,k)=>{ const cx=pl+bw*k+bw/2, w=Math.min(46,bw*0.62), mostra=(data.length-1-k)%passo===0||d.hl;
+    const r=s.mk("rect",{x:cx-w/2,y:y(d.v),width:w,height:Math.max(0,pt+ih-y(d.v)),rx:4,class:"b "+cls+(d.hl?" hl":""),tabindex:0});
+    titulo(r,`${d.tip||d.label}: ${fmt(d.v)}${unid}${d.meta?` · meta ${fmt(d.meta)}${unid} (${Math.round(d.v/d.meta*100)}%)`:""}`);
+    if(d.meta>0) s.mk("line",{x1:cx-w/2-4,x2:cx+w/2+4,y1:y(d.meta),y2:y(d.meta),class:"meta"});
+    if(mostra){ s.mk("text",{x:cx,y:Math.min(y(d.v),d.meta>0?y(d.meta):H)-6,"text-anchor":"middle",class:"val"},d.meta>0?Math.round(d.v/d.meta*100)+"%":fmt(d.v));
+      s.mk("text",{x:cx,y:H-8,"text-anchor":"middle"},d.label); } });
+  return s;
+}
+// curva acumulada: realizado (área), planejado e projeção; linha de hoje e do prazo
+function curva(series,labels,maxY,{hojeIdx,prazoIdx,area="area"}={}){
+  const W=640,H=260,pl=46,pr=14,pt=14,pb=30, s=svg(W,H), n=labels.length, iw=W-pl-pr, ih=H-pt-pb, x=i=>pl+(n>1?i/(n-1):0)*iw, y=v=>pt+ih-(v/(maxY||1))*ih;
+  for(const g of [0,.25,.5,.75,1]){ s.mk("line",{x1:pl,x2:W-pr,y1:y(maxY*g),y2:y(maxY*g),class:"grade"}); s.mk("text",{x:pl-6,y:y(maxY*g)+4,"text-anchor":"end"},nf0.format(maxY*g)); }
+  const passo=Math.max(1,Math.ceil(n/7)); labels.forEach((l,i)=>{ if(i%passo===0||i===n-1) s.mk("text",{x:x(i),y:H-9,"text-anchor":"middle"},l); });
+  if(hojeIdx!=null){ s.mk("line",{x1:x(hojeIdx),x2:x(hojeIdx),y1:pt,y2:pt+ih,class:"hoje"}); s.mk("text",{x:x(hojeIdx)+4,y:pt+10},"hoje"); }
+  if(prazoIdx!=null&&prazoIdx<n){ s.mk("line",{x1:x(prazoIdx),x2:x(prazoIdx),y1:pt,y2:pt+ih,class:"prz"}); s.mk("text",{x:x(prazoIdx)-4,y:pt+10,"text-anchor":"end"},"prazo"); }
+  for(const se of series){ if(!se.pts.length) continue;
+    if(se.area){ const p=se.pts.map(([i,v])=>`${x(i)},${y(v)}`).join(" "); s.mk("polygon",{points:`${x(se.pts[0][0])},${y(0)} ${p} ${x(se.pts[se.pts.length-1][0])},${y(0)}`,class:area}); }
+    s.mk("polyline",{points:se.pts.map(([i,v])=>`${x(i)},${y(v)}`).join(" "),class:se.cls});
+    const [li,lv]=se.pts[se.pts.length-1]; const c=s.mk("circle",{cx:x(li),cy:y(lv),r:4,fill:"currentColor",class:se.cls}); c.style.fill=getComputedStyle(document.documentElement).getPropertyValue(se.cls==="lnf"?"--forma":"--aco"); titulo(c,`${labels[li]}: ${nf1.format(lv)}`); }
+  return s;
+}
+const leg=(itens)=>itens.map(([cor,txt,tipo])=>el("span",{},el("i",{style:`border-top-color:${cor};${tipo==="t"?"border-top-style:dashed":tipo==="p"?"border-top-style:dotted":""}`}),txt));
+const kpi=(l,v,sm,cls="")=>el("div",{class:"kpi "+cls},el("span",{text:l}),el("b",{text:v}),sm?el("small",{text:sm}):null);
+const tabela=(head,rows,foot)=>el("table",{},el("thead",{},el("tr",{},...head.map(h=>el("th",{text:h})))),el("tbody",{},...rows),foot?el("tfoot",{},foot):null);
+const barraTd=(f,cls="")=>el("span",{class:"bar "+cls},el("i",{style:`width:${Math.min(100,(f||0)*100)}%`}));
+const vazio=txt=>el("div",{class:"vazio",text:txt});
+
+// ---------- render ----------
 function render(){
   if(!D) return;
-  const ini=D.sem.filter(s=>s.ini<=hojeISO()), ate=ini.filter(s=>s.n<=SEM), w=ate[ate.length-1];
-  const its=D.itens.filter(i=>(!EMP||i.emp===EMP)&&(!EST||i.est===EST)), set=new Set(its.map(i=>i.c)), ac=new Map();
-  for(const s of ate) for(const [c,q] of Object.entries(s.exec)) ac.set(c,(ac.get(c)||0)+q);
-  const exe=i=>Math.min(ac.get(i.c)||0,i.qp)*i.ppb, P=its.reduce((s,i)=>s+i.kp,0), E=its.reduce((s,i)=>s+exe(i),0);
-  const kgSem=s=>{ let k=0; for(const [c,q] of Object.entries(s.exec)) if(set.has(c)) k+=q*D.by.get(c).ppb; return k; };
-  const hd=ate.filter(s=>s.kg>0&&s.arm*s.dias>0), prodMed=hd.reduce((a,s)=>a+s.kg,0)/(hd.reduce((a,s)=>a+s.arm*s.dias,0)||1);
-  $("#kpis").replaceChildren(kpi("Previsto",t(P)+" t",EST||EMP||"obra inteira"), kpi("Executado",t(E)+" t",w?`${t(kgSem(w))} t na semana ${w.n}`:""), kpi("Saldo",t(P-E)+" t"),
-    kpi("Avanço",pct(P?E/P:0)), kpi("Produtividade média",nf0.format(prodMed),`kg/armador/dia · meta ${nf0.format(D.meta)}`));
-  // meta × realizado (equipe inteira)
-  $("#ch-meta").replaceChildren(svgMeta(ate.slice(-12).map(s=>({label:"S"+s.n,real:s.kg/1000,meta:metaSem(s)/1000,hl:s.n===SEM}))));
-  $("#meta-nota").textContent=`Meta de ${nf0.format(D.meta)} kg por armador por dia × armadores × dias trabalhados. Percentual = realizado ÷ meta.`;
-  // curva S e previsão (obra inteira, posição atual)
-  const Pt=D.itens.reduce((s,i)=>s+i.kp,0), acT=new Map(); for(const s of ini) for(const [c,q] of Object.entries(s.exec)) acT.set(c,(acT.get(c)||0)+q);
-  const Et=D.itens.reduce((s,i)=>s+Math.min(acT.get(i.c)||0,i.qp)*i.ppb,0), saldo=Math.max(0,Pt-Et);
-  const rec=ini.filter(s=>s.kg>0).slice(-4), ritmo=rec.length?rec.reduce((a,s)=>a+s.kg,0)/rec.length:0;
-  const arm=D.eqs.filter(e=>e.ativa).reduce((a,e)=>a+(+e.arm||0),0)||(+ini[ini.length-1]?.arm||0), metaFut=D.meta*arm*D.dias;
-  const atual=ini[ini.length-1], fimRef=atual?new Date(atual.fim+"T12:00:00"):new Date();
-  const nS=r=>r>0?Math.ceil(saldo/r):Infinity, sR=nS(ritmo), sM=nS(metaFut);
-  const prazo=D.prazo?new Date(D.prazo+"T12:00:00"):null, sP=prazo?Math.max(0,Math.floor((prazo-fimRef)/(7*864e5))):0;
-  const k=[kpi("Término no ritmo real",isFinite(sR)?fmtData(addDias(fimRef,7*sR)):"–",`${t(ritmo)} t/semana (média das últimas 4)`),
-    kpi("Término na meta",isFinite(sM)?fmtData(addDias(fimRef,7*sM)):"–",`${nf0.format(D.meta)} kg/arm/dia × ${arm} armadores × ${D.dias} dias`)];
-  if(prazo) k.push(kpi("Para o prazo "+fmtData(prazo),sP?`${Math.ceil(saldo/(D.meta*D.dias*sP))} armadores`:"prazo vencido","na meta de produtividade"));
-  $("#k-prev").replaceChildren(...k);
-  const fut=Math.min(156,Math.max(isFinite(sM)?sM:0,isFinite(sR)?sR:0,sP)+1);
-  const datas=[...ini.map(s=>new Date(s.ini+"T12:00:00")),...Array.from({length:fut},(_,i)=>addDias(fimRef,1+7*i))];
-  const labels=datas.map(d=>datas.length>30?d.toLocaleDateString("pt-BR",{month:"short",year:"2-digit"}).replace(". de ","/").replace(".",""):d.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"}));
-  let aR=0,aM=0; const real=[],plan=[]; ini.forEach((s,i)=>{ aR+=s.kg; aM+=metaSem(s); real.push([i,aR/1000]); plan.push([i,Math.min(aM,Pt)/1000]); });
-  const base=ini.length-1, proj=[[base,Et/1000]]; for(let i=1;i<=fut;i++){ aM+=metaFut; plan.push([base+i,Math.min(aM,Pt)/1000]); if(ritmo>0) proj.push([base+i,Math.min(Et+ritmo*i,Pt)/1000]); }
-  $("#ch-s").replaceChildren(svgCurva([{pts:plan,cls:"ln2"},{pts:proj,cls:"ln3"},{pts:real,cls:"ln"}],labels,Pt/1000,prazo?base+sP:null));
-  $("#s-nota").textContent="Linha cheia: realizado · tracejada: planejado pela meta · pontilhada: projeção no ritmo real.";
-  // estruturas
-  const g=new Map(); for(const i of its){ const kk=i.emp+"|"+i.est, r=g.get(kk)||{est:i.est,emp:i.emp,p:0,e:0}; r.p+=i.kp; r.e+=exe(i); g.set(kk,r); }
-  $("#t-est").replaceChildren(tabela(["Estrutura","Previsto (t)","Executado (t)","Avanço"],[...g.values()].sort((a,b)=>b.e-a.e||b.p-a.p).map(r=>el("tr",{},
-    el("td",{},el("b",{text:r.est}),EMP?null:el("div",{class:"info",text:r.emp})),el("td",{text:t(r.p)}),el("td",{text:t(r.e)}),
-    el("td",{},pct(r.p?r.e/r.p:0),el("span",{class:"bar"},el("i",{style:`width:${r.p?Math.min(100,r.e/r.p*100):0}%`})))))));
-  // equipes
-  $("#t-eq").replaceChildren(tabela(["Equipe","Arm.","Frentes",`Sem. ${w?.n??""} (kg)`,"kg/arm/dia"],D.eqs.filter(e=>e.ativa).map(e=>{ const kg=w?.porEq[e.nome]?.kg||0;
+  const E=escopo(), A=calcAco(E), F=calcForma(E), h=hojeISO();
+  $("#limpar").hidden=E.geral;
+  $("#escopo").replaceChildren(E.geral ? el("b",{text:"Obra inteira"}) : el("span",{}, EMP?`${EMP}`:"", EST?" › ":"", EST?el("b",{text:EST}):(EMP?"":null)));
+  renderGeral(E,A,F,h); renderAco(E,A,h); renderForma(E,F,h); renderFrentes(E,A);
+  mostrarAba();
+}
+function renderGeral(E,A,F,h){
+  const fA=A.P?A.X/A.P:0, fF=F.meta?F.av/F.meta:0;
+  const dest=(cls,anelEl,rot,v,sub)=>el("div",{class:"card"}, el("div",{class:"hero-kpi"}, anelEl, el("div",{}, el("span",{text:rot}), el("b",{text:v}), el("small",{text:sub}))));
+  $("#g-destaques").replaceChildren(
+    dest("aco", anel(fA,"aco","Armação"), "Armação executada", `${t(A.X)} de ${t(A.P)} t`, `saldo ${t(A.saldo)} t · ${E.its.length} posições`),
+    F.meta ? dest("forma", anel(fF,"forma","Formas"), "Formas montadas", `${nf0.format(F.av)} de ${nf0.format(F.meta)} m²`, `contrato do cliente (CODAU): ${nf0.format(F.codau)} m²`)
+      : el("div",{class:"card"}, el("span",{class:"info",text:"Formas: sem quantitativo de forma para esta estrutura."})),
+    el("div",{class:"card"}, el("div",{class:"hero-kpi"}, anel(A.atual&&A.metaSem?Math.min(1,(A.atual.kg||0)/A.metaSem):0,"aco","Semana atual"),
+      el("div",{}, el("span",{text:`Semana ${A.atual?.n??"–"} · em andamento`}), el("b",{text:`${t(A.kgS(A.atual||{exec:new Map()}))} t`}),
+        el("small",{text:E.geral&&A.metaSem?`meta da semana ${t(A.metaSem)} t · ${A.armAtual} armadores`:`${ddmm(A.atual?.ini)} a ${ddmm(A.atual?.fim)}`})))));
+  const pz=[kpi("Término da armação",A.fimRitmo?dataBR(A.fimRitmo):A.saldo?"–":"concluída",A.ritmo?`no ritmo de ${t(A.ritmo)} t/semana (últimas ${A.base.length} semanas encerradas)`:"sem semanas encerradas com produção","prazo")];
+  if(E.geral) pz.push(kpi("Término na meta",A.fimMeta?dataBR(A.fimMeta):"–",`${nf0.format(D.meta)} kg/arm/dia × ${A.armAtual} armadores × ${D.dias} dias = ${t(A.metaSem)} t/semana`,"prazo"));
+  if(F.meta) pz.push(kpi("Término das formas",F.fim?dataBR(F.fim):F.falta?"–":"concluídas",F.ritmo?`no ritmo de ${nf0.format(F.ritmo)} m²/semana`:"sem montagem lançada","prazo"));
+  if(E.geral && A.prazo) pz.push(kpi("Prazo da obra",dataBR(A.prazo),A.semPrazo?`faltam ${A.semPrazo} semanas · precisa de ${t(A.saldo/A.semPrazo)} t/semana`:"prazo vencido","prazo"));
+  $("#g-prazos").replaceChildren(...pz);
+  // estruturas: aço e forma lado a lado; toque filtra
+  const g=new Map();
+  for(const i of E.its){ const k=i.emp+"|"+i.est, r=g.get(k)||{emp:i.emp,est:i.est,p:0,x:0,fm:0,fa:0}; r.p+=i.kp; r.x+=Math.min(A.ac.get(i.c)||0,i.qp)*i.ppb; g.set(k,r); }
+  for(const o of F.obras){ const k=o.est?o.emp+"|"+o.est:"forma|"+o.nome, r=g.get(k)||{emp:o.emp,est:o.est||o.nome,p:0,x:0,fm:0,fa:0,soForma:!o.est}; r.fm+=o.meta; r.fa+=o.av; g.set(k,r); }
+  const L=[...g.values()].filter(r=>r.p||r.fm).sort((a,b)=>(b.x+b.fa*10)-(a.x+a.fa*10)||b.p-a.p);
+  const comAv=L.filter(r=>r.x>0||r.fa>0), resto=L.filter(r=>!(r.x>0||r.fa>0)), verTudo=G_TODAS||!comAv.length||!resto.length;
+  const linha=r=>{ const row=el("div",{class:"hrow",role:"button",tabindex:0,"aria-label":`Ver só ${r.est}`},
+      el("div",{class:"nome"}, el("b",{text:r.est}), el("small",{text:r.soForma?"só forma":E.geral||!EMP?r.emp:""})),
+      el("div",{class:"trilho"},
+        r.p ? el("div",{}, el("em",{text:"aço"}), barraTd(r.x/r.p), el("span",{text:pct(r.x/r.p)})) : null,
+        r.fm ? el("div",{}, el("em",{text:"forma"}), barraTd(r.fa/r.fm,"f"), el("span",{text:pct(r.fa/r.fm)})) : null));
+    if(!r.soForma){ row.onclick=()=>filtrar(r.emp,r.est); row.onkeydown=ev=>{ if(ev.key==="Enter"||ev.key===" "){ ev.preventDefault(); filtrar(r.emp,r.est); } }; } else row.style.cursor="default";
+    return row; };
+  const filhos = L.length ? (verTudo?L:comAv).map(linha) : [vazio("Nada nesta seleção.")];
+  if(!verTudo) filhos.push(el("button",{class:"mais",type:"button",text:`Ver todas (+${resto.length} ainda sem avanço)`,onclick:()=>{ G_TODAS=true; render(); }}));
+  else if(G_TODAS && comAv.length && resto.length) filhos.push(el("button",{class:"mais",type:"button",text:"Mostrar só as que têm avanço",onclick:()=>{ G_TODAS=false; render(); }}));
+  $("#g-est").replaceChildren(...filhos);
+  const ult=A.sems.slice(-12);
+  $("#g-ch-aco").replaceChildren(barras(ult.map(s=>({label:"S"+s.n,tip:`Semana ${s.n} (${ddmm(s.ini)} a ${ddmm(s.fim)})${s.fechada?"":" · em andamento"}`,v:s.kgE/1000,meta:E.geral?D.meta*(+s.arm||0)*(+s.dias||0)/1000:0,hl:!s.fechada})),{unid:" t"}));
+  $("#g-leg-aco").replaceChildren(...leg([["var(--aco)","executado"],...(E.geral?[["var(--bad)","meta da semana"]]:[]),["var(--navy2)","semana em andamento"]]));
+  $("#g-ch-forma").replaceChildren(barras(F.serie.slice(-12).map(s=>({label:ddmm(s.seg),tip:`Semana de ${ddmm(s.seg)}`,v:s.m2,hl:s.seg===segSemana(h)})),{cls:"bf",fmt:nf0.format,unid:" m²"}));
+}
+function renderAco(E,A,h){
+  const fA=A.P?A.X/A.P:0;
+  $("#a-kpis").replaceChildren(kpi("Previsto",`${t(A.P)} t`,`${E.its.length} posições`,"aco"), kpi("Executado",`${t(A.X)} t`,pct(fA)+" do previsto","aco"),
+    kpi("Saldo",`${t(A.saldo)} t`,"a armar","aco"), kpi("Ritmo",A.ritmo?`${t(A.ritmo)} t`:"–",`por semana · média das últimas ${A.base.length} encerradas`,"aco"),
+    E.geral ? kpi("Produtividade",A.pb.length?nf0.format(A.prod):"–",`kg/armador/dia · meta ${nf0.format(D.meta)} (últimas ${A.pb.length} semanas)`,"aco")
+      : kpi("Semana atual",`${t(A.kgS(A.atual||{exec:new Map()}))} t`,`semana ${A.atual?.n??"–"}, em andamento`,"aco"));
+  const pz=[kpi("Término no ritmo real",A.fimRitmo?dataBR(A.fimRitmo):A.saldo?"–":"concluída",A.ritmo?`${t(A.saldo)} t ÷ ${t(A.ritmo)} t/semana`:"sem semanas encerradas com produção","prazo")];
+  if(E.geral){ pz.push(kpi("Término na meta",A.fimMeta?dataBR(A.fimMeta):"–",`${nf0.format(D.meta)} kg × ${A.armAtual} armadores × ${D.dias} dias = ${t(A.metaSem)} t/semana`,"prazo"));
+    if(A.prazo) pz.push(kpi("Para o prazo "+dataBR(A.prazo),A.semPrazo?`${Math.ceil(A.saldo/(D.meta*D.dias*A.semPrazo))} armadores`:"prazo vencido",A.semPrazo?`na meta de ${nf0.format(D.meta)} kg/arm/dia · ${A.semPrazo} semanas`:"","prazo")); }
+  else pz.push(kpi("Na meta","–","a meta é da equipe inteira: veja a obra inteira","prazo"));
+  $("#a-prazos").replaceChildren(...pz);
+  const ult=A.sems.slice(-16);
+  $("#a-ch-sem").replaceChildren(barras(ult.map(s=>({label:"S"+s.n,tip:`Semana ${s.n} (${ddmm(s.ini)} a ${ddmm(s.fim)})${s.fechada?"":" · em andamento"}`,v:s.kgE/1000,meta:E.geral?D.meta*(+s.arm||0)*(+s.dias||0)/1000:0,hl:!s.fechada})),{unid:" t"}));
+  $("#a-leg-sem").replaceChildren(...leg([["var(--aco)","executado"],...(E.geral?[["var(--bad)","meta (kg/arm/dia × armadores × dias)"]]:[]),["var(--navy2)","em andamento"]]));
+  $("#a-nota-sem").textContent=E.geral?"Percentual em cima da barra = executado ÷ meta da semana.":"Toneladas executadas nesta seleção. A meta é da equipe inteira (veja a obra inteira).";
+  // curva S: realizado, planejado (meta, só obra inteira) e projeção no ritmo
+  const fut=[]; let semanas=0; if(A.ritmo>0&&A.saldo>0) semanas=Math.min(156,Math.ceil(A.saldo/A.ritmo));
+  if(E.geral&&A.metaSem>0) semanas=Math.max(semanas,Math.min(156,Math.ceil(A.saldo/A.metaSem)));
+  const ini=A.sems; for(let i=1;i<=semanas+1;i++) fut.push(somaDias(ini[ini.length-1]?.fim||h,7*i-6));
+  const datas=[...ini.map(s=>s.ini),...fut], labels=datas.map(d=>datas.length>30?mesAno(d):ddmm(d));
+  let aR=0,aM=0; const real=[],plan=[]; ini.forEach((s,i)=>{ aR+=s.kgE; real.push([i,Math.min(aR,A.P)/1000]); if(E.geral){ aM+=D.meta*(+s.arm||0)*(+s.dias||0); plan.push([i,Math.min(aM,A.P)/1000]); } });
+  const b=ini.length-1, proj=[[b,A.X/1000]]; for(let i=1;i<=fut.length;i++){ if(E.geral){ aM+=A.metaSem; plan.push([b+i,Math.min(aM,A.P)/1000]); } if(A.ritmo>0) proj.push([b+i,Math.min(A.X+A.ritmo*i,A.P)/1000]); }
+  const prazoIdx=E.geral&&A.prazo?datas.findIndex(d=>d>=A.prazo):-1;
+  $("#a-ch-s").replaceChildren(curva([{pts:plan,cls:"plan"},{pts:proj,cls:"proj"},{pts:real,cls:"ln",area:true}],labels,A.P/1000,{hojeIdx:b,prazoIdx:prazoIdx>=0?prazoIdx:null}));
+  $("#a-leg-s").replaceChildren(...leg([["var(--aco)","executado"],["var(--aco)","projeção no ritmo real","p"],...(E.geral?[["var(--muted)","planejado pela meta","t"]]:[])]));
+  $("#a-nota-s").textContent=`Teto = ${t(A.P)} t previstas${E.geral?"":" nesta seleção"}. A projeção segue o ritmo das últimas semanas encerradas.`;
+  // por elemento
+  const ge=new Map(); for(const i of E.its){ const k=i.est+"|"+i.loc, r=ge.get(k)||{est:i.est,loc:i.loc||"(sem local)",p:0,x:0}; r.p+=i.kp; r.x+=Math.min(A.ac.get(i.c)||0,i.qp)*i.ppb; ge.set(k,r); }
+  const LE=[...ge.values()].sort((a,b)=>(b.x/b.p||0)-(a.x/a.p||0)||b.p-a.p).slice(0,40);
+  $("#a-el").replaceChildren(LE.length?tabela(["Elemento","Previsto (t)","Executado (t)","Avanço"],LE.map(r=>el("tr",{},
+    el("td",{},el("b",{text:r.loc}),EST?null:el("div",{class:"info",text:r.est})),el("td",{text:t(r.p)}),el("td",{text:t(r.x)}),el("td",{},pct(r.p?r.x/r.p:0),barraTd(r.p?r.x/r.p:0))))):vazio("Sem posições."));
+  // por bitola
+  const gb=new Map(); for(const i of E.its){ const r=gb.get(i.bit)||{p:0,x:0}; r.p+=i.kp; r.x+=Math.min(A.ac.get(i.c)||0,i.qp)*i.ppb; gb.set(i.bit,r); }
+  const LB=[...gb].filter(([b])=>b>0).sort((a,b)=>a[0]-b[0]);
+  $("#a-bit").replaceChildren(LB.length?tabela(["Bitola","Previsto (t)","Executado (t)","Avanço"],LB.map(([b,r])=>el("tr",{},
+    el("td",{},el("b",{text:`Ø ${String(b).replace(".",",")}`})),el("td",{text:t(r.p)}),el("td",{text:t(r.x)}),el("td",{},pct(r.p?r.x/r.p:0),barraTd(r.p?r.x/r.p:0))))):vazio("—"));
+  // equipes (obra inteira: a equipe é uma só)
+  const w=A.sems.filter(s=>s.fechada).slice(-1)[0];
+  $("#a-eq").replaceChildren(tabela(["Equipe","Armadores","Frentes",`Semana ${w?.n??""} (kg)`,"kg/arm/dia"],D.eqs.filter(e=>e.ativa).map(e=>{ const kg=w?.porEq[e.nome]?.kg||0;
     return el("tr",{},el("td",{},el("b",{text:e.nome}),e.encarregado?el("div",{class:"info",text:"Enc.: "+e.encarregado}):null),el("td",{text:e.arm}),
       el("td",{class:"txt",text:(e.frentes||[]).map(f=>f.det?`${f.est} (${f.det})`:f.est).join(", ")||"–"}),el("td",{text:nf0.format(kg)}),el("td",{text:e.arm&&w?.dias?nf0.format(kg/(e.arm*w.dias)):"–"})); })));
-  // frentes
-  const elem=new Map(); for(const i of its){ const kk=`${i.emp}|${i.est}|${i.loc||"(sem local)"}`, r=elem.get(kk)||{kp:0,ke:0}; r.kp+=i.kp; r.ke+=Math.min(acT.get(i.c)||0,i.qp)*i.ppb; elem.set(kk,r); }
-  // mesmas regras do app: concreto magro só no FUNDO; paredes em arranque → lance 1 → 2 → 3; cobertura/passarela só lance 3
+}
+function renderForma(E,F,h){
+  $("#t-forma").hidden=false;
+  if(!F.meta){ $("#f-kpis").replaceChildren(el("div",{class:"card"},vazio("Esta estrutura não tem quantitativo de forma (só a ETA tem, pelo comparativo).")));
+    for(const id of ["#f-ch","#f-ch-ac","#f-obras"]) $(id).replaceChildren(); $("#f-nota").textContent=$("#f-nota-ac").textContent=""; $("#f-ulma-card").hidden=true; return; }
+  $("#f-kpis").replaceChildren(kpi("Montado",`${nf0.format(F.av)} m²`,`${pct(F.av/F.meta)} da meta de ${nf0.format(F.meta)} m²`,"forma"),
+    kpi("Contrato (CODAU)",`${nf0.format(F.codau)} m²`,`meta ${F.meta>=F.codau?"+":""}${nf0.format(F.meta-F.codau)} m² em relação ao contrato`,"forma"),
+    kpi("Ritmo",F.ritmo?`${nf0.format(F.ritmo)} m²`:"–",`por semana · média das últimas ${F.ult.length} com montagem`,"forma"),
+    kpi("Produtividade",F.prod?`${nf1.format(F.prod)} m²`:"–","por pessoa/dia trabalhado","forma"),
+    kpi("Término previsto",F.fim?dataBR(F.fim):F.falta?"–":"concluído",F.fim?`faltam ${nf0.format(F.falta)} m²`:"depende do ritmo","prazo"));
+  $("#f-ch").replaceChildren(barras(F.serie.slice(-16).map(s=>({label:ddmm(s.seg),tip:`Semana de ${ddmm(s.seg)}${s.pd?` · ${nf0.format(s.pd)} pessoas-dia · ${nf1.format(s.m2/s.pd)} m²/pessoa/dia`:""}`,v:s.m2,hl:s.seg===segSemana(h)})),{cls:"bf",fmt:nf0.format,unid:" m²"}));
+  $("#f-nota").textContent="Cada barra é a semana que começa na segunda-feira indicada.";
+  let ac=F.av-F.m2; const pts=F.serie.map((s,i)=>[i,(ac+=s.m2)]);
+  $("#f-ch-ac").replaceChildren(curva([{pts,cls:"lnf",area:true}],F.serie.map(s=>ddmm(s.seg)),F.meta,{area:"areaf"}));
+  $("#f-nota-ac").textContent=`Teto = meta de ${nf0.format(F.meta)} m² (comparativo maior)${F.av>F.m2?`; começa em ${nf0.format(F.av-F.m2)} m² de etapas concluídas sem lançamento`:""}.`;
+  const L=[...F.obras].sort((a,b)=>(b.av>0)-(a.av>0)||b.meta-a.meta);
+  $("#f-obras").replaceChildren(tabela(["Obra","Contrato CODAU (m²)","Meta (m²)","Montado (m²)","Avanço"],L.map(o=>el("tr",{},
+    el("td",{},el("b",{text:o.nome})),el("td",{text:nf0.format(o.codau)}),el("td",{text:nf0.format(o.meta)}),el("td",{text:o.av?nf0.format(o.av):"–"}),el("td",{},pct(o.av/o.meta),barraTd(o.av/o.meta,"f")))),
+    el("tr",{},el("td",{text:"Total"}),el("td",{text:nf0.format(F.codau)}),el("td",{text:nf0.format(F.meta)}),el("td",{text:nf0.format(F.av)}),el("td",{text:pct(F.av/F.meta)}))));
+  const et=D.forma?.etapas||[], comFloc=E.obras.some(o=>/^Floculador/.test(o.nome));
+  $("#f-ulma-card").hidden=!et.length||!comFloc||!et[0].porFloc;
+  if(!$("#f-ulma-card").hidden) $("#f-ulma").replaceChildren(tabela(["Etapa","m² por floculador","Floc. A","Floc. B","Floc. C","Total"],et.map(e=>el("tr",{},
+    el("td",{},el("b",{text:e.etapa})),el("td",{text:nf1.format(e.projetoFloc)}),
+    ...e.porFloc.map(f=>{ const v=e.projetoFloc?f.avanco/e.projetoFloc:0; return el("td",{},el("b",{text:pct(v)+(f.concluida?" ✓":"")}),barraTd(v,"f")); }),
+    el("td",{text:pct(e.pct)})))));
+}
+// frentes: mesmas regras do app (concreto magro no FUNDO; paredes arranque → lance 1 → 2 → 3; cobertura/passarela só lance 3)
+const SIT=[["AGUARDANDO","var(--idle-bg)"],["LIBERADO P/ ARMAR","#9CC1E8"],["ARMADO","#2563A8"],["EM ETAPAS","#F0B35A"],["CONCRETAGEM LIBERADA","#5BC98B"],["CONCRETADO","#1D7A48"]];
+function renderFrentes(E,A){
+  const elem=new Map(); for(const i of E.its){ const k=`${i.emp}|${i.est}|${i.loc||"(sem local)"}`, r=elem.get(k)||{kp:0,ke:0}; r.kp+=i.kp; r.ke+=Math.min(A.ac.get(i.c)||0,i.qp)*i.ppb; elem.set(k,r); }
   const tipoEl=loc=>{ const u=String(loc).toUpperCase(); if(/FUNDO/.test(u)) return {magro:true,lances:["U"]}; if(/PAREDE/.test(u)) return {magro:false,lances:["A","1","2","3"]};
     if(/COBERTURA|PASSARELA/.test(u)) return {magro:false,lances:["3"]}; return {magro:false,lances:["U"]}; };
-  const st=new Map(D.els.map(e=>[e.chave,e])); const cont={AGUARDANDO:0,"LIBERADO P/ ARMAR":0,ARMADO:0,"EM ETAPAS":0,"CONCRETAGEM LIBERADA":0,CONCRETADO:0}, lib=[];
-  const rotL=L=>L==="U"?"CONCRETAGEM":L==="A"?"ARRANQUE":"LANCE "+L;
-  for(const [kk,r] of elem){ const s=st.get(kk)||{}, p=r.kp?r.ke/r.kp:0, tp=tipoEl(kk.split("|")[2]), ls=s.lances||{}, feitos=tp.lances.filter(L=>ls[L]?.data), concs=tp.lances.filter(L=>ls[L]?.conc);
+  const st=new Map(D.els.map(e=>[e.chave,e])), cont=Object.fromEntries(SIT.map(([k])=>[k,0])), lib=[], rotL=L=>L==="U"?"concretagem":L==="A"?"arranque":"lance "+L;
+  for(const [k,r] of elem){ const s=st.get(k)||{}, p=r.kp?r.ke/r.kp:0, tp=tipoEl(k.split("|")[2]), ls=s.lances||{}, feitos=tp.lances.filter(L=>ls[L]?.data), concs=tp.lances.filter(L=>ls[L]?.conc);
     const sit=concs.length===tp.lances.length?"CONCRETADO":feitos.length===tp.lances.length?"CONCRETAGEM LIBERADA":feitos.length?"EM ETAPAS":p>=0.999?"ARMADO":(s.aco&&(!tp.magro||s.magro))?"LIBERADO P/ ARMAR":"AGUARDANDO"; cont[sit]++;
     const ult=feitos[feitos.length-1];
-    if(sit!=="AGUARDANDO"&&sit!=="ARMADO") lib.push([kk.split("|"),sit==="EM ETAPAS"?`${rotL(ult)} ${ls[ult].conc?"CONCRETADO":"LIBERADO"}`:sit,p,{lib:ult?(ls[ult].conc||ls[ult].data):""}]); }
-  $("#t-fr").replaceChildren(el("p",{class:"info",text:Object.entries(cont).map(([k2,v])=>`${k2.toLowerCase()}: ${v}`).join(" · ")}),
-    tabela(["Elemento","Situação","Armado"],lib.slice(0,25).map(([[,est,loc],sit,p,s])=>el("tr",{},el("td",{},el("b",{text:loc}),el("div",{class:"info",text:est})),
-      el("td",{},el("span",{class:"chip "+(/CONCRETADO|CONCRETAGEM LIBERADA/.test(sit)?"ok":"and"),text:sit+(s.lib?" "+ddmm(s.lib):"")})),el("td",{text:pct(p)})))));
-  // ocorrências
+    if(sit!=="AGUARDANDO") lib.push({k:k.split("|"), sit, txt:sit==="EM ETAPAS"?`${rotL(ult)} ${ls[ult].conc?"concretado":"liberado"}`:sit.toLowerCase(), p, d:ult?(ls[ult].conc||ls[ult].data):""}); }
+  const tot=Object.values(cont).reduce((a,v)=>a+v,0)||1;
+  $("#fr-sit").replaceChildren(el("div",{class:"sit",role:"img","aria-label":"Situação dos elementos"},...SIT.map(([k,c])=>cont[k]?el("i",{style:`width:${cont[k]/tot*100}%;background:${c}`,title:`${k}: ${cont[k]}`}):null)),
+    el("div",{class:"legenda"},...SIT.map(([k,c])=>el("span",{},el("i",{style:`border-top:10px solid ${c};width:12px;border-radius:2px`}),`${k.toLowerCase()} · ${cont[k]}`))));
+  lib.sort((a,b)=>String(b.d).localeCompare(String(a.d))||b.p-a.p);
+  $("#fr-lib").replaceChildren(lib.length?tabela(["Elemento","Situação","Armado"],lib.slice(0,30).map(x=>el("tr",{},el("td",{},el("b",{text:x.k[2]}),EST?null:el("div",{class:"info",text:x.k[1]})),
+    el("td",{},el("span",{class:"chip "+(/CONCRETADO|CONCRETAGEM LIBERADA/.test(x.sit)?"ok":"and"),text:x.txt+(x.d?" "+ddmm(x.d):"")})),el("td",{text:pct(x.p)})))):vazio("Nenhum elemento liberado nesta seleção."));
   const oc=[...D.ocs].sort((a,b)=>String(b.data).localeCompare(String(a.data))).slice(0,15);
-  $("#t-oc").replaceChildren(oc.length?tabela(["Data","Tipo","Horas","Descrição"],oc.map(r=>el("tr",{},el("td",{text:ddmm(r.data)}),el("td",{class:"txt",text:r.cat}),
-    el("td",{text:nf1.format(+r.horas||0)}),el("td",{class:"txt",text:r.texto||""})))):el("p",{class:"info",text:"Nenhuma ocorrência registrada."}));
-  renderForma();
-}
-// formas: vem do Code.gs 22+ (sem nomes); etapas concluídas sem lançamento contam no avanço, não na produtividade.
-// Acompanhamento semanal (app v84): agrupa por semana (segunda-feira). Pessoas-dia: semanal = pessoas × dias (a equipe conta uma vez
-// por semana); diário = pessoas do dia de montagem (uma vez por dia). Com o Code.gs 23 (sem "dias"), cada lançamento conta como 1 dia.
-const segSemana=iso=>{ const d=new Date(iso+"T12:00:00"); d.setDate(d.getDate()-(d.getDay()+6)%7); return d.toISOString().slice(0,10); };
-function renderForma(){
-  const f=D.forma; $("#forma").hidden=!f; if(!f) return;
-  const sems=new Map();
-  for(const x of f.dias){ const k=segSemana(x.data), s=sems.get(k)||{m2:0,pdSem:0,pdDia:0,dia:new Map()}; s.m2+=x.mont;
-    if(x.semanal) s.pdSem=Math.max(s.pdSem, x.pessoas*x.dias);
-    else if(x.ativ==="Montagem"){ s.dia.set(x.data, Math.max(s.dia.get(x.data)||0, x.pessoas)); s.pdDia=[...s.dia.values()].reduce((a,v)=>a+v,0); }
-    sems.set(k,s); }
-  const comMont=[...sems].filter(([,s])=>s.m2>0).sort((a,b)=>a[0].localeCompare(b[0]));
-  const m2=comMont.reduce((s,[,x])=>s+x.m2,0), pd=comMont.reduce((s,[,x])=>s+x.pdSem+x.pdDia,0), m2p=comMont.filter(([,x])=>x.pdSem+x.pdDia).reduce((s,[,x])=>s+x.m2,0);
-  const ult4=comMont.slice(-4), ritmo=ult4.length?ult4.reduce((s,[,x])=>s+x.m2,0)/ult4.length:0;
-  const proj=f.etapas.reduce((s,e)=>s+e.projeto,0), av=f.etapas.reduce((s,e)=>s+e.avanco,0);
-  $("#f-kpis").replaceChildren(kpi("Avanço",pct(proj?av/proj:0),`${nf1.format(av)} de ${nf1.format(proj)} m²`),
-    kpi("Ritmo",ritmo?nf1.format(ritmo)+" m²":"–",`por semana · média das últimas ${Math.min(4,comMont.length)} com montagem`),
-    kpi("Produtividade",pd?nf1.format(m2p/pd)+" m²":"–","por pessoa/dia trabalhado"),
-    kpi("Semanas com montagem",String(comMont.length),`${nf1.format(m2)} m² lançados`));
-  const ds=comMont.slice(-12);
-  $("#f-ch").replaceChildren(svgBarras(ds.map(([d,x])=>({label:ddmm(d),v:x.m2}))));
-  $("#f-nota").textContent=(comMont.length>12?"Últimas 12 semanas. ":"")+"Cada barra é a semana que começa na segunda-feira indicada.";
-  $("#f-et").replaceChildren(tabela(["Etapa","Projeto (m²)","Avanço"],f.etapas.map(e=>el("tr",{},
-    el("td",{},el("b",{text:e.etapa}),
-      e.porFloc ? el("div",{class:"info",text:e.porFloc.map(x=>`${x.obra.slice(-1)} ${pct(e.projetoFloc?x.avanco/e.projetoFloc:0)}${x.concluida?" ✓":""}`).join(" · ")})
-        : e.concluida ? el("div",{class:"info",text:"concluída sem lançamento"}) : null),
-    el("td",{text:nf1.format(e.projeto)}),
-    el("td",{},pct(e.pct),el("span",{class:"bar"},el("i",{style:`width:${Math.min(100,e.pct*100)}%`})))))));
-  $("#f-et").append(el("p",{class:"info",text:"Forma ULMA de um floculador usada no A, no B e no C: cada etapa = 3 × o projeto. ✓ = concluída sem lançamento."}));
+  $("#fr-oc").replaceChildren(oc.length?tabela(["Data","Tipo","Horas","Descrição"],oc.map(r=>el("tr",{},el("td",{text:ddmm(r.data)}),el("td",{class:"txt",text:r.cat}),
+    el("td",{text:nf1.format(+r.horas||0)}),el("td",{class:"txt",text:r.texto||""})))):vazio("Nenhuma ocorrência registrada."));
 }
 carregar(); setInterval(carregar,10*60*1000);
 </script>

@@ -539,6 +539,18 @@ canvas.qr{display:block;width:min(260px,100%);height:auto;image-rendering:pixela
 /* Concreto */
 #conc{grid-template-columns:minmax(0,1fr)}
 #conc .card{grid-template-columns:minmax(0,1fr)}
+.ce-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+.ce-kpis>div{display:grid;gap:2px;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+.ce-kpis span{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600} .ce-kpis b{font-size:1.25rem} .ce-kpis small{color:var(--muted);font-size:.78rem}
+.ce-lista{display:grid;gap:4px}
+.ce-linha{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 10px;width:100%;text-align:left;border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:8px 10px;color:inherit;min-height:48px}
+.ce-nome{display:grid;min-width:0;flex:1 1 160px} .ce-nome b{overflow-wrap:anywhere} .ce-nome small{color:var(--muted);font-size:.78rem}
+.ce-cels{display:flex;gap:4px}
+.ce-cel{display:inline-grid;place-items:center;width:30px;height:26px;border-radius:6px;background:var(--surface2);border:1px solid var(--line);color:var(--muted);font-style:normal;font-weight:700;font-size:.78rem}
+.ce-cel.ok{background:var(--good-bg);color:var(--good);border-color:transparent} .ce-cel.and{background:var(--warn-bg);color:var(--warn);border-color:transparent}
+.ce-et{display:grid;gap:6px;padding:10px;border:1px solid var(--line);border-left:4px solid var(--line);border-radius:10px}
+.ce-et.ok{border-left-color:var(--good)} .ce-et.and{border-left-color:var(--warn)}
+.ce-campos{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px} .ce-campos label{display:grid;gap:2px;font-size:.8rem;color:var(--muted)}
 .cc-dots{display:flex;flex-wrap:wrap;gap:6px}
 .cc-dot{display:inline-flex;align-items:center;gap:4px;font-size:.78rem;font-weight:700;border:1px solid var(--line);border-radius:999px;padding:2px 8px 2px 4px}
 .cc-dot::before{content:"";width:14px;height:14px;border-radius:50%;background:var(--cor)}
@@ -1312,6 +1324,30 @@ const SEMENTES=[
     const vol=Math.round(m.p.reduce((s,p)=>s+volPar(p,m.de,m.ate),0)*10)/10;
     setConc("ccflocC1017", {data:"2026-10-17", estrutura:"FLOCULADORES", local:"Floculador C · paredes · lance 1", volPrev:vol, status:"Programada", cams:[],
       obs:"Liberada para concretagem: paredes do lance 1 (de 0,40 a 2,35 m, acima do arranque).", pdfId:"mapa:"+JSON.stringify(m), pdfNome:`Mapa das paredes · ${m.nome}`}, "Programada"); }},
+  // levantamento de concreto (v99): o que já estava concretado quando ele entrou no app. Magro dos floculadores, decantadores,
+  // reservatório de água tratada + EEAT, tanque de contato e reservatório de lavagem dos filtros; fundo + arranque dos
+  // Floculadores A e C e o lance 1 do A (o do C vem com os caminhões, abaixo). Sem a medição: volume = previsto (estimado).
+  {id:"CONC_LEV_INI", fazer:()=>{
+    const obs="Já estava executada quando o levantamento de concreto entrou no app (18/10/2026): volume estimado pelo previsto.";
+    const marca=(obra,e)=>{ const o=concObra(obra); if(!o || ceDe(obra,e)) return;
+      setEtapa(obra, e, {status:"Executada", data:"2026-10-18", dados:{vol:Math.round(cePrev(o)[e]*100)/100, estimado:true, obs}}, `${obra} · ${CE_CURTO[e]}: Executada`); };
+    for(const n of ["Floculador A","Floculador B","Floculador C","DECANTADOR","RESERV./EEAT","TQ. CONTATO","RE. LAV. FILTROS"]) marca(n,0);
+    marca("Floculador A",1); marca("Floculador C",1); marca("Floculador A",2); }},
+  // Floculador C, paredes do lance 1, 17/10/2026: os 6 caminhões da folha preenchida em campo (responsável: Alan)
+  {id:"CONC_FLOCC_CAM", fazer:()=>{
+    let c=concs().find(x=>x.data==="2026-10-17" && mapaDe(x)?.k==="FLOC-C");
+    if(!c){ const cat=catParedes("FLOC-C"), m={k:"FLOC-C", nome:cat.nome, p:cat.par, de:0.4, ate:2.35};
+      setConc("ccflocC1017", {data:"2026-10-17", estrutura:"FLOCULADORES", local:"Floculador C · paredes · lance 1", volPrev:Math.round(m.p.reduce((s,p)=>s+volPar(p,m.de,m.ate),0)*10)/10,
+        status:"Programada", cams:[], obs:"", pdfId:"mapa:"+JSON.stringify(m), pdfNome:`Mapa das paredes · ${m.nome}`}, "Programada");
+      c=concDe("ccflocC1017"); }
+    if(!c.cams.length){
+      const cams=[["9002","07:02","07:30",8,13,"PAR 3, 9, 16","#FDD835"],["9003","07:32","07:51",8,13,"PAR 3, 9, 16, 18","#EC407A"],["9006","08:24","08:48",8,13,"PAR 3, 16, 18, 9","#FB8C00"],
+        ["9008","09:13","09:39",8,14,"PAR 6, 17, 3, 9, 18","#43A047"],["9012","10:20","10:28",4,14,"PAR 6, 17","#F48FB1"],["9015","11:00","11:38",2.5,12,"PAR 6","#1B5E20"]]
+        .map(([nf,ini,fim,vol,slump,par,cor],i)=>({n:i+1, nf, usina:"", vol, chegada:ini, inicio:ini, fim, slump, fck:"", obs:"", par, cps:4, cor}));
+      setConc(c.id, {cams, status:"Concluída", obs:[c.obs, "Folha de campo (resp. Alan): 6 caminhões, 38,5 m³. Faltou 1,575 m³ para completar. Falta anotada, a partir do topo: PAR 3 0,40 a 0,50 m; PAR 9 0,50 a 1,12 m; PAR 6 1,10 m; PAR 16 0,50 a 1,22 m; PAR 18 1,30 a 1,50 m."].filter(Boolean).join(" ")},
+        "Caminhões da folha de campo de 17/10"); }
+    ligarEtapa(c.id, "2026-10-17", "Floculador C", 2);
+    setEtapa("Floculador C", 2, {status:"Executada", data:"2026-10-17", dados:{vol:Math.round(volLancado(concDe(c.id))*100)/100, estimado:false}}, "Floculador C · Lance 1: Executada (17/10)"); }},
 ];
 function rodarSementes(){
   if(!S.cfg?.url || !S.lastSync || LS.get("semSementes")) return; // semSementes: teste automático (testa à parte)
@@ -1954,7 +1990,7 @@ $("#tema").addEventListener("click", e=>{ const b=e.target.closest("button[data-
   renderTema(); });
 renderTema();
 
-const VERSAO_APP = "v98"; // igual ao número em sw.js (armacao-v98)
+const VERSAO_APP = "v99"; // igual ao número em sw.js (armacao-v99)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -6657,12 +6693,14 @@ function editarCaminhao(c, k){
   const iSl=el("input",{type:"number",min:0,step:0.5,inputMode:"decimal",value:k?.slump??"",placeholder:"cm"});
   const iFck=el("input",{type:"number",min:0,step:1,inputMode:"numeric",value:k?.fck ?? ult?.fck ?? "",placeholder:"MPa"});
   const iObs=inp(k?.obs,{maxLength:200,placeholder:"Opcional"});
+  const iPar=inp(k?.par,{maxLength:120,placeholder:"Ex.: PAR 3, 9, 16 (se não pintar no mapa)"}), iCps=el("input",{type:"number",min:0,step:1,inputMode:"numeric",value:k?.cps??"",placeholder:"0"});
   const iCor=el("input",{type:"color",value:cor,"aria-label":"Cor do caminhão"});
   const usinas=[...new Set(concs().flatMap(x=>x.cams.map(z=>z.usina)).filter(Boolean))];
   const salvar=()=>{
     const vol=Math.max(0,num(iVol.value)); if(!vol) return toast("Informe o volume do caminhão (m³).");
     const dados={nf:iNf.value.trim(), usina:iUs.value.trim(), vol, chegada:iCh.value, inicio:iIn.value, fim:iFim.value,
-      slump:iSl.value===""?"":num(iSl.value), fck:iFck.value===""?"":num(iFck.value), obs:iObs.value.trim(), cor:iCor.value};
+      slump:iSl.value===""?"":num(iSl.value), fck:iFck.value===""?"":num(iFck.value), obs:iObs.value.trim(), cor:iCor.value,
+      par:iPar.value.trim(), cps:iCps.value===""?"":num(iCps.value)};
     let cams;
     if(novo){ const n=Math.max(0,...c.cams.map(x=>x.n))+1; cams=[...c.cams,{n,...dados}]; CC.cam=n; }
     else cams=c.cams.map(x=>x.n===k.n?{...x,...dados}:x);
@@ -6674,7 +6712,7 @@ function editarCaminhao(c, k){
     [campoEf("Volume (m³)",iVol), campoEf("Cor no desenho",iCor), campoEf("Nota fiscal / ticket",iNf), campoEf("Concreteira",iUs),
      el("datalist",{id:"dl-usinas"}, ...usinas.map(u=>el("option",{value:u}))),
      campoEf("Chegada",iCh), campoEf("Início do lançamento",iIn), campoEf("Fim do lançamento",iFim),
-     campoEf("Slump (cm)",iSl), campoEf("fck (MPa)",iFck), campoEf("Observação",iObs,true)],
+     campoEf("Slump (cm)",iSl), campoEf("fck (MPa)",iFck), campoEf("Nº de CPs",iCps), campoEf("Paredes atendidas",iPar,true), campoEf("Observação",iObs,true)],
     [el("button",{class:"btn pri",type:"button",text:novo?"Adicionar caminhão":"Salvar",onclick:salvar}),
      novo ? null : el("button",{class:"btn",type:"button",text:"Excluir",style:"color:var(--bad);margin-left:auto",onclick:()=>{
        const n=tracosDe(c.id).filter(t=>t.cam===k.n);
@@ -6688,7 +6726,7 @@ function listaCaminhoes(c){
     [el("p",{class:"info full",text:`${nf1.format(volLancado(c))}${c.volPrev?` de ${nf1.format(c.volPrev)}`:""} m³ lançados em ${c.cams.length} caminhão(ões).`}),
      el("div",{class:"full cc-lista"}, ...(c.cams.length ? c.cams.map(k=>{ const b=el("button",{class:"btn cc-linha",type:"button",disabled:!ed,onclick:()=>editarCaminhao(c,k)},
         el("b",{text:`C${k.n} · ${nf1.format(+k.vol||0)} m³`}),
-        el("small",{text:[k.nf&&`NF ${k.nf}`, k.usina, k.chegada&&`chegou ${k.chegada}`, k.inicio&&k.fim&&`lançamento ${k.inicio}–${k.fim}`, k.slump!==""&&k.slump!=null&&`slump ${k.slump}`, k.fck&&`fck ${k.fck}`].filter(Boolean).join(" · ")||"sem detalhes"}));
+        el("small",{text:[k.nf&&`NF ${k.nf}`, k.usina, k.chegada&&`chegou ${k.chegada}`, k.inicio&&k.fim&&`lançamento ${k.inicio}–${k.fim}`, k.slump!==""&&k.slump!=null&&`slump ${k.slump}`, k.fck&&`fck ${k.fck}`, k.cps&&`${k.cps} CPs`, k.par&&`paredes ${k.par}`].filter(Boolean).join(" · ")||"sem detalhes"}));
         b.style.setProperty("--cor",k.cor); return b; }) : [el("p",{class:"info",text:"Nenhum caminhão ainda."})]))],
     [ed ? el("button",{class:"btn pri",type:"button",text:"+ Caminhão",onclick:()=>editarCaminhao(c,null)}) : null]);
 }
@@ -6711,18 +6749,26 @@ async function abrirConcretagem(c){
 }
 // lembra a folha usada em cada concretagem
 $("#v-pag").addEventListener("change", ()=>{ if(CC.conc) LS.set("ccPag:"+CC.conc, V.n); });
-function editarConc(c){
-  const nova=!c, ests=estruturasObra();
+function editarConc(c, pre){
+  const nova=!c, ests=estruturasObra(), oPre=!c && pre ? concObra(pre.obra) : null;
   const iData=el("input",{type:"date",value:c?.data||hojeISO()});
   const iEst=el("select",{}, el("option",{value:"",text:"Escolha a estrutura…"}), ...ests.map(e=>el("option",{value:e,text:e})), el("option",{value:"__outro",text:"✎ Outra…"}));
   const iEstO=el("input",{type:"text",maxLength:120,placeholder:"Nome da estrutura"}), boxEstO=campoEf("Qual estrutura?",iEstO,true);
   if(c){ if(ests.includes(c.estrutura)) iEst.value=c.estrutura; else { iEst.value="__outro"; iEstO.value=c.estrutura; } }
-  const iLoc=el("input",{type:"text",maxLength:120,placeholder:"Ex.: parede 3 · lance 2, laje de fundo",value:c?.local||""});
+  else if(oPre){ if(oPre.est && ests.includes(oPre.est)) iEst.value=oPre.est; else { iEst.value="__outro"; iEstO.value=oPre.titulo; } }
+  const iLoc=el("input",{type:"text",maxLength:120,placeholder:"Ex.: parede 3 · lance 2, laje de fundo",value:c?.local||(oPre?`${oPre.titulo} · ${CE_ETAPAS[pre.etapa].toLowerCase()}`:"")});
   const iVol=el("input",{type:"number",min:0,step:0.5,inputMode:"decimal",value:c?.volPrev||"",placeholder:"m³"});
   const iObs=el("input",{type:"text",maxLength:300,value:c?.obs||"",placeholder:"Opcional"});
+  // levantamento de concreto: a qual estrutura e etapa esta concretagem pertence (o volume dos caminhões vai para a etapa)
+  const lig=c ? ceDaConc(c.id) : null;
+  const iCeO=el("select",{"aria-label":"Estrutura do levantamento de concreto"}, el("option",{value:"",text:"Nenhuma (fora do levantamento)"}),
+    ...CONC_SETORES.map(st=>el("optgroup",{label:st}, ...CONC_OBRAS.filter(o=>o.setor===st).map(o=>el("option",{value:o.nome,text:o.titulo})))));
+  const iCeE=el("select",{"aria-label":"Etapa do levantamento de concreto"}, ...CE_ETAPAS.map((t,e)=>el("option",{value:e,text:`${e?e+"ª":"M"} · ${t}`})));
+  iCeO.value=lig?.dados.obra||oPre?.nome||""; iCeE.value=String(lig ? lig.dados.etapa-1 : pre?.etapa ?? 1); iCeE.hidden=!iCeO.value; iCeO.onchange=()=>{ iCeE.hidden=!iCeO.value; };
+  const boxCe=el("div",{class:"campo full"}, "Levantamento de concreto: estrutura e etapa", iCeO, iCeE);
   const estAtual=()=>iEst.value==="__outro"?iEstO.value:iEst.value;
   // o que vai ser pintado: laje (PDF da forma do projeto) ou só paredes (mapa gerado pelo app)
-  const m0=mapaDe(c); let tipo = m0 ? "par" : c ? "laje" : "par";
+  const m0=mapaDe(c); let tipo = m0 ? "par" : c ? "laje" : oPre ? (pre.etapa>=2 ? "par" : "laje") : "par";
   const boxTipo=el("div",{class:"pr-bts full",role:"group","aria-label":"O que vai ser concretado"}), boxLaje=el("div",{class:"campo full"}), boxPar=el("div",{class:"campo full cc-par"});
   const desTipo=()=>{ repor(boxTipo, ...[["par","Só paredes · mapa das paredes"],["laje","Laje · PDF da forma"]].map(([v,t])=>el("button",{type:"button",class:"chipbtn"+(tipo===v?" on":""),text:t,"aria-pressed":String(tipo===v),
     onclick:()=>{ tipo=v; tipoManual=true; desTipo(); atualizarVol(); }}))); boxLaje.hidden=tipo!=="laje"; boxPar.hidden=tipo!=="par"; };
@@ -6794,12 +6840,14 @@ function editarConc(c){
       pdfId="mapa:"+JSON.stringify(m); pdfNome=`Mapa das paredes · ${m.nome}`;
     } else { pdfId=iPdf.value; pdfNome=PJ.lista.find(x=>x.id===iPdf.value)?.nome || (iPdf.value===pdfAnt ? c.pdfNome : ""); }
     const campos={data:iData.value, estrutura, local:iLoc.value.trim(), volPrev:Math.max(0,num(iVol.value)), obs:iObs.value.trim(), pdfId, pdfNome};
-    if(nova){ setConc(uid().slice(0,10), {...campos, status:"Programada", cams:[]}, "Programada"); toast("Concretagem programada."); }
+    const id=nova ? uid().slice(0,10) : c.id;
+    if(nova){ setConc(id, {...campos, status:"Programada", cams:[]}, "Programada"); toast("Concretagem programada."); }
     else { setConc(c.id, campos, "Dados editados"); toast("Concretagem atualizada."); }
+    if((lig?.dados.obra||"")!==iCeO.value || (iCeO.value && lig.dados.etapa-1!==+iCeE.value)) ligarEtapa(id, iData.value, iCeO.value, +iCeE.value);
     fecharEf();
   };
   efModal(nova?"Nova concretagem":"Editar concretagem",
-    [campoEf("Data",iData), campoEf("Volume previsto (m³)",iVol), campoEf("Estrutura",iEst,true), boxEstO, campoEf("Elemento / lance",iLoc,true),
+    [campoEf("Data",iData), campoEf("Volume previsto (m³)",iVol), campoEf("Estrutura",iEst,true), boxEstO, campoEf("Elemento / lance",iLoc,true), boxCe,
      boxTipo, boxPar, boxLaje,
      campoEf("Observação",iObs,true)],
     [el("button",{class:"btn pri",type:"button",text:nova?"Programar concretagem":"Salvar",onclick:salvar}),
@@ -6808,6 +6856,9 @@ function editarConc(c){
        delete S.pendCc[c.id]; for(const [id,x] of Object.entries(S.pendTr)) if(x.conc===c.id) delete S.pendTr[id];
        if(S.cc.some(x=>x.id===c.id)) S.pendCcDel.push(c.id); savePendCc(); scheduleSync(); toast("Concretagem excluída."); fecharEf(); }})]);
   boxEstO.hidden=iEst.value!=="__outro"; montarPdfs(); montarConj(false); desTipo();
+  // aberta pela etapa (lances): paredes do catálogo da estrutura e a faixa de altura do lance
+  if(oPre && pre.etapa>=2){ const k=(oPre.ks||[]).find(x=>catParedes(x)); if(k){ iConj.value=k; marcadas=new Set(catParedes(k).par.map(p=>p.id)); }
+    const [a,b]=CE_FAIXA[pre.etapa]; iDe.value=a?String(a).replace(".",","):""; iAte.value=b!=null?String(b).replace(".",","):""; montarLista(); }
 }
 function cardConc(c, ed){
   const lanc=volLancado(c), frac=c.volPrev?lanc/c.volPrev:0, edSt=ed && pode("producao-edit"), m=mapaDe(c);
@@ -6817,6 +6868,7 @@ function cardConc(c, ed){
   return el("div",{class:"card pr-card "+(CC_COR_ST[c.status]||"")},
     el("div",{class:"i-top"}, el("b",{class:"pr-tit",text:`${c.estrutura}${c.local?" · "+c.local:""}`}), el("span",{class:"chip "+(CC_COR_ST[c.status]||""),text:c.status})),
     el("div",{class:"pr-onde",text:`📅 ${dataBR(c.data)} · ${onde}`}),
+    (ce=>ce ? el("div",{class:"pr-onde",text:`📐 Levantamento: ${concObra(ce.dados.obra)?.titulo||ce.dados.obra} · ${CE_ETAPAS[ce.dados.etapa-1]||""} (${ce.status.toLowerCase()})`}) : null)(ceDaConc(c.id)),
     el("div",{class:"i-prog"}, barra(frac), el("b",{text:`${nf1.format(lanc)}${c.volPrev?` / ${nf1.format(c.volPrev)}`:""} m³`})),
     c.cams.length ? dots : el("span",{class:"info",text:"Nenhum caminhão ainda."}),
     c.obs ? el("div",{class:"i-sub",text:c.obs}) : null,
@@ -6826,17 +6878,145 @@ function cardConc(c, ed){
       pode("qual") ? el("button",{class:"btn",type:"button",text:`🧪 Corpos de prova (${regs2De("qual","cp").filter(r=>r.dados.conc===rotConc(c)).length})`,onclick:()=>cpDaConc(c)}) : null,
       el("button",{class:"btn",type:"button",text:m?"📄 Mapa (PDF)":"📄 Relatório",onclick:e=>relatorioConc(c,e.currentTarget)})),
     edSt ? el("div",{class:"pr-bts"}, ...CC_STATUS.map(s=>el("button",{class:"chipbtn"+(c.status===s?" on":""),type:"button",text:s,"aria-pressed":String(c.status===s),
-      onclick:()=>{ if(c.status===s) return; if(s==="Concluída" && !confirm("Marcar a concretagem como concluída? Depois disso a pintura fica travada.")) return; setConc(c.id,{status:s},`Status: ${s}`); renderConc(); }}))) : null,
+      onclick:()=>{ if(c.status===s) return; if(s==="Concluída" && !confirm("Marcar a concretagem como concluída? Depois disso a pintura fica travada.")) return; setConc(c.id,{status:s},`Status: ${s}`);
+        const ce=ceDaConc(c.id); if(s==="Concluída" && ce && ce.status!=="Executada") setEtapa(ce.dados.obra, ce.dados.etapa-1, {status:"Executada", data:c.data}, `${ce.dados.obra} · ${CE_CURTO[ce.dados.etapa-1]}: Executada (concretagem concluída)`);
+        renderConc(); }}))) : null,
     edSt ? el("button",{class:"linkbtn",type:"button",text:"Editar ou excluir",onclick:()=>editarConc(c)}) : null,
     c.atualizadoPor ? el("small",{class:"i-sub",text:`Última alteração: ${c.atualizadoPor}${c.atualizadoEm?" · "+quandoTxt(c.atualizadoEm):""}${c.pend?" · a enviar":""}`}) : null);
 }
+// ================= Levantamento de concreto (v99) =================
+// Volumes de cada estrutura: Comparativo Levantamento de Quantidades - CAPTAÇÃO, ALTO RECALQUE E ETA.xlsx.
+// [setor, estrutura, magro CODAU, magro nosso, concreto CODAU, concreto nosso] em m³. "Nosso" = COMPARATIVO MAIOR na ETA e
+// LEVANTAMENTO VICTOR na Captação e no Alto Recalque (que não tem magro: vale o da CODAU). A CODAU é o contrato do cliente.
+const QTD_CONC=[["ETA", "RESERV./EEAT", 716.65, 88.38, 1636.1, 1477.13], ["ETA", "GEOC. E COAG.", 7.71, 7.71, 239.59, 85.34], ["ETA", "EEEAT SOP.", 6.31, 7.04, 215.88, 141.48], ["ETA", "RE. LAV. FILTROS", 10.75, 11.26, 203.88, 201.15], ["ETA", "TQ. CONTATO", 8.97, 10.04, 289.94, 247.39], ["ETA", "CALHA PARSHALL", 4.9, 1.56, 295.06, 105.79], ["ETA", "TQ. LODO", 2.15, 2.13, 139.71, 64.01], ["ETA", "ADENS. GRAV.", 10.45, 1.54, 134.48, 174.83], ["ETA", "TQ. REGULARIZ.", 15.4, 15.51, 325.69, 405.53], ["ETA", "CONT. HIPOCLORITO", 4.39, 4.39, 130.55, 47.64], ["ETA", "CLARIFICADORES", 1.95, 2.14, 170.04, 112.99], ["ETA", "FLOCULADORES", 5.41, 16.56, 233.47, 354.81], ["ETA", "DECANTADOR", 9.9, 44.28, 996.44, 1032.84], ["ETA", "FILTROS", 24.9, 26.64, 820.27, 531.75], ["ETA", "ADMINISTRATIVO", 20.3, 20.78, 200.66, 85.07], ["ETA", "CASA DE FLÚOR", 2.48, 2.48, 142.9, 142.9], ["ETA", "PORTARIA", 1.07, 1.1, 14.24, 14.24], ["ETA", "GUARITA", 0.34, 0.22, 8.06, 11.13], ["ETA", "VESTIÁRIO", 4.99, 5.0, 44.14, 62.32], ["ETA", "PRÉDIO UTRR", 15.68, 5.22, 250.43, 240.67], ["ETA", "PRÉDIO CLORO", 6.35, 6.35, 47.31, 95.21], ["ETA", "SALA DE PAINÉIS - FLOCULADORES", 1.44, 2.48, 19.87, 55.41], ["ETA", "SALA DE PAINÉIS - UTRR", 1.44, 1.44, 19.87, 19.87], ["ETA", "AMOSTRAGEM", 0.39, 0.39, 7.35, 3.38], ["ETA", "SUBESTAÇÃO 01 - EEAT", 3.68, 3.68, 41.48, 35.93], ["ETA", "SUBESTAÇÃO 02 - ETA", 3.68, 3.68, 41.48, 41.48], ["ETA", "RESERV. TAÇA", 0.0, 0.0, 2.18, 6.54], ["ETA", "PROTEÇÃO E COMBATE A INCÊNDIO", 0.34, 0.34, 7.23, 7.23], ["CAPTAÇÃO", "PRÉDIO ADMINISTRATIVO", 120.6, 0.0, 79.25, 83.53], ["CAPTAÇÃO", "PORTARIA", 5.81, 0.0, 9.9, 9.48], ["CAPTAÇÃO", "SUBESTAÇÃO DE ENERGIA", 29.51, 0.0, 47.99, 49.04], ["CAPTAÇÃO", "CLORO E FLÚOR", 6.3, 0.0, 10.78, 9.31], ["CAPTAÇÃO", "CAPTAÇÃO", 34.08, 0.0, 791.07, 723.42], ["CAPTAÇÃO", "BASE CLASSIFICADOR DE AREIA", 0.6, 0.0, 3.6, 21.02], ["CAPTAÇÃO", "RESERVATÓRIO HIDROPNEUMÁTICO", 0.29, 0.0, 8.77, 5.73], ["CAPTAÇÃO", "POÇO E RESERVATÓRIO TIPO TAÇA", 0.26, 0.0, 2.18, 2.18], ["CAPTAÇÃO", "MURO DE ALA", 0.01, 0.0, 6.2, 9.57], ["ALTO RECALQUE", "TANQUE PULMÃO", 8.0, 0.0, 427.4, 542.42], ["ALTO RECALQUE", "PRÉDIO ADMINISTRATIVO", 41.59, 0.0, 105.74, 84.7], ["ALTO RECALQUE", "SUBESTAÇÃO", 32.49, 0.0, 58.4, 50.32], ["ALTO RECALQUE", "PORTARIA", 6.36, 0.0, 10.12, 9.76], ["ALTO RECALQUE", "RESERVATÓRIO HIDROPNEUMÁTICO", 0.29, 0.0, 8.77, 3.13], ["ALTO RECALQUE", "DESAGUE (ESCADA HIDRÁULICA)", 2.6, 0.0, 46.6, 37.42], ["ALTO RECALQUE", "POÇO E RESERVATÓRIO TIPO TAÇA", 0.26, 0.0, 10.93, 2.18], ["ALTO RECALQUE", "CASA DE CLORO E FLÚOR", 6.3, 0.0, 11.56, 9.32], ["ALTO RECALQUE", "DISPOSITIVO DE SAÍDA DA LAGOA", 0.36, 0.0, 8.92, 6.48], ["ALTO RECALQUE", "D.14.2.3 (SEM DESCRIÇÃO)", 0.91, 0.0, 19.54, 8.63]];
+const CONC_INFO={ // nome no app, estrutura da base de aço (filtro do painel) e paredes do catálogo (volume de cada lance)
+  "RESERV./EEAT":["Reservatório de água tratada + EEAT","RESERVATÓRIO ÁGUA TRATADA",["RAT","EEAT"]], "GEOC. E COAG.":["Geotubos e coagulação"],
+  "EEEAT SOP.":["Elevatória de água de lavagem + sopradores","",["EEALF"]], "RE. LAV. FILTROS":["Reservatório de água para lavagem dos filtros","",["RALF"]],
+  "TQ. CONTATO":["Tanque de contato","TANQUE DE CONTATO",["TC"]], "CALHA PARSHALL":["Calha Parshall"],
+  "TQ. LODO":["Tanque de lodo (TAR e TLA)","TANQUE DE LODO ADENSADO (TLA) - UTRR / TANQUE DE ÁGUA RECUPERADA (TAR) - UTRR",["TAR"]],
+  "ADENS. GRAV.":["Adensadores gravitacionais","ADENSADOR - UTRR",["ADE"]], "TQ. REGULARIZ.":["Tanque de regularização de vazão","TANQUE DE REGULARIZAÇÃO DE VAZÃO (TRV) - UTRR",["TRV"]],
+  "CONT. HIPOCLORITO":["Contenção do hipoclorito"], "CLARIFICADORES":["Clarificadores","CLARIFICADOR - UTRR",["CLA"]], "DECANTADOR":["Decantadores","DECANTADORES",["DEC"]],
+  "FILTROS":["Filtros","FILTROS",["FIL"]], "ADMINISTRATIVO":["Prédio administrativo"], "SALA DE PAINÉIS - UTRR":["Sala de painéis - UTRR","SALA PAINÉIS-RESERV UTRR"]};
+const CONC_SETORES=["ETA","CAPTAÇÃO","ALTO RECALQUE"];
+const CONC_OBRAS = QTD_CONC.flatMap(([setor,nome,mc,mn,cc,cn])=>{
+  const [tit,est,ks]=setor==="ETA" ? (CONC_INFO[nome]||[]) : [], base={setor, grupo:nome, magroCodau:mc, magro:mn||mc, codau:cc, conc:cn};
+  if(setor==="ETA" && nome==="FLOCULADORES") return ["A","B","C"].map(x=>({...base, nome:`Floculador ${x}`, titulo:`Floculador ${x}`, magroCodau:mc/3, magro:(mn||mc)/3, codau:cc/3, conc:cn/3, est:"FLOCULADORES", ks:["FLOC-"+x]}));
+  const id = setor==="ETA" ? nome : `${setor} · ${nome}`;
+  return [{...base, nome:id, titulo:setor==="ETA" ? (tit||nome.charAt(0)+nome.slice(1).toLowerCase()) : `${nome.charAt(0)+nome.slice(1).toLowerCase()} (${setor.toLowerCase()})`, est:est||"", ks:ks||[]}];
+});
+const concObra = nome => CONC_OBRAS.find(o=>o.nome===nome);
+// as 5 etapas, sempre nesta ordem; faixa = alturas da parede (m, a partir do topo da laje de fundo) de cada etapa
+const CE_ETAPAS=["Concreto magro","Laje de fundo + arranque","Lance 1 de parede","Lance 2 de parede","Lance 3 + laje de cobertura/passarela"];
+const CE_CURTO=["Magro","Fundo + arranque","Lance 1","Lance 2","Lance 3 + cobertura"];
+const CE_DESC=["em geral 5 cm","laje de 30 cm + 40 cm de parede","1,95 m de parede","1,95 m de parede","o restante da parede + a laje de cobertura/passarela"];
+const CE_FAIXA=[null,[0,0.4],[0.4,2.35],[2.35,4.3],[4.3,null]];
+const CE_ST=["Em andamento","Executada"]; // "Executada" (e não "Concluída"): etapa antiga continua indo para o app
+// volume previsto de cada etapa: magro inteiro na 1ª; nas paredes do catálogo, o volume de cada faixa de altura; o resto
+// (lajes) fica 60% no fundo e 40% na cobertura. Sem catálogo: 35% fundo + arranque, 20% cada lance, 25% lance 3 + cobertura.
+function cePrev(o){
+  const ps=(o.ks||[]).flatMap(k=>catParedes(k)?.par||[]), faixa=([a,b])=>ps.reduce((s,p)=>s+volPar(p,a,b),0);
+  const par=CE_FAIXA.slice(1).map(faixa), tot=par.reduce((s,v)=>s+v,0);
+  if(ps.length && tot>0 && tot<o.conc*0.95){ const lajes=o.conc-tot; return [o.magro, par[0]+lajes*0.6, par[1], par[2], par[3]+lajes*0.4]; }
+  return [o.magro, o.conc*0.35, o.conc*0.2, o.conc*0.2, o.conc*0.25];
+}
+const ceId = (obra, e) => "ce-"+normTxt(obra).replace(/[^A-Z0-9]+/g,"").slice(0,26)+"-"+(e+1);
+const ceRegs = () => regs2De("concreto","etapa");
+const ceDe = (obra, e) => ceRegs().find(r=>r.dados.obra===obra && +r.dados.etapa===e+1);
+const ceDaConc = id => ceRegs().find(r=>(r.dados.conc||[]).includes(id));
+// grava a etapa inteira (o DADOS vai inteiro para a planilha)
+function setEtapa(obra, e, mudar, log){
+  const r=ceDe(obra,e), d={obra, etapa:e+1, conc:[], vol:null, estimado:false, obs:"", ...(r?.dados||{}), ...(mudar.dados||{})};
+  setReg2(r?.id||ceId(obra,e), {modulo:"concreto", tipo:"etapa", data:mudar.data||r?.data||hojeISO(), status:mudar.status??r?.status??"Em andamento", dados:d},
+    log||`${obra} · ${CE_CURTO[e]}`);
+}
+// executado: caminhões das concretagens ligadas; sem elas, o volume informado; etapa executada sem volume = previsto
+function ceVol(r, prev){
+  if(!r) return 0;
+  const cs=(r.dados.conc||[]).map(concDe).filter(Boolean), cam=cs.reduce((s,c)=>s+volLancado(c),0);
+  if(cam>0) return cam;
+  if(+r.dados.vol>0) return +r.dados.vol;
+  return r.status==="Executada" ? prev : 0;
+}
+function ceCalc(setor){
+  const obras=CONC_OBRAS.filter(o=>!setor || o.setor===setor).map(o=>{ const prev=cePrev(o), rs=CE_ETAPAS.map((_,e)=>ceDe(o.nome,e));
+    const ex=rs.map((r,e)=>ceVol(r,prev[e])), st=rs.map(r=>r?.status||"");
+    return {o, prev, rs, ex, st, magro:ex[0], proj:ex.slice(1).reduce((s,v)=>s+v,0)}; });
+  const soma=f=>obras.reduce((s,x)=>s+f(x),0);
+  return {obras, magro:soma(x=>x.magro), magroPrev:soma(x=>x.o.magro), proj:soma(x=>x.proj), projPrev:soma(x=>x.o.conc), codau:soma(x=>x.o.codau),
+    feitas:soma(x=>x.st.filter(s=>s==="Executada").length), andam:soma(x=>x.st.filter(s=>s==="Em andamento").length)};
+}
+// volume gravado na etapa = soma dos caminhões (o painel dos gestores lê só a planilha)
+function ceSincVol(){
+  if(!pode("producao-edit")) return;
+  for(const r of ceRegs()){ const ids=r.dados.conc||[], cs=ids.map(concDe); if(!ids.length || cs.some(c=>!c)) continue;
+    const v=Math.round(cs.reduce((s,c)=>s+volLancado(c),0)*100)/100;
+    if(v>0 && Math.abs(v-(+r.dados.vol||0))>0.004) setEtapa(r.dados.obra, r.dados.etapa-1, {dados:{vol:v, estimado:false}}, `${r.dados.obra} · ${CE_CURTO[r.dados.etapa-1]} · ${nf1.format(v)} m³ dos caminhões`); }
+}
+// liga (ou desliga) a concretagem a uma etapa
+function ligarEtapa(cid, data, obra, e){
+  const atual=ceDaConc(cid);
+  if(atual && !(atual.dados.obra===obra && +atual.dados.etapa===e+1))
+    setEtapa(atual.dados.obra, atual.dados.etapa-1, {dados:{conc:(atual.dados.conc||[]).filter(x=>x!==cid)}}, `${atual.dados.obra} · ${CE_CURTO[atual.dados.etapa-1]} · concretagem desligada`);
+  if(!obra) return;
+  const r=ceDe(obra,e), ids=[...new Set([...(r?.dados.conc||[]), cid])];
+  setEtapa(obra, e, {data, status:r?.status==="Executada"?"Executada":"Em andamento", dados:{conc:ids, estimado:false}}, `${obra} · ${CE_CURTO[e]} · concretagem de ${ddmm(data)}`);
+}
+const ceCel = st => st==="Executada" ? "ok" : st ? "and" : "";
+function cardLevantamento(){
+  const setor=LS.get("ceSetor")||"", C=ceCalc(setor), todas=LS.get("ceTodas");
+  const fP=C.projPrev?C.proj/C.projPrev:0, fM=C.magroPrev?C.magro/C.magroPrev:0;
+  const linha=x=>{ const b=el("button",{class:"ce-linha",type:"button",onclick:()=>abrirEtapas(x.o.nome),"aria-label":`${x.o.titulo}: etapas do concreto`},
+      el("span",{class:"ce-nome"}, el("b",{text:x.o.titulo}), el("small",{text:`${nf1.format(x.proj)} de ${nf1.format(x.o.conc)} m³ · ${x.o.conc?Math.round(x.proj/x.o.conc*100):0}%`})),
+      el("span",{class:"ce-cels"}, ...x.st.map((s,e)=>el("i",{class:"ce-cel "+ceCel(s),title:`${CE_ETAPAS[e]}: ${s||"não iniciada"}`,text:e?String(e):"M"}))));
+    return b; };
+  const comAv=C.obras.filter(x=>x.st.some(Boolean)), lista=todas||!comAv.length ? C.obras : comAv;
+  return el("div",{class:"card ce-card"},
+    el("h3",{text:"Levantamento de concreto"}),
+    el("p",{class:"info",text:"Etapas de cada estrutura: M = magro · 1 = laje de fundo + arranque · 2 = lance 1 · 3 = lance 2 · 4 = lance 3 + cobertura/passarela. Toque na estrutura para lançar."}),
+    el("div",{class:"pr-bts",role:"group","aria-label":"Setor"}, ...[["","Todos"],...CONC_SETORES.map(s=>[s,s==="ETA"?"ETA":s.charAt(0)+s.slice(1).toLowerCase()])].map(([v,t])=>
+      el("button",{class:"chipbtn"+(setor===v?" on":""),type:"button",text:t,"aria-pressed":String(setor===v),onclick:()=>{ LS.set("ceSetor",v); renderConc(); }}))),
+    el("div",{class:"ce-kpis"},
+      el("div",{}, el("span",{text:"Concreto de projeto"}), el("b",{text:`${nf1.format(C.proj)} m³`}), el("small",{text:`${Math.round(fP*1000)/10}% de ${nf1.format(C.projPrev)} m³ · contrato CODAU ${nf1.format(C.codau)} m³`}), barra(fP)),
+      el("div",{}, el("span",{text:"Concreto magro"}), el("b",{text:`${nf1.format(C.magro)} m³`}), el("small",{text:`${Math.round(fM*1000)/10}% de ${nf1.format(C.magroPrev)} m³`}), barra(fM)),
+      el("div",{}, el("span",{text:"Etapas"}), el("b",{text:`${C.feitas} executadas`}), el("small",{text:`${C.andam} em andamento · ${C.obras.length*5} no total`}))),
+    el("div",{class:"ce-lista"}, ...lista.map(linha)),
+    comAv.length && comAv.length<C.obras.length ? el("button",{class:"linkbtn",type:"button",text:todas?"Mostrar só as que já começaram":`Ver todas as estruturas (+${C.obras.length-comAv.length})`,
+      onclick:()=>{ LS.set("ceTodas",!todas); renderConc(); }}) : null);
+}
+// etapas de uma estrutura: situação, data, volume e concretagens de cada uma
+function abrirEtapas(nome){
+  const o=concObra(nome); if(!o) return;
+  const ed=pode("producao-edit"), prev=cePrev(o);
+  const blocos=CE_ETAPAS.map((t,e)=>{ const r=ceDe(nome,e), st=r?.status||"", ex=ceVol(r,prev[e]), cs=(r?.dados.conc||[]).map(concDe).filter(Boolean);
+    const iData=el("input",{type:"date",value:r?.data||"","aria-label":`${t}: data`,disabled:!ed});
+    const iVol=el("input",{type:"text",inputMode:"decimal",value:r?.dados.vol>0&&!r.dados.estimado?String(r.dados.vol).replace(".",","):"",placeholder:cs.length?"dos caminhões":nf1.format(prev[e]),"aria-label":`${t}: volume executado (m³)`,disabled:!ed||cs.length>0});
+    iData.onchange=()=>{ if(iData.value) { setEtapa(nome,e,{data:iData.value, status:st||"Em andamento"}); abrirEtapas(nome); } };
+    iVol.onchange=()=>{ const v=iVol.value.trim()===""?null:Math.max(0,num(iVol.value)); setEtapa(nome,e,{status:st||"Em andamento", dados:{vol:v, estimado:false}}, `${nome} · ${CE_CURTO[e]} · ${v==null?"volume apagado":nf1.format(v)+" m³"}`); abrirEtapas(nome); };
+    const marcar=s=>{ if(s===st) return;
+      if(!s){ if(r && !confirm(`Voltar "${t}" para não iniciada?`)) return; if(r){ if(cs.length) return toast("Esta etapa tem concretagem ligada: desligue na concretagem primeiro."); delReg2(r.id); } }
+      else setEtapa(nome, e, {status:s, data:iData.value||r?.data||hojeISO(), dados: s==="Executada" && !cs.length && !(+r?.dados.vol>0) ? {vol:Math.round(prev[e]*100)/100, estimado:true} : {}}, `${nome} · ${CE_CURTO[e]}: ${s}`);
+      abrirEtapas(nome); };
+    return el("div",{class:"ce-et full "+ceCel(st)},
+      el("div",{class:"i-top"}, el("b",{text:`${e?e+"ª":"M"} · ${t}`}), el("span",{class:"chip "+ceCel(st),text:st||"Não iniciada"})),
+      el("small",{class:"i-sub",text:`${CE_DESC[e]} · previsto ${nf1.format(prev[e])} m³${ex?` · executado ${nf1.format(ex)} m³${r?.dados.estimado?" (estimado)":""}`:""}`}),
+      ed ? el("div",{class:"pr-bts"}, ...[["","Não iniciada"],...CE_ST.map(s=>[s,s])].map(([v,x])=>el("button",{class:"chipbtn"+(st===v?" on":""),type:"button",text:x,"aria-pressed":String(st===v),onclick:()=>marcar(v)}))) : null,
+      el("div",{class:"ce-campos"}, el("label",{}, "Data", iData), el("label",{}, "Volume executado (m³)", iVol)),
+      cs.length ? el("div",{class:"i-sub",text:"Concretagens: "+cs.map(c=>`${ddmm(c.data)} · ${nf1.format(volLancado(c))} m³ (${c.cams.length} caminhões, ${c.status.toLowerCase()})`).join(" · ")}) : null,
+      ed ? el("button",{class:"linkbtn",type:"button",text:e===0?"+ Programar concretagem do magro":"+ Programar concretagem desta etapa (mapa e caminhões)",onclick:()=>{ fecharEf(); editarConc(null,{obra:nome, etapa:e}); }}) : null); });
+  const tot=prev.slice(1).reduce((s,v)=>s+v,0);
+  efModal(`Concreto · ${o.titulo}`,
+    [el("p",{class:"info full",text:`Concreto de projeto: ${nf1.format(o.conc)} m³ (contrato CODAU ${nf1.format(o.codau)} m³) · magro ${nf1.format(o.magro)} m³. Previsto por etapa: estimativa${o.ks?.length?" pelas paredes do catálogo (as lajes ficam no fundo e na cobertura)":" (35% · 20% · 20% · 25%)"}, soma ${nf1.format(tot)} m³.`}),
+     ...blocos], []);
+}
+
 function renderConc(){
   const box=$("#conc"); if(!box) return;
+  ceSincVol();
   const ed=pode("producao-edit"), L=concs(), ord=c=>CC_STATUS.indexOf(c.status);
   const abertas=L.filter(c=>c.status!=="Concluída").sort((a,b)=>ord(b)-ord(a) || a.data.localeCompare(b.data)), feitas=L.filter(c=>c.status==="Concluída").sort((a,b)=>b.data.localeCompare(a.data));
   repor(box,
-    el("p",{class:"saud"}, "Concreto", el("small",{text:"Concretagens: mapa das paredes ou forma da laje, caminhões e área concretada por cada um"})),
-    el("div",{class:"card"}, el("h3",{text:"Levantamento de volumes"}), el("p",{class:"info",text:"Em breve: previsto × executado, quando a planilha de concreto chegar."})),
+    el("p",{class:"saud"}, "Concreto", el("small",{text:"Levantamento por estrutura (magro e concreto de projeto, em 5 etapas) e concretagens: mapa das paredes ou forma da laje, caminhões e área de cada um"})),
+    cardLevantamento(),
     ed ? el("button",{class:"btn pri ps-novo",type:"button",text:"+ Nova concretagem",onclick:()=>editarConc(null)}) : null,
     S.cfg?.url ? el("div",{class:"row"}, el("button",{class:"btn",type:"button",text:"Atualizar lista de projetos (PDFs)",onclick:async e=>{
       e.currentTarget.disabled=true; try{ await carregarProjetos(); toast(`${PJ.lista.length} PDFs na pasta Projetos`); }catch(x){ toast(x.message); } renderConc(); }}),
@@ -7131,7 +7311,7 @@ async function docMapa(c, {pintura=false}={}){
     doc.setFontSize(6.5); doc.setTextColor(90); doc.text(doc.splitTextToSize("Planta-chave (sem escala)"+(pl.pass?.length?" · tracejado = passagens na base":""), 100), 14, 135); }
   doc.setFont("helvetica","bold"); doc.setFontSize(10); doc.setTextColor(20); doc.text("Caminhões betoneira", tx, 28);
   const MAXC=9, linhasC=(cams.length?cams:[1,2,3,4,5].map(n=>({n, vazio:true}))).map((k,i)=>k.vazio ? [`${i+1}º`,"","","","","","","",""] :
-    [`${i+1}º`, k.nf||`C${k.n}`, k.inicio||"", k.fim||"", k.vol?nf1.format(+k.vol):"", k.slump!==""&&k.slump!=null?String(k.slump).replace(".",","):"", cps(k.n)||"", [...(atend.get(k.n)||[])].join(", "), ""]);
+    [`${i+1}º`, k.nf||`C${k.n}`, k.inicio||"", k.fim||"", k.vol?nf1.format(+k.vol):"", k.slump!==""&&k.slump!=null?String(k.slump).replace(".",","):"", cps(k.n)||k.cps||"", [...(atend.get(k.n)||[])].join(", ")||k.par||"", ""]);
   const corDe=i=>cams[i]?.cor;
   const tabC=(rows, startY, extra={})=>doc.autoTable({startY, margin:{left:tx,right:12}, tableWidth:tw, theme:"grid",
     head:[["Ordem","Caminhão","Início","Fim","Volume (m³)","Slump (cm)","Nº CPs","Paredes atendidas","Cor"]], body:rows,

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Painel da obra · SAA Rio Grande</title>
-<meta name="description" content="Acompanhamento da obra SAA Rio Grande: armação e formas, por estrutura.">
+<meta name="description" content="Acompanhamento da obra SAA Rio Grande: armação, formas e concreto, por estrutura.">
 <meta name="theme-color" content="#14263D">
 <link rel="icon" href="icon-wigo-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -13,7 +13,7 @@
 :root{
   color-scheme:light;
   --bg:#EEF1F5; --surface:#FFFFFF; --surface2:#F5F7FA; --ink:#122033; --muted:#5B6878; --line:#DCE2EA;
-  --navy:#14263D; --navy2:#1F3A5F; --aco:#2563A8; --aco2:#9CC1E8; --forma:#C9772B; --forma2:#F0C79C;
+  --navy:#14263D; --navy2:#1F3A5F; --aco:#2563A8; --aco2:#9CC1E8; --forma:#C9772B; --forma2:#F0C79C; --conc:#4E7F86;
   --good:#1D7A48; --good-bg:#E2F3E9; --warn:#9A5B00; --warn-bg:#FDF0D8; --bad:#B42318; --bad-bg:#FBE6E4; --idle:#5B6878; --idle-bg:#E8EDF2;
   --r:14px; --sh:0 1px 2px rgba(16,32,51,.06),0 4px 14px rgba(16,32,51,.06);
   font-family:"Barlow",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
@@ -21,7 +21,7 @@
 @media (prefers-color-scheme:dark){:root{
   color-scheme:dark;
   --bg:#0C1219; --surface:#141E29; --surface2:#1A2633; --ink:#E6ECF2; --muted:#97A4B3; --line:#263443;
-  --aco:#6EA8E5; --aco2:#2D4E75; --forma:#E59A55; --forma2:#5C3B1C;
+  --aco:#6EA8E5; --aco2:#2D4E75; --forma:#E59A55; --forma2:#5C3B1C; --conc:#7FBAC2;
   --good:#5BC98B; --good-bg:#15301F; --warn:#F0B35A; --warn-bg:#35270F; --bad:#F2877C; --bad-bg:#3A1A17; --idle:#97A4B3; --idle-bg:#212D3A;
   --sh:none;
 }}
@@ -68,14 +68,14 @@ main{padding-block:16px 32px;display:grid;gap:16px}
 /* indicadores */
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
 .kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;box-shadow:var(--sh);display:grid;gap:2px;align-content:start;border-top:4px solid var(--line)}
-.kpi.aco{border-top-color:var(--aco)} .kpi.forma{border-top-color:var(--forma)} .kpi.prazo{border-top-color:var(--navy2)}
+.kpi.aco{border-top-color:var(--aco)} .kpi.forma{border-top-color:var(--forma)} .kpi.conc{border-top-color:var(--conc)} .kpi.prazo{border-top-color:var(--navy2)}
 .kpi span{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
 .kpi b{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-size:2rem;font-weight:600;line-height:1.05}
 .kpi small{color:var(--muted);font-size:.8rem}
 /* destaque com anel */
 .hero-kpi{display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:center}
 .anel{width:104px;height:104px}
-.anel .fundo{stroke:var(--idle-bg)} .anel .aco{stroke:var(--aco)} .anel .forma{stroke:var(--forma)}
+.anel .fundo{stroke:var(--idle-bg)} .anel .aco{stroke:var(--aco)} .anel .forma{stroke:var(--forma)} .anel .conc{stroke:var(--conc)}
 .anel text{font-family:"Barlow Condensed",sans-serif;font-weight:700;fill:var(--ink)}
 .hero-kpi b{font-family:"Barlow Condensed",sans-serif;font-size:1.65rem;font-weight:600;line-height:1.1;display:block}
 .hero-kpi span{font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
@@ -85,7 +85,7 @@ main{padding-block:16px 32px;display:grid;gap:16px}
 .chart text{fill:var(--muted);font-size:11px;font-family:"Barlow",sans-serif}
 .chart .val{fill:var(--ink);font-weight:700}
 .chart .grade{stroke:var(--line);stroke-width:1}
-.chart .ba{fill:var(--aco)} .chart .bf{fill:var(--forma)} .chart .ba.hl{fill:var(--navy2)} .chart .bf.hl{fill:#9C5A1C}
+.chart .ba{fill:var(--aco)} .chart .bf{fill:var(--forma)} .chart .bc{fill:var(--conc)} .chart .bc.hl{fill:#2F5E64} .chart .ba.hl{fill:var(--navy2)} .chart .bf.hl{fill:#9C5A1C}
 .chart .meta{stroke:var(--bad);stroke-width:2.5;stroke-linecap:round}
 .chart .ln{fill:none;stroke:var(--aco);stroke-width:2.8;stroke-linejoin:round}
 .chart .lnf{fill:none;stroke:var(--forma);stroke-width:2.8;stroke-linejoin:round}
@@ -108,7 +108,11 @@ main{padding-block:16px 32px;display:grid;gap:16px}
 .trilho em{font-style:normal;color:var(--muted);font-size:.72rem;text-transform:uppercase;letter-spacing:.05em}
 .trilho span{text-align:right;font-weight:600}
 .bar{height:9px;border-radius:5px;background:var(--idle-bg);overflow:hidden}
-.bar i{display:block;height:100%;border-radius:5px;background:var(--aco)} .bar.f i{background:var(--forma)}
+.bar i{display:block;height:100%;border-radius:5px;background:var(--aco)} .bar.f i{background:var(--forma)} .bar.c i{background:var(--conc)}
+.g4{grid-template-columns:repeat(auto-fit,minmax(min(100%,250px),1fr))}
+.ce{display:inline-grid;place-items:center;width:28px;height:24px;border-radius:6px;background:var(--idle-bg);color:var(--idle);font-style:normal;font-weight:700;font-size:.8rem}
+.ce.ok{background:var(--good-bg);color:var(--good)} .ce.and{background:var(--warn-bg);color:var(--warn)} td.cel{text-align:center;padding-inline:2px}
+tr.grp td{background:var(--surface2);font-weight:700;text-transform:uppercase;font-size:.72rem;letter-spacing:.07em;color:var(--muted)}
 /* tabelas */
 .tbl{overflow-x:auto;max-width:100%}
 table{border-collapse:collapse;width:100%;font-size:.88rem}
@@ -141,7 +145,7 @@ tfoot td{font-weight:700;border-bottom:0}
 </head>
 <body>
 <header class="hero"><div class="wrap">
-  <h1 class="marca">SAA Rio Grande · Painel da obra<small>Armação e formas · acompanhamento somente leitura</small></h1>
+  <h1 class="marca">SAA Rio Grande · Painel da obra<small>Armação, formas e concreto · acompanhamento somente leitura</small></h1>
   <img src="logo-relatorio.jpg" alt="Heca Construtora · GCE">
   <p class="quando" id="status">Carregando dados…</p>
 </div></header>
@@ -158,6 +162,7 @@ tfoot td{font-weight:700;border-bottom:0}
     <button role="tab" id="t-geral" aria-controls="p-geral" aria-selected="true">Visão geral</button>
     <button role="tab" id="t-aco" aria-controls="p-aco" aria-selected="false">Armação</button>
     <button role="tab" id="t-forma" aria-controls="p-forma" aria-selected="false">Formas</button>
+    <button role="tab" id="t-conc" aria-controls="p-conc" aria-selected="false">Concreto</button>
     <button role="tab" id="t-frentes" aria-controls="p-frentes" aria-selected="false">Frentes e ocorrências</button>
   </div>
 </div></div>
@@ -168,13 +173,14 @@ tfoot td{font-weight:700;border-bottom:0}
 
   <!-- VISÃO GERAL -->
   <section id="p-geral" role="tabpanel" aria-labelledby="t-geral" class="grid" hidden>
-    <div class="grid g3" id="g-destaques"></div>
+    <div class="grid g4" id="g-destaques"></div>
     <div class="kpis" id="g-prazos"></div>
     <div class="grid g2">
       <div class="card"><div class="card-top"><h3>Avanço por estrutura</h3><span class="info">toque numa estrutura para ver só ela</span></div><div class="hlist" id="g-est"></div></div>
       <div class="grid">
         <div class="card"><h3>Armação por semana (t)</h3><div class="chart" id="g-ch-aco"></div><div class="legenda" id="g-leg-aco"></div></div>
         <div class="card"><h3>Formas por semana (m²)</h3><div class="chart" id="g-ch-forma"></div></div>
+        <div class="card"><h3>Concreto por semana (m³)</h3><div class="chart" id="g-ch-conc"></div></div>
       </div>
     </div>
   </section>
@@ -203,6 +209,16 @@ tfoot td{font-weight:700;border-bottom:0}
     </div>
     <div class="card"><div class="card-top"><h3>Por obra</h3><span class="info">meta = comparativo maior · contrato = planilha CODAU (cliente)</span></div><div class="tbl" id="f-obras"></div></div>
     <div class="card" id="f-ulma-card"><h3>Etapas da forma ULMA por floculador</h3><div class="tbl" id="f-ulma"></div><p class="info nota">A forma ULMA é de um floculador e é usada no A, no B e no C (1ª = fundo + arranque, 2ª = lance 1, 3ª = lance 2, 4ª = lance 3). ✓ = concluída sem lançamento.</p></div>
+  </section>
+
+  <!-- CONCRETO -->
+  <section id="p-conc" role="tabpanel" aria-labelledby="t-conc" class="grid" hidden>
+    <div class="kpis" id="c-kpis"></div>
+    <div class="grid g2">
+      <div class="card"><h3>m³ concretados por semana</h3><div class="chart" id="c-ch"></div><p class="info nota" id="c-nota"></p></div>
+      <div class="card"><h3>Últimas concretagens</h3><div class="tbl" id="c-ult"></div></div>
+    </div>
+    <div class="card"><div class="card-top"><h3>Etapas por estrutura</h3><span class="info">M = concreto magro · 1 = laje de fundo + arranque · 2 = lance 1 · 3 = lance 2 · 4 = lance 3 + laje de cobertura/passarela · ✓ executada · ◐ em andamento</span></div><div class="tbl" id="c-et"></div></div>
   </section>
 
   <!-- FRENTES -->
@@ -249,6 +265,20 @@ const OBRAS=QTD_ETA.flatMap(([nome,c,m,est])=>nome==="FLOCULADORES"
   ? ["A","B","C"].map(x=>({nome:`Floculador ${x}`,codau:c/3,meta:m/3,est,emp:ETA}))
   : [{nome,codau:c,meta:m,est:est||"",emp:ETA}]);
 const obraDe=o=>o||"Floculador A"; // lançamentos antigos sem obra eram do Floculador A
+
+// ---------- concreto (mesmos volumes do app: Comparativo ... CAPTAÇÃO, ALTO RECALQUE E ETA.xlsx) ----------
+// [setor, estrutura, magro CODAU, magro nosso, concreto CODAU, concreto nosso] m³; nosso = comparativo maior (ETA) ou levantamento Victor
+const QTD_CONC=[["ETA", "RESERV./EEAT", 716.65, 88.38, 1636.1, 1477.13], ["ETA", "GEOC. E COAG.", 7.71, 7.71, 239.59, 85.34], ["ETA", "EEEAT SOP.", 6.31, 7.04, 215.88, 141.48], ["ETA", "RE. LAV. FILTROS", 10.75, 11.26, 203.88, 201.15], ["ETA", "TQ. CONTATO", 8.97, 10.04, 289.94, 247.39], ["ETA", "CALHA PARSHALL", 4.9, 1.56, 295.06, 105.79], ["ETA", "TQ. LODO", 2.15, 2.13, 139.71, 64.01], ["ETA", "ADENS. GRAV.", 10.45, 1.54, 134.48, 174.83], ["ETA", "TQ. REGULARIZ.", 15.4, 15.51, 325.69, 405.53], ["ETA", "CONT. HIPOCLORITO", 4.39, 4.39, 130.55, 47.64], ["ETA", "CLARIFICADORES", 1.95, 2.14, 170.04, 112.99], ["ETA", "FLOCULADORES", 5.41, 16.56, 233.47, 354.81], ["ETA", "DECANTADOR", 9.9, 44.28, 996.44, 1032.84], ["ETA", "FILTROS", 24.9, 26.64, 820.27, 531.75], ["ETA", "ADMINISTRATIVO", 20.3, 20.78, 200.66, 85.07], ["ETA", "CASA DE FLÚOR", 2.48, 2.48, 142.9, 142.9], ["ETA", "PORTARIA", 1.07, 1.1, 14.24, 14.24], ["ETA", "GUARITA", 0.34, 0.22, 8.06, 11.13], ["ETA", "VESTIÁRIO", 4.99, 5.0, 44.14, 62.32], ["ETA", "PRÉDIO UTRR", 15.68, 5.22, 250.43, 240.67], ["ETA", "PRÉDIO CLORO", 6.35, 6.35, 47.31, 95.21], ["ETA", "SALA DE PAINÉIS - FLOCULADORES", 1.44, 2.48, 19.87, 55.41], ["ETA", "SALA DE PAINÉIS - UTRR", 1.44, 1.44, 19.87, 19.87], ["ETA", "AMOSTRAGEM", 0.39, 0.39, 7.35, 3.38], ["ETA", "SUBESTAÇÃO 01 - EEAT", 3.68, 3.68, 41.48, 35.93], ["ETA", "SUBESTAÇÃO 02 - ETA", 3.68, 3.68, 41.48, 41.48], ["ETA", "RESERV. TAÇA", 0.0, 0.0, 2.18, 6.54], ["ETA", "PROTEÇÃO E COMBATE A INCÊNDIO", 0.34, 0.34, 7.23, 7.23], ["CAPTAÇÃO", "PRÉDIO ADMINISTRATIVO", 120.6, 0.0, 79.25, 83.53], ["CAPTAÇÃO", "PORTARIA", 5.81, 0.0, 9.9, 9.48], ["CAPTAÇÃO", "SUBESTAÇÃO DE ENERGIA", 29.51, 0.0, 47.99, 49.04], ["CAPTAÇÃO", "CLORO E FLÚOR", 6.3, 0.0, 10.78, 9.31], ["CAPTAÇÃO", "CAPTAÇÃO", 34.08, 0.0, 791.07, 723.42], ["CAPTAÇÃO", "BASE CLASSIFICADOR DE AREIA", 0.6, 0.0, 3.6, 21.02], ["CAPTAÇÃO", "RESERVATÓRIO HIDROPNEUMÁTICO", 0.29, 0.0, 8.77, 5.73], ["CAPTAÇÃO", "POÇO E RESERVATÓRIO TIPO TAÇA", 0.26, 0.0, 2.18, 2.18], ["CAPTAÇÃO", "MURO DE ALA", 0.01, 0.0, 6.2, 9.57], ["ALTO RECALQUE", "TANQUE PULMÃO", 8.0, 0.0, 427.4, 542.42], ["ALTO RECALQUE", "PRÉDIO ADMINISTRATIVO", 41.59, 0.0, 105.74, 84.7], ["ALTO RECALQUE", "SUBESTAÇÃO", 32.49, 0.0, 58.4, 50.32], ["ALTO RECALQUE", "PORTARIA", 6.36, 0.0, 10.12, 9.76], ["ALTO RECALQUE", "RESERVATÓRIO HIDROPNEUMÁTICO", 0.29, 0.0, 8.77, 3.13], ["ALTO RECALQUE", "DESAGUE (ESCADA HIDRÁULICA)", 2.6, 0.0, 46.6, 37.42], ["ALTO RECALQUE", "POÇO E RESERVATÓRIO TIPO TAÇA", 0.26, 0.0, 10.93, 2.18], ["ALTO RECALQUE", "CASA DE CLORO E FLÚOR", 6.3, 0.0, 11.56, 9.32], ["ALTO RECALQUE", "DISPOSITIVO DE SAÍDA DA LAGOA", 0.36, 0.0, 8.92, 6.48], ["ALTO RECALQUE", "D.14.2.3 (SEM DESCRIÇÃO)", 0.91, 0.0, 19.54, 8.63]];
+const CONC_INFO={"RESERV./EEAT":["Reservatório de água tratada + EEAT","RESERVATÓRIO ÁGUA TRATADA"],"GEOC. E COAG.":["Geotubos e coagulação"],"EEEAT SOP.":["Elevatória de água de lavagem + sopradores"],
+  "RE. LAV. FILTROS":["Reservatório de água para lavagem dos filtros"],"TQ. CONTATO":["Tanque de contato","TANQUE DE CONTATO"],"CALHA PARSHALL":["Calha Parshall"],
+  "TQ. LODO":["Tanque de lodo (TAR e TLA)","TANQUE DE LODO ADENSADO (TLA) - UTRR / TANQUE DE ÁGUA RECUPERADA (TAR) - UTRR"],"ADENS. GRAV.":["Adensadores gravitacionais","ADENSADOR - UTRR"],
+  "TQ. REGULARIZ.":["Tanque de regularização de vazão","TANQUE DE REGULARIZAÇÃO DE VAZÃO (TRV) - UTRR"],"CONT. HIPOCLORITO":["Contenção do hipoclorito"],"CLARIFICADORES":["Clarificadores","CLARIFICADOR - UTRR"],
+  "DECANTADOR":["Decantadores","DECANTADORES"],"FILTROS":["Filtros","FILTROS"],"ADMINISTRATIVO":["Prédio administrativo"],"SALA DE PAINÉIS - UTRR":["Sala de painéis - UTRR","SALA PAINÉIS-RESERV UTRR"]};
+const cap=s=>s.charAt(0)+s.slice(1).toLowerCase();
+const CONC_OBRAS=QTD_CONC.flatMap(([setor,nome,mc,mn,cc,cn])=>{ const [tit,est]=setor==="ETA"?(CONC_INFO[nome]||[]):[], b={setor,emp:setor==="ETA"?ETA:setor,magro:mn||mc,codau:cc,conc:cn};
+  if(setor==="ETA"&&nome==="FLOCULADORES") return ["A","B","C"].map(x=>({...b,nome:`Floculador ${x}`,titulo:`Floculador ${x}`,magro:(mn||mc)/3,codau:cc/3,conc:cn/3,est:"FLOCULADORES"}));
+  return [{...b,nome:setor==="ETA"?nome:`${setor} · ${nome}`,titulo:setor==="ETA"?(tit||cap(nome)):`${cap(nome)} (${setor.toLowerCase()})`,est:est||""}]; });
+const CE_ETAPAS=["Concreto magro","Laje de fundo + arranque","Lance 1 de parede","Lance 2 de parede","Lance 3 + laje de cobertura/passarela"];
 
 // ---------- acesso: endereço e chave de leitura vêm no link (#u=...&k=...) e ficam guardados neste navegador ----------
 const guardado=(()=>{ try{ return JSON.parse(localStorage.getItem("painel:acesso")||"{}"); }catch{ return {}; } })();
@@ -312,7 +342,7 @@ function preparar(j){
   for(const [n,c0,q,eq] of j.lanc){ const s=bn.get(n), c=consertaCod(c0), i=by.get(c); if(!s||!i) continue;
     s.exec.set(c,(s.exec.get(c)||0)+q); s.kg+=q*i.ppb; const e=(s.porEq[eq]??={kg:0}); e.kg+=q*i.ppb; }
   const meta=num(j.config?.META_KG_ARM_DIA)||200, dias=num(j.config?.DIAS_SEMANA)||6;
-  D={itens,by,sem,eqs:j.equipes||[],ocs:(j.registros||[]).filter(r=>r.tipo==="ocorrencia"),els:j.elementos||[],meta,dias,prazo:j.config?.PRAZO||"",forma:j.forma||null};
+  D={itens,by,sem,eqs:j.equipes||[],ocs:(j.registros||[]).filter(r=>r.tipo==="ocorrencia"),els:j.elementos||[],meta,dias,prazo:j.config?.PRAZO||"",forma:j.forma||null,concreto:j.concreto||null};
   const emps=[...new Set(itens.map(i=>i.emp))].sort((a,b)=>a.localeCompare(b,"pt"));
   if(EMP && !emps.includes(EMP)) EMP="";
   $("#emp").replaceChildren(el("option",{value:"",text:"Obra inteira (todos os empreendimentos)"}),...emps.map(e=>el("option",{value:e,text:e}))); $("#emp").value=EMP; opEst();
@@ -336,7 +366,7 @@ function escopo(){
   const its=D.itens.filter(i=>(!EMP||i.emp===EMP)&&(!EST||i.est===EST)), set=new Set(its.map(i=>i.c));
   const obras=OBRAS.filter(naObra), nomes=new Set(obras.map(o=>o.nome));
   const fdias=(D.forma?.dias||[]).filter(x=>nomes.has(obraDe(x.obra)));
-  return {its, set, obras, fdias, geral:!EMP&&!EST};
+  return {its, set, obras, fdias, cobras:CONC_OBRAS.filter(naObra), geral:!EMP&&!EST};
 }
 // ---------- armação: semanas, avanço e previsão ----------
 // Ritmo = média das últimas 4 semanas JÁ ENCERRADAS com produção (a semana em andamento não entra: puxaria o ritmo para baixo).
@@ -370,6 +400,50 @@ function calcForma(E){
   const comM=serie.filter(s=>s.m2>0), ult=comM.slice(-4), ritmo=ult.length?ult.reduce((a,s)=>a+s.m2,0)/ult.length:0;
   const pd=comM.reduce((a,s)=>a+s.pd,0), prod=pd?comM.filter(s=>s.pd).reduce((a,s)=>a+s.m2,0)/pd:0, falta=Math.max(0,meta-av);
   return {serie, obras, meta, codau, av, m2, ritmo, ult, prod, falta, fim: ritmo>0&&falta>0?somaDias(h,Math.ceil(falta/ritmo*7)):""};
+}
+
+// ---------- concreto: etapas por estrutura e concretagens ----------
+function calcConc(E){
+  const ets=D.concreto?.etapas||[], m=new Map(ets.map(x=>[x.obra+"|"+x.etapa,x])), h=hojeISO();
+  const obras=E.cobras.map(o=>{ const rs=[1,2,3,4,5].map(k=>m.get(o.nome+"|"+k)), ex=rs.map(r=>r?.vol||0);
+    return {...o, rs, st:rs.map(r=>r?.status||""), ex, magroEx:ex[0], proj:ex.slice(1).reduce((a,v)=>a+v,0), est2:rs.some(r=>r?.estimado)}; });
+  const nomes=new Set(obras.map(o=>o.nome)), ids=new Set(ets.filter(x=>nomes.has(x.obra)).flatMap(x=>x.conc||[]));
+  const cs=(D.concreto?.concretagens||[]).filter(c=>E.geral||ids.has(c.id)).sort((a,b)=>b.data.localeCompare(a.data));
+  const sem=new Map(); for(const c of cs) if(c.vol>0&&c.data<=h){ const k=segSemana(c.data); sem.set(k,(sem.get(k)||0)+c.vol); }
+  const serie=[...sem].sort((a,b)=>a[0].localeCompare(b[0])).map(([seg,v])=>({seg,v}));
+  const soma=f=>obras.reduce((a,o)=>a+f(o),0), proj=soma(o=>o.proj), prev=soma(o=>o.conc), falta=Math.max(0,prev-proj);
+  const ult=serie.slice(-4), ritmo=ult.length?ult.reduce((a,s)=>a+s.v,0)/ult.length:0;
+  return {obras, cs, serie, proj, prev, codau:soma(o=>o.codau), magro:soma(o=>o.magroEx), magroPrev:soma(o=>o.magro), falta, ritmo, ult,
+    feitas:soma(o=>o.st.filter(s=>s==="Executada").length), andam:soma(o=>o.st.filter(s=>s==="Em andamento").length),
+    // previsão só com 3 semanas ou mais de concretagem (uma semana só daria um ritmo sem sentido)
+    fim:ult.length>=3&&ritmo>0&&falta>0?somaDias(h,Math.ceil(falta/ritmo*7)):""};
+}
+let C_TODAS=false;
+function renderConc(E,C,h){
+  if(!C.prev){ $("#c-kpis").replaceChildren(el("div",{class:"card"},vazio("Esta estrutura não tem levantamento de concreto.")));
+    for(const id of ["#c-ch","#c-ult","#c-et"]) $(id).replaceChildren(); $("#c-nota").textContent=""; return; }
+  const u=C.cs.find(c=>c.vol>0);
+  $("#c-kpis").replaceChildren(kpi("Concreto de projeto",`${nf0.format(C.proj)} m³`,`${pct(C.proj/C.prev)} de ${nf0.format(C.prev)} m³ (levantamento)`,"conc"),
+    kpi("Contrato (CODAU)",`${nf0.format(C.codau)} m³`,`levantamento ${C.prev>=C.codau?"+":""}${nf0.format(C.prev-C.codau)} m³ em relação ao contrato`,"conc"),
+    kpi("Concreto magro",`${nf1.format(C.magro)} m³`,`${pct(C.magroPrev?C.magro/C.magroPrev:0)} de ${nf1.format(C.magroPrev)} m³`,"conc"),
+    kpi("Etapas executadas",`${C.feitas} de ${C.obras.length*5}`,`${C.andam} em andamento`,"conc"),
+    kpi("Última concretagem",u?dataBR(u.data):"–",u?`${u.estrutura}${u.local?" · "+u.local:""} · ${nf1.format(u.vol)} m³ em ${u.cams} caminhões`:"nenhuma com caminhões","prazo"),
+    kpi("Término previsto",C.fim?dataBR(C.fim):C.falta?"–":"concluído",C.fim?`no ritmo de ${nf0.format(C.ritmo)} m³/semana · faltam ${nf0.format(C.falta)} m³`:`precisa de 3 semanas com concretagem (há ${C.serie.length})`,"prazo"));
+  $("#c-ch").replaceChildren(C.serie.length?barras(C.serie.slice(-16).map(s=>({label:ddmm(s.seg),tip:`Semana de ${ddmm(s.seg)}`,v:s.v,hl:s.seg===segSemana(h)})),{cls:"bc",fmt:nf0.format,unid:" m³"}):vazio("Nenhuma concretagem com caminhões lançados ainda."));
+  $("#c-nota").textContent="Soma dos caminhões de cada concretagem, na semana (segunda a domingo). Etapas já executadas antes do controle entram no avanço pelo volume previsto.";
+  $("#c-ult").replaceChildren(C.cs.length?tabela(["Data","Concretagem","Caminhões","m³","Situação"],C.cs.slice(0,10).map(c=>el("tr",{},
+    el("td",{},el("b",{text:dataBR(c.data)})),el("td",{class:"txt",text:`${c.estrutura}${c.local?" · "+c.local:""}`}),el("td",{text:c.cams||"–"}),el("td",{text:c.vol?nf1.format(c.vol):"–"}),
+    el("td",{},el("span",{class:"chip "+(c.status==="Concluída"?"ok":c.status==="Em andamento"?"and":""),text:c.status}))))):vazio("Nenhuma concretagem nesta seleção."));
+  const cel=(r,e)=>{ const st=r?.status||"", cls=st==="Executada"?"ok":st?"and":"";
+    return el("td",{class:"cel"},el("i",{class:"ce "+cls,title:`${CE_ETAPAS[e]}: ${st||"não iniciada"}${r?.vol?` · ${nf1.format(r.vol)} m³${r.estimado?" (estimado)":""}`:""}${r?.data?" · "+dataBR(r.data):""}`,text:st==="Executada"?"✓":st?"◐":"–"})); };
+  const comAv=C.obras.filter(o=>o.st.some(Boolean)), ver=C_TODAS||!comAv.length?C.obras:comAv, linhas=[];
+  for(const st of ["ETA","CAPTAÇÃO","ALTO RECALQUE"]){ const L=ver.filter(o=>o.setor===st); if(!L.length) continue;
+    if(new Set(ver.map(o=>o.setor)).size>1) linhas.push(el("tr",{class:"grp"},el("td",{colSpan:9,text:st==="ETA"?"Estação de tratamento":cap(st)})));
+    for(const o of L) linhas.push(el("tr",{},el("td",{},el("b",{text:o.titulo})),...o.rs.map(cel),el("td",{text:nf1.format(o.conc)}),el("td",{text:o.proj?nf1.format(o.proj):"–"}),
+      el("td",{},pct(o.conc?o.proj/o.conc:0),barraTd(o.conc?o.proj/o.conc:0,"c")))); }
+  $("#c-et").replaceChildren(tabela(["Estrutura","M","1","2","3","4","Previsto (m³)","Executado (m³)","Avanço"],linhas,
+    el("tr",{},el("td",{text:"Total"}),el("td",{colSpan:5,text:`${C.feitas} etapas executadas`}),el("td",{text:nf0.format(C.prev)}),el("td",{text:nf0.format(C.proj)}),el("td",{text:pct(C.proj/C.prev)}))),
+    comAv.length&&comAv.length<C.obras.length?el("button",{class:"mais",type:"button",text:C_TODAS?"Mostrar só as que já começaram":`Ver todas as estruturas (+${C.obras.length-comAv.length})`,onclick:()=>{ C_TODAS=!C_TODAS; render(); }}):"");
 }
 
 // ---------- gráficos (SVG simples, sem biblioteca) ----------
@@ -417,24 +491,27 @@ const vazio=txt=>el("div",{class:"vazio",text:txt});
 // ---------- render ----------
 function render(){
   if(!D) return;
-  const E=escopo(), A=calcAco(E), F=calcForma(E), h=hojeISO();
+  const E=escopo(), A=calcAco(E), F=calcForma(E), C=calcConc(E), h=hojeISO();
   $("#limpar").hidden=E.geral;
   $("#escopo").replaceChildren(E.geral ? el("b",{text:"Obra inteira"}) : el("span",{}, EMP?`${EMP}`:"", EST?" › ":"", EST?el("b",{text:EST}):(EMP?"":null)));
-  renderGeral(E,A,F,h); renderAco(E,A,h); renderForma(E,F,h); renderFrentes(E,A);
+  renderGeral(E,A,F,h,C); renderAco(E,A,h); renderForma(E,F,h); renderConc(E,C,h); renderFrentes(E,A);
   mostrarAba();
 }
-function renderGeral(E,A,F,h){
+function renderGeral(E,A,F,h,C){
   const fA=A.P?A.X/A.P:0, fF=F.meta?F.av/F.meta:0;
   const dest=(cls,anelEl,rot,v,sub)=>el("div",{class:"card"}, el("div",{class:"hero-kpi"}, anelEl, el("div",{}, el("span",{text:rot}), el("b",{text:v}), el("small",{text:sub}))));
   $("#g-destaques").replaceChildren(
     dest("aco", anel(fA,"aco","Armação"), "Armação executada", `${t(A.X)} de ${t(A.P)} t`, `saldo ${t(A.saldo)} t · ${E.its.length} posições`),
     F.meta ? dest("forma", anel(fF,"forma","Formas"), "Formas montadas", `${nf0.format(F.av)} de ${nf0.format(F.meta)} m²`, `contrato do cliente (CODAU): ${nf0.format(F.codau)} m²`)
       : el("div",{class:"card"}, el("span",{class:"info",text:"Formas: sem quantitativo de forma para esta estrutura."})),
+    C.prev ? dest("conc", anel(C.proj/C.prev,"conc","Concreto"), "Concreto de projeto", `${nf0.format(C.proj)} de ${nf0.format(C.prev)} m³`, `${C.feitas} etapas executadas · magro ${nf0.format(C.magro)} de ${nf0.format(C.magroPrev)} m³`)
+      : el("div",{class:"card"}, el("span",{class:"info",text:"Concreto: sem levantamento para esta estrutura."})),
     el("div",{class:"card"}, el("div",{class:"hero-kpi"}, anel(A.atual&&A.metaSem?Math.min(1,(A.atual.kg||0)/A.metaSem):0,"aco","Semana atual"),
       el("div",{}, el("span",{text:`Semana ${A.atual?.n??"–"} · em andamento`}), el("b",{text:`${t(A.kgS(A.atual||{exec:new Map()}))} t`}),
         el("small",{text:E.geral&&A.metaSem?`meta da semana ${t(A.metaSem)} t · ${A.armAtual} armadores`:`${ddmm(A.atual?.ini)} a ${ddmm(A.atual?.fim)}`})))));
   const pz=[kpi("Término da armação",A.fimRitmo?dataBR(A.fimRitmo):A.saldo?"–":"concluída",A.ritmo?`no ritmo de ${t(A.ritmo)} t/semana (últimas ${A.base.length} semanas encerradas)`:"sem semanas encerradas com produção","prazo")];
   if(E.geral) pz.push(kpi("Término na meta",A.fimMeta?dataBR(A.fimMeta):"–",`${nf0.format(D.meta)} kg/arm/dia × ${A.armAtual} armadores × ${D.dias} dias = ${t(A.metaSem)} t/semana`,"prazo"));
+  if(C.prev&&C.fim) pz.push(kpi("Término do concreto",dataBR(C.fim),`no ritmo de ${nf0.format(C.ritmo)} m³/semana`,"prazo"));
   if(F.meta) pz.push(kpi("Término das formas",F.fim?dataBR(F.fim):F.falta?"–":"concluídas",F.ritmo?`no ritmo de ${nf0.format(F.ritmo)} m²/semana`:"sem montagem lançada","prazo"));
   if(E.geral && A.prazo) pz.push(kpi("Prazo da obra",dataBR(A.prazo),A.semPrazo?`faltam ${A.semPrazo} semanas · precisa de ${t(A.saldo/A.semPrazo)} t/semana`:"prazo vencido","prazo"));
   $("#g-prazos").replaceChildren(...pz);
@@ -442,13 +519,15 @@ function renderGeral(E,A,F,h){
   const g=new Map();
   for(const i of E.its){ const k=i.emp+"|"+i.est, r=g.get(k)||{emp:i.emp,est:i.est,p:0,x:0,fm:0,fa:0}; r.p+=i.kp; r.x+=Math.min(A.ac.get(i.c)||0,i.qp)*i.ppb; g.set(k,r); }
   for(const o of F.obras){ const k=o.est?o.emp+"|"+o.est:"forma|"+o.nome, r=g.get(k)||{emp:o.emp,est:o.est||o.nome,p:0,x:0,fm:0,fa:0,soForma:!o.est}; r.fm+=o.meta; r.fa+=o.av; g.set(k,r); }
-  const L=[...g.values()].filter(r=>r.p||r.fm).sort((a,b)=>(b.x+b.fa*10)-(a.x+a.fa*10)||b.p-a.p);
-  const comAv=L.filter(r=>r.x>0||r.fa>0), resto=L.filter(r=>!(r.x>0||r.fa>0)), verTudo=G_TODAS||!comAv.length||!resto.length;
+  for(const o of C.obras){ const k=o.est?o.emp+"|"+o.est:"forma|"+o.nome, r=g.get(k)||{emp:o.emp,est:o.est||(o.setor==="ETA"?o.nome:o.titulo),p:0,x:0,fm:0,fa:0,soForma:!o.est}; r.cm=(r.cm||0)+o.conc; r.ca=(r.ca||0)+o.proj; g.set(k,r); }
+  const L=[...g.values()].filter(r=>r.p||r.fm||r.cm).sort((a,b)=>(b.x+b.fa*10+(b.ca||0)*100)-(a.x+a.fa*10+(a.ca||0)*100)||b.p-a.p);
+  const comAv=L.filter(r=>r.x>0||r.fa>0||r.ca>0), resto=L.filter(r=>!(r.x>0||r.fa>0||r.ca>0)), verTudo=G_TODAS||!comAv.length||!resto.length;
   const linha=r=>{ const row=el("div",{class:"hrow",role:"button",tabindex:0,"aria-label":`Ver só ${r.est}`},
-      el("div",{class:"nome"}, el("b",{text:r.est}), el("small",{text:r.soForma?"só forma":E.geral||!EMP?r.emp:""})),
+      el("div",{class:"nome"}, el("b",{text:r.est}), el("small",{text:r.soForma?(r.p?"":"sem aço na base"):E.geral||!EMP?r.emp:""})),
       el("div",{class:"trilho"},
         r.p ? el("div",{}, el("em",{text:"aço"}), barraTd(r.x/r.p), el("span",{text:pct(r.x/r.p)})) : null,
-        r.fm ? el("div",{}, el("em",{text:"forma"}), barraTd(r.fa/r.fm,"f"), el("span",{text:pct(r.fa/r.fm)})) : null));
+        r.fm ? el("div",{}, el("em",{text:"forma"}), barraTd(r.fa/r.fm,"f"), el("span",{text:pct(r.fa/r.fm)})) : null,
+        r.cm ? el("div",{}, el("em",{text:"conc."}), barraTd(r.ca/r.cm,"c"), el("span",{text:pct(r.ca/r.cm)})) : null));
     if(!r.soForma){ row.onclick=()=>filtrar(r.emp,r.est); row.onkeydown=ev=>{ if(ev.key==="Enter"||ev.key===" "){ ev.preventDefault(); filtrar(r.emp,r.est); } }; } else row.style.cursor="default";
     return row; };
   const filhos = L.length ? (verTudo?L:comAv).map(linha) : [vazio("Nada nesta seleção.")];
@@ -459,6 +538,7 @@ function renderGeral(E,A,F,h){
   $("#g-ch-aco").replaceChildren(barras(ult.map(s=>({label:"S"+s.n,tip:`Semana ${s.n} (${ddmm(s.ini)} a ${ddmm(s.fim)})${s.fechada?"":" · em andamento"}`,v:s.kgE/1000,meta:E.geral?D.meta*(+s.arm||0)*(+s.dias||0)/1000:0,hl:!s.fechada})),{unid:" t"}));
   $("#g-leg-aco").replaceChildren(...leg([["var(--aco)","executado"],...(E.geral?[["var(--bad)","meta da semana"]]:[]),["var(--navy2)","semana em andamento"]]));
   $("#g-ch-forma").replaceChildren(barras(F.serie.slice(-12).map(s=>({label:ddmm(s.seg),tip:`Semana de ${ddmm(s.seg)}`,v:s.m2,hl:s.seg===segSemana(h)})),{cls:"bf",fmt:nf0.format,unid:" m²"}));
+  $("#g-ch-conc").replaceChildren(C.serie.length?barras(C.serie.slice(-12).map(s=>({label:ddmm(s.seg),tip:`Semana de ${ddmm(s.seg)}`,v:s.v,hl:s.seg===segSemana(h)})),{cls:"bc",fmt:nf0.format,unid:" m³"}):vazio("Nenhuma concretagem com caminhões ainda."));
 }
 function renderAco(E,A,h){
   const fA=A.P?A.X/A.P:0;

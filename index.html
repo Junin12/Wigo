@@ -401,6 +401,13 @@ canvas.qr{display:block;width:min(260px,100%);height:auto;image-rendering:pixela
 /* grade de módulos */
 .mods{display:grid;grid-template-columns:repeat(auto-fill,minmax(146px,1fr));gap:12px}
 .mods-prod{grid-template-columns:repeat(auto-fill,minmax(190px,1fr))}
+.pv-corpo{display:grid;gap:12px;grid-template-columns:minmax(0,1fr)} .pv-forma{display:grid;gap:12px;grid-template-columns:minmax(0,1fr)}
+.pv-abas .chipbtn{min-height:40px;font-size:.9rem}
+.ins-card{gap:8px} .ins-p{margin:0;line-height:1.5}
+.ins-item{display:grid;gap:2px;padding:9px 10px;border-radius:10px;border-left:4px solid var(--line);background:var(--surface2,var(--surface))}
+.ins-item b{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em}
+.ins-alto{border-left-color:var(--bad)} .ins-alto b{color:var(--bad)} .ins-medio{border-left-color:#E08A00} .ins-medio b{color:#B86E00} .ins-info{border-left-color:var(--accent)} .ins-info b{color:var(--accent)}
+.ins-acoes{margin:0;padding-left:20px;display:grid;gap:8px;line-height:1.45}
 .mod{position:relative;overflow:hidden;isolation:isolate;border:1px solid var(--line);background:var(--surface);border-radius:18px;padding:18px 12px 14px;
   display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;cursor:pointer;color:var(--ink);
   box-shadow:0 1px 2px rgba(0,30,60,.06);transition:transform .22s cubic-bezier(.2,.8,.2,1),box-shadow .22s,border-color .22s;animation:entra .55s cubic-bezier(.2,.8,.2,1) both}
@@ -628,15 +635,15 @@ canvas.qr{display:block;width:min(260px,100%);height:auto;image-rendering:pixela
   </div>
 </section>
 
-<!-- ================= Produtividade: escolha do serviço ================= -->
+<!-- ================= Produtividade: painel e insights por material ================= -->
 <section id="tela-prod" class="tela" aria-label="Produtividade" hidden>
   <header class="tela-topo compacto"><div class="in">
     <button class="tela-voltar" type="button" data-voltar><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>Início</button>
     <img class="tela-logo" src="logo-relatorio.jpg" alt="Heca Construtora · GCE">
   </div></header>
   <div class="tela-corpo">
-    <p class="saud">Produtividade<small>Escolha o serviço para acompanhar</small></p>
-    <div class="mods mods-prod" id="mods-prod"></div>
+    <p class="saud">Produtividade<small>Painel e insights de cada material · os lançamentos ficam no atalho Lançamentos</small></p>
+    <div id="prod-corpo" class="pv-corpo"></div>
   </div>
 </section>
 
@@ -715,10 +722,10 @@ canvas.qr{display:block;width:min(260px,100%);height:auto;image-rendering:pixela
   <div class="tela-corpo" id="producao"></div>
 </section>
 
-<!-- ================= Produtividade › Concreto: concretagens ================= -->
+<!-- ================= Lançamentos › Concreto: levantamento e concretagens ================= -->
 <section id="tela-conc" class="tela" aria-label="Concreto" hidden>
   <header class="tela-topo compacto"><div class="in">
-    <button class="tela-voltar" type="button" data-voltar><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>Produtividade</button>
+    <button class="tela-voltar" type="button" data-voltar><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>Voltar</button>
     <img class="tela-logo" src="logo-relatorio.jpg" alt="Heca Construtora · GCE">
   </div></header>
   <div class="tela-corpo" id="conc"></div>
@@ -1990,7 +1997,7 @@ $("#tema").addEventListener("click", e=>{ const b=e.target.closest("button[data-
   renderTema(); });
 renderTema();
 
-const VERSAO_APP = "v100"; // igual ao número em sw.js (armacao-v100)
+const VERSAO_APP = "v101"; // igual ao número em sw.js (armacao-v101)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -3913,7 +3920,7 @@ const MODULOS=[
   {id:"ponto", nome:"Ponto e efetivo",  desc:"Quem veio hoje",                 c:["#18B5A6","#0B7C74"], ativo:true},
   {id:"fotos", nome:"Fotos",            desc:"Tirar e guardar fotos da obra",  c:["#E25C8A","#A8305C"], ativo:true},
   {id:"rdo",   nome:"RDO",              desc:"Diário de obra",                 c:["#3C8DD8","#1F5FA8"], ativo:true},
-  {id:"prod",  nome:"Produtividade",    desc:"Aço · forma · concreto · escavação", c:["#1A9BDC","#0067A6"], ativo:true},
+  {id:"prod",  nome:"Produtividade",    desc:"Painéis e insights: aço · forma · concreto", c:["#1A9BDC","#0067A6"], ativo:true},
   {id:"obras", nome:"Obras e projetos", desc:"Estruturas, etapas e pranchas",  c:["#4F7CE8","#2747B0"], ativo:true},
   {id:"rel",   nome:"Relatórios",       desc:"PDF semanal e painéis",          c:["#8A6BE0","#5A3FB0"], ativo:true},
   {id:"sup",   nome:"Suprimentos",      desc:"Pedidos e recebimento",          c:["#F2AE3D","#D27D1F"], ativo:true},
@@ -3926,7 +3933,6 @@ const SERVICOS=[
   {id:"aco",   nome:"Aço",       desc:"Armação: coleta, frentes e produtividade", c:["#1A9BDC","#0067A6"], ativo:true},
   {id:"forma", nome:"Forma",     desc:"Montagem e desforma",                       c:["#D49A5A","#9C6430"], ativo:true},
   {id:"conc",  nome:"Concreto",  desc:"Concretagens: forma e caminhões",           c:["#98A5B3","#5F6B78"], ativo:true},
-  {id:"esc",   nome:"Escavação", desc:"Cortes, aterros e reaterros",               c:["#D2A03C","#946A1E"], ativo:true},
 ];
 
 // --- navegação entre telas: início → produtividade → aço (o app de armação) ---
@@ -4047,10 +4053,7 @@ function renderInicio(){
       ["Concreto","Levantamento por estrutura (5 etapas), concretagens, mapa e caminhões",()=>abrirTela("conc")]])},
     {id:"frentes",nome:"Frentes", desc:"Liberações e concretagem", c:["#36B37E","#1D7A48"], ativo:true, acao:()=>irAco("frentes")},
     {id:"pdf",    nome:"Relatório PDF", desc:"Aço · semana atual", c:["#8A6BE0","#5A3FB0"], ativo:true, acao:()=>{ irAco("painel"); setTimeout(()=>$("#rel-pdf").click(),300); }},
-    {id:"painel", nome:"Painéis", desc:"Aço, forma e concreto", c:["#45A1D6","#22709F"], ativo:true, acao:()=>escolher("Painéis", [
-      ["Painel do aço",`Meta, curva S e equipes · ${pct(resumoAco().pct)} armado`,()=>irAco("painel")],
-      ["Painel da forma",`m² por semana, produtividade e etapas · ${avF()} montado`,()=>abrirTela("fpainel")],
-      ["Concreto",`Etapas por estrutura · ${(c=>pct(c.projPrev?c.proj/c.projPrev:0))(ceCalc(""))} do concreto de projeto`,()=>abrirTela("conc")]])},
+    {id:"painel", nome:"Painéis e insights", desc:"Aço, forma e concreto", c:["#45A1D6","#22709F"], ativo:true, acao:()=>{ PV.vista="painel"; abrirTela("prod"); }},
   ];
   let box=$("#atalhos");
   if(!box){ box=el("div",{class:"mods",id:"atalhos"}); $("#tit-mods").before(el("h2",{class:"tela-tit",id:"tit-atalhos",text:"Atalhos"}), box); }
@@ -4066,10 +4069,236 @@ function escolher(tit, ops){
   efModal(tit, [el("div",{class:"lista full"}, ...ops.map(([nome,desc,acao])=>el("button",{class:"card r2-card",type:"button",onclick:()=>{ fecharEf(); acao(); }},
     el("b",{text:nome}), el("div",{class:"i-sub",text:desc}))))], []);
 }
+// ================= Produtividade (v101): painel e insights de cada material =================
+// Os lançamentos (aço, forma, concreto) ficam no atalho Lançamentos. Aqui: o painel de cada material e os insights,
+// uma análise automática dos dados do app (tendência, metas, gargalos, previsões e cruzamento entre aço, forma e concreto),
+// escrita como um relatório de analista para a gerência. Tudo calculado no celular, sem enviar dados para fora.
+const PROD_MATS=[["aco","Aço"],["forma","Forma"],["conc","Concreto"]];
+const PV={mat:LS.get("prodMat")||"aco", vista:LS.get("prodVista")||"painel"};
+const media = a => a.length ? a.reduce((s,v)=>s+v,0)/a.length : 0;
+const desvio = a => { const m=media(a); return a.length>1 ? Math.sqrt(a.reduce((s,v)=>s+(v-m)**2,0)/(a.length-1)) : 0; };
+const minutos = hm => { const m=String(hm||"").match(/^(\d{1,2}):(\d{2})/); return m ? +m[1]*60 + +m[2] : null; };
+const sinal = v => (v>0?"+":"")+nf0.format(v*100)+"%";
+const semanasAte = iso => iso ? Math.round((new Date(iso+"T12:00:00")-new Date(hojeISO()+"T12:00:00"))/(7*864e5)) : null;
 function renderProdMenu(){
-  const r=S.items.length ? resumoAco() : null;
-  $("#mods-prod").replaceChildren(...SERVICOS.map((m,k)=>moduloBtn({...m, acao: m.id==="aco" ? ()=>{ abrirTela("aco"); show(LS.get("aba")||"coleta"); } : m.id==="conc" ? ()=>abrirTela("conc") : MOD2[m.id] ? ()=>abrirModulo(m.id) : null}, k,
-    m.id==="aco" && r ? (b,ic)=>{ anelProgresso(ic, r.pct); b.append(el("span",{class:"num",text:`${t(r.E)} de ${t(r.P)} t · ${pct(r.pct)}`})); } : null)));
+  const box=$("#prod-corpo"); if(!box) return;
+  const aba=(lista, atual, chave, rot)=>el("div",{class:"pr-bts pv-abas",role:"tablist","aria-label":rot}, ...lista.map(([v,t])=>el("button",{class:"chipbtn"+(atual===v?" on":""),type:"button",role:"tab","aria-selected":String(atual===v),text:t,
+    onclick:()=>{ PV[chave]=v; LS.set(chave==="mat"?"prodMat":"prodVista", v); renderProdMenu(); }})));
+  let corpo;
+  try{ corpo = PV.vista==="insights" ? viewInsights(PV.mat) : painelMat(PV.mat); }
+  catch(e){ console.warn(e); corpo=[el("p",{class:"aviso",text:"Não foi possível montar esta parte: "+(e.message||e)})]; }
+  repor(box, aba(PROD_MATS, PV.mat, "mat", "Material"), aba([["painel","📊 Painel"],["insights","💡 Insights"]], PV.vista, "vista", "Painel ou insights"), ...corpo);
+}
+// ---------- painéis ----------
+function painelMat(mat){
+  if(mat==="forma"){ const b=el("div",{class:"pv-forma"}); renderPainelForma(b); b.firstElementChild?.remove(); return [b]; }
+  if(mat==="conc") return painelConc();
+  if(!S.items.length) return [el("div",{class:"vazio",text:"A base do aço ainda não foi carregada (conecte o banco)."})];
+  const pv=previsao(), r=resumoAco(), w=r.w, meta=w?metaSemana(w):0, ws=iniciadas().slice(-12);
+  const fech=iniciadas().filter(x=>x.fim<hojeISO()&&x.kg>0).slice(-4), prod=fech.reduce((s,x)=>s+x.kg,0)/(fech.reduce((s,x)=>s+x.arm*x.dias,0)||1);
+  return [el("div",{class:"kpis"},
+      kpi("Armado", pct(r.pct), `${t(r.E)} de ${t(r.P)} t`),
+      kpi(w?`Semana ${w.n}`:"Semana", `${t(w?.kg||0)} t`, meta?`meta ${t(meta)} t · ${pct((w?.kg||0)/meta)}`:"sem meta"),
+      kpi("Ritmo", pv.ritmo?`${t(pv.ritmo)} t`:"–", "por semana (últimas 4 com produção)"),
+      kpi("Produtividade", fech.length?`${nf0.format(prod)} kg`:"–", `por armador/dia · meta ${nf0.format(META())}`),
+      kpi("Término no ritmo", pv.fimReal?fmtData(pv.fimReal):"–", pv.prazo?`prazo ${fmtData(pv.prazo)}`:"sem prazo definido")),
+    barra(r.pct),
+    el("div",{class:"card"}, el("h3",{text:"Armado × meta por semana (t)"}), el("div",{class:"chart"}, svgMeta(ws.map(x=>({label:"S"+x.n, real:x.kg/1000, meta:metaSemana(x)/1000, hl:x.n===w?.n}))))),
+    el("button",{class:"btn pri",type:"button",text:"Abrir o painel completo do aço (curva S, equipes, elementos)",onclick:()=>irAco("painel")})];
+}
+function painelConc(){
+  const C=ceCalc(""), cs=concs().filter(c=>volLancado(c)>0).sort((a,b)=>b.data.localeCompare(a.data)), sem=new Map();
+  for(const c of cs){ const k=segSemana(c.data); sem.set(k,(sem.get(k)||0)+volLancado(c)); }
+  const serie=[...sem].sort((a,b)=>a[0].localeCompare(b[0])).slice(-12);
+  const linha=x=>el("div",{class:"ce-linha",style:"cursor:default"}, el("span",{class:"ce-nome"}, el("b",{text:x.o.titulo}), el("small",{text:`${nf1.format(x.proj)} de ${nf1.format(x.o.conc)} m³`})),
+    el("span",{class:"ce-cels"}, ...x.st.map((s,e)=>el("i",{class:"ce-cel "+ceCel(s),title:`${CE_ETAPAS[e]}: ${s||"não iniciada"}`,text:e?String(e):"M"}))));
+  const com=C.obras.filter(x=>x.st.some(Boolean));
+  return [el("div",{class:"kpis"},
+      kpi("Concreto de projeto", pct(C.projPrev?C.proj/C.projPrev:0), `${nf1.format(C.proj)} de ${nf1.format(C.projPrev)} m³`),
+      kpi("Contrato CODAU", `${nf0.format(C.codau)} m³`, `levantamento ${nf0.format(C.projPrev)} m³`),
+      kpi("Concreto magro", pct(C.magroPrev?C.magro/C.magroPrev:0), `${nf1.format(C.magro)} de ${nf1.format(C.magroPrev)} m³`),
+      kpi("Etapas executadas", String(C.feitas), `${C.andam} em andamento · de ${C.obras.length*5}`),
+      kpi("Última concretagem", cs[0]?ddmm(cs[0].data):"–", cs[0]?`${nf1.format(volLancado(cs[0]))} m³ · ${cs[0].cams.length} caminhões`:"nenhuma com caminhões")),
+    barra(C.projPrev?C.proj/C.projPrev:0),
+    serie.length ? el("div",{class:"card"}, el("h3",{text:"m³ concretados por semana"}), el("div",{class:"chart"}, svgChart(serie.map(([k,v])=>({label:ddmm(k), v, hl:k===segSemana(hojeISO())}))))) : null,
+    el("div",{class:"card"}, el("h3",{text:"Etapas por estrutura (as que já começaram)"}), el("p",{class:"info",text:"M = magro · 1 = fundo + arranque · 2 = lance 1 · 3 = lance 2 · 4 = lance 3 + cobertura"}),
+      el("div",{class:"ce-lista"}, ...(com.length?com:C.obras.slice(0,6)).map(linha))),
+    el("button",{class:"btn pri",type:"button",text:"Abrir o concreto (levantamento, concretagens e mapas)",onclick:()=>abrirTela("conc")})];
+}
+// ---------- insights ----------
+// cada análise devolve {resumo:[frases], numeros:[[rótulo, valor, detalhe]], atencao:[[nível, texto]], acoes:[texto]}
+// nível: "alto" (vermelho), "medio" (laranja), "info" (azul)
+function insightsAco(){
+  if(!S.items.length) return null;
+  const h=hojeISO(), pv=previsao(), ws=iniciadas(), fech=ws.filter(w=>w.fim<h), comP=fech.filter(w=>w.kg>0);
+  const u4=comP.slice(-4), a4=comP.slice(-8,-4), r4=media(u4.map(w=>w.kg)), r8=media(a4.map(w=>w.kg)), tend=r8?(r4-r8)/r8:null;
+  const pd=ws=>ws.reduce((s,w)=>s+w.arm*w.dias,0), prod4=pd(u4)?u4.reduce((s,w)=>s+w.kg,0)/pd(u4):0, M=META();
+  const comMeta=fech.slice(-8).filter(w=>metaSemana(w)>0), ating=media(comMeta.map(w=>w.kg/metaSemana(w))), abaixo=comMeta.filter(w=>w.kg<0.8*metaSemana(w)).length;
+  const cv=r4?desvio(u4.map(w=>w.kg))/r4:0, pctA=pv.P?pv.E/pv.P:0;
+  const R={resumo:[], numeros:[], atencao:[], acoes:[]};
+  // ritmo e prazo
+  R.numeros.push(["Armado", pct(pctA), `${t(pv.E)} de ${t(pv.P)} t`], ["Ritmo (4 sem.)", r4?`${t(r4)} t/sem`:"–", tend!=null?`${sinal(tend)} vs. as 4 anteriores`:"poucas semanas para comparar"],
+    ["Produtividade", prod4?`${nf0.format(prod4)} kg`:"–", `por armador/dia · meta ${nf0.format(M)} (${prod4?pct(prod4/M):"–"})`], ["Meta atingida", comMeta.length?pct(ating):"–", `média das últimas ${comMeta.length} semanas`]);
+  const prazo=cfgv("PRAZO",""), semP=prazo?semanasAte(prazo):null, semR=isFinite(pv.semReal)?pv.semReal:null;
+  R.resumo.push(`A armação está em ${pct(pctA)} (${t(pv.E)} de ${t(pv.P)} t), com saldo de ${t(pv.saldo)} t.`);
+  if(r4) R.resumo.push(`O ritmo das últimas ${u4.length} semanas encerradas é de ${t(r4)} t/semana${tend!=null?` (${tend>=0?"alta":"queda"} de ${nf0.format(Math.abs(tend)*100)}% sobre as 4 anteriores)`:""}; nesse ritmo a armação termina em ${pv.fimReal?fmtData(pv.fimReal):"–"}${semR!=null?` (~${semR} semanas)`:""}.`);
+  if(prazo && semR!=null && semP!=null){
+    if(semR>semP){ R.resumo.push(`Isso fica ${semR-semP} semana(s) depois do prazo (${dataBR(prazo)}).`);
+      R.atencao.push(["alto", `Atraso projetado de ${semR-semP} semana(s) em relação ao prazo de ${dataBR(prazo)}. Para cumprir, é preciso ${t(pv.saldo/Math.max(1,semP))} t/semana (hoje: ${t(r4)} t).`]);
+      if(pv.armNec) R.acoes.push(`Dimensionar a equipe para o prazo: na meta de ${nf0.format(M)} kg/arm/dia são necessários ~${pv.armNec} armadores (hoje ${pv.arm}). Alternativa: manter a equipe e subir a produtividade para ${nf0.format(pv.prodNec||0)} kg/arm/dia.`); }
+    else R.resumo.push(`Há folga de ${semP-semR} semana(s) em relação ao prazo (${dataBR(prazo)}).`);
+  } else if(!prazo) R.acoes.push("Cadastrar o prazo da obra (Aço › Ajustes) para o app calcular atraso, equipe necessária e produtividade necessária.");
+  if(tend!=null && tend<-0.1) R.atencao.push(["alto", `Queda de ${nf0.format(-tend*100)}% no ritmo semanal (de ${t(r8)} para ${t(r4)} t). Verifique falta de frente liberada, de material ou de equipe nas últimas semanas.`]);
+  if(tend!=null && tend>0.1) R.resumo.push(`Tendência positiva: o ritmo subiu ${nf0.format(tend*100)}%.`);
+  if(prod4 && prod4<0.85*M) R.atencao.push(["medio", `Produtividade de ${nf0.format(prod4)} kg/arm/dia, ${nf0.format((1-prod4/M)*100)}% abaixo da meta de ${nf0.format(M)}.`]);
+  if(abaixo>=3) R.atencao.push(["medio", `${abaixo} das últimas ${comMeta.length} semanas ficaram abaixo de 80% da meta.`]);
+  if(cv>0.35 && u4.length>=3) R.atencao.push(["medio", `Produção instável: variação de ${nf0.format(cv*100)}% entre as semanas. Ritmo irregular costuma indicar frentes não liberadas a tempo ou material chegando em lotes.`]);
+  // semanas com equipe e sem lançamento
+  const vazias=fech.slice(-6).filter(w=>w.arm>0 && w.dias>0 && !w.kg);
+  if(vazias.length) R.atencao.push(["medio", `Semana(s) ${vazias.map(w=>w.n).join(", ")} com armadores informados e nenhum aço lançado: lançamento pendente ou equipe parada.`]);
+  // equipes (últimas 4 semanas encerradas)
+  const eqs=eqList().filter(e=>e.ativa||u4.some(w=>w.porEq[e.nome]?.kg)).map(e=>{ const kg=u4.reduce((s,w)=>s+(w.porEq[e.nome]?.kg||0),0), hd=u4.reduce((s,w)=>s+(+e.arm||0)*w.dias,0);
+    return {nome:e.nome, kg, prod:hd?kg/hd:0, arm:+e.arm||0}; }).filter(e=>e.kg>0);
+  if(eqs.length>1){ eqs.sort((a,b)=>b.prod-a.prod); const [m,p]=[eqs[0], eqs.at(-1)];
+    R.numeros.push(["Melhor equipe", m.nome, `${nf0.format(m.prod)} kg/arm/dia`]);
+    if(p.prod<0.75*m.prod){ R.atencao.push(["medio", `Diferença grande entre equipes: ${m.nome} faz ${nf0.format(m.prod)} kg/arm/dia e ${p.nome} ${nf0.format(p.prod)} (${nf0.format((1-p.prod/m.prod)*100)}% menos).`]);
+      R.acoes.push(`Levar o método da ${m.nome} para a ${p.nome}: trocar um armador experiente entre as equipes por 1 semana, conferir se a ${p.nome} está em peças de bitola fina ou de muita amarração (que rendem menos kg) antes de cobrar.`); } }
+  // estruturas paradas (começadas e sem produção nas últimas 3 semanas)
+  const u3=new Set(comP.slice(-3).flatMap(w=>Object.keys(w.exec))), est=new Map();
+  for(const i of S.items){ const r=est.get(i.est)||{est:i.est,kp:0,ke:0,rec:false}; r.kp+=i.kp; r.ke+=Math.min(S.acum.get(i.c)||0,i.qp)*i.ppb; if(u3.has(i.c)) r.rec=true; est.set(i.est,r); }
+  const paradas=[...est.values()].filter(r=>r.kp && r.ke/r.kp>0.03 && r.ke/r.kp<0.97 && !r.rec).sort((a,b)=>(b.kp-b.ke)-(a.kp-a.ke));
+  if(paradas.length) R.atencao.push(["medio", `Estruturas começadas e sem aço lançado nas últimas 3 semanas: ${paradas.slice(0,4).map(r=>`${r.est} (${pct(r.ke/r.kp)})`).join(", ")}.`]);
+  const maiores=[...est.values()].filter(r=>r.kp-r.ke>0).sort((a,b)=>(b.kp-b.ke)-(a.kp-a.ke)).slice(0,3);
+  if(maiores.length) R.resumo.push(`O saldo se concentra em ${maiores.map(r=>`${r.est} (${t(r.kp-r.ke)} t)`).join(", ")}: são essas estruturas que definem o término.`);
+  // frentes
+  const els=elementos(), cnt=s=>els.filter(e=>e.sit===s), lib=cnt("lib"), bloq=cnt("bloq"), arm=cnt("arm");
+  const kgLib=lib.reduce((s,e)=>s+(e.kp-e.ke),0);
+  if(els.length){
+    R.numeros.push(["Frente liberada", `${t(kgLib)} t`, `${lib.length} elementos liberados p/ armar`]);
+    if(r4 && kgLib<1.5*r4) R.atencao.push(["alto", `Pouca frente liberada: ${t(kgLib)} t liberadas para armar = ${nf1.format(kgLib/r4)} semana(s) de serviço. Com menos de 2 semanas de frente a equipe fica ociosa.`]);
+    if(r4 && kgLib<2*r4 && bloq.length) R.acoes.push(`Liberar frentes: ${bloq.length} elemento(s) aguardando (aço entregue e concreto magro). Priorizar os de maior peso: ${bloq.sort((a,b)=>b.kp-a.kp).slice(0,3).map(e=>`${e.est} · ${e.loc.length>40?e.loc.slice(0,38)+"…":e.loc} (${t(e.kp)} t)`).join("; ")}.`);
+    if(arm.length) R.atencao.push(["info", `${arm.length} elemento(s) 100% armados e ainda sem liberação para concretagem: ${arm.slice(0,3).map(e=>`${e.est} · ${e.loc}`).join("; ")}${arm.length>3?"…":""}. Armadura exposta parada atrasa forma e concreto.`]);
+  }
+  // material: aço na obra ainda não armado (cobertura em semanas)
+  let disp=0; for(const [c,q] of barrasNaObra()){ const i=S.byCode.get(c); if(i) disp+=Math.max(0,q-(S.acum.get(c)||0))*i.ppb; }
+  const bruto=Object.values(REMESSAS_ACO).filter(x=>x.barras12&&x.entregue).reduce((s,x)=>s+(x.kg||0),0);
+  if(r4){ const cob=disp/r4;
+    R.numeros.push(["Aço na obra p/ armar", `${t(disp)} t`, `~${nf1.format(cob)} semana(s) de serviço`]);
+    if(cob<2) R.atencao.push(["alto", `Estoque de aço cortado e dobrado na obra cobre só ${nf1.format(cob)} semana(s). Antecipe o próximo pedido/remessa (Suprimentos › Aço).`]);
+    else if(cob>8) R.atencao.push(["info", `Estoque alto: ${t(disp)} t na obra (${nf0.format(cob)} semanas). Ver se a frente certa está liberada para consumir esse aço.`]); }
+  if(r4 && els.length && kgLib<1.5*r4 && disp>2*r4) R.resumo.push(`Diagnóstico: há aço na obra (${t(disp)} t) e falta frente liberada (${t(kgLib)} t). O gargalo hoje é a liberação das frentes (entrega do aço no elemento e concreto magro), não o material nem a equipe.`);
+  if(bruto) R.atencao.push(["info", `${t(bruto)} t chegaram em barras de 12 m (sem corte e dobra) e dependem da dobra na obra: acompanhe esse serviço à parte para não virar gargalo.`]);
+  // ocorrências
+  const ns=new Set(u4.map(w=>w.n)), oc=regsAll().filter(r=>r.tipo==="ocorrencia"&&ns.has(r.sem));
+  if(oc.length>=3) R.atencao.push(["medio", `${oc.length} ocorrências registradas nas últimas 4 semanas: veja Frentes e o PDF semanal (causas repetidas viram plano de ação).`]);
+  // ações padrão de bom senso, quando cabem
+  if(prod4 && prod4<M) R.acoes.push("Planejar a semana na segunda-feira com a lista de frentes liberadas e o aço disponível de cada uma (Lançamentos › Aço › Pré-levantamento ajuda a medir o andamento por parede).");
+  if(r4 && tend!=null && tend<-0.05) R.acoes.push("Fazer uma reunião rápida com encarregados sobre a queda do ritmo: listar as 3 principais causas (frente, material, equipe, chuva) e uma ação para cada.");
+  R.acoes.push("Lançar a coleta toda semana até segunda-feira: as previsões usam só semanas encerradas, e semana sem lançamento derruba o ritmo calculado.");
+  return R;
+}
+function insightsForma(){
+  const c=fmCalc(), R={resumo:[], numeros:[], atencao:[], acoes:[]};
+  if(!c.L.length && !c.avanco) return null;
+  const s=c.serie.filter(x=>x.m2>0), u2=s.slice(-2), a=s.slice(0,-2), pU=media(u2.filter(x=>x.prod).map(x=>x.prod)), pA=media(a.filter(x=>x.prod).map(x=>x.prod));
+  const ult=s.at(-1), dias=ult?Math.round((new Date(hojeISO())-new Date(ult.seg))/864e5):null;
+  R.numeros.push(["Avanço", pct(c.totProj?c.avanco/c.totProj:0), `${nf0.format(c.avanco)} de ${nf0.format(c.totProj)} m²`], ["Ritmo", c.porSem?`${nf0.format(c.porSem)} m²/sem`:"–", `${c.semanas} semana(s) com montagem`],
+    ["Produtividade", c.prod?`${nf1.format(c.prod)} m²`:"–", "por pessoa/dia"], ["Término previsto", c.fim?dataBR(c.fim):"–", c.fim?`faltam ${nf0.format(c.falta)} m²`:"depende do ritmo"]);
+  R.resumo.push(`As formas estão em ${pct(c.totProj?c.avanco/c.totProj:0)} da meta (${nf0.format(c.avanco)} de ${nf0.format(c.totProj)} m², comparativo maior). Montagem pela ${FORMA_MONTADORA}.`);
+  if(c.porSem) R.resumo.push(`Ritmo médio de ${nf0.format(c.porSem)} m²/semana; nesse ritmo o restante (${nf0.format(c.falta)} m²) leva ~${c.semFalta} semanas${c.fim?`, até ${dataBR(c.fim)}`:""}.`);
+  if(c.porSem && c.semFalta>52) R.atencao.push(["alto", `No ritmo atual as formas levariam ${c.semFalta} semanas (~${nf1.format(c.semFalta/52)} anos). O ritmo de hoje vem só dos floculadores; as demais obras (${nf0.format(c.falta)} m²) exigem frentes simultâneas.`]);
+  if(pU && pA){ const d=(pU-pA)/pA; R.resumo.push(`Produtividade nas 2 últimas semanas: ${nf1.format(pU)} m²/pessoa·dia (${sinal(d)} sobre as anteriores).`);
+    if(d<-0.15) R.atencao.push(["medio", `Produtividade caiu ${nf0.format(-d*100)}%: confira se a etapa ficou mais difícil (lance 2/3, cobertura) ou se houve espera de concreto/aço.`]); }
+  if(dias!=null && dias>10) R.atencao.push(["medio", `Último lançamento de forma na semana de ${dataBR(ult.seg)} (${dias} dias). Montagem parada ou lançamento atrasado?`]);
+  if(c.m2>0 && !c.desm) R.acoes.push("Lançar também a desforma: com montagem e desforma o app mede o ciclo da forma ULMA (montar → concretar → desformar) e o tempo parado entre etapas.");
+  // sequência da forma ULMA: o mesmo jogo serve os três floculadores; o próximo passo depende do concreto
+  const prox=[];
+  for(const x of c.etObra){ const k=x.ck.findIndex((ok,i)=>!(ok || x.av[i]>=c.proj[i]*0.999)); if(k<0){ prox.push(`${x.obra}: forma concluída`); continue; }
+    const concAnt=ceDe(x.obra,k)?.status; // etapa de concreto que libera esta forma (magro libera o fundo; o fundo libera o lance 1…)
+    prox.push(`${x.obra}: próxima forma = ${FORMA.etapas[k]}${k===0 ? (concAnt==="Executada"?" (magro pronto: pode montar)":" (aguarda o magro)") : concAnt==="Executada" ? " (o concreto da etapa anterior já foi feito: pode desformar e subir)" : " (aguarda a concretagem da etapa anterior)"}`); }
+  if(prox.length) R.resumo.push("Sequência da forma ULMA: "+prox.join("; ")+".");
+  const prontos=c.etObra.filter(x=>{ const k=x.ck.findIndex((ok,i)=>!(ok||x.av[i]>=c.proj[i]*0.999)); return k>=0 && ceDe(x.obra,k)?.status==="Executada"; });
+  const lista=n=>n.length>1 ? n.slice(0,-1).join(", ")+" e "+n.at(-1) : n[0]||"";
+  if(prontos.length) R.acoes.push(`Forma liberada para subir em: ${lista(prontos.map(x=>x.obra))} (o concreto da etapa anterior já foi feito). Como o jogo ULMA é um só, alterne: monte num floculador enquanto o outro concreta, para a equipe da ${FORMA_MONTADORA} não parar esperando concreto.`);
+  if(c.semanas && c.semanas<3) R.atencao.push(["info", `Ritmo e término calculados com só ${c.semanas} semana(s) de montagem: a projeção ainda é fraca e melhora a cada semana lançada.`]);
+  // obras grandes sem avanço
+  const sem=c.obras.filter(o=>!o.av).sort((a,b)=>b.maior-a.maior).slice(0,3);
+  if(sem.length) R.atencao.push(["info", `Maiores áreas ainda sem forma: ${sem.map(o=>`${o.nome} (${nf0.format(o.maior)} m²)`).join(", ")}. Defina com antecedência o sistema de forma (ULMA, madeira, compensado) e a equipe dessas obras.`]);
+  // contrato x meta
+  const dif=c.obras.map(o=>({...o, d:o.codau?(o.maior-o.codau)/o.codau:0})).filter(o=>o.maior>100);
+  const acima=dif.filter(o=>o.d>0.15).sort((a,b)=>(b.maior-b.codau)-(a.maior-a.codau)).slice(0,3);
+  if(acima.length) R.atencao.push(["medio", `Obras em que o levantamento passa do contrato CODAU em mais de 15%: ${acima.map(o=>`${o.nome} (+${nf0.format(o.maior-o.codau)} m²)`).join(", ")}. Área executada acima do contrato pode não ser medida: levar ao cliente com os quantitativos.`]);
+  R.acoes.push("Registrar no lançamento semanal o número de pessoas e os dias trabalhados: sem isso a produtividade (m²/pessoa·dia) não é calculada.");
+  return R;
+}
+function insightsConc(){
+  const C=ceCalc(""), R={resumo:[], numeros:[], atencao:[], acoes:[]}, cs=concs();
+  const comCam=cs.filter(c=>c.cams?.length), cams=comCam.flatMap(c=>c.cams.map(k=>({...k, c})));
+  R.numeros.push(["Concreto de projeto", pct(C.projPrev?C.proj/C.projPrev:0), `${nf0.format(C.proj)} de ${nf0.format(C.projPrev)} m³`], ["Magro", pct(C.magroPrev?C.magro/C.magroPrev:0), `${nf1.format(C.magro)} de ${nf1.format(C.magroPrev)} m³`],
+    ["Etapas executadas", String(C.feitas), `${C.andam} em andamento · ${C.obras.length*5} no total`]);
+  R.resumo.push(`Concreto de projeto em ${pct(C.projPrev?C.proj/C.projPrev:0)} (${nf0.format(C.proj)} de ${nf0.format(C.projPrev)} m³ do levantamento; contrato CODAU ${nf0.format(C.codau)} m³). ${C.feitas} etapas executadas, ${C.andam} em andamento.`);
+  const est=C.obras.filter(x=>x.rs.some(r=>r?.dados.estimado)).length;
+  if(est) R.atencao.push(["info", `${est} estrutura(s) têm etapas com volume estimado (executadas antes do controle). Quando houver as notas, informe o volume real na etapa para o avanço ficar exato.`]);
+  // próximas etapas e frentes prontas
+  const prox=C.obras.filter(x=>x.st.some(Boolean)).map(x=>{ const k=x.st.findIndex(s=>s!=="Executada"); return {x,k}; }).filter(({k})=>k>=0);
+  if(prox.length) R.resumo.push("Próxima etapa de cada estrutura em andamento: "+prox.map(({x,k})=>`${x.o.titulo} → ${CE_CURTO[k]}`).join("; ")+".");
+  const fundo=C.obras.filter(x=>x.st[0]==="Executada" && !x.st[1]);
+  if(fundo.length){ const els=S.items.length?elementos():[], acoEst=n=>{ const e=els.filter(e=>e.est===n && /FUNDO/i.test(e.loc)); return e.length ? e.reduce((s,e)=>s+e.ke,0)/(e.reduce((s,e)=>s+e.kp,0)||1) : null; };
+    R.atencao.push(["info", `Magro pronto e laje de fundo ainda não concretada: ${fundo.map(x=>{ const a=x.o.est?acoEst(x.o.est):null; return `${x.o.titulo}${a!=null?` (aço do fundo ${pct(a)})`:""}`; }).join(", ")}. São as próximas frentes de concreto: casar com a armação e a forma.`]); }
+  // caminhões: volume, duração, vazão, intervalos e slump
+  if(cams.length){
+    const vol=cams.reduce((s,k)=>s+(+k.vol||0),0), dur=cams.map(k=>{ const a=minutos(k.inicio), b=minutos(k.fim); return a!=null&&b!=null&&b>a ? b-a : null; }).filter(v=>v!=null);
+    const vazao=dur.length ? cams.filter(k=>minutos(k.inicio)!=null&&minutos(k.fim)>minutos(k.inicio)).reduce((s,k)=>s+(+k.vol||0),0)/(dur.reduce((s,v)=>s+v,0)/60) : 0;
+    const gaps=[]; for(const c of comCam){ const L=[...c.cams].filter(k=>minutos(k.inicio)!=null).sort((a,b)=>minutos(a.inicio)-minutos(b.inicio));
+      for(let i=1;i<L.length;i++){ const f=minutos(L[i-1].fim), g=minutos(L[i].inicio); if(f!=null && g!=null) gaps.push({g:g-f, c, a:L[i-1], b:L[i]}); } }
+    const sl=cams.map(k=>+k.slump).filter(v=>v>0), slM=media(sl), slD=desvio(sl);
+    R.numeros.push(["Caminhões", String(cams.length), `${nf1.format(vol)} m³ · média ${nf1.format(vol/cams.length)} m³/caminhão`]);
+    if(vazao) R.numeros.push(["Vazão de lançamento", `${nf1.format(vazao)} m³/h`, `${nf0.format(media(dur))} min por caminhão (descarga)`]);
+    if(gaps.length){ const gm=media(gaps.map(x=>x.g)), gx=gaps.reduce((m,x)=>x.g>m.g?x:m);
+      R.numeros.push(["Intervalo entre caminhões", `${nf0.format(gm)} min`, `maior: ${nf0.format(gx.g)} min`]);
+      if(gx.g>=30) R.atencao.push([gx.g>=45?"alto":"medio", `Intervalo de ${nf0.format(gx.g)} min entre caminhões em ${ddmm(gx.c.data)} (${gx.c.estrutura}${gx.c.local?" · "+gx.c.local:""}, ${gx.a.nf||"C"+gx.a.n} → ${gx.b.nf||"C"+gx.b.n}). Intervalos longos aumentam o risco de junta fria nas paredes.`]);
+      if(gm>15) R.acoes.push(`Programar com a concreteira a saída dos caminhões a cada ~${nf0.format(Math.max(10,media(dur)))} min (o tempo médio de descarga), para a bomba não ficar parada e não haver junta fria.`); }
+    if(sl.length>=3){ R.resumo.push(`Slump médio de ${nf1.format(slM)} cm (de ${nf0.format(Math.min(...sl))} a ${nf0.format(Math.max(...sl))}).`);
+      if(slD>2) R.atencao.push(["medio", `Slump variando bastante entre caminhões (desvio de ${nf1.format(slD)} cm). Conferir o slump de recebimento previsto no traço e recusar fora da tolerância.`]); }
+    const semCp=cams.filter(k=>!(+k.cps>0) && !regs2De("qual","cp").some(r=>r.dados.conc===rotConc(k.c))).length;
+    if(semCp) R.atencao.push(["medio", `${semCp} caminhão(ões) sem corpos de prova registrados. Registre os CPs (no caminhão ou em Qualidade › Corpos de prova) para rastrear a resistência por caminhão.`]);
+    // volume pedido x previsto
+    const fechadas=comCam.filter(c=>c.status==="Concluída" && c.volPrev>0), desv=fechadas.map(c=>(volLancado(c)-c.volPrev)/c.volPrev);
+    if(desv.length){ const dm=media(desv); R.numeros.push(["Lançado × previsto", sinal(dm), `${desv.length} concretagem(ns) concluída(s)`]);
+      if(dm>0.08) R.atencao.push(["medio", `Em média foi lançado ${nf0.format(dm*100)}% a mais que o volume teórico: perdas, formas abrindo ou cota acima do previsto. Vale conferir o prumo e a vedação das formas.`]); }
+    if(comCam.some(c=>/falt/i.test(c.obs||""))) R.acoes.push("Houve concretagem em que faltou concreto: pedir o último caminhão só depois de medir o que falta (régua nas paredes) e manter uma margem de 2 a 3% sobre o volume teórico.");
+  } else R.acoes.push("Lançar os caminhões de cada concretagem (volume, horários, slump, CPs): com eles o app calcula vazão, intervalos, desvio de volume e rastreia a resistência.");
+  // ritmo
+  const sem=new Map(); for(const c of comCam){ const k=segSemana(c.data); sem.set(k,(sem.get(k)||0)+volLancado(c)); }
+  const ser=[...sem.values()].slice(-4), ritmo=media(ser);
+  if(ser.length>=3){ const falta=Math.max(0,C.projPrev-C.proj); R.resumo.push(`Ritmo de ${nf0.format(ritmo)} m³/semana: faltam ${nf0.format(falta)} m³ (~${nf0.format(falta/ritmo)} semanas).`); }
+  else R.atencao.push(["info", `Só ${ser.length} semana(s) com concretagem registrada: ainda não dá para projetar o término do concreto (são precisas 3).`]);
+  // contrato x levantamento
+  const dif=C.obras.map(x=>x.o).filter(o=>o.codau>20 || o.conc>20).map(o=>({o, d:o.conc-o.codau}));
+  const mais=dif.filter(x=>x.d>0 && x.d/(x.o.codau||1)>0.15).sort((a,b)=>b.d-a.d).slice(0,3), menos=dif.filter(x=>x.d<0 && -x.d/(x.o.codau||1)>0.3).sort((a,b)=>a.d-b.d).slice(0,3);
+  if(mais.length) R.atencao.push(["medio", `Levantamento acima do contrato CODAU: ${mais.map(x=>`${x.o.titulo} (+${nf0.format(x.d)} m³)`).join(", ")}. Volume executado acima do contrato precisa de aditivo ou acordo de medição.`]);
+  if(menos.length) R.atencao.push(["info", `Contrato CODAU bem acima do levantamento: ${menos.map(x=>`${x.o.titulo} (${nf0.format(x.d)} m³)`).join(", ")}. Confirmar o projeto: pode ser item sem execução ou levantamento incompleto.`]);
+  return R;
+}
+const INSIGHTS={aco:insightsAco, forma:insightsForma, conc:insightsConc};
+const NIVEL={alto:["Crítico","ins-alto"], medio:["Atenção","ins-medio"], info:["Observação","ins-info"]};
+function textoInsights(mat, R){
+  const nome=PROD_MATS.find(x=>x[0]===mat)[1], L=[`WIGO · Insights · ${nome} · ${nomeObra()} · ${new Date().toLocaleString("pt-BR")}`, "", "RESUMO", ...R.resumo.map(s=>"• "+s), "",
+    "NÚMEROS-CHAVE", ...R.numeros.map(([a,b,c])=>`• ${a}: ${b}${c?" ("+c+")":""}`), "", "PONTOS DE ATENÇÃO", ...(R.atencao.length?R.atencao.map(([n,s])=>`• [${NIVEL[n][0]}] ${s}`):["• Nenhum"]), "",
+    "ESTRATÉGIAS E SUGESTÕES", ...R.acoes.map((s,i)=>`${i+1}. ${s}`)];
+  return L.join("\n");
+}
+function viewInsights(mat){
+  const R=INSIGHTS[mat]();
+  if(!R) return [el("div",{class:"vazio",text:"Ainda não há dados suficientes deste material para analisar."})];
+  const ord={alto:0,medio:1,info:2}; R.atencao.sort((a,b)=>ord[a[0]]-ord[b[0]]);
+  return [el("div",{class:"card ins-card"}, el("h3",{text:"Resumo executivo"}), ...R.resumo.map(s=>el("p",{class:"ins-p",text:s}))),
+    el("div",{class:"kpis"}, ...R.numeros.map(([a,b,c])=>kpi(a,b,c||""))),
+    el("div",{class:"card ins-card"}, el("h3",{text:`Pontos de atenção · ${R.atencao.length}`}),
+      ...(R.atencao.length ? R.atencao.map(([n,s])=>el("div",{class:"ins-item "+NIVEL[n][1]}, el("b",{text:NIVEL[n][0]}), el("span",{text:s}))) : [el("p",{class:"info",text:"Nada fora do esperado nos dados deste material."})])),
+    el("div",{class:"card ins-card"}, el("h3",{text:"Estratégias e sugestões"}), el("ol",{class:"ins-acoes"}, ...R.acoes.map(s=>el("li",{text:s})))),
+    el("div",{class:"row"}, el("button",{class:"btn",type:"button",text:"📋 Copiar o relatório",onclick:async()=>{ try{ await navigator.clipboard.writeText(textoInsights(mat,R)); toast("Relatório copiado: cole no WhatsApp ou no e-mail."); }catch{ toast("Não foi possível copiar neste aparelho."); } }})),
+    el("p",{class:"info",text:"Análise automática feita no celular com os dados do app (semanas encerradas, lançamentos, frentes, remessas, concretagens e caminhões). Confira os números no painel antes de decidir."})];
 }
 // --- Suprimentos ---
 const MATERIAIS=[
@@ -8114,8 +8343,8 @@ function painelForma(){
     el("div",{class:"row"}, el("button",{class:"btn",type:"button",text:"📊 Planilha de controle (Excel)",onclick:e=>excelForma(e.currentTarget)}))];
 }
 // painel da forma (como o do aço): indicadores e gráficos semana a semana (m² montados, produtividade, avanço acumulado) e etapas
-function renderPainelForma(){
-  const box=$("#fpainel"); if(!box) return;
+function renderPainelForma(box=$("#fpainel")){
+  if(!box) return;
   const c=fmCalc(), ult=c.serie.slice(-12), atual=segSemana(hojeISO()); // últimas 12 semanas: mais que isso não cabe no celular
   const graf=(tit, svg, nota)=>el("div",{class:"card"}, el("h3",{text:tit}), el("div",{class:"chart"}, svg), nota ? el("p",{class:"info",text:nota}) : null);
   const ultProd=ult.filter(x=>x.prod);

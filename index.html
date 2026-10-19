@@ -1408,6 +1408,11 @@ const SEMENTES=[
     setEtapa("Floculador C", 2, {status:"Executada", data:"2026-10-17", dados:{vol:Math.round(volLancado(concDe(c.id))*100)/100, estimado:false}}, "Floculador C · Lance 1: Executada (17/10)"); }},
   // Floculador C, paredes do lance 1 (17/10/2026): entrou como Concluída (pintura travada). Volta para Em andamento para pintar
   // no mapa a área de cada caminhão e gerar o relatório de rastreabilidade; depois de pintar, marque Concluída de novo.
+  // mesmo mapa no formato novo (uma parede por folha, como o mapa de referência), se ainda não houver nada pintado
+  {id:"CONC_FLOCC_MAPA2", fazer:()=>{
+    const c=concs().find(x=>x.data==="2026-10-17" && mapaDe(x)?.k==="FLOC-C"); if(!c || tracosDe(c.id).length) return;
+    const cat=catParedes("FLOC-C");
+    setConc(c.id, {pdfId:mapaCurto({k:"FLOC-C", nome:cat.nome, p:cat.par, de:0.4, ate:2.35}), pdfNome:`Mapa das paredes · ${cat.nome}`}, "Mapa das paredes no formato novo (uma parede por folha)"); }},
   {id:"CONC_FLOCC_REABRIR", fazer:()=>{
     const c=concs().find(x=>x.data==="2026-10-17" && mapaDe(x)?.k==="FLOC-C");
     if(c && c.status==="Concluída") setConc(c.id, {status:"Em andamento"}, "Status: Em andamento (reaberta para pintar a rastreabilidade)"); }},
@@ -7173,11 +7178,12 @@ function editarConc(c, pre){
     if(tipo==="par"){
       const ps=paredesDisp().filter(p=>marcadas.has(p.id)); if(!ps.length) return toast("Marque pelo menos uma parede.");
       const cat=catParedes(iConj.value), {de,ate}=lerFaixa(); if(de!=null && ate!=null && ate<=de) return toast("No lance, a altura final tem que ser maior que a inicial.");
-      const m={k:cat?.k||"", nome:cat ? cat.nome : estrutura, p:ps, ...(de!=null?{de}:{}), ...(ate!=null?{ate}:{})};
+      const m={k:cat?.k||"", nome:cat ? cat.nome : estrutura, p:ps, ...(de!=null?{de}:{}), ...(ate!=null?{ate}:{}), um:m0 ? m0.um : 1};
       // pintura já feita fica na folha de cada parede: mudar a lista de paredes muda as folhas
       if(m0 && tracosDe(c.id).length && JSON.stringify(m0.p.map(p=>p.id))!==JSON.stringify(m.p.map(p=>p.id))
         && !confirm("Já há áreas pintadas neste mapa. Mudando as paredes, as folhas mudam e a pintura pode ficar na parede errada. Continuar?")) return;
-      pdfId="mapa:"+JSON.stringify(m); pdfNome=`Mapa das paredes · ${m.nome}`;
+      // mapa novo de estrutura do catálogo: só os ids (curto); mapa antigo continua com as paredes inteiras (a pintura já feita fica no lugar)
+      pdfId = cat && m.um ? mapaCurto(m) : "mapa:"+JSON.stringify(m); pdfNome=`Mapa das paredes · ${m.nome}`;
     } else { pdfId=iPdf.value; pdfNome=PJ.lista.find(x=>x.id===iPdf.value)?.nome || (iPdf.value===pdfAnt ? c.pdfNome : ""); }
     const campos={data:iData.value, estrutura, local:iLoc.value.trim(), volPrev:Math.max(0,num(iVol.value)), obs:iObs.value.trim(), pdfId, pdfNome};
     const id=nova ? uid().slice(0,10) : c.id;
@@ -7470,24 +7476,30 @@ const lista_ = (ids, c, h, e, x) => ids.split(",").map(s=>P_("PAR "+s.trim(), c,
 // floculador: 4 câmaras em 2 × 2. b = parede do eixo 1, m = central horizontal, t = eixo 2, r = lateral direita,
 // v = central vertical (2 trechos, passagem de 1,00 × 1,00 m na base de cada um), l = a outra lateral (na planta: r à esquerda, l à direita)
 function floculador(letra, cam, [b,m,t,r,v,l]){
-  const H=4.55, E=0.3, P=n=>"PAR "+n, vi=P(v)+" inf.", vs=P(v)+" sup.";
-  // vista em planta: PAR b (eixo 1) em cima, PAR t (eixo 2) embaixo, PAR r à esquerda, PAR l à direita, PAR v no meio.
-  // As elevações correm da esquerda para a direita da planta (das paredes horizontais) e de cima para baixo (das verticais).
+  const H=4.55, E=0.3, P=n=>"PAR "+n, vi=P(v)+" inf.", vs=P(v)+" sup.", A=letra==="A";
+  // como nos mapas de referência (Floculador A e C): as paredes horizontais correm do lado da PAR l para o da PAR r;
+  // as verticais, do eixo 1 (PAR b) para o eixo 2 (PAR t). No A, r é a lateral direita e l a esquerda.
+  const lat = n => A ? (n===r ? "lateral direita" : "lateral esquerda") : "lateral";
   const par=[
-    P_(P(b),9.9,H,E,{d:`Parede ${b} — eixo 1 (externa)`, enc:[[0,0.3,P(r)],[4.8,5.1,vi],[9.6,9.9,P(l)]], ld:[`lado ${P(r)}`,`lado ${P(l)}`]}),
-    P_(P(m),9.3,H,E,{d:`Parede ${m} — central horizontal`, enc:[[4.5,4.8,`${P(v)} (sup. e inf.)`]], ld:[`face ${P(r)}`,`face ${P(l)}`]}),
-    P_(P(t),9.9,H,E,{d:`Parede ${t} — eixo 2 (externa)`, enc:[[0,0.3,P(r)],[4.8,5.1,vs],[9.6,9.9,P(l)]], ld:[`lado ${P(r)}`,`lado ${P(l)}`]}),
-    P_(P(r),9.3,H,E,{d:`Parede ${r} — lateral esquerda (externa)`, enc:[[4.5,4.8,P(m)]], ld:[`lado ${P(b)} (eixo 1)`,`lado ${P(t)} (eixo 2)`]}),
-    P_(vi,4.5,H,E,{d:`Parede ${v} — trecho inferior (entre ${P(b)} e ${P(m)})`, pass:[[0,0,1,1]], ld:[`face ${P(b)}`,`face ${P(m)}`]}),
-    P_(vs,4.5,H,E,{d:`Parede ${v} — trecho superior (entre ${P(m)} e ${P(t)})`, pass:[[0,0,1,1]], ld:[`face ${P(m)}`,`face ${P(t)}`]}),
-    P_(P(l),9.3,H,E,{d:`Parede ${l} — lateral direita (externa)`, enc:[[4.5,4.8,P(m)]], ld:[`lado ${P(b)} (eixo 1)`,`lado ${P(t)} (eixo 2)`]})];
-  // planta em metros, origem no canto de baixo à esquerda: [x, y, largura, altura]. A PAR 1 (eixo 1) fica em cima, a PAR 7
-  // (eixo 2) embaixo, a PAR 10 à esquerda e a PAR 12 à direita; o trecho "inferior" da PAR 11 (entre a PAR 1 e a PAR 4) fica na
-  // metade de cima, com a passagem junto da PAR 1
-  const planta={W:9.9, H:9.9, r:{[P(b)]:[0,9.6,9.9,0.3], [P(t)]:[0,0,9.9,0.3], [P(r)]:[0,0.3,0.3,9.3], [P(l)]:[9.6,0.3,0.3,9.3],
-    [P(m)]:[0.3,4.8,9.3,0.3], [vi]:[4.8,5.1,0.3,4.5], [vs]:[4.8,0.3,0.3,4.5]}, pass:[[4.8,8.6,0.3,1],[4.8,3.8,0.3,1]], extra:{[P(b)]:"eixo 1",[P(t)]:"eixo 2"}};
+    P_(P(b),9.9,H,E,{d:`Parede ${b} — eixo 1 (externa)`, enc:[[0,0.3,P(l)],[4.8,5.1,vi],[9.6,9.9,P(r)]], ld:[`lado ${P(l)}`,`lado ${P(r)}`]}),
+    P_(P(m),9.3,H,E,{d:`Parede ${m} — central horizontal`, enc:[[4.5,4.8,`${P(v)} (sup. e inf.)`]], ld:[`face ${P(l)}`,`face ${P(r)}`]}),
+    P_(P(t),9.9,H,E,{d:`Parede ${t} — eixo 2 (externa)`, enc:[[0,0.3,P(l)],[4.8,5.1,vs],[9.6,9.9,P(r)]], ld:[`lado ${P(l)}`,`lado ${P(r)}`]}),
+    P_(P(r),9.3,H,E,{d:`Parede ${r} — ${lat(r)} (externa)`, enc:[[4.5,4.8,P(m)]], ld:[`lado ${P(b)} (eixo 1)`,`lado ${P(t)} (eixo 2)`]}),
+    P_(P(l),9.3,H,E,{d:`Parede ${l} — ${lat(l)} (externa)`, enc:[[4.5,4.8,P(m)]], ld:[`lado ${P(b)} (eixo 1)`,`lado ${P(t)} (eixo 2)`]}),
+    // g: os dois trechos da parede central vertical saem na mesma folha
+    P_(vi,4.5,H,E,{d:`Parede ${v} — trecho inferior (entre ${P(b)} e ${P(m)})`, g:P(v), pass:[[0,0,1,1]], ld:[`face ${P(b)}`,`face ${P(m)}`]}),
+    P_(vs,4.5,H,E,{d:`Parede ${v} — trecho superior (entre ${P(m)} e ${P(t)})`, g:P(v), pass:[[0,0,1,1]], ld:[`face ${P(m)}`,`face ${P(t)}`]})];
+  // planta em metros, origem no canto de baixo à esquerda: [x, y, largura, altura]. Desenho base (como o Floculador C): PAR b (eixo 1)
+  // em cima, PAR t (eixo 2) embaixo, PAR r à esquerda, PAR l à direita; o trecho "inferior" da PAR v (entre b e m) fica na metade de
+  // cima, com a passagem junto da PAR b. O Floculador A sai girado 180° (PAR 7 em cima, PAR 10 à direita), como no mapa dele.
+  const giro = q => A ? [9.9-q[0]-q[2], 9.9-q[1]-q[3], q[2], q[3]] : q;
+  const rs={[P(b)]:[0,9.6,9.9,0.3], [P(t)]:[0,0,9.9,0.3], [P(r)]:[0,0.3,0.3,9.3], [P(l)]:[9.6,0.3,0.3,9.3],
+    [P(m)]:[0.3,4.8,9.3,0.3], [vi]:[4.8,5.1,0.3,4.5], [vs]:[4.8,0.3,0.3,4.5]};
+  const planta={W:9.9, H:9.9, r:Object.fromEntries(Object.entries(rs).map(([k,q])=>[k,giro(q)])), pass:[[4.8,8.6,0.3,1],[4.8,3.8,0.3,1]].map(giro),
+    extra:{[P(b)]:"eixo 1",[P(t)]:"eixo 2"}};
   return {k:"FLOC-"+letra, est:"FLOCULADORES", nome:`Floculador ${letra}`, sub:`câmara ${cam}`, planta, par,
-    nota: letra==="A" ? "" : "Mesmo arranjo do Floculador A: confira no projeto a posição das paredes."};
+    nota: A ? "" : `Numeração das paredes do Floculador ${letra} seguindo o padrão da planilha (A = 1, 4, 7, 10, 11, 12 → ${letra} = ${[b,m,t,r,v,l].join(", ")}). `
+      +`Confirmar em projeto. Planta-chave girada 180° em relação ao Floculador A (${P(b)} em cima, ${P(l)} à direita).`};
 }
 const PAREDES_CAT=[
   floculador("A",1,[1,4,7,10,11,12]), floculador("B",2,[2,5,8,13,14,15]), floculador("C",3,[3,6,9,16,17,18]),
@@ -7520,7 +7532,20 @@ const PAREDES_CAT=[
     ...lista_("5,6",5,2.5,0.25,{d:"tanque de lodo adensado"}), ...lista_("7,8",6.75,2.5,0.25,{d:"tanque de lodo adensado"})]}];
 const catParedes = k => PAREDES_CAT.find(x=>x.k===k);
 const descPar = p => p.d && /—/.test(p.d) ? p.d : `${p.id.replace(/^PAR /,"Parede ")}${p.d?" — "+p.d:""}`;
-const mapaDe = c => { const s=String(c?.pdfId||""); if(!s.startsWith("mapa:")) return null; try{ return JSON.parse(s.slice(5)); }catch{ return null; } };
+// O mapa vai no campo do PDF como "mapa:{k, nome, ids, de, ate, um}" (curto: as paredes vêm do catálogo pelos ids).
+// Mapas antigos trazem as paredes inteiras em "p" e continuam valendo. Se o campo chegar cortado ou só com o nome
+// ("Mapa das paredes · Floculador C"), o app monta o mapa pelo catálogo, com todas as paredes da estrutura.
+const mapaDe = c => {
+  const s=String(c?.pdfId||""), nome=String(c?.pdfNome||"").match(/^Mapa das paredes · (.+)$/)?.[1];
+  let m=null;
+  if(s.startsWith("mapa:")) try{ m=JSON.parse(s.slice(5)); }catch{ const k=s.match(/"k":"([^"]+)"/)?.[1]; if(k) m={k}; }
+  if(!m && nome){ const cat=PAREDES_CAT.find(x=>x.nome===nome); if(cat) m={k:cat.k}; }
+  if(!m) return null;
+  if(!m.p){ const cat=catParedes(m.k); if(!cat) return null;
+    m={...m, nome:m.nome||cat.nome, p:m.ids ? m.ids.map(id=>cat.par.find(p=>p.id===id)).filter(Boolean) : cat.par, um:m.um??1}; }
+  return m.p.length ? m : null;
+};
+const mapaCurto = m => "mapa:"+JSON.stringify({k:m.k, nome:m.nome, ids:m.p.map(p=>p.id), ...(m.de!=null?{de:m.de}:{}), ...(m.ate!=null?{ate:m.ate}:{}), um:1});
 const nf2 = v => (+v||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
 // volume teórico da parede (ou da faixa de altura do lance), sem as passagens desenhadas
 function volPar(p, de, ate){
@@ -7537,7 +7562,8 @@ function folhasMapa(m){
   const larg=MP.x1-MP.x0, alt=MP.y1-MP.y0, meia=(larg-26)/2, ps=m.p, fs=[];
   for(let i=0;i<ps.length;i++){
     const p=ps[i], q=ps[i+1];
-    if(q){ const d=Math.max(escalaPara(p.c,p.h,meia,alt), escalaPara(q.c,q.h,meia,alt)); if(d<=50){ fs.push({d, ws:[{p,a:0,b:p.c},{p:q,a:0,b:q.c}]}); i++; continue; } }
+    // mapa novo (um): uma parede por folha; só os trechos da mesma parede (g) dividem a folha. Mapa antigo: duas por folha.
+    if(q && (m.um ? p.g && p.g===q.g : true)){ const d=Math.max(escalaPara(p.c,p.h,meia,alt), escalaPara(q.c,q.h,meia,alt)); if(d<=50){ fs.push({d, ws:[{p,a:0,b:p.c},{p:q,a:0,b:q.c}]}); i++; continue; } }
     const d=escalaPara(p.c,p.h,larg,alt);
     if(d<=100){ fs.push({d, ws:[{p,a:0,b:p.c}]}); continue; }
     // longa demais para caber em 1:100: trechos iguais numa escala que ainda dá para pintar

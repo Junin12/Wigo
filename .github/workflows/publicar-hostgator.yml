@@ -44,6 +44,8 @@ jobs:
           password: ${{ secrets.FTP_PASSWORD }}
           protocol: ${{ vars.FTP_PROTOCOL || 'ftps' }}
           server-dir: ${{ vars.FTP_DIR || './' }}
+          # registro do que já foi enviado (fica na pasta do app); nome novo = reenvia tudo uma vez
+          state-name: .wigo-publicado.json
           exclude: |
             **/.git*
             **/.git*/**

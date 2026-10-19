@@ -6,6 +6,13 @@
 <title>WIGO · gestão de obra</title>
 <meta name="theme-color" content="#1F3A5F">
 <script>
+// vindo do endereço antigo (GitHub): "#migrar=" traz banco, usuário, liberação e código deste celular, para não pedir tudo de novo.
+// Só preenche celular ainda sem banco configurado neste endereço.
+try{ var mg=location.hash.match(/^#migrar=([\w-]+)/); if(mg){ history.replaceState(null,"",location.pathname+location.search);
+  if(!localStorage.getItem("arm:cfg")){ var om=JSON.parse(decodeURIComponent(escape(atob(mg[1].replace(/-/g,"+").replace(/_/g,"/")))));
+    for(var km in om) if(/^(cfg|usuario|acesso|aparelho|tema|campo)$/.test(km) && om[km]!=null) localStorage.setItem("arm:"+km, JSON.stringify(om[km])); } } }catch(e){}
+</script>
+<script>
 // aplica o tema salvo antes de desenhar a tela (evita piscar claro→escuro ao abrir)
 try{ const t=JSON.parse(localStorage.getItem("arm:tema")); if(t==="light"||t==="dark") document.documentElement.dataset.theme=t; }catch{}
 // modo em campo (letra e botões maiores, mais contraste, menos texto de ajuda)
@@ -8978,7 +8985,23 @@ function renderRelatorios(box){
 (()=>{ const b=el("button",{class:"btn-inicio",type:"button","aria-label":"Voltar ao início"}); b.innerHTML=svgIco("casa");
   b.onclick=()=>abrirTela("inicio"); document.querySelector(".top .wrap").prepend(b); })();
 
+// ---------- endereço antigo (junin12.github.io/Wigo) → wiapps.com.br/wigo ----------
+// Só muda depois que a fila do celular estiver vazia (nada a enviar), levando banco, usuário e liberação junto.
+const SITE_NOVO="https://wiapps.com.br/wigo/";
+function irParaSiteNovo(){
+  if(!/\.github\.io$/i.test(location.hostname)) return false;
+  if(/^#cfg=/.test(location.hash)){ location.replace(SITE_NOVO+location.hash); return true; } // convite: o site novo configura
+  if(S.syncing || pendCount()) return false;
+  const leva={cfg:S.cfg||null, usuario:LS.get("usuario"), acesso:LS.get("acesso"), aparelho:LS.get("aparelho"), tema:LS.get("tema"), campo:LS.get("campo")};
+  location.replace(SITE_NOVO+(leva.cfg?.url ? "#migrar="+b64url(JSON.stringify(leva)) : ""));
+  return true;
+}
+
 (function boot(){
+  if(irParaSiteNovo()) return;
+  if(/\.github\.io$/i.test(location.hostname)){ // há lançamentos esperando envio: sincroniza aqui e muda quando terminar
+    setTimeout(()=>toast("O WIGO mudou para wiapps.com.br/wigo. Enviando os lançamentos deste celular antes de mudar…"), 1500);
+    setInterval(irParaSiteNovo, 3000); }
   const cached=LS.get("base"); if(cached?.itens) setBase(cached.meta, cached.itens);
   lerLinkCfg();
   afterData(); renderData(); show(LS.get("aba")||"coleta");

@@ -1,0 +1,51 @@
+# Publica o app na HostGator (wiapps.com.br/wigo) por FTP a cada mudança no main.
+#
+# Configuração (uma vez), em Settings → Secrets and variables → Actions:
+#   Secrets:    FTP_SERVER   (ex.: ftp.wiapps.com.br)
+#               FTP_USERNAME (conta de FTP criada no cPanel)
+#               FTP_PASSWORD
+#   Variables (opcionais):
+#               FTP_DIR      pasta do app vista pela conta de FTP. Padrão "./" (conta criada já na pasta do app).
+#                            Se a conta enxergar o site inteiro, use "public_html/wigo/".
+#               FTP_PROTOCOL "ftps" (padrão) ou "ftp", se o servidor recusar a conexão segura.
+#
+# Só envia o que mudou desde a última publicação. A pasta painel/ do site (painel com o acesso embutido) não está no
+# repositório e nunca é tocada. Sem os secrets, a publicação é pulada (não dá erro).
+name: Publicar na HostGator
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: publicar-hostgator
+  cancel-in-progress: false
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    env:
+      FTP_SERVER: ${{ secrets.FTP_SERVER }}
+    steps:
+      - name: Sem configuração de FTP
+        if: env.FTP_SERVER == ''
+        run: echo "::notice::Cadastre FTP_SERVER, FTP_USERNAME e FTP_PASSWORD em Settings → Secrets and variables → Actions para publicar na HostGator."
+
+      - uses: actions/checkout@v4
+        if: env.FTP_SERVER != ''
+
+      - name: Enviar por FTP
+        if: env.FTP_SERVER != ''
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ${{ vars.FTP_PROTOCOL || 'ftps' }}
+          server-dir: ${{ vars.FTP_DIR || './' }}
+          exclude: |
+            **/.git*
+            **/.git*/**
+            .github/**
+            painel/**

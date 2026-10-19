@@ -1,0 +1,147 @@
+== usuário de FTP usado: app***@wiapps.com.br
+== teste: arquivo gravado pelo FTP visto pelo site
+200
+== Mon Oct 19 21:31:56 UTC 2026
+== pasta da conta de FTP (raiz)
+drwxr-xr-x 3575     3578              Oct 19 21:31 ./
+drwxr-xr-x 3575     3578              Oct 19 21:31 ../
+-rw------- 3575     3578            9 Oct 19 18:46 .ftpquota
+-rw-r--r-- 3575     3578         1157 Oct 19 20:33 .htaccess
+-rw-r--r-- 3575     3578        30600 Oct 19 21:29 .wigo-publicado.json
+-rw-r--r-- 3575     3578        60371 Oct 19 18:48 checklists-maquinas.json
+drwxr-xr-x 3575     3578              Oct 19 18:48 croquis/
+-rw-r--r-- 3575     3578         9782 Oct 19 18:48 icon-wigo-192.png
+-rw-r--r-- 3575     3578        16013 Oct 19 18:48 icon-wigo-512.png
+-rw-r--r-- 3575     3578         9017 Oct 19 18:48 icon-wigo-maskable-512.png
+-rw-r--r-- 3575     3578       806144 Oct 19 21:27 index.html
+-rw-r--r-- 3575     3578        53815 Oct 19 18:48 logo-relatorio.jpg
+-rw-r--r-- 3575     3578          654 Oct 19 18:48 manifest.webmanifest
+drwxr-xr-x 3575     3578              Oct 19 18:50 maquinas/
+-rw-r--r-- 3575     3578        75744 Oct 19 18:50 marcas.json
+drwxr-xr-x 3575     3578              Oct 19 14:35 painel/
+-rw-r--r-- 3575     3578        68749 Oct 19 21:27 painel.html
+-rw-r--r-- 3575     3578        27649 Oct 19 18:50 romaneios-os.json
+-rw-r--r-- 3575     3578         4339 Oct 19 21:27 sw.js
+-rw-r--r-- 3575     3578           41 Oct 19 21:31 teste-wigo-ftp.txt
+
+== painel/
+drwxr-xr-x 3575     3578              Oct 19 14:35 painel/./
+drwxr-xr-x 3575     3578              Oct 19 21:31 painel/../
+-rw-r--r-- 3575     3578         9782 Oct 19 21:27 painel/icon-wigo-192.png
+-rw-r--r-- 3575     3578        68910 Oct 19 21:27 painel/index.html
+-rw-r--r-- 3575     3578        53815 Oct 19 21:27 painel/logo-relatorio.jpg
+
+== wigo/ (subpasta)
+Access failed: 550 Can't change directory to /wigo: No such file or directory
+== https://wiapps.com.br/wigo/
+200 text/html 806144 bytes
+== https://wiapps.com.br/wigo/index.html
+200 text/html 806144 bytes
+== https://wiapps.com.br/wigo/sw.js
+200 text/javascript 4339 bytes
+== https://wiapps.com.br/wigo/manifest.webmanifest
+200 application/manifest+json 654 bytes
+== https://wiapps.com.br/wigo/logo-relatorio.jpg
+200 image/jpeg 53815 bytes
+== https://wiapps.com.br/wigo/.wigo-publicado.json
+403 text/html 22122 bytes
+== https://wiapps.com.br/wigo/painel/
+200 text/html 68910 bytes
+== https://wiapps.com.br/wigo/wigo/
+404 text/html 1940 bytes
+== https://wiapps.com.br/painel/
+200 text/html 51109 bytes
+== https://wiapps.com.br/
+200 text/html 15304 bytes
+== http://wiapps.com.br/wigo/index.html
+301 text/html; charset=iso-8859-1 285 bytes
+== https://www.wiapps.com.br/wigo/index.html
+301 text/html; charset=iso-8859-1 285 bytes
+== cabeçalhos de https://wiapps.com.br/wigo/
+HTTP/2 200 
+x-content-type-options: nosniff
+x-frame-options: SAMEORIGIN
+referrer-policy: strict-origin-when-cross-origin
+last-modified: Mon, 19 Oct 2026 21:27:03 GMT
+accept-ranges: bytes
+content-length: 806144
+cache-control: no-cache
+expires: Mon, 19 Oct 2026 21:32:16 GMT
+vary: Accept-Encoding
+content-type: text/html
+date: Mon, 19 Oct 2026 21:32:16 GMT
+server: Apache
+
+== cabeçalhos de https://wiapps.com.br/wigo/index.html
+HTTP/2 200 
+x-content-type-options: nosniff
+x-frame-options: SAMEORIGIN
+referrer-policy: strict-origin-when-cross-origin
+last-modified: Mon, 19 Oct 2026 21:27:03 GMT
+accept-ranges: bytes
+content-length: 806144
+cache-control: no-cache
+expires: Mon, 19 Oct 2026 21:32:17 GMT
+vary: Accept-Encoding
+content-type: text/html
+date: Mon, 19 Oct 2026 21:32:17 GMT
+server: Apache
+
+== cabeçalhos de https://wiapps.com.br/wigo/painel/
+HTTP/2 200 
+x-content-type-options: nosniff
+x-frame-options: SAMEORIGIN
+referrer-policy: strict-origin-when-cross-origin
+last-modified: Mon, 19 Oct 2026 21:27:01 GMT
+accept-ranges: bytes
+content-length: 68910
+cache-control: no-cache
+expires: Mon, 19 Oct 2026 21:32:17 GMT
+vary: Accept-Encoding
+content-type: text/html
+date: Mon, 19 Oct 2026 21:32:17 GMT
+server: Apache
+
+== compressão do index.html
+200 369149 bytes transferidos
+cache-control: no-cache
+content-encoding: gzip
+== manifest
+HTTP/2 200 
+x-content-type-options: nosniff
+content-type: application/manifest+json
+== arquivo de controle (deve dar 403)
+403
+== script da planilha (versão publicada, pela chave de leitura do painel)
+painel no ar: acesso embutido sim | gráfico dos CPs sim
+ok: True | versão do Code.gs: 29 | erro: - | concretagens no resumo: 2 | corpos de prova no painel: 11
+== versão do app no ar: armacao-v116
+== DNS
+108.167.188.47  wiapps.com.br
+108.167.188.47  wiapps.com.br <servidor>
+== título de https://wiapps.com.br/wigo/painel/
+<title>Painel da obra · SAA Rio Grande
+== início do 404 de wigo/index.html
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>WIGO · gestão de obra</title>
+<meta name="theme-color" content="#1F3A5F">
+<script>
+// vindo do endereço antigo (GitHub): "#migrar=" traz banco, usuário, liberação e código deste celular, para não pedir tudo de novo.
+// Só preench
+== início da página https://wiapps.com.br/wigo/
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>WIGO · gestão de obra</title>
+<meta name="theme-color" content="#1F3A5F">
+<script>
+// vindo do endereço antigo (GitHub): "#migrar=" traz banco, usuário, liberação e código deste celular, para não pedir tudo de novo.
+// Só preenche celular ainda sem banco configurado neste endereço.
+try{ var mg=location.hash.match(/^#migrar=([\w-]+)/); if(mg){ history.replaceState(null,"",location.pathname+location.search);
+  if(!localStorage

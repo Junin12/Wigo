@@ -26,10 +26,15 @@ jobs:
             echo "== $(date -u)"
             echo "== pasta da conta de FTP (raiz)"
             lftp -e "set ftp:ssl-allow yes; set ssl:verify-certificate no; set net:max-retries 1; cls -la --date; echo; echo '== painel/'; cls -la painel; echo; echo '== wigo/ (subpasta)'; cls -la wigo; bye" -u "$FTP_USERNAME,$FTP_PASSWORD" "$FTP_SERVER" 2>&1 | head -120
-            for u in https://wiapps.com.br/wigo/ https://wiapps.com.br/wigo/index.html https://wiapps.com.br/wigo/sw.js https://wiapps.com.br/wigo/painel/ https://wiapps.com.br/wigo/wigo/ https://wiapps.com.br/; do
+            for u in https://wiapps.com.br/wigo/ https://wiapps.com.br/wigo/index.html https://wiapps.com.br/wigo/sw.js https://wiapps.com.br/wigo/manifest.webmanifest https://wiapps.com.br/wigo/logo-relatorio.jpg https://wiapps.com.br/wigo/.wigo-publicado.json https://wiapps.com.br/wigo/painel/ https://wiapps.com.br/wigo/wigo/ https://wiapps.com.br/painel/ https://wiapps.com.br/ http://wiapps.com.br/wigo/index.html https://www.wiapps.com.br/wigo/index.html; do
               echo "== $u"; curl -s -o /dev/null -w "%{http_code} %{content_type} %{size_download} bytes\n" --max-time 20 "$u"
             done
             echo "== cabeçalhos de https://wiapps.com.br/wigo/"; curl -sI --max-time 20 https://wiapps.com.br/wigo/ | head -20
+            echo "== cabeçalhos de https://wiapps.com.br/wigo/index.html"; curl -sI --max-time 20 https://wiapps.com.br/wigo/index.html | head -20
+            echo "== cabeçalhos de https://wiapps.com.br/wigo/painel/"; curl -sI --max-time 20 https://wiapps.com.br/wigo/painel/ | head -20
+            echo "== DNS"; getent hosts wiapps.com.br; getent hosts "$FTP_SERVER" | sed "s/$FTP_SERVER/<servidor>/"
+            echo "== título de https://wiapps.com.br/wigo/painel/"; curl -s --max-time 20 https://wiapps.com.br/wigo/painel/ | grep -o "<title>[^<]*" | head -1
+            echo "== início do 404 de wigo/index.html"; curl -s --max-time 20 https://wiapps.com.br/wigo/index.html | head -c 400; echo
             echo "== início da página https://wiapps.com.br/wigo/"; curl -s --max-time 20 https://wiapps.com.br/wigo/ | head -c 600; echo
           } > /tmp/diagnostico.txt
           sed -i "s/$FTP_USERNAME/<usuario>/g; s/$FTP_SERVER/<servidor>/g" /tmp/diagnostico.txt

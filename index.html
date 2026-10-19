@@ -7428,11 +7428,15 @@ async function relatorioConc(c, btn, ver=false){
     doc.autoTable({startY:y, margin:{left:M,right:M}, theme:"plain", styles:{fontSize:9,cellPadding:1.2},
       body:[["Volume lançado",`${nf1.format(lanc)} m³`,"Previsto",c.volPrev?`${nf1.format(c.volPrev)} m³`:"—"],["Caminhões",String(c.cams.length),"Forma",c.pdfNome?pjTitulo(c.pdfNome):"—"]],
       columnStyles:{0:{fontStyle:"bold"},2:{fontStyle:"bold"}}}); y=doc.lastAutoTable.finalY+6;
-    doc.autoTable({startY:y, margin:{left:M,right:M}, head:[["","Caminhão","NF / ticket","Concreteira","m³","Chegada","Lançamento","Slump","fck"]],
-      body:c.cams.map(k=>["",`C${k.n}`,k.nf||"",k.usina||"",nf1.format(+k.vol||0),k.chegada||"",k.inicio||k.fim?`${k.inicio||"?"}–${k.fim||"?"}`:"",k.slump!==""&&k.slump!=null?`${k.slump} cm`:"",k.fck?`${k.fck} MPa`:""]),
-      styles:{fontSize:8,cellPadding:1.5,textColor:20}, headStyles:{fillColor:AZ,textColor:255}, columnStyles:{0:{cellWidth:5},4:{halign:"right"}},
-      didParseCell:d=>{ if(d.section==="body" && d.column.index===0) d.cell.styles.fillColor=hexRgb(c.cams[d.row.index].cor); },
-      foot:[["","Total","","",nf1.format(lanc),"","","",""]], footStyles:{fillColor:[230,236,242],textColor:20,fontStyle:"bold"}});
+    // CPs: resultado mais recente de cada moldagem do caminhão ("abaixo" do esperado para a idade, "ok" aprovado aos 28 dias)
+    const rcp=c.cams.map(k=>cpResumoCam(c,k.n));
+    doc.autoTable({startY:y, margin:{left:M,right:M}, head:[["","Caminhão","NF / ticket","Concreteira","m³","Chegada","Lançamento","Slump","fck","CPs (MPa)"]],
+      body:c.cams.map((k,i)=>["",`C${k.n}`,k.nf||"",k.usina||"",nf1.format(+k.vol||0),k.chegada||"",k.inicio||k.fim?`${k.inicio||"?"}–${k.fim||"?"}`:"",k.slump!==""&&k.slump!=null?`${k.slump} cm`:"",k.fck?`${k.fck} MPa`:"",
+        rcp[i].txt || (rcp[i].qtd ? `${rcp[i].qtd} moldados` : k.cps ? `${k.cps} moldados` : "")]),
+      styles:{fontSize:8,cellPadding:1.5,textColor:20}, headStyles:{fillColor:AZ,textColor:255}, columnStyles:{0:{cellWidth:5},4:{halign:"right"},9:{cellWidth:34}},
+      didParseCell:d=>{ if(d.section==="body" && d.column.index===0) d.cell.styles.fillColor=hexRgb(c.cams[d.row.index].cor);
+        if(d.section==="body" && d.column.index===9 && rcp[d.row.index].ruim){ d.cell.styles.textColor=[180,35,24]; d.cell.styles.fontStyle="bold"; } },
+      foot:[["","Total","","",nf1.format(lanc),"","","","",""]], footStyles:{fillColor:[230,236,242],textColor:20,fontStyle:"bold"}});
     y=doc.lastAutoTable.finalY+8;
     // mapa: cada folha que tem área pintada, desenhada com as cores dos caminhões
     const ts=tracosDe(c.id), pags=[...new Set(ts.map(t=>t.pag))].sort((a,b)=>a-b);
@@ -7574,6 +7578,29 @@ function folhasMapa(m){
   for(const f of fs){ const s=1000/f.d, n=f.ws.length, larg1=n>1?meia:larg;
     f.ws.forEach((w,k)=>{ const bx=MP.x0+k*(meia+26); w.s=s; w.w=(w.b-w.a)*s; w.h=w.p.h*s; w.x=bx+(larg1-w.w)/2; w.y=MP.y1-w.h; }); }
   return fs;
+}
+// volume que a pintura de cada caminhão ocupa nas paredes: desenha os traços numa grade de 0,25 mm por folha e conta,
+// em cada elevação, as células pintadas dentro da faixa do lance (área em m² × espessura). Traço sobre traço conta uma vez.
+function volPintado(c, fs, m){
+  const r=new Map(), ts=tracosDe(c.id); if(!ts.length) return r;
+  const G=4, cv=document.createElement("canvas"); cv.width=MP.W*G; cv.height=MP.H*G; const g=cv.getContext("2d",{willReadFrequently:true});
+  const porCam=new Map(); for(const t of ts){ const k=t.cam+"|"+t.pag; if(!porCam.has(k)) porCam.set(k,[]); porCam.get(k).push(t); }
+  for(const [k,lista] of porCam){ const [cam,pag]=k.split("|").map(Number), f=fs[pag-2]; if(!f) continue;
+    g.clearRect(0,0,cv.width,cv.height); g.fillStyle=g.strokeStyle="#000"; g.lineCap=g.lineJoin="round";
+    for(const t of lista){
+      if(t.w<0){ const [x1,y1]=ptMm(t.pts[0],t.pts[1]), [x2,y2]=ptMm(t.pts[2],t.pts[3]); g.fillRect(Math.min(x1,x2)*G, Math.min(y1,y2)*G, Math.abs(x2-x1)*G, Math.abs(y2-y1)*G); continue; }
+      g.lineWidth=Math.max(1, t.w*25.4/72*G); g.beginPath();
+      for(let i=0;i<t.pts.length;i+=2){ const [x,y]=ptMm(t.pts[i],t.pts[i+1]); if(i) g.lineTo(x*G,y*G); else g.moveTo(x*G,y*G); }
+      if(t.pts.length===2){ const [x,y]=ptMm(t.pts[0],t.pts[1]); g.lineTo(x*G+0.01,y*G); }
+      g.stroke(); }
+    let v=0;
+    for(const w of f.ws){ const topo=Math.min(m.ate??w.p.h, w.p.h), base=Math.max(0, m.de||0); if(topo<=base) continue;
+      const X0=Math.round(w.x*G), X1=Math.round((w.x+w.w)*G), Y0=Math.round((w.y+(w.p.h-topo)*w.s)*G), Y1=Math.round((w.y+(w.p.h-base)*w.s)*G);
+      if(X1<=X0 || Y1<=Y0) continue;
+      const px=g.getImageData(X0,Y0,X1-X0,Y1-Y0).data; let n=0; for(let i=3;i<px.length;i+=4) if(px[i]>127) n++;
+      v+=n/(G*G)/(w.s*w.s)*w.p.e; }
+    if(v>0) r.set(cam, (r.get(cam)||0)+v); }
+  return r;
 }
 // pintura (pontos do PDF, origem embaixo) → mm na folha
 const ptMm = (x,y) => [x*25.4/72, MP.H-y*25.4/72];
@@ -7720,14 +7747,19 @@ async function docMapa(c, {pintura=false}={}){
   if(pl){ desenharPlanta(doc, pl, 22, 32, 92, 92, null, true);
     doc.setFontSize(6.5); doc.setTextColor(90); doc.text(doc.splitTextToSize("Planta-chave (sem escala)"+(pl.pass?.length?" · tracejado = passagens na base":""), 100), 14, 135); }
   doc.setFont("helvetica","bold"); doc.setFontSize(10); doc.setTextColor(20); doc.text("Caminhões betoneira", tx, 28);
-  const MAXC=9, linhasC=(cams.length?cams:[1,2,3,4,5].map(n=>({n, vazio:true}))).map((k,i)=>k.vazio ? [`${i+1}º`,"","","","","","","",""] :
-    [`${i+1}º`, k.nf||`C${k.n}`, k.inicio||"", k.fim||"", k.vol?nf1.format(+k.vol):"", k.slump!==""&&k.slump!=null?String(k.slump).replace(".",","):"", cps(k.n)||k.cps||"", [...(atend.get(k.n)||[])].join(", ")||k.par||"", ""]);
+  // CPs com o resultado mais recente e o volume que a pintura do caminhão ocupa nas paredes (para comparar com a nota)
+  const rcp=new Map(cams.map(k=>[k.n, cpResumoCam(c,k.n)])), vpin=volPintado(c, fs, m);
+  const MAXC=9, linhasC=(cams.length?cams:[1,2,3,4,5].map(n=>({n, vazio:true}))).map((k,i)=>k.vazio ? [`${i+1}º`,"","","","","","","","",""] :
+    [`${i+1}º`, k.nf||`C${k.n}`, k.inicio||"", k.fim||"", k.vol?nf1.format(+k.vol):"", vpin.has(k.n)?nf1.format(vpin.get(k.n)):"", k.slump!==""&&k.slump!=null?String(k.slump).replace(".",","):"",
+      [cps(k.n)||k.cps||"", rcp.get(k.n)?.txt].filter(Boolean).join("\n"), [...(atend.get(k.n)||[])].join(", ")||k.par||"", ""]);
   const corDe=i=>cams[i]?.cor;
   const tabC=(rows, startY, extra={})=>doc.autoTable({startY, margin:{left:tx,right:12}, tableWidth:tw, theme:"grid",
-    head:[["Ordem","Caminhão","Início","Fim","Volume (m³)","Slump (cm)","Nº CPs","Paredes atendidas","Cor"]], body:rows,
+    head:[["Ordem","Caminhão","Início","Fim","Nota (m³)","Mapa (m³)","Slump (cm)","CPs","Paredes atendidas","Cor"]], body:rows,
     styles:{fontSize:7.5, cellPadding:1.4, halign:"center", valign:"middle", textColor:20, lineColor:120, lineWidth:0.15, minCellHeight:7},
-    headStyles:{fillColor:[235,235,235], textColor:20, fontStyle:"bold"}, columnStyles:{1:{fontStyle:"bold"},7:{cellWidth:34},8:{cellWidth:14}},
-    didParseCell:d=>{ if(d.section==="body" && d.column.index===8){ const cor=corDe(d.row.index+(extra.off||0)); if(cor) d.cell.styles.fillColor=hexRgb(cor); } }});
+    headStyles:{fillColor:[235,235,235], textColor:20, fontStyle:"bold"}, columnStyles:{1:{fontStyle:"bold"},7:{cellWidth:26},8:{cellWidth:30},9:{cellWidth:12}},
+    didParseCell:d=>{ const k=cams[d.row.index+(extra.off||0)];
+      if(d.section==="body" && d.column.index===9){ const cor=corDe(d.row.index+(extra.off||0)); if(cor) d.cell.styles.fillColor=hexRgb(cor); }
+      if(d.section==="body" && d.column.index===7 && k && rcp.get(k.n)?.ruim){ d.cell.styles.textColor=[180,35,24]; d.cell.styles.fontStyle="bold"; } }});
   tabC(linhasC.slice(0,MAXC), 30); if(linhasC.length>MAXC) resto.push(["c", linhasC.slice(MAXC), MAXC]);
   let y=doc.lastAutoTable.finalY+7;
   doc.setFont("helvetica","bold"); doc.setFontSize(10); doc.text("Paredes concretadas", tx, y);
@@ -7743,7 +7775,9 @@ async function docMapa(c, {pintura=false}={}){
   y=doc.lastAutoTable.finalY+5;
   const notas=[cat?`Dimensões do levantamento de concreto (comprimento × altura × espessura)${pl?"; planta e encontros conforme o mapa do Floculador A":""}.`:"Paredes cadastradas na concretagem.",
     fx?`Lance: de ${nf2(m.de||0)} m a ${m.ate!=null?nf2(m.ate)+" m":"o topo"} a partir da base (fora da faixa aparece em cinza nas elevações).`:"",
-    cat?.nota||"", ...m.p.filter(p=>p.obs).map(p=>`${p.id}: ${p.obs}.`), "Volume teórico sem as passagens desenhadas; confira o volume real pelas notas fiscais."].filter(Boolean);
+    cat?.nota||"", ...m.p.filter(p=>p.obs).map(p=>`${p.id}: ${p.obs}.`), "Volume teórico sem as passagens desenhadas; confira o volume real pelas notas fiscais.",
+    vpin.size?"Mapa (m³): área pintada de cada caminhão nas elevações × espessura da parede, para comparar com a nota (diferença grande = pintura incompleta, perda ou forma abrindo).":"",
+    [...rcp.values()].some(x=>x.txt)?"CPs: resultado mais recente de cada moldagem (maior do par), em MPa; \"abaixo\" = menor que o esperado para a idade (3 d 66%, 7 d 82%, 21 d 95% do fck); \"ok\" = aprovado aos 28 dias.":""].filter(Boolean);
   doc.setFont("helvetica","normal"); doc.setFontSize(7); doc.setTextColor(50);
   for(const n of notas){ const ls=doc.splitTextToSize("• "+n, tw); if(y+ls.length*3.2>203) break; doc.text(ls, tx, y); y+=ls.length*3.2+0.8; }
   // ---- uma folha por elevação ----
@@ -8743,6 +8777,12 @@ const cpIdades = d => cpIdadesQtd(d.qtd);
 const cpQtdConc = rot => { const c=concs().find(x=>rotConc(x)===rot); if(!c) return 4;
   const ce=ceDaConc(c.id), fundo = ce ? ce.dados.etapa-1===1 : /FUNDO/.test(normTxt(c.local));
   return /FLOCULADOR/.test(normTxt(c.estrutura)) && fundo ? 8 : 4; };
+// resistência esperada em cada idade, em fração do fck (a mesma curva da planilha do laboratório: 3 dias 66%, 7 dias 82%).
+// 21 dias: 95% (estimativa entre o 7 e o 28). Resultado abaixo disso já acende o alerta, sem esperar os 28 dias.
+const CP_ESPERADO={3:0.66, 7:0.82, 21:0.95, 28:1};
+const cpEsperado = (fck, i) => +fck>0 && CP_ESPERADO[i] ? Math.round(+fck*CP_ESPERADO[i]*10)/10 : null;
+// idades (antes dos 28 dias) com resultado abaixo do esperado: [{i, res, esp}]
+const cpAbaixo = d => [3,7,21].map(i=>({i, res:cpRes(d,i), esp:cpEsperado(d.fck,i)})).filter(x=>x.res!=null && x.esp!=null && x.res<x.esp);
 const cpRes = (d, i) => { const v=[d["r"+i+"a"], d["r"+i+"b"]].filter(x=>x!=null && x!=="" && !isNaN(x)).map(Number); return v.length ? Math.max(...v) : null; };
 // rompimentos ainda sem resultado, com a data prevista (moldagem + idade)
 const cpPendentes = () => regs2De("qual","cp").flatMap(r=>cpIdades(r.dados).filter(i=>cpRes(r.dados,i)==null).map(i=>({r, idade:i, data:somaDias(r.data,i)})))
@@ -8762,6 +8802,7 @@ const tipoCp = {id:"cp", nome:"Corpos de prova", novo:"Nova moldagem",
   statusAuto:d=> d.res28==null ? "Aguardando" : d.fck && d.res28<d.fck ? "Abaixo do fck" : "Aprovado",
   aberto:r=>r.status==="Aguardando",
   chip:r=>{ if(r.status!=="Aguardando") return null;
+    const ab=cpAbaixo(r.dados).at(-1); if(ab) return [`⚠ ${ab.i} dias: ${nf1.format(ab.res)} MPa (esperado ${nf1.format(ab.esp)})`, "bad"];
     const i=cpIdades(r.dados).find(x=>cpRes(r.dados,x)==null), dt=somaDias(r.data,i), h=hojeISO();
     return [`Romper ${i} dias · ${dt===h?"hoje":ddmm(dt)}`, dt<h?"bad":dt===h?"and":""]; },
   ordem:(a,b)=>((b.status==="Aguardando")-(a.status==="Aguardando")) || String(b.data).localeCompare(String(a.data)),
@@ -8769,12 +8810,83 @@ const tipoCp = {id:"cp", nome:"Corpos de prova", novo:"Nova moldagem",
     desc:`Concreto abaixo do fck: ${nf1.format(d.res28)} MPa aos 28 dias (fck ${nf1.format(d.fck)} MPa) · ${d.conc}${d.cam?" · "+d.cam:""}`,
     origem:"Corpo de prova", local:concs().find(x=>rotConc(x)===d.conc)?.estrutura||"", resp:"", prazo:somaDias(hojeISO(),7)}}]),
   titulo:d=>`${d.conc||"Concretagem"}${d.cam?" · "+d.cam:""}`+((i=>i?` · ${i}d ${nf1.format(d["res"+i])} MPa`:"")([28,21,7,3].find(i=>d["res"+i]!=null)))};
+// rastreabilidade: moldagens de um caminhão (C1, C2…) e o resumo dos resultados para os relatórios
+const cpsDoCam = (c, n) => regs2De("qual","cp").filter(r=>r.dados.conc===rotConc(c) && new RegExp(`^C${n}\\b`).test(String(r.dados.cam||"")));
+function cpResumoCam(c, n){
+  const L=cpsDoCam(c,n), qtd=L.reduce((s,r)=>s+(+r.dados.qtd||0),0), partes=[]; let ruim=false;
+  for(const r of L){ const d=r.dados, fck=+d.fck||0;
+    const ult=[28,21,7,3].find(i=>cpRes(d,i)!=null); if(ult==null) continue;
+    const v=cpRes(d,ult), esp=cpEsperado(fck,ult), baixo=esp!=null && v<esp; ruim ||= baixo;
+    partes.push(`${ult}d ${nf1.format(v)}${baixo?" (abaixo)":ult===28?" ok":""}`); } // o PDF (fonte padrão) não tem ⚠/✓
+  return {qtd, txt:partes.join(" · "), ruim};
+}
 // agenda dos rompimentos (atrasados e próximos 7 dias)
 function agendaCp(){
   const h=hojeISO(), L=cpPendentes().filter(x=>x.data<=somaDias(h,7));
-  return [el("div",{class:"card"}, el("h3",{text:`Rompimentos · ${L.length} até ${ddmm(somaDias(h,7))}`}),
+  const arq=el("input",{type:"file",accept:".xlsx,.xls,.csv",hidden:true,onchange:e=>{ const f=e.target.files[0]; e.target.value=""; if(f) importarLab(f); }});
+  return [pode("qual-edit") ? el("div",{class:"row"}, el("button",{class:"btn",type:"button",text:"📥 Importar planilha do laboratório",onclick:()=>arq.click()}),
+      el("span",{class:"info",text:"Excel com o nº da nota e os resultados por idade"}), arq) : null,
+    el("div",{class:"card"}, el("h3",{text:`Rompimentos · ${L.length} até ${ddmm(somaDias(h,7))}`}),
     L.length ? tabelaSimples(["Data","Idade","Concretagem",""], L.map(x=>[ddmm(x.data), `${x.idade} dias`, tituloReg2(tipoCp,x.r), x.data<h?"atrasado":x.data===h?"hoje":""]))
       : el("p",{class:"info",text:"Nenhum rompimento atrasado nem nos próximos 7 dias."}))];
+}
+// --- importação da planilha do laboratório ---
+// Formato esperado (como a planilha de controle tecnológico da obra): uma coluna com o nº da nota fiscal (ou romaneio) e, para cada
+// idade, um bloco com o título "3 DIAS", "7 DIAS"… e as colunas "RESULTADO 1" e "RESULTADO 2". Cada nota é ligada ao caminhão
+// de mesma NF nas concretagens; o resultado vai para a moldagem desse caminhão (criada se ainda não existir).
+const nfChave = v => String(v??"").trim().replace(/\.0+$/,"").replace(/^0+/,"");
+const numLab = v => { if(typeof v==="number") return v>0 ? v : null; const n=parseFloat(String(v??"").replace(",",".")); return isFinite(n) && n>0 ? n : null; };
+function lerPlanilhaLab(linhas){
+  const T=v=>normTxt(v);
+  // coluna da nota: o cabeçalho com "NOTA", "ROMANEIO" ou "NF"
+  let hNf=-1, cNf=-1;
+  for(let i=0;i<Math.min(linhas.length,30) && cNf<0;i++) linhas[i].forEach((v,j)=>{ if(cNf<0 && /NOTA|ROMANEIO|^N[FºO°]?\s*NF$|^NF$/.test(T(v))){ hNf=i; cNf=j; } });
+  if(cNf<0) throw new Error("Não achei a coluna do número da nota fiscal (cabeçalho com \"NOTA\", \"ROMANEIO\" ou \"NF\").");
+  // blocos de idade e as colunas RESULTADO 1/2 de cada um
+  const idades=[];
+  for(let i=Math.max(0,hNf-3);i<=Math.min(linhas.length-1,hNf+4);i++) linhas[i].forEach((v,j)=>{ const m=T(v).match(/^(\d{1,2})\s*DIAS?$/); if(m && CP_TODAS.includes(+m[1])) idades.push({i:+m[1], lin:i, col:j}); });
+  if(!idades.length) throw new Error("Não achei os blocos de idade (títulos como \"7 DIAS\" e \"28 DIAS\").");
+  idades.sort((a,b)=>a.col-b.col);
+  let fimCab=hNf;
+  idades.forEach((b,k)=>{ const ate=k+1<idades.length ? idades[k+1].col : Infinity;
+    for(let i=b.lin;i<=Math.min(linhas.length-1,b.lin+6);i++) linhas[i].forEach((v,j)=>{ if(j<b.col || j>=ate) return; const t=T(v);
+      if(/RESULTADO\s*1/.test(t) && b.c1==null){ b.c1=j; fimCab=Math.max(fimCab,i); } if(/RESULTADO\s*2/.test(t) && b.c2==null){ b.c2=j; fimCab=Math.max(fimCab,i); } }); });
+  const blocos=idades.filter(b=>b.c1!=null);
+  if(!blocos.length) throw new Error("Não achei as colunas \"RESULTADO 1\" e \"RESULTADO 2\" dentro dos blocos de idade.");
+  const res=[];
+  for(let i=fimCab+1;i<linhas.length;i++){ const nf=nfChave(linhas[i][cNf]); if(!/^\d+$/.test(nf)) continue;
+    const v={}; for(const b of blocos){ const a=numLab(linhas[i][b.c1]), c=b.c2!=null?numLab(linhas[i][b.c2]):null; if(a!=null) v["r"+b.i+"a"]=a; if(c!=null) v["r"+b.i+"b"]=c; }
+    res.push({nf, v}); }
+  return {res, idades:blocos.map(b=>b.i)};
+}
+async function importarLab(arquivo){
+  try{
+    await loadXLSX();
+    const wb=XLSX.read(await arquivo.arrayBuffer(), {type:"array"}), lidas=[];
+    let idades=[];
+    for(const nome of wb.SheetNames){ try{ const r=lerPlanilhaLab(XLSX.utils.sheet_to_json(wb.Sheets[nome],{header:1, raw:true, defval:""})); lidas.push(...r.res); idades=[...new Set([...idades,...r.idades])]; }catch(e){ if(wb.SheetNames.length===1) throw e; } }
+    if(!lidas.length) throw new Error("Não encontrei nenhuma linha com número de nota na planilha.");
+    // nota → caminhão da concretagem
+    const porNf=new Map(); for(const c of concs()) for(const k of c.cams||[]) if(k.nf) porNf.set(nfChave(k.nf), {c, k});
+    const ok=[], semCam=[], semRes=[];
+    for(const x of lidas){ const a=porNf.get(x.nf); if(!Object.keys(x.v).length){ semRes.push(x.nf); continue; } if(!a){ semCam.push(x.nf); continue; } ok.push({...x, ...a}); }
+    const lancar=()=>{
+      let novas=0, alteradas=0, nc="";
+      for(const x of ok){ const {c,k}=x, ex=cpsDoCam(c,k.n)[0];
+        const fck = +ex?.dados.fck || +k.fck || +c.cams.find(z=>+z.fck)?.fck || +regs2De("qual","cp").find(r=>r.dados.conc===rotConc(c) && +r.dados.fck)?.dados.fck || 0;
+        const d={...(ex?.dados||{conc:rotConc(c), cam:`C${k.n} · NF ${k.nf}`, qtd:cpQtdConc(rotConc(c)), lab:arquivo.name.replace(/\.[^.]+$/,"")}), ...(fck?{fck}:{}), ...x.v};
+        tipoCp.calc(d); const st=tipoCp.statusAuto(d), id=ex?.id || uid().slice(0,12);
+        setReg2(id, {modulo:"qual", tipo:"cp", data:ex?.data||c.data, dados:d, status:st}, `${ex?"Alterou":"Criou"}: ${tituloReg2(tipoCp,{dados:d})} (planilha do laboratório)`);
+        ex ? alteradas++ : novas++; nc += tipoCp.aoSalvar(id, d, st) || ""; }
+      toast(`Planilha lançada: ${alteradas} moldage${alteradas===1?"m atualizada":"ns atualizadas"}, ${novas} nova${novas===1?"":"s"}.${nc}`); fecharEf(); };
+    efModal("Importar planilha do laboratório", [
+      el("p",{class:"info full",text:`${lidas.length} nota${lidas.length===1?"":"s"} lida${lidas.length===1?"":"s"} · idades: ${idades.sort((a,b)=>a-b).map(i=>i+" dias").join(", ")}.`}),
+      ok.length ? el("div",{class:"full"}, tabelaSimples(["NF","Concretagem","Caminhão","Resultados (MPa)"], ok.map(x=>[x.nf, `${x.c.estrutura}${x.c.local?" · "+x.c.local:""} · ${ddmm(x.c.data)}`, `C${x.k.n}`,
+        CP_TODAS.filter(i=>x.v["r"+i+"a"]!=null||x.v["r"+i+"b"]!=null).map(i=>`${i}d ${[x.v["r"+i+"a"],x.v["r"+i+"b"]].filter(v=>v!=null).map(v=>nf1.format(v)).join(" / ")}`).join(" · ")]))) : null,
+      semCam.length ? el("p",{class:"aviso full",text:`Sem caminhão no app com estas notas (ficam de fora): ${semCam.join(", ")}. Lance os caminhões na concretagem e importe de novo.`}) : null,
+      semRes.length ? el("p",{class:"info full",text:`Sem resultado na planilha: ${semRes.join(", ")}.`}) : null],
+      ok.length ? [el("button",{class:"btn pri",type:"button",text:`Lançar ${ok.length} resultado${ok.length===1?"":"s"}`,onclick:lancar})] : []);
+  }catch(e){ toast(e.message||"Não foi possível ler a planilha."); }
 }
 // botão da concretagem: nova moldagem ou ver as desta concretagem
 function cpDaConc(c){
@@ -8794,6 +8906,8 @@ function pendInicio(){
     bts.push(el("button",{class:"btn",type:"button",style:v?"color:var(--bad)":"",text:`⚠ ${nome}: ${ab.length} não conformidade${ab.length>1?"s":""} em aberto${v?` · ${v} vencida${v>1?"s":""}`:""}`,
       onclick:()=>{ RG.tipo[mod]="nc"; abrirModulo(mod); }}));
   }
+  const ab=pode("qual") ? regs2De("qual","cp").filter(r=>r.status==="Aguardando" && cpAbaixo(r.dados).length).length : 0;
+  if(ab) bts.push(el("button",{class:"btn",type:"button",style:"color:var(--bad)",text:`⚠ ${ab} moldage${ab>1?"ns":"m"} de concreto abaixo da resistência esperada para a idade`,onclick:()=>{ RG.tipo.qual="cp"; abrirModulo("qual"); }}));
   const n=pode("qual") ? cpPendentes().filter(x=>x.data<=hojeISO()).length : 0;
   if(n) bts.push(el("button",{class:"btn",type:"button",text:`🧪 ${n} rompimento${n>1?"s":""} de corpo de prova para hoje ou atrasado${n>1?"s":""}`,onclick:()=>{ RG.tipo.qual="cp"; abrirModulo("qual"); }}));
   return bts.length ? el("div",{class:"row"}, ...bts) : null;

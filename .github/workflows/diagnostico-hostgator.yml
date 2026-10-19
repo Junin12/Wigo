@@ -22,7 +22,7 @@ jobs:
           FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
         run: |
           sudo apt-get install -y -qq lftp >/dev/null
-          echo "arquivo de teste da publicação do WIGO (pode apagar)" > /tmp/teste-wigo-ftp.txt
+          echo "arquivo de teste da publicação do WIGO" > /tmp/teste-wigo-ftp.txt
           lftp -e "set ftp:ssl-allow yes; set ssl:verify-certificate no; set net:max-retries 1; put /tmp/teste-wigo-ftp.txt -o teste-wigo-ftp.txt; bye" -u "$FTP_USERNAME,$FTP_PASSWORD" "$FTP_SERVER" 2>&1 | tail -2
           {
             echo "== usuário de FTP usado: $(echo "$FTP_USERNAME" | sed 's/^\(...\).*@/\1***@/')"
@@ -41,6 +41,8 @@ jobs:
             echo "== início do 404 de wigo/index.html"; curl -s --max-time 20 https://wiapps.com.br/wigo/index.html | head -c 400; echo
             echo "== início da página https://wiapps.com.br/wigo/"; curl -s --max-time 20 https://wiapps.com.br/wigo/ | head -c 600; echo
           } > /tmp/diagnostico.txt
+          # o arquivo de teste não fica no site
+          lftp -e "set ftp:ssl-allow yes; set ssl:verify-certificate no; set net:max-retries 1; rm -f teste-wigo-ftp.txt; bye" -u "$FTP_USERNAME,$FTP_PASSWORD" "$FTP_SERVER" 2>&1 | tail -2
           sed -i "s/$FTP_SERVER/<servidor>/g" /tmp/diagnostico.txt
           cat /tmp/diagnostico.txt
 

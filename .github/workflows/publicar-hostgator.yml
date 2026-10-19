@@ -23,7 +23,23 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # abre o app e o painel num navegador e gera os relatórios de teste; se algo falhar, não publica
+  testar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Instalar o navegador de teste
+        run: |
+          npm i --no-save --no-package-lock playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Testar o app
+        run: node tests/smoke.cjs
+
   publicar:
+    needs: testar
     runs-on: ubuntu-latest
     env:
       FTP_SERVER: ${{ secrets.FTP_SERVER }}
@@ -50,4 +66,7 @@ jobs:
             **/.git*
             **/.git*/**
             .github/**
+            tests/**
+            apps-script/**
+            **/node_modules/**
             painel/**

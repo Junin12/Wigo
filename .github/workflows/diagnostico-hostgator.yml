@@ -36,6 +36,9 @@ jobs:
             echo "== cabeçalhos de https://wiapps.com.br/wigo/"; curl -sI --max-time 20 https://wiapps.com.br/wigo/ | head -20
             echo "== cabeçalhos de https://wiapps.com.br/wigo/index.html"; curl -sI --max-time 20 https://wiapps.com.br/wigo/index.html | head -20
             echo "== cabeçalhos de https://wiapps.com.br/wigo/painel/"; curl -sI --max-time 20 https://wiapps.com.br/wigo/painel/ | head -20
+            echo "== compressão do index.html"; curl -s -o /dev/null -H "Accept-Encoding: gzip" -w "%{http_code} %{size_download} bytes transferidos\n" --max-time 20 https://wiapps.com.br/wigo/index.html; curl -sI -H "Accept-Encoding: gzip" --max-time 20 https://wiapps.com.br/wigo/index.html | grep -i "content-encoding\|cache-control"
+            echo "== manifest"; curl -sI --max-time 20 https://wiapps.com.br/wigo/manifest.webmanifest | grep -i "^HTTP\|content-type"
+            echo "== arquivo de controle (deve dar 403)"; curl -s -o /dev/null -w "%{http_code}\n" --max-time 20 https://wiapps.com.br/wigo/.wigo-publicado.json
             echo "== DNS"; getent hosts wiapps.com.br; getent hosts "$FTP_SERVER" | sed "s/$FTP_SERVER/<servidor>/"
             echo "== título de https://wiapps.com.br/wigo/painel/"; curl -s --max-time 20 https://wiapps.com.br/wigo/painel/ | grep -o "<title>[^<]*" | head -1
             echo "== início do 404 de wigo/index.html"; curl -s --max-time 20 https://wiapps.com.br/wigo/index.html | head -c 400; echo

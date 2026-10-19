@@ -1,4 +1,4 @@
-# Diagnóstico da publicação na HostGator: lista a pasta da conta de FTP e testa os endereços do site.
+# Diagnóstico da publicação na HostGator: lista a pasta da conta de FTP e testa os endereços e as regras do site.
 # O resultado vai para o branch "diagnostico" (arquivo diagnostico.txt). Não grava a senha; o usuário aparece mascarado.
 name: Diagnóstico HostGator
 

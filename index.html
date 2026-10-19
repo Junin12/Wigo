@@ -8658,10 +8658,10 @@ function resumoNc(mod){
 }
 // ---------- Corpos de prova do concreto (Qualidade) ----------
 // Moldagem por caminhão da concretagem, 2 CPs por idade (vale o maior do par, como na NBR 12655). Padrão da obra: 4 CPs por
-// caminhão, rompidos aos 7 e 28 dias. Laje de fundo + arranque dos floculadores: 8 CPs, rompidos aos 3, 7, 14 e 28 dias.
+// caminhão, rompidos aos 7 e 28 dias. Laje de fundo + arranque dos floculadores: 8 CPs, rompidos aos 3, 7, 21 e 28 dias.
 // Resultado de 28 dias abaixo do fck vira uma não conformidade no plano de ação da Qualidade.
 const rotConc = c => `${c.estrutura}${c.local?" · "+c.local:""} · ${ddmm(c.data)}`;
-const CP_TODAS=[3,7,14,28];
+const CP_TODAS=[3,7,21,28];
 const cpIdadesQtd = q => +q>=8 ? CP_TODAS : [7,28];
 const cpIdades = d => cpIdadesQtd(d.qtd);
 // quantos CPs a concretagem pede: 8 na laje de fundo + arranque dos floculadores, 4 nas demais
@@ -8675,12 +8675,12 @@ const cpPendentes = () => regs2De("qual","cp").flatMap(r=>cpIdades(r.dados).filt
 const tipoCp = {id:"cp", nome:"Corpos de prova", novo:"Nova moldagem",
   campos:[{k:"conc",rot:"Concretagem",t:"sel",obrig:true,ops:()=>concs().sort((a,b)=>b.data.localeCompare(a.data)).map(rotConc)},
     {k:"cam",rot:"Caminhão",t:"txt",dica:"Ex.: C2 · NF 1234",ops:ctx=>(concs().find(x=>rotConc(x)===ctx.dados.conc)?.cams||[]).map(k=>`C${k.n}${k.nf?" · NF "+k.nf:""}`)},
-    {k:"fck",rot:"fck",t:"num",un:"MPa",obrig:true},{k:"qtd",rot:"CPs moldados",t:"num",padrao:ctx=>cpQtdConc(ctx.dados.conc), dica:"8 = 3, 7, 14 e 28 dias · 4 = 7 e 28 dias",
-      mudou:(v,ctx)=>{ const id=cpIdadesQtd(v); for(const i of [3,14]) for(const l of "ab") { const e=ctx.campo(`r${i}${l}`); if(e) e.hidden=!id.includes(i); } }},
+    {k:"fck",rot:"fck",t:"num",un:"MPa",obrig:true},{k:"qtd",rot:"CPs moldados",t:"num",padrao:ctx=>cpQtdConc(ctx.dados.conc), dica:"8 = 3, 7, 21 e 28 dias · 4 = 7 e 28 dias",
+      mudou:(v,ctx)=>{ const id=cpIdadesQtd(v); for(const i of [3,21]) for(const l of "ab") { const e=ctx.campo(`r${i}${l}`); if(e) e.hidden=!id.includes(i); } }},
     {k:"local",rot:"Onde foi lançado",t:"txt",dica:"Ex.: parede 3, lance 2"},
     {k:"r3a",rot:"3 dias · CP 1",t:"num",un:"MPa",semCard:true},{k:"r3b",rot:"3 dias · CP 2",t:"num",un:"MPa",semCard:true},
     {k:"r7a",rot:"7 dias · CP 1",t:"num",un:"MPa",semCard:true},{k:"r7b",rot:"7 dias · CP 2",t:"num",un:"MPa",semCard:true},
-    {k:"r14a",rot:"14 dias · CP 1",t:"num",un:"MPa",semCard:true},{k:"r14b",rot:"14 dias · CP 2",t:"num",un:"MPa",semCard:true},
+    {k:"r21a",rot:"21 dias · CP 1",t:"num",un:"MPa",semCard:true},{k:"r21b",rot:"21 dias · CP 2",t:"num",un:"MPa",semCard:true},
     {k:"r28a",rot:"28 dias · CP 1",t:"num",un:"MPa",semCard:true},{k:"r28b",rot:"28 dias · CP 2",t:"num",un:"MPa",semCard:true},
     {k:"lab",rot:"Laboratório",t:"txt"},{k:"obs",rot:"Observação",t:"area"}],
   calc:d=>{ for(const i of CP_TODAS){ const v=cpRes(d,i); if(v!=null) d["res"+i]=v; else delete d["res"+i]; } },
@@ -8693,7 +8693,7 @@ const tipoCp = {id:"cp", nome:"Corpos de prova", novo:"Nova moldagem",
   aoSalvar:(id,d,st)=> st!=="Abaixo do fck" ? "" : criarNCs("qual", id, [{chave:"fck", data:hojeISO(), dados:{
     desc:`Concreto abaixo do fck: ${nf1.format(d.res28)} MPa aos 28 dias (fck ${nf1.format(d.fck)} MPa) · ${d.conc}${d.cam?" · "+d.cam:""}`,
     origem:"Corpo de prova", local:concs().find(x=>rotConc(x)===d.conc)?.estrutura||"", resp:"", prazo:somaDias(hojeISO(),7)}}]),
-  titulo:d=>`${d.conc||"Concretagem"}${d.cam?" · "+d.cam:""}`+((i=>i?` · ${i}d ${nf1.format(d["res"+i])} MPa`:"")([28,14,7,3].find(i=>d["res"+i]!=null)))};
+  titulo:d=>`${d.conc||"Concretagem"}${d.cam?" · "+d.cam:""}`+((i=>i?` · ${i}d ${nf1.format(d["res"+i])} MPa`:"")([28,21,7,3].find(i=>d["res"+i]!=null)))};
 // agenda dos rompimentos (atrasados e próximos 7 dias)
 function agendaCp(){
   const h=hojeISO(), L=cpPendentes().filter(x=>x.data<=somaDias(h,7));

@@ -141,6 +141,8 @@ tfoot td{font-weight:700;border-bottom:0}
   .hrow{grid-template-columns:1fr} th,td{padding:7px 4px}
   .filtros select{flex:1 1 140px}
 }
+.leg-cp{display:flex;flex-wrap:wrap;gap:10px;font-size:.8rem;color:var(--muted);margin-top:4px}.leg-cp i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px}
+details.lote-cp{border-top:1px solid var(--line);padding:8px 0}details.lote-cp summary{cursor:pointer}
 @media print{ .barra{position:static} .tabs{display:none} [role=tabpanel][hidden]{display:grid!important} }
 </style>
 </head>
@@ -219,6 +221,7 @@ tfoot td{font-weight:700;border-bottom:0}
       <div class="card"><h3>m³ concretados por semana</h3><div class="chart" id="c-ch"></div><p class="info nota" id="c-nota"></p></div>
       <div class="card"><h3>Últimas concretagens</h3><div class="tbl" id="c-ult"></div></div>
     </div>
+    <div class="card"><div class="card-top"><h3>Resistência do concreto (corpos de prova)</h3><span class="info">uma linha por caminhão · tracejado = esperado (66% · 82% · 95% · 100% do fck) · lote pela NBR 12655</span></div><div id="c-cp"></div></div>
     <div class="card"><div class="card-top"><h3>Etapas por estrutura</h3><span class="info">M = concreto magro · 1 = laje de fundo + arranque · 2 = lance 1 · 3 = lance 2 · 4 = lance 3 + laje de cobertura/passarela · ✓ executada · ◐ em andamento</span></div><div class="tbl" id="c-et"></div></div>
   </section>
 
@@ -343,7 +346,7 @@ function preparar(j){
   for(const [n,c0,q,eq] of j.lanc){ const s=bn.get(n), c=consertaCod(c0), i=by.get(c); if(!s||!i) continue;
     s.exec.set(c,(s.exec.get(c)||0)+q); s.kg+=q*i.ppb; const e=(s.porEq[eq]??={kg:0}); e.kg+=q*i.ppb; }
   const meta=num(j.config?.META_KG_ARM_DIA)||200, dias=num(j.config?.DIAS_SEMANA)||6;
-  D={itens,by,sem,eqs:j.equipes||[],ocs:(j.registros||[]).filter(r=>r.tipo==="ocorrencia"),els:j.elementos||[],meta,dias,prazo:j.config?.PRAZO||"",forma:j.forma||null,concreto:j.concreto||null};
+  D={itens,by,sem,eqs:j.equipes||[],ocs:(j.registros||[]).filter(r=>r.tipo==="ocorrencia"),els:j.elementos||[],meta,dias,prazo:j.config?.PRAZO||"",forma:j.forma||null,concreto:j.concreto||null,cps:j.cps};
   const emps=[...new Set(itens.map(i=>i.emp))].sort((a,b)=>a.localeCompare(b,"pt"));
   if(EMP && !emps.includes(EMP)) EMP="";
   $("#emp").replaceChildren(el("option",{value:"",text:"Obra inteira (todos os empreendimentos)"}),...emps.map(e=>el("option",{value:e,text:e}))); $("#emp").value=EMP; opEst();
@@ -431,6 +434,7 @@ function renderConc(E,C,h){
     kpi("Última concretagem",u?dataBR(u.data):"–",u?`${u.estrutura}${u.local?" · "+u.local:""} · ${nf1.format(u.vol)} m³ em ${u.cams} caminhões`:"nenhuma com caminhões","prazo"),
     kpi("Término previsto",C.fim?dataBR(C.fim):C.falta?"–":"concluído",C.fim?`no ritmo de ${nf0.format(C.ritmo)} m³/semana · faltam ${nf0.format(C.falta)} m³`:`precisa de 3 semanas com concretagem (há ${C.serie.length})`,"prazo"));
   $("#c-ch").replaceChildren(C.serie.length?barras(C.serie.slice(-16).map(s=>({label:ddmm(s.seg),tip:`Semana de ${ddmm(s.seg)}`,v:s.v,hl:s.seg===segSemana(h)})),{cls:"bc",fmt:nf0.format,unid:" m³"}):vazio("Nenhuma concretagem com caminhões lançados ainda."));
+  renderCp(C);
   $("#c-nota").textContent="Soma dos caminhões de cada concretagem, na semana (segunda a domingo). Etapas já executadas antes do controle entram no avanço pelo volume previsto.";
   $("#c-ult").replaceChildren(C.cs.length?tabela(["Data","Concretagem","Caminhões","m³","Situação"],C.cs.slice(0,10).map(c=>el("tr",{},
     el("td",{},el("b",{text:dataBR(c.data)})),el("td",{class:"txt",text:`${c.estrutura}${c.local?" · "+c.local:""}`}),el("td",{text:c.cams||"–"}),el("td",{text:c.vol?nf1.format(c.vol):"–"}),
@@ -445,6 +449,47 @@ function renderConc(E,C,h){
   $("#c-et").replaceChildren(tabela(["Estrutura","M","1","2","3","4","Previsto (m³)","Executado (m³)","Avanço"],linhas,
     el("tr",{},el("td",{text:"Total"}),el("td",{colSpan:5,text:`${C.feitas} etapas executadas`}),el("td",{text:nf0.format(C.prev)}),el("td",{text:nf0.format(C.proj)}),el("td",{text:pct(C.proj/C.prev)}))),
     comAv.length&&comAv.length<C.obras.length?el("button",{class:"mais",type:"button",text:C_TODAS?"Mostrar só as que já começaram":`Ver todas as estruturas (+${C.obras.length-comAv.length})`,onclick:()=>{ C_TODAS=!C_TODAS; render(); }}):"");
+}
+
+// ---------- corpos de prova: lote (NBR 12655) e evolução da resistência, por concretagem ----------
+// Mesmas regras do app: exemplar = maior dos 2 CPs aos 28 dias de cada caminhão; amostragem total → fck,est = menor valor
+// (até 20 exemplares); parcial com 6 ou mais → 2·(f1+…+fm−1)/(m−1) − fm, nunca menor que ψ6·f1.
+const IDADES=[3,7,21,28], ESPERADO={3:0.66,7:0.82,21:0.95,28:1}, PSI6={2:0.82,3:0.86,4:0.89,5:0.91,6:0.92,7:0.94,8:0.95,10:0.97,12:0.99,14:1,16:1.02};
+const CORES_CP=["#2563A8","#C9772B","#4E7F86","#B42318","#7A4FB5","#1D7A48","#9A5B00","#5B6878","#D6457A","#14263D","#6E9F2C","#0E8A9A"];
+function loteCp(L, cams){
+  const f=L.map(x=>x.res[28]).filter(v=>v>0).sort((a,b)=>a-b), n=f.length, fck=Math.max(0,...L.map(x=>x.fck));
+  if(!n) return {txt:"aguardando os rompimentos de 28 dias", cls:""};
+  let est, met;
+  if(n>=(cams||n)){ est=n<=20?f[0]:f[Math.ceil(0.05*n)-1]; met="amostragem total"; }
+  else if(n>=6){ const m=Math.floor(n/2), psi=PSI6[Object.keys(PSI6).map(Number).filter(k=>k<=n).pop()];
+    est=Math.max(2*f.slice(0,m-1).reduce((s,v)=>s+v,0)/(m-1)-f[m-1], psi*f[0]); met="amostragem parcial"; }
+  else return {txt:`${n} exemplar(es) de 28 dias: poucos para a amostragem parcial (mínimo 6)`, cls:""};
+  const ok=fck?est>=fck:null;
+  return {txt:`fck,est ${nf1.format(est)} MPa${fck?` · fck ${fck} MPa · ${ok?"aceito":"não aceito"}`:""} · ${met}, ${n} exemplar(es)`, cls:ok===true?"ok":ok===false?"bad":""};
+}
+function grafCp(L){
+  const fck=Math.max(0,...L.map(x=>x.fck)), ser=L.map((x,k)=>({nome:(x.cam||"").split(" ")[0]||"?", cor:CORES_CP[k%CORES_CP.length],
+    pts:IDADES.filter(i=>x.res[i]>0).map(i=>[i,x.res[i]])})).filter(x=>x.pts.length);
+  if(!ser.length) return vazio("Sem resultados ainda.");
+  const W=640,H=230,P={l:40,r:16,t:14,b:26}, s=svg(W,H), top=Math.max(fck*1.25,...ser.flatMap(x=>x.pts.map(p=>p[1])))*1.05;
+  const X=i=>P.l+(Math.sqrt(i)-Math.sqrt(3))/(Math.sqrt(28)-Math.sqrt(3))*(W-P.l-P.r), Y=v=>H-P.b-v/top*(H-P.t-P.b);
+  s.setAttribute("aria-label",`Resistência por idade de ${ser.length} caminhões`);
+  for(let v=0; v<=top; v+=10){ s.mk("line",{x1:P.l,x2:W-P.r,y1:Y(v),y2:Y(v),class:"grade"}); s.mk("text",{x:P.l-6,y:Y(v)+4,"text-anchor":"end"},String(v)); }
+  for(const i of IDADES) s.mk("text",{x:X(i),y:H-8,"text-anchor":"middle"},i+" dias");
+  if(fck) s.mk("polyline",{points:IDADES.map(i=>`${X(i)},${Y(fck*ESPERADO[i])}`).join(" "),fill:"none",stroke:"currentColor","stroke-opacity":0.45,"stroke-width":1.5,"stroke-dasharray":"5 4"});
+  for(const x of ser){ s.mk("polyline",{points:x.pts.map(p=>`${X(p[0])},${Y(p[1])}`).join(" "),fill:"none",stroke:x.cor,"stroke-width":2});
+    for(const [i,v] of x.pts) titulo(s.mk("circle",{cx:X(i),cy:Y(v),r:4,fill:x.cor,stroke:"#fff","stroke-width":1.2}),`${x.nome}: ${i} dias, ${nf1.format(v)} MPa`); }
+  return el("div",{}, s, el("div",{class:"leg-cp"}, ...ser.map(x=>el("span",{}, el("i",{style:`background:${x.cor}`}), x.nome))));
+}
+function renderCp(C){
+  const box=$("#c-cp"); if(!box) return;
+  const cps=D.cps||[]; if(!cps.length){ box.replaceChildren(vazio(D.cps?"Nenhum corpo de prova lançado.":"Disponível depois de atualizar o script da planilha (versão 29).")); return; }
+  const rot=c=>`${c.estrutura}${c.local?" · "+c.local:""} · ${ddmm(c.data)}`, grupos=new Map();
+  for(const x of cps){ if(!grupos.has(x.conc)) grupos.set(x.conc,[]); grupos.get(x.conc).push(x); }
+  const cs=(C.cs||[]).filter(c=>grupos.has(rot(c)));
+  if(!cs.length){ box.replaceChildren(vazio("Nenhuma concretagem desta seleção tem corpos de prova.")); return; }
+  box.replaceChildren(...cs.map(c=>{ const L=grupos.get(rot(c)), l=loteCp(L, c.cams);
+    return el("details",{class:"lote-cp",open:cs.length===1}, el("summary",{}, el("b",{text:rot(c)}), " ", el("span",{class:"chip "+l.cls,text:l.txt})), grafCp(L)); }));
 }
 
 // ---------- gráficos (SVG simples, sem biblioteca) ----------

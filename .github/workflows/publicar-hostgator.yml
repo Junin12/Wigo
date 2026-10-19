@@ -9,8 +9,8 @@
 #                            public_html/wigo (wiapps.com.br/wigo/). Só mude se usar uma conta que enxergue o site inteiro.
 #               FTP_PROTOCOL "ftps" (padrão) ou "ftp", se o servidor recusar a conexão segura.
 #
-# Só envia o que mudou desde a última publicação. A pasta painel/ do site (painel com o acesso embutido) não está no
-# repositório e nunca é tocada. Sem os secrets, a publicação é pulada (não dá erro).
+# Só envia o que mudou desde a última publicação. A pasta painel/ do site é montada aqui a cada publicação: o painel.html
+# novo com o mesmo acesso embutido (endereço do script e chave de leitura) que já está no ar. Sem os secrets, a publicação é pulada.
 name: Publicar na HostGator
 
 on:
@@ -51,6 +51,25 @@ jobs:
       - uses: actions/checkout@v4
         if: env.FTP_SERVER != ''
 
+      # painel do site (wigo/painel/): o painel.html novo com o mesmo acesso embutido do que já está no ar
+      # (endereço do script e chave de leitura). Sem conseguir ler o acesso atual, para aqui e não publica.
+      - name: Montar o painel do site
+        if: env.FTP_SERVER != ''
+        run: |
+          curl -sf --max-time 30 https://wiapps.com.br/wigo/painel/ -o /tmp/painel-atual.html
+          python3 - <<'PY'
+          import re, os, shutil
+          atual = open('/tmp/painel-atual.html', encoding='utf-8').read()
+          m = re.search(r'window\.PAINEL_ACESSO=\{[^<]*?\};', atual)
+          if not m: raise SystemExit('O painel no ar não tem o acesso embutido: suba o painel pelo app (Ajustes) uma vez.')
+          novo = open('painel.html', encoding='utf-8').read()
+          if '/*ACESSO*/' not in novo: raise SystemExit('painel.html sem o marcador /*ACESSO*/')
+          os.makedirs('painel', exist_ok=True)
+          open('painel/index.html', 'w', encoding='utf-8').write(novo.replace('/*ACESSO*/', m.group(0)))
+          for f in ['icon-wigo-192.png', 'logo-relatorio.jpg']: shutil.copy(f, 'painel/' + f)
+          print('painel montado')
+          PY
+
       - name: Enviar por FTP
         if: env.FTP_SERVER != ''
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
@@ -69,4 +88,3 @@ jobs:
             tests/**
             apps-script/**
             **/node_modules/**
-            painel/**

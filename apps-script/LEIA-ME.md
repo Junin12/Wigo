@@ -7,6 +7,10 @@ Cópia do script publicado no Apps Script (sem senhas: a senha do app, TOKEN, e 
 ficam nas Propriedades do script). Quando mudar o script aqui, cole no Apps Script e publique:
 **Implantar → Gerenciar implantações → lápis ✏️ → Versão: Nova versão → Implantar** (o endereço /exec não muda).
 
+Versão 29: leitura do ticket da concreteira por foto (usa a propriedade ANTHROPIC_API_KEY, a mesma do RDO por voz),
+abas **Erros** (erros de JavaScript dos celulares) e **Aparelhos** (versão do app e lançamentos sem enviar de cada celular),
+criadas sozinhas na primeira vez, e resultados dos corpos de prova no painel (sem nomes).
+
 Versão 28: o campo do PDF da concretagem (PDF_ID) aceita até 49.000 caracteres. Antes eram 300, e o mapa das
 paredes (que vai nesse campo como "mapa:{...}") chegava cortado, dando "Não foi possível baixar o Mapa das paredes".
 

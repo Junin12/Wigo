@@ -35,7 +35,8 @@ const confere = (ok, msg) => { console.log(`${ok ? "ok  " : "FALHA"} ${msg}`); i
   p.on("pageerror", e => erros.push(e.message));
   await p.goto(base + "index.html"); await p.waitForTimeout(1500);
   confere(!erros.length, "app abre sem erro de JavaScript" + (erros.length ? `: ${erros[0]}` : ""));
-  confere(await p.evaluate(() => typeof relatorioConc === "function" && typeof docMapa === "function" && typeof importarLab === "function"), "funções principais carregadas");
+  confere(await p.evaluate(() => typeof relatorioConc === "function" && typeof docMapa === "function" && typeof importarLab === "function"
+    && typeof loteConc === "function" && typeof graficoResist === "function" && typeof lerTicketFoto === "function" && typeof chuvaNaData === "function"), "funções principais carregadas");
 
   // mapa das paredes dos floculadores A e C (gera o PDF inteiro, sem baixar)
   for (const k of ["FLOC-A", "FLOC-C"]) {
@@ -66,6 +67,7 @@ const confere = (ok, msg) => { console.log(`${ok ? "ok  " : "FALHA"} ${msg}`); i
   const q = await ctx.newPage(), errosP = [];
   q.on("pageerror", e => errosP.push(e.message));
   await q.goto(base + "painel.html"); await q.waitForTimeout(800);
+  confere(await q.evaluate(() => typeof renderCp === "function"), "painel com o gráfico dos corpos de prova");
   confere(!errosP.length, "painel abre sem erro de JavaScript" + (errosP.length ? `: ${errosP[0]}` : ""));
 
   await nav.close(); srv.close();

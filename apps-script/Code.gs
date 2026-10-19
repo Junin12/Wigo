@@ -62,6 +62,10 @@ const ABAS = {
   Registros2: ['ID', 'MODULO', 'DATA', 'TIPO', 'DADOS', 'STATUS', 'CRIADO_POR', 'CRIADO_EM', 'ATUALIZADO_POR', 'ATUALIZADO_EM'],
   // APARELHO = código aleatório criado no celular; STATUS = pendente, liberado ou recusado
   Acessos: ['APARELHO', 'NOME', 'CARGO', 'STATUS', 'PEDIDO_EM', 'DECIDIDO_POR', 'DECIDIDO_EM', 'MOTIVO'],
+  // erros de JavaScript dos celulares (o app manda junto com a sincronização): para o desenvolvedor achar problemas
+  Erros: ['DATA_HORA', 'APARELHO', 'USUARIO', 'VERSAO_APP', 'MENSAGEM', 'ONDE', 'NAVEGADOR'],
+  // estado de cada celular na última sincronização: versão do app e lançamentos ainda não enviados
+  Aparelhos: ['APARELHO', 'NOME', 'CARGO', 'VERSAO_APP', 'PENDENTES', 'PENDENTE_DESDE', 'ULTIMA_SINC'],
 };
 const DIAS_REG2 = 120; // registros dos módulos novos enviados ao app: os dos últimos dias e todos os ainda em aberto
 const NOMES_REG2 = { equip: 'Equipamentos', seg: 'Segurança', qual: 'Qualidade', med: 'Medições', obras: 'Obras', sup: 'Suprimentos', forma: 'Forma', esc: 'Escavação', concreto: 'Concreto' };
@@ -241,8 +245,35 @@ function conferirAcesso_(corpo) {
 }
 function listaAcessos_() {
   const iso = v => v instanceof Date ? v.toISOString() : String(v || '');
-  return linhas('Acessos').map(r => ({ aparelho: String(r[0]), nome: String(r[1]), cargo: String(r[2]), status: String(r[3]),
-    pedidoEm: iso(r[4]), decididoPor: String(r[5] || ''), decididoEm: iso(r[6]), motivo: String(r[7] || '') }));
+  const est = new Map(abaOuCria_('Aparelhos') && linhas('Aparelhos').map(r => [String(r[0]), r]));
+  return linhas('Acessos').map(r => { const e = est.get(String(r[0])) || [];
+    return { aparelho: String(r[0]), nome: String(r[1]), cargo: String(r[2]), status: String(r[3]),
+      pedidoEm: iso(r[4]), decididoPor: String(r[5] || ''), decididoEm: iso(r[6]), motivo: String(r[7] || ''),
+      versaoApp: String(e[3] || ''), pendentes: Number(e[4]) || 0, pendenteDesde: String(e[5] || ''), ultimaSinc: iso(e[6]) }; });
+}
+// abas criadas depois da instalação (Erros, Aparelhos): aparecem sozinhas na primeira vez, sem rodar configurar()
+function abaOuCria_(nome) {
+  const ss = SpreadsheetApp.getActive();
+  let sh = ss.getSheetByName(nome);
+  if (!sh) { sh = ss.insertSheet(nome); sh.getRange(1, 1, 1, ABAS[nome].length).setValues([ABAS[nome]]).setFontWeight('bold'); sh.setFrozenRows(1); }
+  return sh;
+}
+// erros de JavaScript mandados pelo celular (no máximo 20 por vez, textos curtos)
+function gravarErros_(eu, erros) {
+  const sh = abaOuCria_('Erros'), agora = new Date();
+  const L = erros.slice(0, 20).map(x => [x && x.em ? new Date(x.em) : agora, String(eu[0]), String(eu[1]) + ' (' + String(eu[2]) + ')',
+    String(x && x.v || '').slice(0, 20), String(x && x.msg || '').slice(0, 500), String(x && x.onde || '').slice(0, 300), String(x && x.nav || '').slice(0, 200)]);
+  const ini = sh.getLastRow() + 1;
+  sh.getRange(ini, 2, L.length, 6).setNumberFormat('@');
+  sh.getRange(ini, 1, L.length, 7).setValues(L);
+}
+// estado do celular: versão do app e fila de lançamentos ainda não enviados (1 linha por aparelho)
+function gravarEstado_(eu, est) {
+  const sh = abaOuCria_('Aparelhos'), ap = String(eu[0]), n = sh.getLastRow() - 1;
+  const ids = n > 0 ? sh.getRange(2, 1, n, 1).getValues().map(r => String(r[0])) : [];
+  const k = ids.indexOf(ap), lin = k >= 0 ? k + 2 : sh.getLastRow() + 1;
+  sh.getRange(lin, 1, 1, 7).setNumberFormat('@').setValues([[ap, String(eu[1]), String(eu[2]), String(est.versao || '').slice(0, 20),
+    String(Math.max(0, Number(est.pend) || 0)), String(est.desde || '').slice(0, 30), new Date().toISOString()]]);
 }
 // liberar, recusar ou apagar um pedido (só o desenvolvedor)
 function decidirAcesso_(corpo, dev) {
@@ -277,7 +308,7 @@ function doGet(e) {
     if (e.parameter.k !== chaveLeitura()) return json({ ok: false, erro: 'Chave de leitura inválida.' });
     if (e.parameter.tabela) return json(tabelaBI(String(e.parameter.tabela)));
     // nomes do pessoal não saem pela chave de leitura
-    return responder(() => { const d = carregar(''); delete d.leitura; delete d.pessoas; delete d.presencas; delete d.presPor; delete d.atividades; delete d.rdo; delete d.concretagens; delete d.registros2; d.registros = d.registros.filter(r => r.tipo === 'ocorrencia'); d.forma = formaResumo_(d.config); d.concreto = concretoResumo_(); d.alterado = ultimaAlteracao_(); return d; }, gz);
+    return responder(() => { const d = carregar(''); delete d.leitura; delete d.pessoas; delete d.presencas; delete d.presPor; delete d.atividades; delete d.rdo; delete d.concretagens; delete d.registros2; d.registros = d.registros.filter(r => r.tipo === 'ocorrencia'); d.forma = formaResumo_(d.config); d.concreto = concretoResumo_(); d.cps = cpsResumo_(); d.alterado = ultimaAlteracao_(); return d; }, gz);
   }
   return responder(() => {
     autenticar(e.parameter.token);
@@ -301,6 +332,9 @@ function doPost(e) {
     // daqui para baixo, só celular liberado; o nome e o cargo gravados no histórico são os liberados
     const eu = conferirAcesso_(corpo), dev = ehDevLiberado_(eu);
     const usuario = { nome: String(eu[1]), cargo: String(eu[2]) };
+    // erros e estado do celular vêm junto com qualquer pedido; uma falha aqui não atrapalha o resto
+    try { if (Array.isArray(corpo.erros) && corpo.erros.length) gravarErros_(eu, corpo.erros); } catch (e) { /* segue */ }
+    try { if (corpo.estado) gravarEstado_(eu, corpo.estado); } catch (e) { /* segue */ }
     if (corpo.acao === 'acessos' || corpo.acao === 'acessoDecidir') {
       if (!dev) throw new Error('Só o desenvolvedor libera acessos.');
       if (corpo.acao === 'acessoDecidir') comLock_(() => decidirAcesso_(corpo, eu));
@@ -310,6 +344,7 @@ function doPost(e) {
     if (corpo.acao === 'pdf') return lerPdf(String(corpo.id || ''), corpo.parte, corpo.ini, corpo.tam);
     if (corpo.acao === 'miniatura') return miniatura(String(corpo.url || ''));
     if (corpo.acao === 'rdoVoz') return organizarRdo(corpo);
+    if (corpo.acao === 'ticket') return lerTicket(corpo);
     if (corpo.acao === 'ccTracos') return { tracos: lerTracos(String(corpo.conc || '')) };
     comLock_(() => aplicar(corpo.ops || [], usuario));
     const out = carregar(corpo.v || '');
@@ -413,6 +448,61 @@ function organizarRdo(corpo) {
   const bloco = (j.content || []).find(b => b.type === 'text');
   if (!bloco) throw new Error('A IA não devolveu o RDO organizado.');
   return { rdo: JSON.parse(bloco.text), modelo: j.model };
+}
+
+// ---------- ticket da concreteira por foto: a IA lê a nota e devolve os campos do caminhão ----------
+// Mesma chave do RDO por voz (ANTHROPIC_API_KEY). A foto não é guardada: só os campos lidos voltam para o app.
+const TICKET_SCHEMA = {
+  type: 'object', additionalProperties: false,
+  required: ['nf', 'usina', 'volume', 'chegada', 'slump', 'fck', 'obs'],
+  properties: {
+    nf: { type: 'string', description: 'número da nota fiscal ou do ticket/romaneio, só os dígitos; "" se não der para ler' },
+    usina: { type: 'string', description: 'nome da concreteira (empresa emitente); ""' },
+    volume: { type: 'number', description: 'volume de concreto em m³ (0 se não der para ler)' },
+    chegada: { type: 'string', description: 'horário de saída da usina ou de chegada na obra, HH:MM; ""' },
+    slump: { type: 'number', description: 'abatimento (slump) em cm pedido ou medido; 0 se não houver' },
+    fck: { type: 'number', description: 'fck em MPa; 0 se não houver' },
+    obs: { type: 'string', description: 'traço, brita, aditivo ou observação curta da nota; ""' },
+  },
+};
+function lerTicket(corpo) {
+  const chave = PropertiesService.getScriptProperties().getProperty('ANTHROPIC_API_KEY');
+  if (!chave) return { semChave: true };
+  const b64 = String(corpo.foto || '');
+  if (b64.length < 1000) throw new Error('Foto do ticket não chegou.');
+  if (b64.length > 4800000) throw new Error('Foto grande demais: tire de novo, mais perto do ticket.');
+  const resp = UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', {
+    method: 'post', contentType: 'application/json', muteHttpExceptions: true,
+    headers: { 'x-api-key': chave, 'anthropic-version': '2023-06-01', 'anthropic-beta': 'server-side-fallback-2026-07-01' },
+    payload: JSON.stringify({
+      model: CLAUDE_MODELO, max_tokens: 4000,
+      fallbacks: 'default', // se o modelo recusar, o servidor tenta outro modelo sozinho
+      output_config: { effort: 'low', format: { type: 'json_schema', schema: TICKET_SCHEMA } },
+      system: 'Você lê a foto de uma nota fiscal ou ticket de entrega de concreto usinado (caminhão betoneira) de uma obra no Brasil e '
+        + 'devolve os campos pedidos. Copie só o que estiver legível na foto, sem inventar; o que não der para ler fica vazio ou 0. '
+        + 'Volume em m³ com ponto decimal. Horário no formato HH:MM.',
+      messages: [{ role: 'user', content: [
+        { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: b64 } },
+        { type: 'text', text: 'Leia este ticket de concreto e preencha os campos.' } ] }],
+    }),
+  });
+  const cod = resp.getResponseCode();
+  let j; try { j = JSON.parse(resp.getContentText()); } catch (e) { throw new Error('Resposta inválida da IA (HTTP ' + cod + ').'); }
+  if (cod !== 200) throw new Error('IA indisponível (HTTP ' + cod + '): ' + ((j.error && j.error.message) || '').slice(0, 200));
+  if (j.stop_reason === 'refusal') throw new Error('A IA não leu esta foto. Preencha o caminhão à mão.');
+  const bloco = (j.content || []).find(b => b.type === 'text');
+  if (!bloco) throw new Error('A IA não devolveu os dados do ticket.');
+  return { ticket: JSON.parse(bloco.text), modelo: j.model };
+}
+
+// ---------- corpos de prova para o painel: resultados por caminhão, sem nomes ----------
+function cpsResumo_() {
+  return linhas('Registros2').filter(r => String(r[1]) === 'qual' && String(r[3]) === 'cp').map(r => {
+    let d; try { d = JSON.parse(r[4] || '{}'); } catch (e) { d = {}; }
+    const res = {};
+    [3, 7, 21, 28].forEach(i => { const v = [d['r' + i + 'a'], d['r' + i + 'b']].map(Number).filter(x => x > 0); if (v.length) res[i] = Math.max.apply(null, v); });
+    return { conc: String(d.conc || ''), cam: String(d.cam || ''), fck: Number(d.fck) || 0, qtd: Number(d.qtd) || 0, data: dataISO(r[2]), status: String(r[5] || ''), res: res };
+  });
 }
 
 // ---------- painel: quando os dados que ele mostra mudaram pela última vez ----------
@@ -596,14 +686,17 @@ function linhas(nome) {
 
 // Versão do script: o app avisa quando o Google ainda está rodando uma versão anterior.
 // 28: o PDF da concretagem (PDF_ID) guarda até 49.000 caracteres (antes, 300: o mapa das paredes chegava cortado).
-const VERSAO_SCRIPT = 28;
+// 29: leitura do ticket da concreteira por foto (acao 'ticket'), erros e estado dos celulares (abas Erros e Aparelhos)
+//     e resultados dos corpos de prova no painel (sem nomes).
+const VERSAO_SCRIPT = 29;
 
 // Colunas de código que precisam ficar como TEXTO. Sem isso o Planilhas converte
 // "DEC-0001" em data (dez/2001) e o código se perde.
 const COLS_TEXTO = { Itens: [0, 3, 6, 12], Lancamentos: [1], Registros: [0, 5], Equipes: [0], Elementos: [0, 3, 4, 5, 6, 8, 11], Config: [0, 1],
   Efetivo: [0, 1, 2], EfetivoDia: [0, 1, 2, 3], Pessoas: [0, 1, 2, 3], Presencas: [0, 1, 2, 3, 4, 6],
   Atividades: [0, 1, 2, 3, 4, 6, 7, 9, 11, 12], Historico: [1, 2, 3, 4], RDO: [0, 1, 2, 3, 5, 7],
-  Concretagens: [0, 1, 2, 3, 4, 5, 6, 8, 9, 10, 12], ConcretagemTracos: [0, 1, 5, 6], Registros2: [0, 1, 2, 3, 4, 5, 6, 8] };
+  Concretagens: [0, 1, 2, 3, 4, 5, 6, 8, 9, 10, 12], ConcretagemTracos: [0, 1, 5, 6], Registros2: [0, 1, 2, 3, 4, 5, 6, 8],
+  Erros: [1, 2, 3, 4, 5, 6], Aparelhos: [0, 1, 2, 3, 5] };
 const COLS_CODIGO = { Itens: [0], Lancamentos: [1], Registros: [5], Equipes: [], Elementos: [], Config: [] };
 
 // Desfaz a conversão automática: data dez/2001 -> "DEC-0001", dez/1935 -> "DEC-0035"

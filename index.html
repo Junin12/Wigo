@@ -387,6 +387,11 @@ canvas.qr{display:block;width:min(260px,100%);height:auto;image-rendering:pixela
 @keyframes brilho{from{transform:translate(0,0) scale(1)}to{transform:translate(-18%,-12%) scale(1.15)}}
 .tela-topo .in{position:relative;z-index:1;max-width:1000px;margin-inline:auto;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 16px}
 /* logo Heca / GCE (fundo branco): num quadro branco sobre o azul */
+.graf-res{width:100%;max-width:520px;height:auto;display:block}.graf-res .g-grade{stroke:var(--line);stroke-width:.6}
+.graf-res .g-txt{font-size:9px;fill:var(--muted)}.graf-res .g-esp{fill:none;stroke:var(--muted);stroke-width:1.4;stroke-dasharray:4 3}
+.g-leg{display:flex;flex-wrap:wrap;gap:8px;font-size:.78rem;color:var(--muted)}.g-leg i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+details.lote{border-top:1px solid var(--line);padding:6px 0}details.lote summary{cursor:pointer}
+input.lido{background:var(--warn-bg);outline:2px solid var(--warn)}
 .ver-pdf{display:grid;gap:10px}.ver-pdf canvas{width:100%;height:auto;display:block;background:#fff;border:1px solid var(--line);border-radius:6px}
 .tela-logo{height:40px;width:auto;max-width:62vw;object-fit:contain;display:block;background:#fff;border-radius:10px;padding:4px 6px;box-shadow:0 4px 14px -6px rgba(0,0,0,.45)}
 .tela-obra{text-align:right;line-height:1.15}
@@ -1139,6 +1144,16 @@ const LS = {
   get(k){ try{ return JSON.parse(localStorage.getItem("arm:"+k)); }catch{ return null; } },
   set(k,v){ try{ localStorage.setItem("arm:"+k, JSON.stringify(v)); }catch{ toast("Memória do aparelho cheia: exporte um backup."); } }
 };
+// erros de JavaScript deste celular: guardados (até 30, sem repetir a mesma mensagem na sessão) e enviados na sincronização
+const ERR={fila:LS.get("errosFila")||[], vistos:new Set()};
+function guardarErro(msg, onde){
+  msg=String(msg||"erro").slice(0,500); if(ERR.vistos.has(msg)) return; ERR.vistos.add(msg);
+  ERR.fila.push({em:new Date().toISOString(), v:(()=>{ try{ return VERSAO_APP; }catch{ return ""; } })(), msg, onde:String(onde||"").slice(0,300),
+    nav:navigator.userAgent.replace(/\s*\(KHTML[^)]*\)/,"").slice(0,200)});
+  ERR.fila=ERR.fila.slice(-30); try{ localStorage.setItem("arm:errosFila", JSON.stringify(ERR.fila)); }catch{}
+}
+addEventListener("error", e=>guardarErro(e.message, `${(e.filename||"").split("/").pop()}:${e.lineno||""}:${e.colno||""}`));
+addEventListener("unhandledrejection", e=>guardarErro(e.reason?.message||e.reason, String(e.reason?.stack||"").split("\n")[1]?.trim()));
 const nf0 = new Intl.NumberFormat("pt-BR",{maximumFractionDigits:0});
 const nf1 = new Intl.NumberFormat("pt-BR",{minimumFractionDigits:1,maximumFractionDigits:1});
 const pct = v => nf1.format(v*100)+"%";
@@ -1286,7 +1301,14 @@ async function descomprimir(b64){
 }
 // sincronização: até 3 min por pedido (o Google às vezes demora; sem prazo o app ficava "Sincronizando…" para sempre)
 const PRAZO_SYNC = 180000;
-const api = (ops, ctl) => post({v:S.meta?.v||"", ops}, PRAZO_SYNC, ctl);
+// junto com cada sincronização vão os erros de JavaScript guardados e o estado do celular (versão, fila de envio);
+// o script da planilha (29+) grava nas abas Erros e Aparelhos. Os erros só saem da fila quando o script novo recebe.
+const api = async (ops, ctl) => {
+  const erros=ERR.fila.slice(0,20);
+  const j=await post({v:S.meta?.v||"", ops, erros, estado:{versao:VERSAO_APP, pend:pendCount(), desde:LS.get("pendDesde")||""}}, PRAZO_SYNC, ctl);
+  if(erros.length && j.script>=29){ ERR.fila=ERR.fila.slice(erros.length); LS.set("errosFila",ERR.fila); }
+  return j;
+};
 // O Google às vezes devolve, ao acaso, a página "Drive: Não foi possível abrir o arquivo" mesmo com o script
 // tendo rodado certo (em testes, cerca de metade das vezes). Nesse caso tenta de novo na hora, até 5 vezes.
 // Repetir é seguro: os lançamentos são gravados pelo código (não somam) e a foto já gravada não é gravada de novo.
@@ -1554,6 +1576,8 @@ function pendCount(){ let c=Object.keys(S.pendEq).length+S.pendReg.length+S.pend
 function setSync(){ pintarSync(); const i=$("#ind-sync"); if(i){ i.textContent=$("#sync").textContent; i.parentElement.dataset.st=($("#sync").className.match(/(ok|warn|bad)/)||[])[1]||""; } }
 function pintarSync(){
   const e=$("#sync"), c=pendCount();
+  // desde quando há lançamento esperando envio (para o alerta de fila presa e para o desenvolvedor)
+  if(c && !LS.get("pendDesde")) LS.set("pendDesde", new Date().toISOString()); else if(!c && LS.get("pendDesde")) LS.set("pendDesde", null);
   $("#aviso").hidden = !(S.scriptVelho && S.cfg?.url);
   const av=$("#aviso-senha"); if(av) av.hidden=!(S.cfg?.url && SENHA_ERRADA.test(S.err||""));
   if(!S.cfg?.url){ e.className="pill warn"; e.textContent="Configurar banco"; return; }
@@ -2064,7 +2088,7 @@ function setCampo(on){ LS.set("campo",!!on); if(on) document.documentElement.dat
 $("#campo-modo").addEventListener("click", e=>{ const b=e.target.closest("button[data-c]"); if(b) setCampo(b.dataset.c==="1"); });
 setCampo(!!LS.get("campo"));
 
-const VERSAO_APP = "v103"; // igual ao número em sw.js (armacao-v103)
+const VERSAO_APP = "v116"; // igual ao número em sw.js (armacao-v116)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -6234,9 +6258,13 @@ function renderAcessos(){
     const sub = a.status==="pendente" ? `Pediu em ${quando(a.pedidoEm)}`
       : a.status==="liberado" ? (eu ? "Este celular" : `Liberado por ${a.decididoPor} em ${quando(a.decididoEm)}`)
       : `Recusado em ${quando(a.decididoEm)} · “${a.motivo||MSG_RECUSA}”`;
+    // estado na última sincronização (script 29+): versão do app e fila presa há mais de 1 dia
+    const preso=a.pendentes>0 && a.pendenteDesde && Date.now()-new Date(a.pendenteDesde)>24*3600e3, velho=a.ultimaSinc && Date.now()-new Date(a.ultimaSinc)>3*864e5;
+    const est = a.status==="liberado" && a.ultimaSinc ? el("p",{class:"i-sub",style:preso?"color:var(--bad);font-weight:600":"",
+      text:`App ${a.versaoApp||"?"} · última sincronização ${quando(a.ultimaSinc)}${velho?" (há mais de 3 dias)":""}${a.pendentes?` · ${a.pendentes} lançamento${a.pendentes>1?"s":""} sem enviar desde ${quando(a.pendenteDesde)}`:" · nada pendente"}`}) : null;
     return el("div",{class:"card"},
       el("div",{class:"i-top"}, el("b",{text:a.nome}), el("span",{class:"chip "+(a.status==="liberado"?"ok":a.status==="pendente"?"and":"bad"),text:a.cargo})),
-      el("p",{class:"i-sub",text:sub}),
+      el("p",{class:"i-sub",text:sub}), est,
       motivo || (acoes.length ? el("div",{class:"row"}, ...acoes) : null));
   };
   const grupo=(tit, st)=>{ const l=L.filter(a=>a.status===st).sort((a,b)=>(b.pedidoEm||"").localeCompare(a.pedidoEm||"")); return l.length ? [el("h2",{class:"tela-tit",text:`${tit} · ${l.length}`}), ...l.map(cartao)] : []; };
@@ -7024,7 +7052,40 @@ function renderCcBar(){
     el("span",{class:"cc-info",text:`${nf1.format(volLancado(c))}${c.volPrev?` de ${nf1.format(c.volPrev)}`:""} m³ · ${c.cams.length} caminhão(ões)`}));
 }
 
+// --- previsão de chuva na data da concretagem (Open-Meteo, grátis, sem cadastro; Uberaba/MG) ---
+// Guarda a previsão por 3 horas no celular; sem internet, mostra a última que tiver (com a hora em que foi pega).
+const PREV={dados:LS.get("previsao"), pedindo:null};
+async function previsaoTempo(){
+  if(PREV.dados && Date.now()-PREV.dados.em < 3*3600e3) return PREV.dados;
+  PREV.pedindo ||= fetch("https://api.open-meteo.com/v1/forecast?latitude=-19.75&longitude=-47.93&daily=precipitation_probability_max,precipitation_sum&timezone=America%2FSao_Paulo&forecast_days=16")
+    .then(r=>r.ok?r.json():Promise.reject()).then(j=>{ const d={em:Date.now(), dias:{}};
+      j.daily.time.forEach((t,i)=>d.dias[t]={p:j.daily.precipitation_probability_max[i], mm:j.daily.precipitation_sum[i]});
+      PREV.dados=d; LS.set("previsao",d); return d; }).catch(()=>PREV.dados).finally(()=>{ PREV.pedindo=null; });
+  return PREV.pedindo;
+}
+function chuvaNaData(data){
+  const h=hojeISO(); if(!data || data<h || data>somaDias(h,15)) return null;
+  const box=el("div",{class:"pr-onde"});
+  previsaoTempo().then(d=>{ const x=d?.dias?.[data]; if(!x || x.p==null) return;
+    const alta=x.p>=60, media=x.p>=30;
+    box.textContent=`${alta?"🌧":media?"🌦":"☀"} Previsão para ${ddmm(data)}: ${x.p}% de chance de chuva${x.mm?` (${nf1.format(x.mm)} mm)`:""}`
+      +(alta?" · avalie remarcar ou proteger o concreto":"");
+    if(alta){ box.style.color="var(--bad)"; box.style.fontWeight="600"; } });
+  return box;
+}
 // --- caminhões ---
+// foto do ticket → JPEG de até 1600 px → script da planilha (acao "ticket", Code.gs 29+) → campos lidos pela IA
+async function lerTicketFoto(arquivo){
+  if(S.scriptVer && S.scriptVer<29) throw new Error(`O script da planilha está na versão ${S.scriptVer}: cole o Code.gs novo (versão 29) no Apps Script e publique uma Nova versão.`);
+  const bmp=await createImageBitmap(arquivo), k=Math.min(1, 1600/Math.max(bmp.width,bmp.height));
+  const cv=document.createElement("canvas"); cv.width=Math.round(bmp.width*k); cv.height=Math.round(bmp.height*k);
+  cv.getContext("2d").drawImage(bmp,0,0,cv.width,cv.height); bmp.close?.();
+  const foto=cv.toDataURL("image/jpeg",0.85).split(",")[1];
+  const j=await post({acao:"ticket", foto}, 120000);
+  if(j.semChave) throw new Error("A leitura por foto precisa da chave da IA no script da planilha (propriedade ANTHROPIC_API_KEY, a mesma do RDO por voz). Preencha à mão por enquanto.");
+  if(!j.ticket) throw new Error("Não consegui ler o ticket. Preencha à mão.");
+  return j.ticket;
+}
 function editarCaminhao(c, k){
   const novo=!k, ult=c.cams[c.cams.length-1];
   // o seletor de cor devolve minúsculas ("#e53935"): compara sem diferenciar
@@ -7041,6 +7102,19 @@ function editarCaminhao(c, k){
   const iPar=inp(k?.par,{maxLength:120,placeholder:"Ex.: PAR 3, 9, 16 (se não pintar no mapa)"}), iCps=el("input",{type:"number",min:0,step:1,inputMode:"numeric",value:k?.cps??"",placeholder:"0"});
   const iCor=el("input",{type:"color",value:cor,"aria-label":"Cor do caminhão"});
   const usinas=[...new Set(concs().flatMap(x=>x.cams.map(z=>z.usina)).filter(Boolean))];
+  // foto do ticket da concreteira: a IA (no script da planilha) lê e preenche os campos; a pessoa confere antes de salvar
+  const fotoT=el("input",{type:"file",accept:"image/*",hidden:true}); fotoT.setAttribute("capture","environment");
+  const msgT=el("p",{class:"info full"});
+  const btT=el("button",{class:"btn",type:"button",text:"📷 Ler o ticket da concreteira (foto)",onclick:()=>fotoT.click()});
+  fotoT.onchange=async()=>{ const f=fotoT.files[0]; fotoT.value=""; if(!f) return;
+    btT.disabled=true; msgT.textContent="Lendo o ticket… (uns 10 a 30 segundos)";
+    try{
+      const t=await lerTicketFoto(f), pre=(i,v)=>{ if(v!=null && v!=="" && v!==0){ i.value=v; i.classList.add("lido"); } };
+      pre(iNf,t.nf); pre(iUs,t.usina); pre(iVol,t.volume); pre(iCh,/^\d{1,2}:\d{2}$/.test(t.chegada)?t.chegada.padStart(5,"0"):""); pre(iSl,t.slump); pre(iFck,t.fck);
+      if(t.obs && !iObs.value) pre(iObs,t.obs);
+      msgT.textContent="Campos preenchidos pela foto (destacados). Confira com o ticket antes de salvar.";
+    }catch(e){ msgT.textContent=e.message; }
+    finally{ btT.disabled=false; } };
   const salvar=()=>{
     const vol=Math.max(0,num(iVol.value)); if(!vol) return toast("Informe o volume do caminhão (m³).");
     const dados={nf:iNf.value.trim(), usina:iUs.value.trim(), vol, chegada:iCh.value, inicio:iIn.value, fim:iFim.value,
@@ -7054,7 +7128,8 @@ function editarCaminhao(c, k){
     toast(novo?`Caminhão C${cams.at(-1).n} adicionado. Pinte a área que ele concretou.`:"Caminhão atualizado."); fecharEf();
   };
   efModal(novo?"Novo caminhão":`Caminhão C${k.n}`,
-    [campoEf("Volume (m³)",iVol), campoEf("Cor no desenho",iCor), campoEf("Nota fiscal / ticket",iNf), campoEf("Concreteira",iUs),
+    [S.cfg?.url ? el("div",{class:"full row"}, btT, fotoT) : null, msgT,
+     campoEf("Volume (m³)",iVol), campoEf("Cor no desenho",iCor), campoEf("Nota fiscal / ticket",iNf), campoEf("Concreteira",iUs),
      el("datalist",{id:"dl-usinas"}, ...usinas.map(u=>el("option",{value:u}))),
      campoEf("Chegada",iCh), campoEf("Início do lançamento",iIn), campoEf("Fim do lançamento",iFim),
      campoEf("Slump (cm)",iSl), campoEf("fck (MPa)",iFck), campoEf("Nº de CPs",iCps), campoEf("Paredes atendidas",iPar,true), campoEf("Observação",iObs,true)],
@@ -7214,6 +7289,7 @@ function cardConc(c, ed){
   return el("div",{class:"card pr-card "+(CC_COR_ST[c.status]||"")},
     el("div",{class:"i-top"}, el("b",{class:"pr-tit",text:`${c.estrutura}${c.local?" · "+c.local:""}`}), el("span",{class:"chip "+(CC_COR_ST[c.status]||""),text:c.status})),
     el("div",{class:"pr-onde",text:`📅 ${dataBR(c.data)} · ${onde}`}),
+    c.status!=="Concluída" ? chuvaNaData(c.data) : null,
     (ce=>ce ? el("div",{class:"pr-onde",text:`📐 Levantamento: ${concObra(ce.dados.obra)?.titulo||ce.dados.obra} · ${CE_ETAPAS[ce.dados.etapa-1]||""} (${ce.status.toLowerCase()})`}) : null)(ceDaConc(c.id)),
     el("div",{class:"i-prog"}, barra(frac), el("b",{text:`${nf1.format(lanc)}${c.volPrev?` / ${nf1.format(c.volPrev)}`:""} m³`})),
     c.cams.length ? dots : el("span",{class:"info",text:"Nenhum caminhão ainda."}),
@@ -7437,7 +7513,12 @@ async function relatorioConc(c, btn, ver=false){
       didParseCell:d=>{ if(d.section==="body" && d.column.index===0) d.cell.styles.fillColor=hexRgb(c.cams[d.row.index].cor);
         if(d.section==="body" && d.column.index===9 && rcp[d.row.index].ruim){ d.cell.styles.textColor=[180,35,24]; d.cell.styles.fontStyle="bold"; } },
       foot:[["","Total","","",nf1.format(lanc),"","","","",""]], footStyles:{fillColor:[230,236,242],textColor:20,fontStyle:"bold"}});
-    y=doc.lastAutoTable.finalY+8;
+    y=doc.lastAutoTable.finalY+5;
+    const lote=loteConc(c);
+    if(lote){ doc.setFont("helvetica","bold"); doc.setFontSize(8.5); doc.setTextColor(...(lote.aceito===false?[180,35,24]:[20,20,20]));
+      const ls=doc.splitTextToSize(loteTxt(lote)+(lote.aviso?" Atenção: "+lote.aviso+".":""), W-2*M); doc.text(ls, M, y); y+=ls.length*3.8+3;
+      doc.setFont("helvetica","normal"); doc.setTextColor(20); }
+    y+=3;
     // mapa: cada folha que tem área pintada, desenhada com as cores dos caminhões
     const ts=tracosDe(c.id), pags=[...new Set(ts.map(t=>t.pag))].sort((a,b)=>a-b);
     if(c.pdfId && pags.length){
@@ -7777,6 +7858,7 @@ async function docMapa(c, {pintura=false}={}){
     fx?`Lance: de ${nf2(m.de||0)} m a ${m.ate!=null?nf2(m.ate)+" m":"o topo"} a partir da base (fora da faixa aparece em cinza nas elevações).`:"",
     cat?.nota||"", ...m.p.filter(p=>p.obs).map(p=>`${p.id}: ${p.obs}.`), "Volume teórico sem as passagens desenhadas; confira o volume real pelas notas fiscais.",
     vpin.size?"Mapa (m³): área pintada de cada caminhão nas elevações × espessura da parede, para comparar com a nota (diferença grande = pintura incompleta, perda ou forma abrindo).":"",
+    (l=>l?loteTxt(l)+(l.aviso?" Atenção: "+l.aviso+".":""):"")(loteConc(c)),
     [...rcp.values()].some(x=>x.txt)?"CPs: resultado mais recente de cada moldagem (maior do par), em MPa; \"abaixo\" = menor que o esperado para a idade (3 d 66%, 7 d 82%, 21 d 95% do fck); \"ok\" = aprovado aos 28 dias.":""].filter(Boolean);
   doc.setFont("helvetica","normal"); doc.setFontSize(7); doc.setTextColor(50);
   for(const n of notas){ const ls=doc.splitTextToSize("• "+n, tw); if(y+ls.length*3.2>203) break; doc.text(ls, tx, y); y+=ls.length*3.2+0.8; }
@@ -8810,6 +8892,28 @@ const tipoCp = {id:"cp", nome:"Corpos de prova", novo:"Nova moldagem",
     desc:`Concreto abaixo do fck: ${nf1.format(d.res28)} MPa aos 28 dias (fck ${nf1.format(d.fck)} MPa) · ${d.conc}${d.cam?" · "+d.cam:""}`,
     origem:"Corpo de prova", local:concs().find(x=>rotConc(x)===d.conc)?.estrutura||"", resp:"", prazo:somaDias(hojeISO(),7)}}]),
   titulo:d=>`${d.conc||"Concretagem"}${d.cam?" · "+d.cam:""}`+((i=>i?` · ${i}d ${nf1.format(d["res"+i])} MPa`:"")([28,21,7,3].find(i=>d["res"+i]!=null)))};
+// --- aceitação do lote (NBR 12655): cada concretagem é um lote; exemplar = maior dos 2 CPs de 28 dias de um caminhão ---
+// Amostragem total (todos os caminhões com exemplar): fck,est = menor valor (até 20 exemplares) ou o de ordem 0,05·n (acima).
+// Amostragem parcial (n ≥ 6): fck,est = 2·(f1+…+fm−1)/(m−1) − fm, m = n/2, e nunca menor que ψ6·f1 (condição de preparo A).
+const PSI6={2:0.82,3:0.86,4:0.89,5:0.91,6:0.92,7:0.94,8:0.95,10:0.97,12:0.99,14:1,16:1.02};
+function loteConc(c){
+  const L=regs2De("qual","cp").filter(r=>r.dados.conc===rotConc(c)); if(!L.length) return null;
+  const f=L.map(r=>cpRes(r.dados,28)).filter(v=>v!=null).sort((a,b)=>a-b), n=f.length;
+  const fck=Math.max(0,...L.map(r=>+r.dados.fck||0)), cams=(c.cams||[]).length, faltam=L.length-n, vol=volLancado(c);
+  const r={n, cams, faltam, fck, vol, fckEst:null, metodo:"", aceito:null, aviso:vol>50?`lote de ${nf1.format(vol)} m³: a NBR 12655 limita o lote a 50 m³ em peças comprimidas (100 m³ em flexão simples)`:""};
+  if(!n){ r.metodo="aguardando os rompimentos de 28 dias"; return r; }
+  if(n>=cams){ // amostragem total
+    r.fckEst = n<=20 ? f[0] : f[Math.ceil(0.05*n)-1]; r.metodo=`amostragem total (${n} exemplar${n>1?"es":""})`; }
+  else if(n>=6){
+    const m=Math.floor(n/2), soma=f.slice(0,m-1).reduce((s,v)=>s+v,0), psi=PSI6[Object.keys(PSI6).map(Number).filter(k=>k<=n).pop()];
+    r.fckEst=Math.max(2*soma/(m-1)-f[m-1], psi*f[0]); r.metodo=`amostragem parcial (${n} de ${cams} caminhões)`; }
+  else { r.metodo=`amostragem parcial com ${n} exemplar${n>1?"es":""}: a NBR 12655 pede pelo menos 6 (ou todos os caminhões)`; return r; }
+  r.fckEst=Math.round(r.fckEst*10)/10; if(fck) r.aceito=r.fckEst>=fck;
+  if(faltam) r.metodo+=` · ${faltam} moldage${faltam>1?"ns":"m"} ainda sem 28 dias`;
+  return r;
+}
+const loteTxt = r => !r ? "" : r.fckEst==null ? `Lote (NBR 12655): ${r.metodo}.`
+  : `Lote (NBR 12655): fck,est = ${nf1.format(r.fckEst)} MPa${r.fck?` · fck ${nf1.format(r.fck)} MPa · ${r.aceito?"ACEITO":"NÃO ACEITO (abrir não conformidade e avaliar a estrutura)"}`:""} · ${r.metodo}.`;
 // rastreabilidade: moldagens de um caminhão (C1, C2…) e o resumo dos resultados para os relatórios
 const cpsDoCam = (c, n) => regs2De("qual","cp").filter(r=>r.dados.conc===rotConc(c) && new RegExp(`^C${n}\\b`).test(String(r.dados.cam||"")));
 function cpResumoCam(c, n){
@@ -8826,9 +8930,38 @@ function agendaCp(){
   const arq=el("input",{type:"file",accept:".xlsx,.xls,.csv",hidden:true,onchange:e=>{ const f=e.target.files[0]; e.target.value=""; if(f) importarLab(f); }});
   return [pode("qual-edit") ? el("div",{class:"row"}, el("button",{class:"btn",type:"button",text:"📥 Importar planilha do laboratório",onclick:()=>arq.click()}),
       el("span",{class:"info",text:"Excel com o nº da nota e os resultados por idade"}), arq) : null,
+    cardLotes(),
     el("div",{class:"card"}, el("h3",{text:`Rompimentos · ${L.length} até ${ddmm(somaDias(h,7))}`}),
     L.length ? tabelaSimples(["Data","Idade","Concretagem",""], L.map(x=>[ddmm(x.data), `${x.idade} dias`, tituloReg2(tipoCp,x.r), x.data<h?"atrasado":x.data===h?"hoje":""]))
       : el("p",{class:"info",text:"Nenhum rompimento atrasado nem nos próximos 7 dias."}))];
+}
+// lotes (concretagens com moldagem) e a evolução da resistência de cada um
+function cardLotes(){
+  const cs=concs().filter(c=>regs2De("qual","cp").some(r=>r.dados.conc===rotConc(c))).sort((a,b)=>b.data.localeCompare(a.data));
+  if(!cs.length) return null;
+  return el("div",{class:"card"}, el("h3",{text:"Lotes de concreto (NBR 12655)"}),
+    ...cs.map(c=>{ const l=loteConc(c), st=l?.aceito===true?"ok":l?.aceito===false?"bad":"";
+      return el("details",{class:"lote"}, el("summary",{}, el("b",{text:`${c.estrutura}${c.local?" · "+c.local:""} · ${ddmm(c.data)}`}), " ",
+          el("span",{class:"chip "+st,text:l?.fckEst!=null?`fck,est ${nf1.format(l.fckEst)} MPa${l.aceito!=null?(l.aceito?" · aceito":" · não aceito"):""}`:"aguardando 28 dias"})),
+        el("p",{class:"info",text:loteTxt(l)+(l?.aviso?" Atenção: "+l.aviso+".":"")}), graficoResist(c)); }));
+}
+// gráfico da resistência por idade: uma linha por caminhão e a curva esperada (66% · 82% · 95% · 100% do fck) tracejada
+function graficoResist(c){
+  const L=regs2De("qual","cp").filter(r=>r.dados.conc===rotConc(c)), fck=Math.max(0,...L.map(r=>+r.dados.fck||0));
+  const series=L.map(r=>({nome:String(r.dados.cam||"").split(" ")[0]||"?", cor:(c.cams||[]).find(k=>`C${k.n}`===String(r.dados.cam||"").split(" ")[0])?.cor||"#3C5E80",
+    pts:CP_TODAS.map(i=>[i,cpRes(r.dados,i)]).filter(p=>p[1]!=null)})).filter(x=>x.pts.length);
+  if(!series.length) return el("p",{class:"info",text:"Sem resultados ainda."});
+  const W=320, H=170, P={l:34,r:10,t:10,b:24}, maxY=Math.max(fck*1.25, ...series.flatMap(s=>s.pts.map(p=>p[1])))*1.05;
+  const X=i=>P.l+(Math.sqrt(i)-Math.sqrt(3))/(Math.sqrt(28)-Math.sqrt(3))*(W-P.l-P.r), Y=v=>H-P.b-v/maxY*(H-P.t-P.b);
+  const ns="http://www.w3.org/2000/svg", sv=(t,a)=>{ const e=document.createElementNS(ns,t); for(const [k,v] of Object.entries(a)) e.setAttribute(k,v); return e; };
+  const svg=sv("svg",{viewBox:`0 0 ${W} ${H}`,class:"graf-res",role:"img","aria-label":`Resistência por idade, ${series.length} caminhões, fck ${fck} MPa`});
+  for(const i of CP_TODAS){ svg.append(sv("line",{x1:X(i),x2:X(i),y1:P.t,y2:H-P.b,class:"g-grade"})); const t=sv("text",{x:X(i),y:H-8,"text-anchor":"middle",class:"g-txt"}); t.textContent=i+"d"; svg.append(t); }
+  for(let v=0; v<=maxY; v+=10){ svg.append(sv("line",{x1:P.l,x2:W-P.r,y1:Y(v),y2:Y(v),class:"g-grade"})); const t=sv("text",{x:P.l-4,y:Y(v)+3,"text-anchor":"end",class:"g-txt"}); t.textContent=v; svg.append(t); }
+  if(fck){ svg.append(sv("polyline",{points:CP_TODAS.map(i=>`${X(i)},${Y(fck*CP_ESPERADO[i])}`).join(" "),class:"g-esp"}));
+    const t=sv("text",{x:X(3)+4,y:Y(fck*CP_ESPERADO[3])+12,class:"g-txt"}); t.textContent=`esperado (fck ${fck})`; svg.append(t); }
+  for(const s of series){ svg.append(sv("polyline",{points:s.pts.map(p=>`${X(p[0])},${Y(p[1])}`).join(" "),fill:"none",stroke:s.cor,"stroke-width":2}));
+    for(const [i,v] of s.pts){ const c2=sv("circle",{cx:X(i),cy:Y(v),r:3.2,fill:s.cor,stroke:"#fff","stroke-width":1}); const tt=sv("title",{}); tt.textContent=`${s.nome}: ${i} dias, ${nf1.format(v)} MPa`; c2.append(tt); svg.append(c2); } }
+  return el("div",{class:"graf-box"}, svg, el("div",{class:"g-leg"}, ...series.map(s=>el("span",{}, el("i",{style:`background:${s.cor}`}), s.nome))));
 }
 // --- importação da planilha do laboratório ---
 // Formato esperado (como a planilha de controle tecnológico da obra): uma coluna com o nº da nota fiscal (ou romaneio) e, para cada
@@ -8906,6 +9039,11 @@ function pendInicio(){
     bts.push(el("button",{class:"btn",type:"button",style:v?"color:var(--bad)":"",text:`⚠ ${nome}: ${ab.length} não conformidade${ab.length>1?"s":""} em aberto${v?` · ${v} vencida${v>1?"s":""}`:""}`,
       onclick:()=>{ RG.tipo[mod]="nc"; abrirModulo(mod); }}));
   }
+  const desde=LS.get("pendDesde"), c=pendCount();
+  if(c && desde && Date.now()-new Date(desde)>24*3600e3)
+    bts.push(el("button",{class:"btn",type:"button",style:"color:var(--bad);font-weight:700",
+      text:`⚠ ${c} lançamento${c>1?"s":""} deste celular sem enviar desde ${new Date(desde).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}${S.err?` · ${S.err.slice(0,80)}`:""}. Toque para tentar de novo; se continuar, avise o desenvolvedor.`,
+      onclick:()=>{ S.err=""; sync(); }}));
   const ab=pode("qual") ? regs2De("qual","cp").filter(r=>r.status==="Aguardando" && cpAbaixo(r.dados).length).length : 0;
   if(ab) bts.push(el("button",{class:"btn",type:"button",style:"color:var(--bad)",text:`⚠ ${ab} moldage${ab>1?"ns":"m"} de concreto abaixo da resistência esperada para a idade`,onclick:()=>{ RG.tipo.qual="cp"; abrirModulo("qual"); }}));
   const n=pode("qual") ? cpPendentes().filter(x=>x.data<=hojeISO()).length : 0;

@@ -8,6 +8,8 @@
 <script>
 // aplica o tema salvo antes de desenhar a tela (evita piscar claro→escuro ao abrir)
 try{ const t=JSON.parse(localStorage.getItem("arm:tema")); if(t==="light"||t==="dark") document.documentElement.dataset.theme=t; }catch{}
+// modo em campo (letra e botões maiores, mais contraste, menos texto de ajuda)
+try{ if(JSON.parse(localStorage.getItem("arm:campo"))) document.documentElement.dataset.campo="1"; }catch{}
 </script>
 <script>
 // Celular antigo (ex.: iPhone sem atualização) não entende o código do app e a tela ficava branca.
@@ -182,8 +184,9 @@ img.croqui{display:block;background:#fff;border-radius:6px;border:1px solid var(
 .pl-tab td input{width:4.2em;min-height:40px;padding:4px;text-align:center}
 .pl-tab tbody th,.pl-tab tfoot th{text-align:left;white-space:nowrap}
 .pl-tab tfoot td{text-align:center;font-weight:600} .pl-mais{color:var(--ok,#1a7f37)} .pl-menos{color:var(--bad,#c62828)}
-.pl-plantas{display:flex;gap:8px;margin:6px 0}
-.pl-planta{flex:1 1 0;min-width:0;max-width:200px;text-align:center}
+.pl-plantas{display:grid;gap:6px;margin:6px 0;justify-items:center}
+.pl-abas{justify-content:center}
+.pl-planta{width:100%;max-width:min(270px,27vh);text-align:center}
 .pl-svg{width:100%;height:auto} .pl-rot{font-size:13px;fill:var(--ink);font-weight:700}
 .pl-els .chipbtn,.pl-pos .chipbtn{font-size:.8rem}
 /* só as colunas do quadro rolam para o lado; a coluna da parede fica parada */
@@ -407,6 +410,27 @@ button.ind{text-align:left;cursor:pointer;color:inherit;font:inherit;transition:
 /* grade de módulos */
 .mods{display:grid;grid-template-columns:repeat(auto-fill,minmax(146px,1fr));gap:12px}
 .mods-prod{grid-template-columns:repeat(auto-fill,minmax(190px,1fr))}
+/* barra de navegação de baixo (todas as telas, menos o aço, que tem a dele) */
+.nav-app{position:fixed;left:0;right:0;bottom:0;z-index:26;display:grid;grid-auto-flow:column;grid-auto-columns:1fr;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px);box-shadow:0 -4px 16px rgba(16,32,51,.06)}
+.nav-app button{border:0;background:none;color:var(--muted);display:grid;justify-items:center;gap:2px;padding:7px 2px 6px;font-size:.7rem;font-weight:600;min-height:56px;font-family:inherit}
+.nav-app svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.nav-app button[aria-current=page]{color:var(--accent)}
+.nav-app .nav-lancar svg{background:var(--accent);color:var(--on-accent,#fff);border-radius:50%;padding:4px;width:30px;height:30px;margin-top:-6px;box-shadow:0 3px 10px rgba(35,82,126,.35)}
+@media (min-width:760px){.nav-app{max-width:620px;margin-inline:auto;border-inline:1px solid var(--line);border-radius:14px 14px 0 0}}
+body.com-nav .tela .tela-corpo{padding-bottom:calc(92px + env(safe-area-inset-bottom,0px))}
+body.com-nav .toast{bottom:calc(76px + env(safe-area-inset-bottom,0px))}
+/* modo em campo */
+html[data-campo] body{font-size:17px} html[data-campo]{font-size:18px}
+html[data-campo] .btn,html[data-campo] .chipbtn{min-height:52px;font-size:1rem}
+html[data-campo] input,html[data-campo] select,html[data-campo] textarea{min-height:52px;font-size:1.05rem}
+html[data-campo]{--muted:#323D49;--line:#9AA6B3}
+@media (prefers-color-scheme:dark){html[data-campo]:not([data-theme="light"]){--muted:#CDD6E0;--line:#56667A}}
+html[data-campo][data-theme="dark"]{--muted:#CDD6E0;--line:#56667A}
+html[data-campo]:not([data-ajuda]) p.info,html[data-campo]:not([data-ajuda]) .saud small{display:none}
+.ajuda-btn{display:none}
+.nav-app .nav-ajuda{display:none} html[data-campo] .nav-app .nav-ajuda{display:grid} .nav-app .nav-ajuda[aria-pressed=true]{color:var(--accent)}
+html[data-campo] body:not(.com-nav) .ajuda-btn{display:grid;place-items:center;position:fixed;right:10px;top:calc(8px + env(safe-area-inset-top,0px));z-index:27;width:38px;height:38px;border-radius:50%;border:2px solid var(--accent);background:var(--surface);color:var(--accent);font-size:1.1rem;font-weight:800}
+html[data-campo][data-ajuda] .ajuda-btn{background:var(--accent);color:var(--on-accent,#fff)}
 .pv-corpo{display:grid;gap:12px;grid-template-columns:minmax(0,1fr)} .pv-forma{display:grid;gap:12px;grid-template-columns:minmax(0,1fr)}
 .pv-abas .chipbtn{min-height:40px;font-size:.9rem}
 .ins-card{gap:8px} .ins-p{margin:0;line-height:1.5}
@@ -930,6 +954,10 @@ button.ind{text-align:left;cursor:pointer;color:inherit;font:inherit;transition:
       <div class="modo" id="tema" role="group" aria-label="Tema do aplicativo">
         <button class="chipbtn" type="button" data-t="system">Igual ao sistema</button><button class="chipbtn" type="button" data-t="light">Claro</button><button class="chipbtn" type="button" data-t="dark">Escuro</button>
       </div>
+      <div class="modo" id="campo-modo" role="group" aria-label="Modo em campo">
+        <span class="info">Modo em campo:</span><button class="chipbtn" type="button" data-c="0">Normal</button><button class="chipbtn" type="button" data-c="1">Em campo</button>
+      </div>
+      <p class="info">Em campo: letra e botões maiores, mais contraste (sol forte) e sem os textos de ajuda; toque no <b>?</b> para vê-los.</p>
     </div>
     <div class="card">
       <h3>Versão do app</h3>
@@ -989,6 +1017,15 @@ button.ind{text-align:left;cursor:pointer;color:inherit;font:inherit;transition:
   <button role="tab" type="button" data-v="semanas" aria-selected="false"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Semanas</button>
   <button role="tab" type="button" data-v="dados" aria-selected="false"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg>Ajustes</button>
 </nav>
+<nav class="nav-app" id="nav-app" aria-label="Navegação principal" hidden>
+  <button type="button" data-n="inicio"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg>Início</button>
+  <button type="button" data-n="lancar" class="nav-lancar"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Lançar</button>
+  <button type="button" data-n="prod"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Produtividade</button>
+  <button type="button" data-n="ponto"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.8-3.2 3-5 5.5-5s4.7 1.8 5.5 5"/><circle cx="17.5" cy="15.5" r="3.5"/><path d="M17.5 13.8v1.9l1.2.8"/></svg>Ponto</button>
+  <button type="button" data-n="ajuda" class="nav-ajuda" aria-pressed="false"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.2a2.5 2.5 0 1 1 3.4 2.3c-.7.3-1 .8-1 1.5v.5M12 16.8v.2"/></svg>Ajuda</button>
+  <button type="button" data-n="mais"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1.5"/><rect x="14" y="4" width="6" height="6" rx="1.5"/><rect x="4" y="14" width="6" height="6" rx="1.5"/><rect x="14" y="14" width="6" height="6" rx="1.5"/></svg>Mais</button>
+</nav>
+<button type="button" class="ajuda-btn" id="ajuda-btn" aria-label="Mostrar ou esconder os textos de ajuda" aria-pressed="false">?</button>
 <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
 <div class="modal" id="reg" role="dialog" aria-modal="true" aria-labelledby="reg-tit" hidden>
@@ -2004,8 +2041,12 @@ $("#tema").addEventListener("click", e=>{ const b=e.target.closest("button[data-
   if(t==="system") delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme=t;
   renderTema(); });
 renderTema();
+function setCampo(on){ LS.set("campo",!!on); if(on) document.documentElement.dataset.campo="1"; else { delete document.documentElement.dataset.campo; delete document.documentElement.dataset.ajuda; }
+  $("#campo-modo")?.querySelectorAll("button").forEach(b=>{ const x=b.dataset.c==="1"===!!on; b.classList.toggle("on",x); b.setAttribute("aria-pressed",x); }); }
+$("#campo-modo").addEventListener("click", e=>{ const b=e.target.closest("button[data-c]"); if(b) setCampo(b.dataset.c==="1"); });
+setCampo(!!LS.get("campo"));
 
-const VERSAO_APP = "v102"; // igual ao número em sw.js (armacao-v102)
+const VERSAO_APP = "v103"; // igual ao número em sw.js (armacao-v103)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -3116,7 +3157,11 @@ function renderPrelev(){
     ...soltas.map(r=>el("button",{type:"button",class:"chipbtn"+(selP===r?" on sel":""),"aria-pressed":String(selP===r),text:rotLinha(r),onclick:()=>plSelecionar("par:"+r)})),
     ...semParede.map(loc=>el("button",{type:"button",class:"chipbtn"+(selE===loc?" on sel":""),"aria-pressed":String(selE===loc),text:loc,onclick:()=>plSelecionar("el:"+loc)})),
     PL.sel ? el("button",{type:"button",class:"chipbtn",text:"✕ Ver todos os quadros",onclick:()=>plSelecionar(PL.sel)}) : null);
-  const desenho = floc ? el("div",{class:"pl-plantas"}, ...d.unid.map(u=>{ const cat=catParedes("FLOC-"+u); if(!cat) return null; const pl=cat.planta, k=150/pl.W;
+  // um floculador por vez, em tamanho grande (os três lado a lado ficavam pequenos demais no celular)
+  if(!d.unid.includes(PL.uv)) PL.uv=d.unid[0];
+  const abasPl = floc && d.unid.length>1 ? el("div",{class:"modo pl-abas",role:"tablist","aria-label":"Floculador no desenho"}, ...d.unid.map(u=>el("button",{type:"button",role:"tab",class:"chipbtn"+(PL.uv===u?" on":""),"aria-selected":String(PL.uv===u),
+    text:`Desenho ${u}`, onclick:()=>{ PL.uv=u; renderPrelev(); }}))) : null;
+  const desenho = floc ? el("div",{class:"pl-plantas"}, abasPl, ...d.unid.filter(u=>u===PL.uv).map(u=>{ const cat=catParedes("FLOC-"+u); if(!cat) return null; const pl=cat.planta, k=150/pl.W;
     const svg=document.createElementNS("http://www.w3.org/2000/svg","svg"); svg.setAttribute("viewBox",`-30 -16 ${pl.W*k+60} ${pl.H*k+32}`); svg.setAttribute("class","pl-svg");
     svg.setAttribute("role","img"); svg.setAttribute("aria-label",`Floculador ${u}: paredes coloridas pela % armada`);
     for(const [id,[x,y,w,h]] of Object.entries(pl.r)){ const base=id.replace(/ (inf|sup)\.$/,""), v=pctParede.get(base), f=v&&v[1]?v[0]/v[1]:0, R=document.createElementNS(svg.namespaceURI,"rect");
@@ -3959,10 +4004,48 @@ function abrirTela(t, empilhar=true, forcar=false){
   if(t==="ponto") renderPonto(); if(t!=="ponto") $("#ef-modal").hidden=true;
   if(t==="fotos") renderFotos(); if(t==="producao") renderProducao(); if(t==="login") renderLogin(); if(t==="rdo") renderRdo(); if(t==="conc") renderConc(); if(t==="reg") renderReg2(); if(t==="acessos") renderAcessos(); if(t==="fpainel") renderPainelForma();
   if(empilhar) history.pushState({tela:t},"");
+  navApp(t);
 }
 addEventListener("popstate", e=>{ if(e.state?.tela) abrirTela(e.state.tela,false); });
 document.querySelectorAll("[data-voltar]").forEach(b=>b.onclick=()=>history.back());
 function irAco(aba){ abrirTela("aco"); show(aba); }
+// barra de baixo, igual em todas as telas (no aço vale a barra própria dele: Coleta, Painel, Frentes…; o 🏠 do topo volta ao início)
+function navApp(t){
+  const n=$("#nav-app"); if(!n) return;
+  n.hidden = t==="aco" || t==="login" || !liberado();
+  document.body.classList.toggle("com-nav", !n.hidden);
+  const marca={inicio:"inicio", prod:"prod", ponto:"ponto"}[t] || (["conc","fpainel","prelev"].includes(t) ? "lancar" : "mais");
+  n.querySelectorAll("button").forEach(b=>b.setAttribute("aria-current", b.dataset.n===marca ? "page" : "false"));
+}
+$("#nav-app").addEventListener("click", e=>{ const b=e.target.closest("button[data-n]"); if(!b) return; const k=b.dataset.n;
+  if(k==="lancar") return lancarHoje(); if(k==="mais") return menuMais(); if(k==="ajuda") return alternarAjuda();
+  abrirTela(k); });
+function alternarAjuda(){ const on=document.documentElement.dataset.ajuda!=="1";
+  if(on) document.documentElement.dataset.ajuda="1"; else delete document.documentElement.dataset.ajuda;
+  document.querySelectorAll("#ajuda-btn,#nav-app .nav-ajuda").forEach(b=>b.setAttribute("aria-pressed",String(on))); toast(on?"Textos de ajuda visíveis":"Textos de ajuda escondidos"); }
+$("#ajuda-btn").addEventListener("click", alternarAjuda);
+// o que cada módulo da tela inicial abre (usado também no menu Mais)
+const acaoModulo = m => ["prod","sup","ponto","fotos","producao","rdo"].includes(m.id) ? ()=>abrirTela(m.id) : MOD2[m.id] ? ()=>abrirModulo(m.id) : null;
+function menuMais(){
+  const ops=MODULOS.filter(m=>pode(m.id) && acaoModulo(m)).map(m=>[m.nome, m.desc, acaoModulo(m)]);
+  if(pode("prod")) ops.splice(1,0,["Frentes","Liberações e concretagem",()=>irAco("frentes")],["Relatório PDF","Aço · semana atual",()=>{ irAco("painel"); setTimeout(()=>$("#rel-pdf")?.click(),300); }]);
+  ops.push(["Ajustes","Tema, modo em campo, banco e versão do app",()=>irAco("dados")]);
+  escolher("Mais", ops);
+}
+// Lançar hoje: um toque e já cai na semana atual, com a equipe de quem lança
+function lancarHoje(){
+  const w=semanaDeHoje(), ops=[];
+  if(pode("prod")){
+    ops.push(["Aço", w ? `Coleta da semana ${w.n} (${ddmm(w.ini)} a ${ddmm(w.fim)}) · ${eqAtual()}` : "Coleta da semana: barras ou %", ()=>{
+      irAco("coleta"); const n=pickDefaultWeek(), sel=$("#semana"); if(n!=null && sel && +sel.value!==n){ sel.value=String(n); sel.dispatchEvent(new Event("change")); } }]);
+    ops.push(["Forma", `Lançar a montagem da semana de ${ddmm(segSemana(hojeISO()))} (m², peças ou %)`, ()=>{ abrirModulo("forma"); setTimeout(()=>formReg2("forma","apont",null),60); }]);
+    ops.push(["Concreto", "Etapas por estrutura, concretagens, mapa das paredes e caminhões", ()=>abrirTela("conc")]);
+  }
+  if(pode("ponto")) ops.push(["Ponto e efetivo", "Marcar quem veio hoje", ()=>abrirTela("ponto")]);
+  if(pode("rdo")) ops.push(["RDO de hoje", "Diário de obra: clima, serviços e ocorrências", ()=>abrirTela("rdo")]);
+  if(pode("fotos")) ops.push(["Foto da obra", "Tirar e guardar com legenda", ()=>abrirTela("fotos")]);
+  escolher("Lançar hoje", ops);
+}
 
 // --- números do resumo ---
 function resumoAco(){
@@ -4050,7 +4133,7 @@ function renderInicio(){
     el("button",{class:"btn",id:"aviso-senha",type:"button",hidden:true,style:"color:var(--bad)",text:"⚠ Senha do app errada: nada está sendo gravado nem baixado. Toque para corrigir.",
       onclick:()=>{ irAco("dados"); $("#cfg-tok").focus(); }}));
   setSync();
-  const mods=MODULOS.filter(m=>pode(m.id)).map(m=>({...m, acao: ["prod","sup","ponto","fotos","producao","rdo"].includes(m.id) ? ()=>abrirTela(m.id) : MOD2[m.id] ? ()=>abrirModulo(m.id) : null}));
+  const mods=MODULOS.filter(m=>pode(m.id)).map(m=>({...m, acao: acaoModulo(m)}));
   document.querySelectorAll(".tela-obra").forEach(o=>{ o.querySelector("b").textContent=nomeObra(); o.querySelector("span").textContent=cidadeObra(); });
   const hoje=resumoEfDia(hojeISO());
   $("#mods").replaceChildren(...mods.map((m,k)=>moduloBtn(m,k, m.id==="prod" ? (b)=>{ b.append(el("span",{class:"num",id:"num-prod"})); }
@@ -4062,10 +4145,7 @@ function renderInicio(){
   // Lançamentos e Painéis: escolhe aço ou forma
   const avF=()=>{ const c=fmCalc(); return pct(c.totProj?c.avanco/c.totProj:0); };
   const at=[
-    {id:"lancar", nome:"Lançamentos", desc:"Aço, forma e concreto", c:["#1A9BDC","#0067A6"], ativo:true, acao:()=>escolher("Lançamentos", [
-      ["Aço","Coleta da semana: barras ou %",()=>irAco("coleta")],
-      ["Forma","Montagem por semana ou por dia: m², peças ou %",()=>abrirModulo("forma")],
-      ["Concreto","Levantamento por estrutura (5 etapas), concretagens, mapa e caminhões",()=>abrirTela("conc")]])},
+    {id:"lancar", nome:"Lançar hoje", desc:"Aço, forma, concreto, ponto, RDO e fotos", c:["#1A9BDC","#0067A6"], ativo:true, acao:lancarHoje},
     {id:"frentes",nome:"Frentes", desc:"Liberações e concretagem", c:["#36B37E","#1D7A48"], ativo:true, acao:()=>irAco("frentes")},
     {id:"pdf",    nome:"Relatório PDF", desc:"Aço · semana atual", c:["#8A6BE0","#5A3FB0"], ativo:true, acao:()=>{ irAco("painel"); setTimeout(()=>$("#rel-pdf").click(),300); }},
     {id:"painel", nome:"Painéis e insights", desc:"Aço, forma e concreto", c:["#45A1D6","#22709F"], ativo:true, acao:()=>{ PV.vista="painel"; abrirTela("prod"); }},
@@ -7217,18 +7297,25 @@ function cardLevantamento(){
       el("span",{class:"ce-cels"}, ...x.st.map((s,e)=>el("i",{class:"ce-cel "+ceCel(s),title:`${CE_ETAPAS[e]}: ${s||"não iniciada"}`,text:e?String(e):"M"}))));
     return b; };
   const comAv=C.obras.filter(x=>x.st.some(Boolean)), lista=todas||!comAv.length ? C.obras : comAv;
-  return el("div",{class:"card ce-card"},
-    el("h3",{text:"Levantamento de concreto"}),
+  const det=el("details",{class:"card ce-card", open:!!LS.get("ceAberto")},
+    el("summary",{class:"pr-sum"}, el("b",{text:"Levantamento por estrutura"}), el("small",{class:"i-sub",text:` · ${comAv.length} iniciada${comAv.length===1?"":"s"} de ${C.obras.length} · toque para ${"abrir"}`})),
     el("p",{class:"info",text:"Etapas de cada estrutura: M = magro · 1 = laje de fundo + arranque · 2 = lance 1 · 3 = lance 2 · 4 = lance 3 + cobertura/passarela. Toque na estrutura para lançar."}),
     el("div",{class:"pr-bts",role:"group","aria-label":"Setor"}, ...[["","Todos"],...CONC_SETORES.map(s=>[s,s==="ETA"?"ETA":s.charAt(0)+s.slice(1).toLowerCase()])].map(([v,t])=>
       el("button",{class:"chipbtn"+(setor===v?" on":""),type:"button",text:t,"aria-pressed":String(setor===v),onclick:()=>{ LS.set("ceSetor",v); renderConc(); }}))),
-    el("div",{class:"ce-kpis"},
-      el("div",{}, el("span",{text:"Concreto de projeto"}), el("b",{text:`${nf1.format(C.proj)} m³`}), el("small",{text:`${Math.round(fP*1000)/10}% de ${nf1.format(C.projPrev)} m³ · contrato CODAU ${nf1.format(C.codau)} m³`}), barra(fP)),
-      el("div",{}, el("span",{text:"Concreto magro"}), el("b",{text:`${nf1.format(C.magro)} m³`}), el("small",{text:`${Math.round(fM*1000)/10}% de ${nf1.format(C.magroPrev)} m³`}), barra(fM)),
-      el("div",{}, el("span",{text:"Etapas"}), el("b",{text:`${C.feitas} executadas`}), el("small",{text:`${C.andam} em andamento · ${C.obras.length*5} no total`}))),
+    el("p",{class:"i-sub",text:`${setor||"Todos os setores"}: projeto ${nf1.format(C.proj)} de ${nf1.format(C.projPrev)} m³ (${pct(fP)}) · magro ${nf1.format(C.magro)} de ${nf1.format(C.magroPrev)} m³ (${pct(fM)}) · ${C.feitas} etapas executadas`}),
     el("div",{class:"ce-lista"}, ...lista.map(linha)),
     comAv.length && comAv.length<C.obras.length ? el("button",{class:"linkbtn",type:"button",text:todas?"Mostrar só as que já começaram":`Ver todas as estruturas (+${C.obras.length-comAv.length})`,
       onclick:()=>{ LS.set("ceTodas",!todas); renderConc(); }}) : null);
+  det.addEventListener("toggle", ()=>LS.set("ceAberto", det.open));
+  return det;
+}
+// resumo do concreto no topo da tela (obra inteira)
+function resumoConcTopo(){
+  const C=ceCalc(""), f=C.projPrev?C.proj/C.projPrev:0, fm=C.magroPrev?C.magro/C.magroPrev:0;
+  return el("div",{class:"ce-kpis"},
+    el("div",{}, el("span",{text:"Concreto de projeto"}), el("b",{text:`${nf1.format(C.proj)} m³ · ${pct(f)}`}), el("small",{text:`de ${nf0.format(C.projPrev)} m³ · contrato CODAU ${nf0.format(C.codau)} m³`}), barra(f)),
+    el("div",{}, el("span",{text:"Magro"}), el("b",{text:`${nf1.format(C.magro)} m³ · ${pct(fm)}`}), el("small",{text:`de ${nf0.format(C.magroPrev)} m³`}), barra(fm)),
+    el("div",{}, el("span",{text:"Etapas"}), el("b",{text:`${C.feitas} executadas`}), el("small",{text:`${C.andam} em andamento · ${C.obras.length*5} no total`})));
 }
 // etapas de uma estrutura: situação, data, volume e concretagens de cada uma
 function abrirEtapas(nome){
@@ -7262,15 +7349,16 @@ function renderConc(){
   const ed=pode("producao-edit"), L=concs(), ord=c=>CC_STATUS.indexOf(c.status);
   const abertas=L.filter(c=>c.status!=="Concluída").sort((a,b)=>ord(b)-ord(a) || a.data.localeCompare(b.data)), feitas=L.filter(c=>c.status==="Concluída").sort((a,b)=>b.data.localeCompare(a.data));
   repor(box,
-    el("p",{class:"saud"}, "Concreto", el("small",{text:"Levantamento por estrutura (magro e concreto de projeto, em 5 etapas) e concretagens: mapa das paredes ou forma da laje, caminhões e área de cada um"})),
-    cardLevantamento(),
+    el("p",{class:"saud"}, "Concreto", el("small",{text:"Etapas por estrutura e concretagens (mapa, caminhões e área de cada um)"})),
+    resumoConcTopo(),
     ed ? el("button",{class:"btn pri ps-novo",type:"button",text:"+ Nova concretagem",onclick:()=>editarConc(null)}) : null,
+    el("h2",{class:"tela-tit",text:`Programadas e em andamento · ${abertas.length}`}),
+    ...(abertas.length ? abertas.map(c=>cardConc(c,ed)) : [el("div",{class:"vazio",text:ed?"Nenhuma concretagem programada. Toque em + Nova concretagem ou numa etapa do levantamento.":"Nenhuma concretagem programada."})]),
+    cardLevantamento(),
+    feitas.length ? el("details",{class:"card"}, el("summary",{class:"pr-sum",text:`Concluídas · ${feitas.length}`}), ...feitas.map(c=>cardConc(c,ed))) : null,
     S.cfg?.url ? el("div",{class:"row"}, el("button",{class:"btn",type:"button",text:"Atualizar lista de projetos (PDFs)",onclick:async e=>{
       e.currentTarget.disabled=true; try{ await carregarProjetos(); toast(`${PJ.lista.length} PDFs na pasta Projetos`); }catch(x){ toast(x.message); } renderConc(); }}),
-      el("span",{class:"info",text:`${PJ.lista.length} PDFs no app`})) : el("p",{class:"aviso"}, el("b",{text:"Banco não configurado. "}), "Os PDFs das formas vêm da pasta Projetos do Google Drive."),
-    el("h2",{class:"tela-tit",text:`Programadas e em andamento · ${abertas.length}`}),
-    ...(abertas.length ? abertas.map(c=>cardConc(c,ed)) : [el("div",{class:"vazio",text:ed?"Nenhuma concretagem programada. Toque em + Nova concretagem.":"Nenhuma concretagem programada."})]),
-    feitas.length ? el("details",{class:"card"}, el("summary",{class:"pr-sum",text:`Concluídas · ${feitas.length}`}), ...feitas.map(c=>cardConc(c,ed))) : null);
+      el("span",{class:"info",text:`${PJ.lista.length} PDFs no app`})) : el("p",{class:"aviso"}, el("b",{text:"Banco não configurado. "}), "Os PDFs das formas vêm da pasta Projetos do Google Drive."));
 }
 
 // --- relatório: mapa pintado + tabela dos caminhões ---

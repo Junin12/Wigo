@@ -3,10 +3,12 @@
 O app grava e lê os dados por um script ligado à planilha do Google (Extensões → Apps Script).
 
 ## Code.gs
-O `Code.gs` publicado no Apps Script ainda não está guardado aqui. Para ter cópia e histórico dele:
-copie todo o conteúdo do `Code.gs` do Apps Script e salve neste repositório como `apps-script/Code.gs`.
-Ele **não** tem senhas escritas: a senha do app (TOKEN) e a do desenvolvedor (DEV_SENHA) ficam nas
-Propriedades do script, fora do código.
+Cópia do script publicado no Apps Script (sem senhas: a senha do app, TOKEN, e a do desenvolvedor, DEV_SENHA,
+ficam nas Propriedades do script). Quando mudar o script aqui, cole no Apps Script e publique:
+**Implantar → Gerenciar implantações → lápis ✏️ → Versão: Nova versão → Implantar** (o endereço /exec não muda).
+
+Versão 28: o campo do PDF da concretagem (PDF_ID) aceita até 49.000 caracteres. Antes eram 300, e o mapa das
+paredes (que vai nesse campo como "mapa:{...}") chegava cortado, dando "Não foi possível baixar o Mapa das paredes".
 
 ## Extras.gs (backup e senha do desenvolvedor)
 1. No Apps Script, clique em **+ (Adicionar um arquivo) → Script**, dê o nome `Extras` e cole o conteúdo de `Extras.gs`.

@@ -2087,7 +2087,7 @@ function setCampo(on){ LS.set("campo",!!on); if(on) document.documentElement.dat
 $("#campo-modo").addEventListener("click", e=>{ const b=e.target.closest("button[data-c]"); if(b) setCampo(b.dataset.c==="1"); });
 setCampo(!!LS.get("campo"));
 
-const VERSAO_APP = "v117"; // igual ao número em sw.js (armacao-v117)
+const VERSAO_APP = "v118"; // igual ao número em sw.js (armacao-v118)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -6735,15 +6735,59 @@ function iniciarVoz(){
   renderRdo();
 }
 function pararVoz(){ const V=RD.voz; V.gravando=false; try{ V.rec?.stop(); }catch{} renderRdo(); }
-// organização simples, sem IA: clima e equipamentos por palavras-chave; o relato inteiro vai para "outros serviços"
+// organização sem IA (de graça, sem internet): o relato é dividido em frases e cada frase vai para o campo que combina —
+// horário de início e fim, ocorrência, visita, atividade do dia (pelas palavras em comum) ou outros serviços.
+// Clima e equipamentos (com quantidade e horas) saem de palavras-chave. A pessoa confere tudo antes de aplicar.
+const NUM_EXT={UM:1,UMA:1,DOIS:2,DUAS:2,TRES:3,QUATRO:4,CINCO:5,SEIS:6,SETE:7,OITO:8,NOVE:9,DEZ:10,ONZE:11,DOZE:12};
+const VOZ_OCORR=/PAROU|PARALIS|INTERROMP|FALTOU|FALTA DE|FALTANDO|QUEBR|DEFEIT|ACIDENT|INCIDENT|ATRAS|NAO CHEGOU|NAO VEIO|NAO COMPARECEU|PROBLEMA|VAZAMENT|SEM ENERGIA|SEM AGUA|FALTA D AGUA|IMPRATICAVEL|EMBARG|NOTIFICA|RETRABALHO|ESTOURO|DESABA|TOMBOU|ENTREGA D|CHEGOU O|CHEGARAM|CHEGADA D/;
+const VOZ_VISITA=/FISCAL|CODAU|VISITA|CLIENTE|SUPERVIS|AUDITOR|DIRETOR|PROJETISTA|CONSULTOR|PREFEITURA|VISTORIA|INSPECAO D/;
+const VOZ_PARADAS=new Set("DE DA DO DAS DOS EM NA NO NAS NOS A O AS OS E UM UMA COM PARA POR QUE SE AO AOS FOI FORAM ESTA ESTAO HOJE DIA FEITO FEITA FEITOS FOI TODO TODA TAMBEM MAIS JA LA AQUI QUE".split(" "));
+const vozPalavras = t => new Set(normTxt(t).replace(/[^A-Z0-9 ]/g," ").split(/\s+/).filter(w=>w && !VOZ_PARADAS.has(w) && (w.length>=3 || /^\d+$/.test(w))));
+const vozHora=(h,m)=>{ h=+h; m=m==null?0:/MEIA/.test(m)?30:+m; return h>=0&&h<=23&&m>=0&&m<=59 ? String(h).padStart(2,"0")+":"+String(m).padStart(2,"0") : ""; };
 function organizarSimples(texto, ctx){
   const n=normTxt(texto), clima={manha:"",tarde:"",noite:""};
   const tipo=s=> /CHUV|CHOV/.test(s) && /PAROU|PARALIS|IMPRATICAVEL/.test(s) ? "Impraticável" : /CHUV|CHOV/.test(s) ? "Chuva" : /NUBLAD/.test(s) ? "Nublado" : /\bSOL\b|ENSOLARAD|TEMPO BOM|BOM TEMPO|TEMPO FIRME/.test(s) ? "Bom" : "";
   let algum=false;
-  for(const [k,p] of [["manha","MANHA"],["tarde","TARDE"],["noite","NOITE"]]){ const m=new RegExp(p+"[^.,;]*").exec(n); if(m){ clima[k]=tipo(m[0]); algum ||= !!clima[k]; } }
+  // clima de cada período: do nome do período até o próximo período ou pontuação ("de manhã sol e à tarde choveu")
+  for(const [k,p] of [["manha","MANHA"],["tarde","TARDE"],["noite","NOITE"]]){ const m=new RegExp(p+"(?:(?!MANHA|TARDE|NOITE)[^.,;]){0,60}").exec(n); if(m){ clima[k]=tipo(m[0]); algum ||= !!clima[k]; } }
   if(!algum){ const t=tipo(n); if(t) clima.manha=clima.tarde=t; }
-  const equipamentos=ctx.equipamentos.filter(e=>n.includes(normTxt(e))).map(nome=>({nome, quantidade:1, horas:0}));
-  return {clima, condicao:/IMPRATICAVEL/.test(n)?"Impraticável":"", inicio:"", fim:"", atividades:[], outrosServicos:[texto], equipamentos, ocorrencias:[], visitas:[]};
+  // horários: "das 7 às 17", "começamos às 7h30", "terminamos às 17", "7 e meia"
+  const H="(\\d{1,2})(?:\\s*(?:H|:|HORAS?)\\s*(\\d{2})?)?(?:\\s*(E MEIA))?";
+  let inicio="", fim="", m;
+  if((m=new RegExp("\\bDAS "+H+"\\s*(?:AS|ATE AS|ATE)\\s+"+H).exec(n))){ inicio=vozHora(m[1],m[3]||m[2]); fim=vozHora(m[4],m[6]||m[5]); }
+  if(!inicio && (m=new RegExp("(?:COMEC|INICI|ENTRAMOS|ENTRADA|CHEGAMOS|ABRIMOS)\\w*\\D{0,12}?"+H).exec(n))) inicio=vozHora(m[1],m[3]||m[2]);
+  if(!fim && (m=new RegExp("(?:TERMIN|ENCERR|SAIMOS|SAIDA|LARGAMOS|FECHAMOS|FINALIZ)\\w*\\D{0,12}?"+H).exec(n))) fim=vozHora(m[1],m[3]||m[2]);
+  // equipamentos citados pelo nome inteiro (singular ou plural: "caminhões betoneira"), os nomes mais longos primeiro,
+  // com a quantidade antes ("duas betoneiras", "3 caminhões") e as horas logo depois ("8 horas")
+  const raiz=t=>normTxt(t).replace(/[^A-Z0-9 ]/g," ").split(/\s+/).filter(Boolean).map(w=>w.replace(/(OES|AES|AOS)$/,"AO").replace(/(?<=[A-Z]{3})S$/,""));
+  const nr=raiz(texto), nw=normTxt(texto).replace(/[^A-Z0-9 ]/g," ").split(/\s+/).filter(Boolean), usado=new Set(), equipamentos=[];
+  for(const nome of [...ctx.equipamentos].sort((a,b)=>b.length-a.length)){ const alvo=raiz(nome); if(!alvo.length) continue;
+    for(let k=0;k+alvo.length<=nr.length;k++){ if(!alvo.every((w,i)=>nr[k+i]===w) || alvo.some((_,i)=>usado.has(k+i))) continue;
+      alvo.forEach((_,i)=>usado.add(k+i));
+      // quantidade na palavra de antes, ou duas antes ("3 caminhões betoneira")
+      const qt=w=>/^\d+$/.test(w||"") ? +w : NUM_EXT[w], q=qt(nw[k-1]) || qt(nw[k-2]) || 1;
+      const depois=nr.slice(k+alvo.length, k+alvo.length+5).join(" "), h=/(\d+)\s*HORA/.exec(depois);
+      equipamentos.push({nome, quantidade:q, horas:h?+h[1]:0}); break; } }
+  // frases: pontuação ou conectivos de fala ("depois", "em seguida", "além disso", "também")
+  const frases=texto.split(/[.;!?\n]+|\s(?:depois disso|depois|em seguida|além disso|alem disso|também|tambem|logo após|logo apos|enquanto isso)\s|\s(?=(?:começamos|comecamos|iniciamos|terminamos|encerramos|a equipe|as equipes|tivemos|teve|houve|faltou|faltaram|a fiscalização|a fiscalizacao|o fiscal|à tarde|a tarde|de manhã|de manha|pela manhã|à noite|a noite)\s)/i)
+    .map(f=>f.replace(/^\s*(e|aí|ai|então|entao)\s+/i,"").replace(/\s+(e|aí|ai)\s*$/i,"").trim()).filter(f=>f.length>=8);
+  const cap=f=>f.charAt(0).toUpperCase()+f.slice(1);
+  const ativs=(ctx.atividades||[]).map(a=>({a, w:vozPalavras(a.atividade+" "+(a.onde||""))}));
+  const atividades=[], outrosServicos=[], ocorrencias=[], visitas=[];
+  for(const f of frases){ const fn=normTxt(f);
+    // frase só de clima ou só de horário não vira serviço (já foi para os campos dela)
+    if(tipo(fn) && !/(ARMA|FORMA|CONCRET|ESCAV|MONT|DESMONT|LANC|ATERR|ASSENT|COMPACT|SOLD|TUBUL)/.test(fn) && fn.split(" ").length<=10) continue;
+    if(/^(COMEC|INICI|TERMIN|ENCERR|SAIMOS|ENTRAMOS|CHEGAMOS|DAS \d)/.test(fn) && fn.split(" ").length<=8) continue;
+    // frase que só cita equipamentos ("tivemos duas betoneiras trabalhando 8 horas") já entrou em Equipamentos
+    if(equipamentos.some(e=>fn.includes(raiz(e.nome)[0].slice(0,5))) && /^(TIVEMOS|TEVE|HOUVE|USAMOS|UTILIZAMOS|COM )|TRABALHAND|OPERAND/.test(fn) && !VOZ_OCORR.test(fn)) continue;
+    if(VOZ_OCORR.test(fn)){ ocorrencias.push(cap(f)); continue; }
+    if(VOZ_VISITA.test(fn)){ visitas.push(cap(f)); continue; }
+    const w=vozPalavras(f); let melhor=null, pts=0;
+    for(const x of ativs){ let p=0; for(const t of x.w) if(w.has(t)) p += /^\d+$/.test(t) ? 1.5 : 1; if(p>pts){ pts=p; melhor=x; } }
+    if(melhor && pts>=2){ const ja=atividades.find(z=>z.id===melhor.a.id); if(ja) ja.observacao+=" "+cap(f)+"."; else atividades.push({id:melhor.a.id, observacao:cap(f)+"."}); continue; }
+    outrosServicos.push(cap(f));
+  }
+  return {clima, condicao:Object.values(clima).includes("Impraticável")?"Impraticável":"", inicio, fim, atividades, outrosServicos, equipamentos, ocorrencias, visitas};
 }
 async function organizarVoz(d, btn){
   const V=RD.voz, texto=V.texto.trim();
@@ -6755,7 +6799,7 @@ async function organizarVoz(d, btn){
   try{
     if(!S.cfg?.url) aviso="sem banco configurado";
     else if(!navigator.onLine) aviso="sem internet";
-    else { const j=await post({acao:"rdoVoz", data:d, texto, contexto:ctx}); if(j.rdo) res=j.rdo; else aviso = j.semChave ? "a IA ainda não foi ligada no Google (veja o LEIA-ME)" : "o Code.gs do Google está desatualizado"; }
+    else { const j=await post({acao:"rdoVoz", data:d, texto, contexto:ctx}); if(j.rdo) res=j.rdo; else aviso = j.semChave ? "confira cada item antes de aplicar" : "o Code.gs do Google está desatualizado"; }
   }catch(e){ aviso=e.message; }
   if(!res) res=organizarSimples(texto, ctx);
   // marca tudo para entrar; a pessoa desmarca o que não quiser
@@ -6810,7 +6854,7 @@ function previaVoz(d){
   const vazio=!cl && !res.condicao && !res.inicio && !res.fim && ![res.atividades,res.outrosServicos,res.equipamentos,res.ocorrencias,res.visitas].some(l=>l.length);
   return el("div",{class:"card rd-voz"},
     el("h3",{text:"✨ O que vai entrar no RDO"}),
-    aviso ? el("p",{class:"aviso"}, el("b",{text:"Organização simples (sem IA): "}), `${aviso}. Só o clima e os equipamentos foram separados; o relato inteiro vai em "Outros serviços".`)
+    aviso ? el("p",{class:"info"}, el("b",{text:"Organizado no celular (sem IA): "}), `${aviso}. Cada frase foi para o campo que combina (horário, atividade do dia, ocorrência, visita ou outros serviços); desmarque ou corrija o que não estiver certo.`)
       : el("p",{class:"info",text:"Organizado pela IA. Desmarque o que não estiver certo."}),
     vazio ? el("p",{class:"info",text:"Não deu para tirar nenhuma informação do relato."}) : null,
     grupo("Clima e horário", [cl&&item("clima",cl), res.condicao&&item("cond",`Obra: ${res.condicao}`), (res.inicio||res.fim)&&item("hora",`Expediente: ${res.inicio||"?"} às ${res.fim||"?"}`)].filter(Boolean)),

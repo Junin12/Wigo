@@ -398,6 +398,12 @@ canvas.qr{display:block;width:min(260px,100%);height:auto;image-rendering:pixela
 .ind span{font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
 .ind b{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-size:1.35rem;font-weight:600;line-height:1.1}
 .ind small{color:var(--muted);font-size:.78rem}
+button.ind{text-align:left;cursor:pointer;color:inherit;font:inherit;transition:transform .15s,box-shadow .15s} button.ind:active{transform:scale(.98)}
+@media (hover:hover){ button.ind:hover{box-shadow:0 4px 14px rgba(16,32,51,.10);border-color:var(--accent)} }
+.ind-bar{display:block;height:5px;border-radius:3px;background:var(--line);overflow:hidden;margin-top:4px} .ind-bar>i{display:block;height:100%;border-radius:3px;background:var(--accent)}
+.ind-sync{grid-column:1/-1;display:flex;align-items:center;flex-wrap:wrap;gap:0 4px;font-size:.82rem;color:var(--muted);padding:2px 4px}
+.ind-sync b{font-weight:600;color:var(--ink)} .ind-sync .pt{width:8px;height:8px;border-radius:50%;background:var(--muted);margin-right:4px}
+.ind-sync[data-st=ok] .pt{background:var(--good,#1D7A48)} .ind-sync[data-st=warn] .pt{background:#E08A00} .ind-sync[data-st=bad] .pt{background:var(--bad)}
 /* grade de módulos */
 .mods{display:grid;grid-template-columns:repeat(auto-fill,minmax(146px,1fr));gap:12px}
 .mods-prod{grid-template-columns:repeat(auto-fill,minmax(190px,1fr))}
@@ -1490,7 +1496,7 @@ function pendCount(){ let c=Object.keys(S.pendEq).length+S.pendReg.length+S.pend
     +Object.keys(S.pendAt).length+S.pendAtDel.length+Object.keys(S.pendRdo).length
     +Object.keys(S.pendCc).length+S.pendCcDel.length+Object.keys(S.pendTr).length+Object.keys(S.pendReg2).length+S.pendReg2Del.length; for(const p of Object.values(S.pend)){ c+=Object.keys(p.raw||{}).length + (p.arm!=null) + (p.dias!=null) + (p.novo?1:0); } return c; }
 // o cartão "Sincronização" da tela inicial repete o texto do botão de sincronizar
-function setSync(){ pintarSync(); const i=$("#ind-sync"); if(i) i.textContent=$("#sync").textContent; }
+function setSync(){ pintarSync(); const i=$("#ind-sync"); if(i){ i.textContent=$("#sync").textContent; i.parentElement.dataset.st=($("#sync").className.match(/(ok|warn|bad)/)||[])[1]||""; } }
 function pintarSync(){
   const e=$("#sync"), c=pendCount();
   $("#aviso").hidden = !(S.scriptVelho && S.cfg?.url);
@@ -1539,9 +1545,11 @@ function renderResumo(){
   if(!w){ r.replaceChildren(); return; }
   repor(r,
     el("span",{}, "Semana ", el("b",{text:w.n}), ` · ${ddmm(w.ini)} a ${ddmm(w.fim)}`),
-    el("span",{}, el("b",{text:w.arm}), " armadores × ", el("b",{text:w.dias}), " dias"),
+    // semana sem equipe informada: sem meta e sem produtividade; leva direto para Semanas
+    w.arm>0 && w.dias>0 ? el("span",{}, el("b",{text:w.arm}), " armadores × ", el("b",{text:w.dias}), " dias")
+      : (()=>{ const a=el("a",{href:"#",class:"oc-link",text:"⚠ Informe armadores e dias desta semana"}); a.onclick=e=>{ e.preventDefault(); show("semanas"); }; return a; })(),
     el("span",{}, el("b",{text:nf0.format(w.q)}), " barras · ", el("b",{text:t(w.kg)+" t"})),
-    el("span",{}, el("b",{text:nf0.format(w.prod)}), " kg/armador/dia"),
+    w.arm>0 && w.dias>0 ? el("span",{}, el("b",{text:nf0.format(w.prod)}), " kg/armador/dia") : null,
     metaSemana(w) ? el("span",{}, "meta ", el("b",{text:t(metaSemana(w))+" t"}), ` (${pct(w.kg/metaSemana(w))} atingido)`) : null,
     ...(()=>{ const oc=regsAll().filter(r=>r.tipo==="ocorrencia"&&r.sem===w.n); if(!oc.length) return [];
       const a=el("a",{href:"#",class:"oc-link",text:`${oc.length} ocorrência${oc.length>1?"s":""} · ${nf1.format(oc.reduce((s,r)=>s+(+r.horas||0),0))} h perdidas`});
@@ -1997,7 +2005,7 @@ $("#tema").addEventListener("click", e=>{ const b=e.target.closest("button[data-
   renderTema(); });
 renderTema();
 
-const VERSAO_APP = "v101"; // igual ao número em sw.js (armacao-v101)
+const VERSAO_APP = "v102"; // igual ao número em sw.js (armacao-v102)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -3970,20 +3978,27 @@ function contar(elm, alvo, fmt, ms=900){
 function renderIndicadores(){
   const box=$("#ind-ini"); if(!box) return; numProd();
   if(!S.items.length){ box.replaceChildren(el("div",{class:"ind"}, el("span",{text:"Primeiro acesso"}), el("b",{text:"Conecte o banco"}), el("small",{text:"Toque em ⚙ Configurar o banco, abaixo dos módulos"}))); return; }
-  const r=resumoAco(), w=r.w, meta=w?metaSemana(w):0;
-  const i1=el("b"), i2=el("b"), i3=el("b",{id:"ind-sync",text:$("#sync").textContent}), iF=el("b"), f=fmCalc();
+  // os quatro números da obra (cada um abre o painel do material) e, embaixo, a situação da sincronização
+  const r=resumoAco(), w=r.w, meta=w?metaSemana(w):0, f=fmCalc(), C=ceCalc("");
+  const i1=el("b"), i2=el("b"), iF=el("b"), iC=el("b"), fC=C.projPrev?C.proj/C.projPrev:0;
+  const card=(k, rot, val, sub, frac, acao)=>el("button",{class:"ind",type:"button",style:`animation-delay:${.05+k*.05}s`,onclick:acao,"aria-label":`${rot}: abrir`},
+    el("span",{text:rot}), val, el("small",{text:sub}), frac!=null ? el("i",{class:"ind-bar"}, el("i",{style:`width:${Math.min(100,frac*100).toFixed(1)}%`})) : null);
+  const vaiProd=m=>()=>{ PV.mat=m; PV.vista="painel"; LS.set("prodMat",m); LS.set("prodVista","painel"); abrirTela("prod"); };
   box.replaceChildren(
-    el("div",{class:"ind",style:"animation-delay:.05s"}, el("span",{text:"Aço armado"}), i1, el("small",{text:`de ${t(r.P)} t previstas`})),
-    el("button",{class:"ind",type:"button",style:"animation-delay:.09s;text-align:left;cursor:pointer",onclick:()=>abrirTela("fpainel")}, el("span",{text:"Forma montada"}), iF,
-      el("small",{text:`de ${nf0.format(f.totProj)} m²`+(f.prod?` · ${nf1.format(f.prod)} m²/pessoa·dia`:"")+(f.fim?` · término ${ddmm(f.fim)}`:"")})),
-    el("div",{class:"ind",style:"animation-delay:.12s"}, el("span",{text:w?`Semana ${w.n} · ${ddmm(w.ini)} a ${ddmm(w.fim)}`:"Semana"}), i2, el("small",{text:meta?`meta ${t(meta)} t · ${pct(w.kg/meta)} atingido`:"sem meta definida"})),
-    el("div",{class:"ind",style:"animation-delay:.19s"}, el("span",{text:"Sincronização"}), i3, el("small",{text:S.lastSync?`última: ${new Date(S.lastSync).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}`:"ainda não sincronizado"})));
+    card(0, "Aço armado", i1, `de ${t(r.P)} t previstas`, r.pct, vaiProd("aco")),
+    card(1, "Forma montada", iF, `de ${nf0.format(f.totProj)} m²`+(f.prod?` · ${nf1.format(f.prod)} m²/pessoa·dia`:""), f.totProj?f.avanco/f.totProj:0, vaiProd("forma")),
+    card(2, "Concreto", iC, `de ${nf0.format(C.projPrev)} m³ · ${C.feitas} etapas executadas`, fC, vaiProd("conc")),
+    card(3, w?`Semana ${w.n} · ${ddmm(w.ini)} a ${ddmm(w.fim)}`:"Semana", i2, meta?`meta ${t(meta)} t · ${pct(w.kg/meta)} atingido`:"informe armadores e dias em Semanas", meta?Math.min(1,w.kg/meta):null, ()=>irAco("coleta")),
+    el("div",{class:"ind-sync","data-st":($("#sync").className.match(/(ok|warn|bad)/)||[])[1]||""}, el("span",{class:"pt"}), el("b",{id:"ind-sync",text:$("#sync").textContent}),
+      el("small",{text:S.lastSync?` · última: ${new Date(S.lastSync).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}`:" · ainda não sincronizado"})));
   contar(i1, r.E/1000, v=>`${nf1.format(v)} t · ${pct(r.P?v*1000/r.P:0)}`);
   contar(iF, f.avanco, v=>`${nf0.format(v)} m² · ${pct(f.totProj?v/f.totProj:0)}`);
+  contar(iC, C.proj, v=>`${nf0.format(v)} m³ · ${pct(C.projPrev?v/C.projPrev:0)}`);
   contar(i2, (w?.kg||0)/1000, v=>`${nf1.format(v)} t na semana`);
 }
 // percentual do aço no botão Produtividade (atualiza quando a base chega)
-function numProd(){ const n=$("#num-prod"), f=fmCalc(); if(n) n.textContent = S.items.length ? `Aço ${pct(resumoAco().pct)} · Forma ${pct(f.totProj?f.avanco/f.totProj:0)}` : ""; }
+function numProd(){ const n=$("#num-prod"); if(!n) return; const f=fmCalc(), C=ceCalc("");
+  n.textContent = S.items.length ? `Aço ${pct(resumoAco().pct)} · Forma ${pct(f.totProj?f.avanco/f.totProj:0)} · Concreto ${pct(C.projPrev?C.proj/C.projPrev:0)}` : ""; }
 function saudacao(){
   const h=new Date().getHours(), s=h<12?"Bom dia":h<18?"Boa tarde":"Boa noite";
   const d=new Date().toLocaleDateString("pt-BR",{weekday:"long",day:"numeric",month:"long"});
@@ -4491,7 +4506,8 @@ function renderSupAco(){
       kpi("Pedido", `${t(tot)} t`, `${L.length} remessas`),
       kpi("Recebido", `${t(rec)} t`, `${pct(tot?rec/tot:0)} do pedido`),
       kpi("A receber", `${t(tot-rec)} t`, `${pend.length} remessas`),
-      prox ? kpi("Próxima entrega", janela(prox), `${prox.est} · ${t(prox.kg)} t`)
+      prox ? ((prox.fim||prox.ini)<hojeISO() ? kpi("Entrega atrasada", janela(prox), `${prox.est} · ${t(prox.kg)} t · confirme o recebimento ou a nova data`)
+             : kpi("Próxima entrega", janela(prox), `${prox.est} · ${t(prox.kg)} t`))
            : kpi("Próxima entrega", "—", pend.length ? "sem data prevista" : "todo o pedido foi recebido")),
     barra(tot?rec/tot:0),
     ...cards,
@@ -8309,7 +8325,7 @@ function painelForma(){
       el("button",{class:"btn",type:"button",text:"📈 Painel",onclick:()=>abrirTela("fpainel")})),
     el("div",{class:"kpis"},
       kpi("Forma montada", `${nf1.format(c.avanco)} m²`, `de ${nf1.format(c.totProj)} m² (comparativo maior, ETA) · ${pct(c.totProj?c.avanco/c.totProj:0)} · contrato do cliente (CODAU) ${nf1.format(totCodau)} m²`),
-      kpi("Ritmo", c.porSem ? `${nf1.format(c.porSem)} m²` : "–", c.porSem ? `por semana · média das últimas ${Math.min(4,c.semanas)} com montagem` : "lance a montagem"),
+      kpi("Ritmo", c.porSem ? `${nf1.format(c.porSem)} m²` : "–", c.porSem ? (c.semanas===1 ? "por semana · só 1 semana com montagem" : `por semana · média das últimas ${Math.min(4,c.semanas)} com montagem`) : "lance a montagem"),
       kpi("Produtividade", c.prod ? `${nf1.format(c.prod)} m²` : "–", c.prod ? "por pessoa/dia trabalhado" : "informe pessoas e dias"),
       kpi("Término previsto", c.fim ? ddmm(c.fim) : c.m2 && !c.falta ? "concluída" : "–", c.fim ? `faltam ${nf1.format(c.falta)} m² · ~${c.semFalta} semana${c.semFalta===1?"":"s"}` : "depende do ritmo")),
     barra(c.totProj?c.avanco/c.totProj:0),

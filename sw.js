@@ -1,7 +1,10 @@
 // Guarda o app no aparelho para abrir sem internet.
-// Ao alterar index.html, suba o nÃºmero da versÃ£o para os celulares receberem a atualizaÃ§Ã£o.
-// Os PDFs dos projetos ficam num cache Ã  parte ("armacao-pdfs"), que nÃ£o Ã© apagado nas atualizaÃ§Ãµes.
-const VERSAO = "armacao-v101";
+// Ao alterar index.html, suba o número da versão para os celulares receberem a atualização.
+// Os PDFs dos projetos ficam num cache à parte ("armacao-pdfs"), que não é apagado nas atualizações.
+const VERSAO = "armacao-v102";
+// bibliotecas de outros sites (versão fixa no endereço): cache próprio, que sobrevive às atualizações do app.
+// Antes ficavam no cache da versão e cada atualização baixava de novo ~4 MB no celular.
+const LIBS_CACHE = "armacao-libs-1";
 const APP = ["./", "index.html", "painel.html", "manifest.webmanifest", "icon-wigo-192.png", "icon-wigo-512.png", "icon-wigo-maskable-512.png", "logo-relatorio.jpg", "marcas.json", "romaneios-os.json", "checklists-maquinas.json"];
 const LIBS = [
   "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js",
@@ -15,9 +18,11 @@ const LIBS = [
 self.addEventListener("install", e => {
   e.waitUntil((async () => {
     const c = await caches.open(VERSAO);
-    // cache:"reload" ignora o cache do navegador (o GitHub guarda arquivos por atÃ© 10 min)
+    // cache:"reload" ignora o cache do navegador (o GitHub guarda arquivos por até 10 min)
     await c.addAll(APP.map(u => new Request(u, { cache: "reload" })));
-    for (const u of LIBS) { try { await c.add(u); } catch {} } // se falhar, baixa no primeiro uso
+    const L = await caches.open(LIBS_CACHE);
+    // reaproveita a cópia da versão anterior do app (caches.match procura em todos); só baixa o que não houver
+    for (const u of LIBS) { try { if (await L.match(u)) continue; const v = await caches.match(u); if (v) await L.put(u, v); else await L.add(u); } catch {} } // se falhar, baixa no primeiro uso
     self.skipWaiting();
   })());
 });
@@ -31,7 +36,7 @@ self.addEventListener("activate", e => {
 
 self.addEventListener("message", e => { if (e.data === "pular-espera") self.skipWaiting(); });
 
-// tenta a rede por atÃ© `ms`; se nÃ£o vier, usa o que estÃ¡ guardado
+// tenta a rede por até `ms`; se não vier, usa o que está guardado
 const comPrazo = (p, ms) => Promise.race([p, new Promise(r => setTimeout(() => r(null), ms))]);
 
 self.addEventListener("fetch", e => {
@@ -42,7 +47,7 @@ self.addEventListener("fetch", e => {
   e.respondWith((async () => {
     const c = await caches.open(VERSAO);
     if (url.origin === location.origin) {
-      // arquivos do app: primeiro a rede (versÃ£o mais nova), com prazo curto; sem sinal, a cÃ³pia guardada
+      // arquivos do app: primeiro a rede (versão mais nova), com prazo curto; sem sinal, a cópia guardada
       const rede = fetch(url.href, { cache: "no-cache", credentials: "same-origin" }).then(r => {
         if (r.ok) c.put(req, r.clone());
         return r;
@@ -53,10 +58,11 @@ self.addEventListener("fetch", e => {
       if (hit) { e.waitUntil(rede); return hit; }
       return (await rede) || Response.error();
     }
-    // bibliotecas e fontes de outros sites: cÃ³pia guardada primeiro
-    const hit = await c.match(req);
+    // bibliotecas e fontes de outros sites: cópia guardada primeiro
+    const L = await caches.open(LIBS_CACHE);
+    const hit = await L.match(req) || await c.match(req);
     if (hit) return hit;
-    try { const r = await fetch(req); if (r.ok || r.type === "opaque") c.put(req, r.clone()); return r; }
+    try { const r = await fetch(req); if (r.ok || r.type === "opaque") L.put(req, r.clone()); return r; }
     catch { return Response.error(); }
   })());
 });

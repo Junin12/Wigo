@@ -380,6 +380,7 @@ canvas.qr{display:block;width:min(260px,100%);height:auto;image-rendering:pixela
 @keyframes brilho{from{transform:translate(0,0) scale(1)}to{transform:translate(-18%,-12%) scale(1.15)}}
 .tela-topo .in{position:relative;z-index:1;max-width:1000px;margin-inline:auto;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 16px}
 /* logo Heca / GCE (fundo branco): num quadro branco sobre o azul */
+.ver-pdf{display:grid;gap:10px}.ver-pdf canvas{width:100%;height:auto;display:block;background:#fff;border:1px solid var(--line);border-radius:6px}
 .tela-logo{height:40px;width:auto;max-width:62vw;object-fit:contain;display:block;background:#fff;border-radius:10px;padding:4px 6px;box-shadow:0 4px 14px -6px rgba(0,0,0,.45)}
 .tela-obra{text-align:right;line-height:1.15}
 .tela-obra small{display:block;font-size:.68rem;letter-spacing:.12em;text-transform:uppercase;color:#CFE6F6}
@@ -7203,6 +7204,7 @@ function cardConc(c, ed){
       el("button",{class:"btn pri",type:"button",text:edSt&&c.status!=="Concluída"?(m?"🖌 Abrir o mapa e pintar":"🖌 Abrir a forma e pintar"):(m?"🧱 Ver o mapa":"📄 Ver a forma"),onclick:()=>abrirConcretagem(c)}),
       el("button",{class:"btn",type:"button",text:`🚚 Caminhões (${c.cams.length})`,onclick:()=>listaCaminhoes(c)}),
       pode("qual") ? el("button",{class:"btn",type:"button",text:`🧪 Corpos de prova (${regs2De("qual","cp").filter(r=>r.dados.conc===rotConc(c)).length})`,onclick:()=>cpDaConc(c)}) : null,
+      el("button",{class:"btn",type:"button",text:"👁 Ver relatório",onclick:e=>relatorioConc(c,e.currentTarget,true)}),
       el("button",{class:"btn",type:"button",text:m?"📄 Mapa (PDF)":"📄 Relatório",onclick:e=>relatorioConc(c,e.currentTarget)})),
     edSt ? el("div",{class:"pr-bts"}, ...CC_STATUS.map(s=>el("button",{class:"chipbtn"+(c.status===s?" on":""),type:"button",text:s,"aria-pressed":String(c.status===s),
       onclick:()=>{ if(c.status===s) return; if(s==="Concluída" && !confirm("Marcar a concretagem como concluída? Depois disso a pintura fica travada.")) return; setConc(c.id,{status:s},`Status: ${s}`);
@@ -7376,14 +7378,31 @@ function recortePintado(cv, vp, ts){
   o.getContext("2d").drawImage(cv, x0, y0, o.width, o.height, 0, 0, o.width, o.height);
   return o;
 }
+// prévia na tela: as páginas do PDF desenhadas uma abaixo da outra, com o botão para baixar/compartilhar se quiser
+async function verPdf(doc, nome, titulo, btn){
+  await loadPdfjs();
+  const pdf=await pdfjsLib.getDocument({data:new Uint8Array(doc.output("arraybuffer"))}).promise;
+  const box=el("div",{class:"full ver-pdf"});
+  efModal(`Prévia · ${titulo}`, [box], [el("button",{class:"btn pri",type:"button",text:"📄 Baixar / compartilhar PDF",onclick:()=>entregarPdf(doc, nome, titulo)})]);
+  const larg=Math.min(1600, Math.round((box.clientWidth||360)*(devicePixelRatio||1)*1.5));
+  for(let n=1;n<=pdf.numPages;n++){
+    if(btn) btn.textContent=`Mostrando página ${n}…`;
+    const pg=await pdf.getPage(n), v1=pg.getViewport({scale:1}), vp=pg.getViewport({scale:larg/v1.width});
+    const cv=el("canvas",{"aria-label":`Página ${n} de ${pdf.numPages}`}); cv.width=Math.round(vp.width); cv.height=Math.round(vp.height);
+    await pg.render({canvasContext:cv.getContext("2d"), viewport:vp}).promise;
+    box.append(cv);
+  }
+  pdf.destroy();
+}
 // --- relatório: mapa pintado + tabela dos caminhões ---
-async function relatorioConc(c, btn){
+// ver=true: monta o mesmo PDF e mostra na tela (sem baixar nem compartilhar)
+async function relatorioConc(c, btn, ver=false){
   const txt=btn.textContent; btn.disabled=true; btn.textContent="Gerando…";
   try{
     await buscarTracos(c.id);
     // paredes: o relatório é o próprio mapa, com as áreas pintadas e a tabela dos caminhões preenchida
-    if(mapaDe(c)){ const doc=await docMapa(c,{pintura:true});
-      return await entregarPdf(doc, `Mapa_concretagem_${c.estrutura.replace(/\W+/g,"_")}_${c.data}.pdf`, `Mapa de concretagem ${c.estrutura}`); }
+    if(mapaDe(c)){ const doc=await docMapa(c,{pintura:true}), nome=`Mapa_concretagem_${c.estrutura.replace(/\W+/g,"_")}_${c.data}.pdf`, tit=`Mapa de concretagem ${c.estrutura}`;
+      return ver ? await verPdf(doc, nome, tit, btn) : await entregarPdf(doc, nome, tit); }
     const doc=await novoPdf(`Relatório de concretagem — ${nomeObra()}`, `${c.estrutura}${c.local?" · "+c.local:""} · ${dataBR(c.data)} · ${c.status}`,
       `Gerado em ${new Date().toLocaleString("pt-BR")} por ${nomeRel(quemSou())}`), W=210, M=12, AZ=PDF_AZ;
     let y=38;
@@ -7420,7 +7439,8 @@ async function relatorioConc(c, btn){
       pdf.destroy();
     } else { doc.setFontSize(9); doc.text("Nenhuma área pintada na forma.",M,y); y+=8; }
     rodapePdf(doc);
-    await entregarPdf(doc, `Concretagem_${c.estrutura.replace(/\W+/g,"_")}_${c.data}.pdf`, `Concretagem ${c.estrutura}`);
+    const nome=`Concretagem_${c.estrutura.replace(/\W+/g,"_")}_${c.data}.pdf`, tit=`Concretagem ${c.estrutura}`;
+    ver ? await verPdf(doc, nome, tit, btn) : await entregarPdf(doc, nome, tit);
   }catch(e){ toast(e.message||"Não foi possível gerar o relatório."); }
   finally{ btn.disabled=false; btn.textContent=txt; }
 }
@@ -8947,7 +8967,8 @@ function renderRelatorios(box){
     bt(["📊 Exportar Excel do aço","Formato da Prod. Semanal"], ()=>{ abrirTela("aco"); show("dados"); setTimeout(()=>$("#exportar")?.scrollIntoView({behavior:"smooth"}),200); }, pode("prod")),
     bt(["📊 Planilha de medição do aço","Resumo e barras armadas"], ()=>{ abrirTela("aco"); show("dados"); setTimeout(()=>$("#med-fechadas")?.scrollIntoView({behavior:"smooth"}),200); }, pode("prod")),
     pode("prod") ? el("h2",{class:"tela-tit",text:`Concretagens no período · ${cc.length}`}) : null,
-    ...(pode("prod") ? cc.map(c=>bt([`📄 ${c.estrutura}${c.local?" · "+c.local:""}`, `${dataBR(c.data)} · ${c.status}`], b=>relatorioConc(c,b))) : []),
+    ...(pode("prod") ? cc.map(c=>el("div",{class:"row"}, bt([`📄 ${c.estrutura}${c.local?" · "+c.local:""}`, `${dataBR(c.data)} · ${c.status}`], b=>relatorioConc(c,b)),
+      el("button",{class:"btn",type:"button",text:"👁 Ver","aria-label":`Ver o relatório de ${c.estrutura} sem baixar`,onclick:e=>relatorioConc(c,e.currentTarget,true)}))) : []),
     el("h2",{class:"tela-tit",text:"Módulos (registros no período)"}),
     ...Object.entries(MOD2).filter(([k,M])=>!M.render && pode(M.acesso||k)).flatMap(([k,M])=>M.tipos.filter(T=>!T.semData).map(T=>
       bt([`📄 ${M.nome}${k==="sup"?" › "+MAT2[T.id].nome:""} — ${T.nome}`, `${regs2De(k,T.id).filter(r=>r.data>=RL.ini && r.data<=RL.fim).length} no período`], pdfModulo(k,T.id)))));

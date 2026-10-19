@@ -1,7 +1,7 @@
 // Guarda o app no aparelho para abrir sem internet.
 // Ao alterar index.html, suba o número da versão para os celulares receberem a atualização.
 // Os PDFs dos projetos ficam num cache à parte ("armacao-pdfs"), que não é apagado nas atualizações.
-const VERSAO = "armacao-v114";
+const VERSAO = "armacao-v115";
 // bibliotecas de outros sites (versão fixa no endereço): cache próprio, que sobrevive às atualizações do app.
 // Antes ficavam no cache da versão e cada atualização baixava de novo ~4 MB no celular.
 const LIBS_CACHE = "armacao-libs-1";
@@ -43,6 +43,13 @@ self.addEventListener("fetch", e => {
   const req = e.request, url = new URL(req.url);
   if (req.method !== "GET" || !url.protocol.startsWith("http")) return;
   if (url.hostname.endsWith("script.google.com") || url.hostname.endsWith("googleusercontent.com")) return; // banco: sempre rede
+
+  // páginas que não são o app (ex.: o painel em /wigo/painel/): o navegador abre direto, sem passar por aqui.
+  // Antes, o painel caía na cópia guardada do app quando a rede demorava, e o redirecionamento "painel" → "painel/" dava erro.
+  if (req.mode === "navigate" && url.origin === location.origin) {
+    const rel = url.pathname.slice(new URL(self.registration.scope).pathname.length);
+    if (rel !== "" && rel !== "index.html") return;
+  }
 
   e.respondWith((async () => {
     const c = await caches.open(VERSAO);

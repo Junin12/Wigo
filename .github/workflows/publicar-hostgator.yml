@@ -5,8 +5,8 @@
 #               FTP_USERNAME (conta de FTP criada no cPanel)
 #               FTP_PASSWORD
 #   Variables (opcionais):
-#               FTP_DIR      pasta do app vista pela conta de FTP. Padrão "wigo/": a conta da obra abre no public_html,
-#                            e o app fica em public_html/wigo (wiapps.com.br/wigo/). Conta criada já na pasta do app: "./".
+#               FTP_DIR      pasta do app vista pela conta de FTP. Padrão "./": a conta deploy@wiapps.com.br já abre em
+#                            public_html/wigo (wiapps.com.br/wigo/). Só mude se usar uma conta que enxergue o site inteiro.
 #               FTP_PROTOCOL "ftps" (padrão) ou "ftp", se o servidor recusar a conexão segura.
 #
 # Só envia o que mudou desde a última publicação. A pasta painel/ do site (painel com o acesso embutido) não está no
@@ -43,7 +43,7 @@ jobs:
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
           protocol: ${{ vars.FTP_PROTOCOL || 'ftps' }}
-          server-dir: ${{ vars.FTP_DIR || 'wigo/' }}
+          server-dir: ${{ vars.FTP_DIR || './' }}
           exclude: |
             **/.git*
             **/.git*/**

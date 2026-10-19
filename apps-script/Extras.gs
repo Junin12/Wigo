@@ -12,6 +12,8 @@
  */
 
 const WIGO_PASTA_BACKUP = "WIGO - Backups";
+// mensagem na planilha; rodando pelo editor do Apps Script (sem planilha aberta) vai para o Registro de execução
+function wigoAviso_(txt) { try { SpreadsheetApp.getUi().alert("WIGO", txt, SpreadsheetApp.getUi().ButtonSet.OK); } catch (e) { Logger.log(txt); } }
 const WIGO_BACKUPS_GUARDADOS = 8;
 
 function instalarExtras() {
@@ -22,9 +24,9 @@ function instalarExtras() {
     .forEach(t => ScriptApp.deleteTrigger(t));
   ScriptApp.newTrigger("wigoBackupSemanal").timeBased().onWeekDay(ScriptApp.WeekDay.MONDAY).atHour(3).create();
   ScriptApp.newTrigger("wigoMenu").forSpreadsheet(ss).onOpen().create();
-  wigoMenu();
-  wigoBackupSemanal();
-  SpreadsheetApp.getUi().alert("WIGO", "Pronto: backup toda segunda às 3h (pasta \"" + WIGO_PASTA_BACKUP + "\" no Drive) e menu WIGO na planilha. O primeiro backup já foi feito.", SpreadsheetApp.getUi().ButtonSet.OK);
+  try { wigoMenu(); } catch (e) { /* pelo editor não há planilha aberta: o menu aparece ao abrir a planilha */ }
+  const nome = wigoBackupSemanal();
+  wigoAviso_("Pronto: backup toda segunda às 3h (pasta \"" + WIGO_PASTA_BACKUP + "\" no Drive) e menu WIGO na planilha (recarregue a planilha para ver). Primeiro backup feito: \"" + nome + "\".");
 }
 
 function wigoMenu() {
@@ -56,7 +58,7 @@ function wigoBackupSemanal() {
 
 function wigoBackupAgora() {
   const nome = wigoBackupSemanal();
-  SpreadsheetApp.getUi().alert("WIGO", "Backup feito: \"" + nome + "\" na pasta \"" + WIGO_PASTA_BACKUP + "\" do Drive.", SpreadsheetApp.getUi().ButtonSet.OK);
+  wigoAviso_("Backup feito: \"" + nome + "\" na pasta \"" + WIGO_PASTA_BACKUP + "\" do Drive.");
 }
 
 function wigoEsquecerSenhaDev() {

@@ -391,7 +391,6 @@ canvas.qr{display:block;width:min(260px,100%);height:auto;image-rendering:pixela
 .graf-res .g-txt{font-size:9px;fill:var(--muted)}.graf-res .g-esp{fill:none;stroke:var(--muted);stroke-width:1.4;stroke-dasharray:4 3}
 .g-leg{display:flex;flex-wrap:wrap;gap:8px;font-size:.78rem;color:var(--muted)}.g-leg i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
 details.lote{border-top:1px solid var(--line);padding:6px 0}details.lote summary{cursor:pointer}
-input.lido{background:var(--warn-bg);outline:2px solid var(--warn)}
 .ver-pdf{display:grid;gap:10px}.ver-pdf canvas{width:100%;height:auto;display:block;background:#fff;border:1px solid var(--line);border-radius:6px}
 .tela-logo{height:40px;width:auto;max-width:62vw;object-fit:contain;display:block;background:#fff;border-radius:10px;padding:4px 6px;box-shadow:0 4px 14px -6px rgba(0,0,0,.45)}
 .tela-obra{text-align:right;line-height:1.15}
@@ -2088,7 +2087,7 @@ function setCampo(on){ LS.set("campo",!!on); if(on) document.documentElement.dat
 $("#campo-modo").addEventListener("click", e=>{ const b=e.target.closest("button[data-c]"); if(b) setCampo(b.dataset.c==="1"); });
 setCampo(!!LS.get("campo"));
 
-const VERSAO_APP = "v116"; // igual ao número em sw.js (armacao-v116)
+const VERSAO_APP = "v117"; // igual ao número em sw.js (armacao-v117)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -7074,18 +7073,6 @@ function chuvaNaData(data){
   return box;
 }
 // --- caminhões ---
-// foto do ticket → JPEG de até 1600 px → script da planilha (acao "ticket", Code.gs 29+) → campos lidos pela IA
-async function lerTicketFoto(arquivo){
-  if(S.scriptVer && S.scriptVer<29) throw new Error(`O script da planilha está na versão ${S.scriptVer}: cole o Code.gs novo (versão 29) no Apps Script e publique uma Nova versão.`);
-  const bmp=await createImageBitmap(arquivo), k=Math.min(1, 1600/Math.max(bmp.width,bmp.height));
-  const cv=document.createElement("canvas"); cv.width=Math.round(bmp.width*k); cv.height=Math.round(bmp.height*k);
-  cv.getContext("2d").drawImage(bmp,0,0,cv.width,cv.height); bmp.close?.();
-  const foto=cv.toDataURL("image/jpeg",0.85).split(",")[1];
-  const j=await post({acao:"ticket", foto}, 120000);
-  if(j.semChave) throw new Error("A leitura por foto precisa da chave da IA no script da planilha (propriedade ANTHROPIC_API_KEY, a mesma do RDO por voz). Preencha à mão por enquanto.");
-  if(!j.ticket) throw new Error("Não consegui ler o ticket. Preencha à mão.");
-  return j.ticket;
-}
 function editarCaminhao(c, k){
   const novo=!k, ult=c.cams[c.cams.length-1];
   // o seletor de cor devolve minúsculas ("#e53935"): compara sem diferenciar
@@ -7102,19 +7089,6 @@ function editarCaminhao(c, k){
   const iPar=inp(k?.par,{maxLength:120,placeholder:"Ex.: PAR 3, 9, 16 (se não pintar no mapa)"}), iCps=el("input",{type:"number",min:0,step:1,inputMode:"numeric",value:k?.cps??"",placeholder:"0"});
   const iCor=el("input",{type:"color",value:cor,"aria-label":"Cor do caminhão"});
   const usinas=[...new Set(concs().flatMap(x=>x.cams.map(z=>z.usina)).filter(Boolean))];
-  // foto do ticket da concreteira: a IA (no script da planilha) lê e preenche os campos; a pessoa confere antes de salvar
-  const fotoT=el("input",{type:"file",accept:"image/*",hidden:true}); fotoT.setAttribute("capture","environment");
-  const msgT=el("p",{class:"info full"});
-  const btT=el("button",{class:"btn",type:"button",text:"📷 Ler o ticket da concreteira (foto)",onclick:()=>fotoT.click()});
-  fotoT.onchange=async()=>{ const f=fotoT.files[0]; fotoT.value=""; if(!f) return;
-    btT.disabled=true; msgT.textContent="Lendo o ticket… (uns 10 a 30 segundos)";
-    try{
-      const t=await lerTicketFoto(f), pre=(i,v)=>{ if(v!=null && v!=="" && v!==0){ i.value=v; i.classList.add("lido"); } };
-      pre(iNf,t.nf); pre(iUs,t.usina); pre(iVol,t.volume); pre(iCh,/^\d{1,2}:\d{2}$/.test(t.chegada)?t.chegada.padStart(5,"0"):""); pre(iSl,t.slump); pre(iFck,t.fck);
-      if(t.obs && !iObs.value) pre(iObs,t.obs);
-      msgT.textContent="Campos preenchidos pela foto (destacados). Confira com o ticket antes de salvar.";
-    }catch(e){ msgT.textContent=e.message; }
-    finally{ btT.disabled=false; } };
   const salvar=()=>{
     const vol=Math.max(0,num(iVol.value)); if(!vol) return toast("Informe o volume do caminhão (m³).");
     const dados={nf:iNf.value.trim(), usina:iUs.value.trim(), vol, chegada:iCh.value, inicio:iIn.value, fim:iFim.value,
@@ -7128,8 +7102,7 @@ function editarCaminhao(c, k){
     toast(novo?`Caminhão C${cams.at(-1).n} adicionado. Pinte a área que ele concretou.`:"Caminhão atualizado."); fecharEf();
   };
   efModal(novo?"Novo caminhão":`Caminhão C${k.n}`,
-    [S.cfg?.url ? el("div",{class:"full row"}, btT, fotoT) : null, msgT,
-     campoEf("Volume (m³)",iVol), campoEf("Cor no desenho",iCor), campoEf("Nota fiscal / ticket",iNf), campoEf("Concreteira",iUs),
+    [campoEf("Volume (m³)",iVol), campoEf("Cor no desenho",iCor), campoEf("Nota fiscal / ticket",iNf), campoEf("Concreteira",iUs),
      el("datalist",{id:"dl-usinas"}, ...usinas.map(u=>el("option",{value:u}))),
      campoEf("Chegada",iCh), campoEf("Início do lançamento",iIn), campoEf("Fim do lançamento",iFim),
      campoEf("Slump (cm)",iSl), campoEf("fck (MPa)",iFck), campoEf("Nº de CPs",iCps), campoEf("Paredes atendidas",iPar,true), campoEf("Observação",iObs,true)],

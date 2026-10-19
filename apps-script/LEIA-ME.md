@@ -7,7 +7,7 @@ Cópia do script publicado no Apps Script (sem senhas: a senha do app, TOKEN, e 
 ficam nas Propriedades do script). Quando mudar o script aqui, cole no Apps Script e publique:
 **Implantar → Gerenciar implantações → lápis ✏️ → Versão: Nova versão → Implantar** (o endereço /exec não muda).
 
-Versão 30: o ticket é lido pelo Claude Haiku 5.5 (cerca de US$ 0,0005 por foto).
+Versão 31: a leitura do ticket por foto (versões 29 e 30) foi retirada por enquanto.
 
 Versão 29: leitura do ticket da concreteira por foto (usa a propriedade ANTHROPIC_API_KEY, a mesma do RDO por voz),
 abas **Erros** (erros de JavaScript dos celulares) e **Aparelhos** (versão do app e lançamentos sem enviar de cada celular),

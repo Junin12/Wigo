@@ -344,7 +344,6 @@ function doPost(e) {
     if (corpo.acao === 'pdf') return lerPdf(String(corpo.id || ''), corpo.parte, corpo.ini, corpo.tam);
     if (corpo.acao === 'miniatura') return miniatura(String(corpo.url || ''));
     if (corpo.acao === 'rdoVoz') return organizarRdo(corpo);
-    if (corpo.acao === 'ticket') return lerTicket(corpo);
     if (corpo.acao === 'ccTracos') return { tracos: lerTracos(String(corpo.conc || '')) };
     comLock_(() => aplicar(corpo.ops || [], usuario));
     const out = carregar(corpo.v || '');
@@ -448,52 +447,6 @@ function organizarRdo(corpo) {
   const bloco = (j.content || []).find(b => b.type === 'text');
   if (!bloco) throw new Error('A IA não devolveu o RDO organizado.');
   return { rdo: JSON.parse(bloco.text), modelo: j.model };
-}
-
-// ---------- ticket da concreteira por foto: a IA lê a nota e devolve os campos do caminhão ----------
-// Mesma chave do RDO por voz (ANTHROPIC_API_KEY). A foto não é guardada: só os campos lidos voltam para o app.
-// Modelo próprio, mais barato (ler uma nota é tarefa simples): ~US$ 0,0005 por ticket. O RDO por voz segue no CLAUDE_MODELO.
-const TICKET_MODELO = 'claude-haiku-5-5';
-const TICKET_SCHEMA = {
-  type: 'object', additionalProperties: false,
-  required: ['nf', 'usina', 'volume', 'chegada', 'slump', 'fck', 'obs'],
-  properties: {
-    nf: { type: 'string', description: 'número da nota fiscal ou do ticket/romaneio, só os dígitos; "" se não der para ler' },
-    usina: { type: 'string', description: 'nome da concreteira (empresa emitente); ""' },
-    volume: { type: 'number', description: 'volume de concreto em m³ (0 se não der para ler)' },
-    chegada: { type: 'string', description: 'horário de saída da usina ou de chegada na obra, HH:MM; ""' },
-    slump: { type: 'number', description: 'abatimento (slump) em cm pedido ou medido; 0 se não houver' },
-    fck: { type: 'number', description: 'fck em MPa; 0 se não houver' },
-    obs: { type: 'string', description: 'traço, brita, aditivo ou observação curta da nota; ""' },
-  },
-};
-function lerTicket(corpo) {
-  const chave = PropertiesService.getScriptProperties().getProperty('ANTHROPIC_API_KEY');
-  if (!chave) return { semChave: true };
-  const b64 = String(corpo.foto || '');
-  if (b64.length < 1000) throw new Error('Foto do ticket não chegou.');
-  if (b64.length > 4800000) throw new Error('Foto grande demais: tire de novo, mais perto do ticket.');
-  const resp = UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', {
-    method: 'post', contentType: 'application/json', muteHttpExceptions: true,
-    headers: { 'x-api-key': chave, 'anthropic-version': '2023-06-01' },
-    payload: JSON.stringify({
-      model: TICKET_MODELO, max_tokens: 4000,
-      output_config: { effort: 'low', format: { type: 'json_schema', schema: TICKET_SCHEMA } },
-      system: 'Você lê a foto de uma nota fiscal ou ticket de entrega de concreto usinado (caminhão betoneira) de uma obra no Brasil e '
-        + 'devolve os campos pedidos. Copie só o que estiver legível na foto, sem inventar; o que não der para ler fica vazio ou 0. '
-        + 'Volume em m³ com ponto decimal. Horário no formato HH:MM.',
-      messages: [{ role: 'user', content: [
-        { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: b64 } },
-        { type: 'text', text: 'Leia este ticket de concreto e preencha os campos.' } ] }],
-    }),
-  });
-  const cod = resp.getResponseCode();
-  let j; try { j = JSON.parse(resp.getContentText()); } catch (e) { throw new Error('Resposta inválida da IA (HTTP ' + cod + ').'); }
-  if (cod !== 200) throw new Error('IA indisponível (HTTP ' + cod + '): ' + ((j.error && j.error.message) || '').slice(0, 200));
-  if (j.stop_reason === 'refusal') throw new Error('A IA não leu esta foto. Preencha o caminhão à mão.');
-  const bloco = (j.content || []).find(b => b.type === 'text');
-  if (!bloco) throw new Error('A IA não devolveu os dados do ticket.');
-  return { ticket: JSON.parse(bloco.text), modelo: j.model };
 }
 
 // ---------- corpos de prova para o painel: resultados por caminhão, sem nomes ----------
@@ -690,7 +643,8 @@ function linhas(nome) {
 // 29: leitura do ticket da concreteira por foto (acao 'ticket'), erros e estado dos celulares (abas Erros e Aparelhos)
 //     e resultados dos corpos de prova no painel (sem nomes).
 // 30: ticket lido pelo Claude Haiku 5.5 (bem mais barato que o modelo do RDO por voz).
-const VERSAO_SCRIPT = 30;
+// 31: leitura do ticket por foto retirada (sem chave da IA por enquanto).
+const VERSAO_SCRIPT = 31;
 
 // Colunas de código que precisam ficar como TEXTO. Sem isso o Planilhas converte
 // "DEC-0001" em data (dez/2001) e o código se perde.

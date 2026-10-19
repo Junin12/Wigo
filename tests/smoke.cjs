@@ -36,7 +36,7 @@ const confere = (ok, msg) => { console.log(`${ok ? "ok  " : "FALHA"} ${msg}`); i
   await p.goto(base + "index.html"); await p.waitForTimeout(1500);
   confere(!erros.length, "app abre sem erro de JavaScript" + (erros.length ? `: ${erros[0]}` : ""));
   confere(await p.evaluate(() => typeof relatorioConc === "function" && typeof docMapa === "function" && typeof importarLab === "function"
-    && typeof loteConc === "function" && typeof graficoResist === "function" && typeof lerTicketFoto === "function" && typeof chuvaNaData === "function"), "funções principais carregadas");
+    && typeof loteConc === "function" && typeof graficoResist === "function" && typeof chuvaNaData === "function"), "funções principais carregadas");
 
   // mapa das paredes dos floculadores A e C (gera o PDF inteiro, sem baixar)
   for (const k of ["FLOC-A", "FLOC-C"]) {

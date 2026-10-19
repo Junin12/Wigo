@@ -1,0 +1,43 @@
+# Diagnóstico da publicação na HostGator: lista a pasta da conta de FTP e testa os endereços do site.
+# O resultado vai para o branch "diagnostico" (arquivo diagnostico.txt). Não grava senha nem usuário.
+name: Diagnóstico HostGator
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [.github/workflows/diagnostico-hostgator.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  diagnostico:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Testar FTP e site
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+        run: |
+          sudo apt-get install -y -qq lftp >/dev/null
+          {
+            echo "== $(date -u)"
+            echo "== pasta da conta de FTP (raiz)"
+            lftp -e "set ftp:ssl-allow yes; set ssl:verify-certificate no; set net:max-retries 1; cls -la --date; echo; echo '== painel/'; cls -la painel; echo; echo '== wigo/ (subpasta)'; cls -la wigo; bye" -u "$FTP_USERNAME,$FTP_PASSWORD" "$FTP_SERVER" 2>&1 | head -120
+            for u in https://wiapps.com.br/wigo/ https://wiapps.com.br/wigo/index.html https://wiapps.com.br/wigo/sw.js https://wiapps.com.br/wigo/painel/ https://wiapps.com.br/wigo/wigo/ https://wiapps.com.br/; do
+              echo "== $u"; curl -s -o /dev/null -w "%{http_code} %{content_type} %{size_download} bytes\n" --max-time 20 "$u"
+            done
+            echo "== cabeçalhos de https://wiapps.com.br/wigo/"; curl -sI --max-time 20 https://wiapps.com.br/wigo/ | head -20
+            echo "== início da página https://wiapps.com.br/wigo/"; curl -s --max-time 20 https://wiapps.com.br/wigo/ | head -c 600; echo
+          } > /tmp/diagnostico.txt
+          sed -i "s/$FTP_USERNAME/<usuario>/g; s/$FTP_SERVER/<servidor>/g" /tmp/diagnostico.txt
+          cat /tmp/diagnostico.txt
+
+      - name: Gravar no branch diagnostico
+        run: |
+          git init -q d && cd d
+          git config user.name "github-actions" && git config user.email "github-actions@users.noreply.github.com"
+          cp /tmp/diagnostico.txt . && git add diagnostico.txt && git commit -qm "Diagnóstico HostGator $(date -u +%F' '%T)"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" HEAD:diagnostico

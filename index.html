@@ -1406,6 +1406,11 @@ const SEMENTES=[
         "Caminhões da folha de campo de 17/10"); }
     ligarEtapa(c.id, "2026-10-17", "Floculador C", 2);
     setEtapa("Floculador C", 2, {status:"Executada", data:"2026-10-17", dados:{vol:Math.round(volLancado(concDe(c.id))*100)/100, estimado:false}}, "Floculador C · Lance 1: Executada (17/10)"); }},
+  // Floculador C, paredes do lance 1 (17/10/2026): entrou como Concluída (pintura travada). Volta para Em andamento para pintar
+  // no mapa a área de cada caminhão e gerar o relatório de rastreabilidade; depois de pintar, marque Concluída de novo.
+  {id:"CONC_FLOCC_REABRIR", fazer:()=>{
+    const c=concs().find(x=>x.data==="2026-10-17" && mapaDe(x)?.k==="FLOC-C");
+    if(c && c.status==="Concluída") setConc(c.id, {status:"Em andamento"}, "Status: Em andamento (reaberta para pintar a rastreabilidade)"); }},
 ];
 function rodarSementes(){
   if(!S.cfg?.url || !S.lastSync || LS.get("semSementes")) return; // semSementes: teste automático (testa à parte)

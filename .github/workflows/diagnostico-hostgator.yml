@@ -51,7 +51,7 @@ jobs:
           try:
               r = json.load(urllib.request.urlopen(a['u'] + '?k=' + a['k'] + '&gz=1', timeout=90))
               if r.get('gz'): r = json.loads(gzip.decompress(base64.b64decode(r['gz'])))
-              print('ok:', r.get('ok'), '| versão do Code.gs:', r.get('script'), '| erro:', r.get('erro', '-'), '| concretagens no resumo:', len((r.get('concreto') or {}).get('concretagens', [])))
+              print('ok:', r.get('ok'), '| versão do Code.gs:', r.get('script'), '| erro:', r.get('erro', '-'), '| concretagens no resumo:', len((r.get('concreto') or {}).get('concretagens', [])), '| corpos de prova no painel:', len(r['cps']) if 'cps' in r else 'sem o campo (script antigo)')
           except Exception as e: print('falhou:', e)
           PY
             echo "== versão do app no ar: $(curl -s --max-time 20 https://wiapps.com.br/wigo/sw.js | grep -o 'armacao-v[0-9]*' | head -1)"

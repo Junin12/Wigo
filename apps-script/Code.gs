@@ -644,7 +644,9 @@ function linhas(nome) {
 //     e resultados dos corpos de prova no painel (sem nomes).
 // 30: ticket lido pelo Claude Haiku 5.5 (bem mais barato que o modelo do RDO por voz).
 // 31: leitura do ticket por foto retirada (sem chave da IA por enquanto).
-const VERSAO_SCRIPT = 31;
+// 32: sincronização mais rápida: área pintada nova vai no fim da aba ConcretagemTracos (antes a aba inteira era lida e
+//     regravada a cada envio), leitura dos traços só das linhas da concretagem e observação da concretagem até 2.000 caracteres.
+const VERSAO_SCRIPT = 32;
 
 // Colunas de código que precisam ficar como TEXTO. Sem isso o Planilhas converte
 // "DEC-0001" em data (dez/2001) e o código se perde.
@@ -782,10 +784,32 @@ function lerRegistros2() {
       return { id: String(r[0]), modulo: String(r[1]), data: r[2], tipo: String(r[3] || ''), dados: dados, status: String(r[5] || ''),
         criadoPor: String(r[6] || ''), criadoEm: iso(r[7]), atualizadoPor: String(r[8] || ''), atualizadoEm: iso(r[9]) }; });
 }
+// traços de uma concretagem: lê só a coluna da concretagem e depois só as linhas dela (em blocos seguidos), não a aba inteira
 function lerTracos(conc) {
-  return linhas('ConcretagemTracos').filter(r => String(r[1]) === conc).map(r => ({
-    id: String(r[0]), conc: String(r[1]), cam: Number(r[2]) || 0, pag: Number(r[3]) || 1, w: Number(r[4]) || 10,
-    pts: String(r[5] || '').split(',').map(Number), por: String(r[6] || '') }));
+  const sh = aba('ConcretagemTracos'), n = sh.getLastRow() - 1, cols = ABAS.ConcretagemTracos.length;
+  if (n <= 0) return [];
+  const ks = sh.getRange(2, 2, n, 1).getValues().map((r, k) => String(r[0]) === conc ? k : -1).filter(k => k >= 0);
+  const out = [];
+  for (let i = 0; i < ks.length;) {
+    let j = i; while (j + 1 < ks.length && ks[j + 1] === ks[j] + 1) j++;
+    sh.getRange(2 + ks[i], 1, j - i + 1, cols).getValues().forEach(r => { if (r[0] !== '') out.push({
+      id: String(r[0]), conc: String(r[1]), cam: Number(r[2]) || 0, pag: Number(r[3]) || 1, w: Number(r[4]) || 10,
+      pts: String(r[5] || '').split(',').map(Number), por: String(r[6] || '') }); });
+    i = j + 1;
+  }
+  return out;
+}
+// ids dos traços já gravados (só a 1ª coluna): reenvio de um traço não duplica
+function idsTracos_() {
+  const sh = aba('ConcretagemTracos'), n = sh.getLastRow() - 1;
+  return new Map(n > 0 ? sh.getRange(2, 1, n, 1).getValues().filter(r => r[0] !== '').map(r => [String(r[0]), -1]) : []);
+}
+// linhas novas no fim da aba (sem apagar e regravar o que já está lá)
+function acrescentar_(sh, cols, dados) {
+  if (!dados.length) return;
+  const ini = sh.getLastRow() + 1, texto = new Set(COLS_TEXTO[sh.getName()] || []);
+  for (const c of texto) sh.getRange(ini, c + 1, dados.length, 1).setNumberFormat('@');
+  sh.getRange(ini, 1, dados.length, cols).setValues(dados.map(r => r.map((v, c) => texto.has(c) && v !== '' && v != null ? String(v) : v)));
 }
 
 // ---------- gravação ----------
@@ -824,7 +848,10 @@ function aplicar(ops, usuario) {
   let At = temAt ? linhas('Atividades') : [], iAt = indice(At, r => String(r[0]));
   const temCc = ops.some(op => /^(conc|concDel|ccTraco|ccTracoDel)$/.test(op.t));
   let Cc = temCc ? linhas('Concretagens').map(r => [r[0], dataISO(r[1])].concat(r.slice(2))) : [], iCc = indice(Cc, r => String(r[0]));
-  let Tr = temCc ? linhas('ConcretagemTracos') : [], iTr = indice(Tr, r => String(r[0]));
+  // traços (áreas pintadas): a aba cresce a cada pincelada. Traço novo vai no fim da aba; ler e regravar tudo só ao apagar
+  const apagaTr = ops.some(op => op.t === 'ccTracoDel' || op.t === 'concDel'), temTr = apagaTr || ops.some(op => op.t === 'ccTraco');
+  let Tr = apagaTr ? linhas('ConcretagemTracos') : [], iTr = apagaTr ? indice(Tr, r => String(r[0])) : temTr ? idsTracos_() : new Map();
+  const novosTr = [];
   const temR2 = ops.some(op => op.t === 'reg2' || op.t === 'reg2Del');
   let R2 = temR2 ? linhas('Registros2').map(r => [r[0], r[1], dataISO(r[2])].concat(r.slice(3))) : [], iR2 = indice(R2, r => String(r[0]));
   const temRdo = ops.some(op => op.t === 'rdo');
@@ -979,7 +1006,7 @@ function aplicar(ops, usuario) {
       // PDF_ID: id do Drive ou "mapa:{...}" (mapa das paredes, gerado no app): não pode ser cortado em 300 caracteres
       const pdfId = op.pdfId != null ? String(op.pdfId).trim().slice(0, 49000) : atual[4];
       const linha = [id, d, txt(op.estrutura, 2), txt(op.local, 3), pdfId, txt(op.pdfNome, 5), txt(op.status, 6),
-        op.volPrev != null ? Number(op.volPrev) || 0 : atual[7], op.cams != null ? JSON.stringify(op.cams) : atual[8], txt(op.obs, 9),
+        op.volPrev != null ? Number(op.volPrev) || 0 : atual[7], op.cams != null ? JSON.stringify(op.cams) : atual[8], op.obs != null ? String(op.obs).trim().slice(0, 2000) : atual[9],
         atual[10] || quem, atual[11] || agora, quem, agora];
       if (!linha[1] || !linha[2]) continue;
       if (k != null) Cc[k] = linha; else { iCc.set(id, Cc.length); Cc.push(linha); }
@@ -993,8 +1020,8 @@ function aplicar(ops, usuario) {
     } else if (op.t === 'ccTraco') {
       const id = String(op.id || ''), pts = (op.pts || []).map(v => Math.round(Number(v) * 10) / 10).filter(v => isFinite(v));
       if (!id || !op.conc || pts.length < 2 || iTr.has(id)) continue; // traço já gravado: reenvio
-      iTr.set(id, Tr.length);
-      Tr.push([id, String(op.conc), Number(op.cam) || 0, Number(op.pag) || 1, Number(op.w) || 10, pts.join(',').slice(0, 49000), quem, agora]);
+      const linha = [id, String(op.conc), Number(op.cam) || 0, Number(op.pag) || 1, Number(op.w) || 10, pts.join(',').slice(0, 49000), quem, agora];
+      if (apagaTr) { iTr.set(id, Tr.length); Tr.push(linha); } else { iTr.set(id, -1); novosTr.push(linha); }
       mudou.Tr = true;
     } else if (op.t === 'ccTracoDel') {
       const k = iTr.get(String(op.id || '')); if (k == null) continue;
@@ -1063,7 +1090,7 @@ function aplicar(ops, usuario) {
   if (mudou.At) regravar(aba('Atividades'), ABAS.Atividades.length, At);
   if (mudou.Rd) regravar(aba('RDO'), ABAS.RDO.length, Rd.sort(porData));
   if (mudou.Cc) regravar(aba('Concretagens'), ABAS.Concretagens.length, Cc.slice().sort((a, b) => a[1] < b[1] ? -1 : a[1] > b[1] ? 1 : 0));
-  if (mudou.Tr) regravar(aba('ConcretagemTracos'), ABAS.ConcretagemTracos.length, Tr.filter(Boolean));
+  if (mudou.Tr) { if (apagaTr) regravar(aba('ConcretagemTracos'), ABAS.ConcretagemTracos.length, Tr.filter(Boolean)); else acrescentar_(aba('ConcretagemTracos'), ABAS.ConcretagemTracos.length, novosTr); }
   if (mudou.R2) regravar(aba('Registros2'), ABAS.Registros2.length, R2.slice().sort((a, b) => a[2] < b[2] ? -1 : a[2] > b[2] ? 1 : 0));
 
   // histórico: uma linha por alteração (importação grande vira uma linha só)

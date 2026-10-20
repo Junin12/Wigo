@@ -2095,7 +2095,7 @@ function setCampo(on){ LS.set("campo",!!on); if(on) document.documentElement.dat
 $("#campo-modo").addEventListener("click", e=>{ const b=e.target.closest("button[data-c]"); if(b) setCampo(b.dataset.c==="1"); });
 setCampo(!!LS.get("campo"));
 
-const VERSAO_APP = "v122"; // igual ao número em sw.js (armacao-v122)
+const VERSAO_APP = "v123"; // igual ao número em sw.js (armacao-v123)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -6977,10 +6977,13 @@ function setConc(id, campos, log){
 function limparPendCc(snap, snapDel, snapTr, j){
   if(!(j.script>=15) || !j.concretagens) return; // Code.gs antigo: fica tudo na fila
   const srv=new Map(j.concretagens.map(c=>[c.id,c])), igual=(a,b)=>JSON.stringify(a??null)===JSON.stringify(b??null);
+  // textos comparados como a planilha grava (sem espaços nas pontas e com o limite de tamanho do script): uma observação
+  // maior que o limite nunca voltava igual e a concretagem era reenviada em toda sincronização (cada envio relia e regravava as abas)
+  const lim={pdfId:49000, obs:+j.script>=32 ? 2000 : 300}, comoGrava=(k,v)=>typeof v==="string" ? v.trim().slice(0, lim[k]||300) : v;
   for(const [id,x] of Object.entries(snap)){
     const s=srv.get(id); if(!s) continue;
     const {log, ...c}=x;
-    if(Object.entries(c).every(([k,v])=> k==="volPrev" ? +s[k]===+v : igual(s[k],v)) && igual(S.pendCc[id],x)) delete S.pendCc[id];
+    if(Object.entries(c).every(([k,v])=> k==="volPrev" ? +s[k]===+v : igual(s[k],comoGrava(k,v))) && igual(S.pendCc[id],x)) delete S.pendCc[id];
   }
   S.pendCcDel=S.pendCcDel.filter(id=>!(snapDel.includes(id) && !srv.has(id)));
   // traços: o servidor grava por id (reenvio não duplica); saem da fila quando o envio deu certo

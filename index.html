@@ -2087,7 +2087,7 @@ function setCampo(on){ LS.set("campo",!!on); if(on) document.documentElement.dat
 $("#campo-modo").addEventListener("click", e=>{ const b=e.target.closest("button[data-c]"); if(b) setCampo(b.dataset.c==="1"); });
 setCampo(!!LS.get("campo"));
 
-const VERSAO_APP = "v118"; // igual ao número em sw.js (armacao-v118)
+const VERSAO_APP = "v119"; // igual ao número em sw.js (armacao-v119)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -7822,13 +7822,18 @@ function desenharElevacao(doc, w, m){
   doc.setFontSize(7); const tw=doc.getTextWidth(cota)+3; doc.setFillColor(255,255,255); doc.rect(x+W/2-tw/2, yc-2, tw, 4, "F"); doc.text(cota, x+W/2, yc+1, {align:"center"});
   if(p.ld){ doc.setFontSize(5.5); doc.setTextColor(80); doc.text(`« ${p.ld[0]}`, x, yc+4.5); doc.text(`${p.ld[1]} »`, x+W, yc+4.5, {align:"right"}); }
 }
+// cabeçalho de cada folha do mapa: título, data e responsável e, no canto direito, o logo do consórcio (SAA Rio Grande ·
+// Heca · GCE, o mesmo dos outros relatórios). doc._logo vem de docMapa (logoEmpresa); sem logo, os campos vão até a margem.
 function cabecalhoMapa(doc, c, titulo, sub){
+  const lg=doc._logo, lh=13, lw=lg ? lh*lg.w/lg.h : 0, lx=285-lw, dir=lg ? lx-4 : 285; // dir = fim das linhas de data e responsável
+  if(lg) doc.addImage(lg.src, "JPEG", lx, 3.5, lw, lh, undefined, "FAST");
   doc.setTextColor(20); doc.setFont("helvetica","bold"); doc.setFontSize(titulo.length>40?13:16); doc.text(titulo, 12, 15);
   const tw=doc.getTextWidth(titulo); doc.setFont("helvetica","normal"); doc.setFontSize(9); doc.setTextColor(80);
-  if(sub){ const lim=192-(12+tw+3); let t=sub; while(t.length>4 && doc.getTextWidth(t)>lim) t=t.slice(0,-2); if(t!==sub) t=t.replace(/\s*\S*$/,"")+"…"; doc.text(t, 12+tw+3, 15); }
-  doc.setFontSize(8.5); doc.setTextColor(30); doc.text("Data da concretagem:", 232, 9, {align:"right"}); doc.text("Responsável:", 232, 15, {align:"right"});
-  doc.setDrawColor(40); doc.setLineWidth(0.25); doc.line(233, 9.6, 285, 9.6); doc.line(233, 15.6, 285, 15.6);
-  doc.setFont("helvetica","bold"); doc.text(dataBR(c.data), 235, 8.6);
+  const xc=dir-40; // começo das linhas de data e responsável
+  if(sub){ const lim=xc-32-(12+tw+3); let t=sub; while(t.length>4 && doc.getTextWidth(t)>lim) t=t.slice(0,-2); if(t!==sub) t=t.replace(/\s*\S*$/,"")+"…"; if(lim>10) doc.text(t, 12+tw+3, 15); }
+  doc.setFontSize(8.5); doc.setTextColor(30); doc.text("Data da concretagem:", xc-1, 9, {align:"right"}); doc.text("Responsável:", xc-1, 15, {align:"right"});
+  doc.setDrawColor(40); doc.setLineWidth(0.25); doc.line(xc, 9.6, dir, 9.6); doc.line(xc, 15.6, dir, 15.6);
+  doc.setFont("helvetica","bold"); doc.text(dataBR(c.data), xc+2, 8.6);
   doc.setLineWidth(0.6); doc.line(12, 19, 285, 19); doc.setFont("helvetica","normal");
 }
 // gera o mapa (jsPDF). pintura: desenha por cima as áreas pintadas no app, com a cor de cada caminhão
@@ -7836,6 +7841,7 @@ async function docMapa(c, {pintura=false}={}){
   const m=mapaDe(c); if(!m) throw new Error("Esta concretagem não tem mapa de paredes.");
   await carregarJsPdf();
   const {jsPDF}=window.jspdf, doc=new jsPDF({unit:"mm",format:"a4",orientation:"landscape"}), fs=folhasMapa(m), cat=catParedes(m.k), pl=cat?.planta;
+  doc._logo=await logoEmpresa(); // logo do consórcio no cabeçalho de todas as folhas
   const folhaDe=new Map(); fs.forEach((f,i)=>f.ws.forEach(w=>{ if(!folhaDe.has(w.p.id)) folhaDe.set(w.p.id, i+2); }));
   const atend=paredesPintadas(c, fs), cams=c.cams||[], resto=[];
   const cps=n=>regs2De("qual","cp").filter(r=>r.dados.conc===rotConc(c) && new RegExp(`^C${n}\\b`).test(String(r.dados.cam||""))).reduce((s,r)=>s+(+r.dados.qtd||0),0);

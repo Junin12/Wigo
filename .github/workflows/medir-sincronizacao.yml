@@ -1,0 +1,46 @@
+# Mede o tempo de resposta do script da planilha (Google Apps Script), pela chave de leitura do painel.
+# O resultado vai para o branch "diagnostico" (arquivo medicao.txt). Não grava a chave.
+name: Medir sincronização
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [.github/workflows/medir-sincronizacao.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  medir:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Medir
+        run: |
+          curl -s --max-time 30 https://wiapps.com.br/wigo/painel/ -o /tmp/painel.html
+          python3 - <<'PY' | tee /tmp/medicao.txt
+          import re, json, base64, gzip, time, urllib.request
+          h = open('/tmp/painel.html', encoding='utf-8', errors='ignore').read()
+          a = json.loads(re.search(r'PAINEL_ACESSO=(\{.*?\});', h).group(1))
+          def get(q):
+              t = time.time(); raw = urllib.request.urlopen(a['u'] + q, timeout=300).read(); dt = time.time() - t
+              r = json.loads(raw)
+              if r.get('gz'): r = json.loads(gzip.decompress(base64.b64decode(r['gz'])))
+              return dt, len(raw), r
+          print('== %s UTC' % time.strftime('%F %T', time.gmtime()))
+          for i in range(3):
+              dt, n, r = get('?teste=planilha'); print('teste=planilha (abre a planilha, lê Config): %.1f s  %s' % (dt, r))
+          for i in range(3):
+              dt, n, r = get('?k=' + a['k'] + '&gz=1'); print('leitura completa (carregar): %.1f s  %d bytes  script %s  ok %s %s' % (dt, n, r.get('script'), r.get('ok'), r.get('erro', '')))
+          print('== tamanho de cada parte (JSON):')
+          for k, v in sorted(r.items(), key=lambda kv: -len(json.dumps(kv[1]))):
+              print('  %-14s %9d  %s' % (k, len(json.dumps(v)), (str(len(v)) + ' itens') if isinstance(v, (list, dict)) else ''))
+          PY
+
+      - name: Gravar no branch diagnostico
+        run: |
+          git init -q d && cd d
+          git config user.name "github-actions" && git config user.email "github-actions@users.noreply.github.com"
+          git fetch -q "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" diagnostico && git checkout -q FETCH_HEAD || true
+          cp /tmp/medicao.txt . && git add medicao.txt && git commit -qm "Medição da sincronização $(date -u +%F' '%T)"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" HEAD:diagnostico

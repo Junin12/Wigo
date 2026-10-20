@@ -2095,7 +2095,7 @@ function setCampo(on){ LS.set("campo",!!on); if(on) document.documentElement.dat
 $("#campo-modo").addEventListener("click", e=>{ const b=e.target.closest("button[data-c]"); if(b) setCampo(b.dataset.c==="1"); });
 setCampo(!!LS.get("campo"));
 
-const VERSAO_APP = "v123"; // igual ao número em sw.js (armacao-v123)
+const VERSAO_APP = "v124"; // igual ao número em sw.js (armacao-v124)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -9097,7 +9097,10 @@ function lerPlanilhaLab(linhas){
   if(cNf<0) throw new Error("Não achei a coluna do número da nota fiscal (cabeçalho com \"NOTA\", \"ROMANEIO\" ou \"NF\").");
   // blocos de idade e as colunas RESULTADO 1/2 de cada um
   const idades=[];
-  for(let i=Math.max(0,hNf-3);i<=Math.min(linhas.length-1,hNf+4);i++) linhas[i].forEach((v,j)=>{ const m=T(v).match(/^(\d{1,2})\s*DIAS?$/); if(m && CP_TODAS.includes(+m[1])) idades.push({i:+m[1], lin:i, col:j}); });
+  // "7 DIAS" numa célula, ou o número numa célula e "DIAS" logo depois (planilha FVM.06 de controle tecnológico: 7 | | DIAS)
+  for(let i=Math.max(0,hNf-3);i<=Math.min(linhas.length-1,hNf+4);i++) linhas[i].forEach((v,j,L)=>{
+    const m=T(v).match(/^(\d{1,2})\s*DIAS?$/) || (/^\d{1,2}$/.test(T(v)) && L.slice(j+1,j+4).some(x=>/^DIAS?$/.test(T(x))) ? [,T(v)] : null);
+    if(m && CP_TODAS.includes(+m[1])) idades.push({i:+m[1], lin:i, col:j}); });
   if(!idades.length) throw new Error("Não achei os blocos de idade (títulos como \"7 DIAS\" e \"28 DIAS\").");
   idades.sort((a,b)=>a.col-b.col);
   let fimCab=hNf;

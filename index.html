@@ -393,7 +393,7 @@ canvas.qr{display:block;width:min(260px,100%);height:auto;image-rendering:pixela
 details.lote{border-top:1px solid var(--line);padding:6px 0}details.lote summary{cursor:pointer}
 /* Qualidade: categorias (concreto, aço, solo…) acima dos tipos; dashboards com gráficos */
 #reg2 .modo.cats{padding-bottom:8px;border-bottom:1px solid var(--line);margin-bottom:6px}#reg2 .modo.cats .chipbtn{font-weight:700}
-.graf-box{margin-top:4px}.kpi.ok b{color:var(--good)}.dq-atencao td{text-align:left;vertical-align:top}.dq-atencao td:first-child,.dq-atencao th:first-child{white-space:nowrap}.kpi.bad b{color:var(--bad)}.dq-filtros{display:grid;grid-template-columns:1fr 1fr;gap:8px}.dq-filtros select{width:100%}.ct-ficha{display:grid;grid-template-columns:minmax(110px,40%) 1fr;gap:4px 10px;margin:10px 0;font-size:.9rem}.ct-ficha dt{color:var(--muted)}.ct-ficha dd{margin:0;font-weight:600;overflow-wrap:anywhere}#reg2 .card select{width:100%}.graf-box .g-tit{display:block;font-size:.85rem;margin-bottom:4px}#reg2 .card select{max-width:100%}
+.graf-box{margin-top:4px}.kpi.ok b{color:var(--good)}.dq-atencao .tbl+.tbl{margin-top:10px}.dq-atencao td{text-align:left;vertical-align:top}.dq-atencao td:first-child,.dq-atencao th:first-child{white-space:nowrap}.kpi.bad b{color:var(--bad)}.dq-filtros{display:grid;grid-template-columns:1fr 1fr;gap:8px}.dq-filtros select{width:100%}.ct-ficha{display:grid;grid-template-columns:minmax(110px,40%) 1fr;gap:4px 10px;margin:10px 0;font-size:.9rem}.ct-ficha dt{color:var(--muted)}.ct-ficha dd{margin:0;font-weight:600;overflow-wrap:anywhere}#reg2 .card select{width:100%}.graf-box .g-tit{display:block;font-size:.85rem;margin-bottom:4px}#reg2 .card select{max-width:100%}
 .ver-pdf{display:grid;gap:10px}.ver-pdf canvas{width:100%;height:auto;display:block;background:#fff;border:1px solid var(--line);border-radius:6px}
 .tela-logo{height:40px;width:auto;max-width:62vw;object-fit:contain;display:block;background:#fff;border-radius:10px;padding:4px 6px;box-shadow:0 4px 14px -6px rgba(0,0,0,.45)}
 .tela-obra{text-align:right;line-height:1.15}
@@ -2109,7 +2109,7 @@ function setCampo(on){ LS.set("campo",!!on); if(on) document.documentElement.dat
 $("#campo-modo").addEventListener("click", e=>{ const b=e.target.closest("button[data-c]"); if(b) setCampo(b.dataset.c==="1"); });
 setCampo(!!LS.get("campo"));
 
-const VERSAO_APP = "v128"; // igual ao número em sw.js (armacao-v128)
+const VERSAO_APP = "v129"; // igual ao número em sw.js (armacao-v129)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -9101,6 +9101,8 @@ function linhasCt(){
       continue; }
     out.push({nf, data:r.data, setor:d.setor||"", local:d.local||"", vol:+d.vol||0, fck:+d.fck||0, cim:d.cim||"", desc:d.desc||"", slT:d.slT||"", slM:d.slM||"",
       forn:d.forn||"", res, ids:String(d.ids||"").split(/\D+/).map(Number).filter(i=>CP_TODAS.includes(i))}); }
+  // concreto magro: não tem corpo de prova rompido (fica fora do dashboard)
+  for(const x of out) x.magro=/MAGRO/.test(normTxt(`${x.local} ${x.desc||""} ${x.conc?.local||""}`));
   return out.sort((a,b)=>a.data.localeCompare(b.data) || a.nf.localeCompare(b.nf));
 }
 // situação de uma idade, como na planilha: Aprovado / Reprovado (resultado × esperado), Pendente (ainda no prazo) ou
@@ -9142,7 +9144,7 @@ const vazioDash = t => [el("p",{class:"info",text:t})];
 const DQ={setor:"", per:0};
 const kpiCor = (rot, val, sub, cor) => { const k=kpi(rot, val, sub); k.classList.add(cor); return k; };
 function dashConcreto(){
-  const todas=linhasCt();
+  const todas=linhasCt().filter(x=>!x.magro);
   if(!todas.length) return vazioDash("Nenhum caminhão ainda: lance as concretagens (Produtividade › Concreto) ou importe a planilha do laboratório (Corpos de prova).");
   const setores=new Map(); for(const x of todas){ const k=chaveSetor(x.setor); if(!setores.has(k) || /^ETA/.test(x.setor)) setores.set(k, String(x.setor||"Outros").replace(/^ETA\s*-\s*/,"")); }
   const desde=DQ.per ? somaDias(hojeISO(),-DQ.per) : "", L=todas.filter(x=>(!DQ.setor || chaveSetor(x.setor)===DQ.setor) && (!desde || x.data>=desde));
@@ -9211,26 +9213,62 @@ function liberacoesFrentes(){
   const ls=[]; for(const e of S.els) for(const [L,x] of Object.entries(e.lances||{})) if(x?.data) ls.push([x.data, e.est, e.loc, L, x.resp||"", x.conc?"concretado "+ddmm(x.conc):"liberado"]);
   return ls.sort((a,b)=>b[0].localeCompare(a[0]));
 }
+// filtros dos dashboards: estrutura/local e período (o estado fica até fechar o app)
+const DA={loc:"", per:0}, DS={loc:"", per:0};
+const selDash = (rot, val, ops, set) => campoEf(rot, el("select",{"aria-label":rot,onchange:e=>{ set(e.target.value); renderReg2(); }},
+  ...ops.map(([v,t])=>el("option",{value:v,text:t,selected:String(v)===String(val)}))));
+const PER_DASH=[[0,"Toda a obra"],[30,"Últimos 30 dias"],[90,"Últimos 90 dias"]];
+const filtrosDash = (F, locais, rotLoc) => el("div",{class:"filtros dq-filtros"},
+  selDash(rotLoc, F.loc, [["",`Todas`], ...[...new Set(locais.filter(Boolean))].sort().map(l=>[l,l])], v=>{ F.loc=v; }),
+  selDash("Período", F.per, PER_DASH, v=>{ F.per=+v; }));
+const noFiltro = (F, loc, data) => (!F.loc || normTxt(loc)===normTxt(F.loc)) && (!F.per || data>=somaDias(hojeISO(),-F.per));
+const mesCurto = ym => new Date(ym+"-15T12:00").toLocaleDateString("pt-BR",{month:"short",year:"2-digit"}).replace(". de ","/").replace(" de ","/");
+// contagem por mês e situação para o gráfico (últimos 6 meses com registro)
+const porMesSit = (lista, sits) => { const ms=[...new Set(lista.map(r=>r.data.slice(0,7)))].sort().slice(-6);
+  return {rot:ms.map(mesCurto), series:sits.map(([s,cor,f])=>({nome:s, cor, vals:ms.map(m=>lista.filter(r=>r.data.startsWith(m) && f(r)).length)})).filter(x=>x.vals.some(Boolean))}; };
+const ncLinhas = ab => tabelaSimples(["Não conformidade","Prazo"], ab.slice(0,8).map(r=>[String(r.dados.desc||"").split("\n")[0].slice(0,80)+(r.dados.local?` · ${r.dados.local}`:""),
+  r.dados.prazo ? ddmm(r.dados.prazo)+(ncVencida(r)?" · vencida":"") : "-"]));
+// Aço: FVS de armação, não conformidades e liberações dos lances (checklists das Frentes)
 function dashAco(){
-  const ls=liberacoesFrentes(), d30=somaDias(hojeISO(),-30);
-  return [...dashFvsNc("aco","FVS de armação e plano de ação"),
-    el("div",{class:"card"}, el("h3",{text:"Liberações para concretar (checklists das Frentes)"}),
-      el("div",{class:"kpis"}, kpi("Lances liberados",nf0.format(ls.length),`${ls.filter(l=>l[0]>=d30).length} nos últimos 30 dias`), kpi("Já concretados",nf0.format(ls.filter(l=>/concretado/.test(l[5])).length),"")),
-      ls.length ? tabelaSimples(["Data","Estrutura","Local","Lance","Responsável","Situação"], ls.slice(0,10).map(l=>[ddmm(l[0]),...l.slice(1)])) : el("p",{class:"info",text:"Nenhum checklist de concretagem ainda (aba Frentes do aço)."}))];
+  const F0=regs2De("qual","fvs").filter(r=>qNaCat("aco",r.dados.servico)), N0=regs2De("qual","nc").filter(r=>qNaCat("aco",txtNc(r))), L0=liberacoesFrentes();
+  const filtros=filtrosDash(DA, [...F0.map(r=>r.dados.local), ...N0.map(r=>r.dados.local), ...L0.map(l=>l[1])], "Estrutura");
+  const F=F0.filter(r=>noFiltro(DA, r.dados.local, r.data)), N=N0.filter(r=>noFiltro(DA, r.dados.local, r.data) || (!DA.loc || normTxt(r.dados.local)===normTxt(DA.loc)) && ncAberta(r)),
+    L=L0.filter(l=>noFiltro(DA, l[1], l[0]));
+  const nc=F.filter(r=>r.status==="Não conforme").length, ab=N.filter(ncAberta).sort((p,q)=>String(p.dados.prazo||"9").localeCompare(String(q.dados.prazo||"9"))), venc=ab.filter(ncVencida).length;
+  const g=porMesSit(F, [["Conforme","#2E7D32",r=>r.status!=="Não conforme"],["Não conforme","#C62828",r=>r.status==="Não conforme"]]);
+  const itens=new Map(); for(const r of F) for(const [it,v] of Object.entries(r.dados.ck||{})) if(v==="NC") itens.set(it,(itens.get(it)||0)+1);
+  const top=[...itens].sort((p,q)=>q[1]-p[1]).slice(0,3);
+  return [filtros,
+    el("div",{class:"kpis"}, kpi("FVS de armação", nf0.format(F.length), F.length ? `${nc} não conforme${nc===1?"":"s"}` : "nenhuma no período"),
+      kpiCor("Conformidade", F.length ? nf0.format((F.length-nc)/F.length*100)+"%" : "-", "das FVS", !F.length ? "neutro" : nc ? "bad" : "ok"),
+      kpiCor("NC em aberto", nf0.format(ab.length), venc ? `${venc} vencida${venc>1?"s":""}` : "nenhuma vencida", ab.length ? "bad" : "ok"),
+      kpi("Lances liberados", nf0.format(L.length), (q=>`${q} já concretado${q===1?"":"s"}`)(L.filter(l=>/concretado/.test(l[5])).length))),
+    g.rot.length ? el("div",{class:"card"}, grafBarras({titulo:"FVS por mês", ...g}),
+      top.length ? el("p",{class:"info",text:"Mais reprovados: "+top.map(([it,q])=>`${it} (${q})`).join(" · ")}) : null) : null,
+    ab.length ? el("div",{class:"card dq-atencao"}, el("h3",{text:"Precisam de atenção"}), ncLinhas(ab), ab.length>8 ? el("p",{class:"info",text:`e mais ${ab.length-8}.`}) : null) : null,
+    L.length ? el("details",{class:"card"}, el("summary",{class:"pr-sum",text:`Lances liberados · ${L.length}`}),
+      tabelaSimples(["Data","Estrutura","Lance","Situação"], L.slice(0,15).map(l=>[ddmm(l[0]), [l[1],l[2]].filter(Boolean).join(" · "), l[3], l[5]]))) : null].filter(Boolean);
 }
+// Solo: ensaios (grau de compactação e umidade), reprovados e não conformidades
 function dashSolo(){
-  const E=regs2De("qual","solo"), gc=E.filter(r=>r.dados.gc!=null && r.dados.gc!==""), rp=E.filter(r=>r.status==="Reprovado");
-  const loc=new Map(); for(const r of gc){ const o=loc.get(r.dados.local)||loc.set(r.dados.local,{v:[],rp:0}).get(r.dados.local); o.v.push(+r.dados.gc); if(r.status==="Reprovado") o.rp++; }
-  return [el("div",{class:"card"}, el("h3",{text:"Ensaios de solo"}),
-      el("div",{class:"kpis"}, kpi("Ensaios",nf0.format(E.length),""), kpi("Aprovados",nf0.format(E.filter(r=>r.status==="Aprovado").length),""),
-        kpi("Reprovados",nf0.format(rp.length),rp.length?"ver plano de ação":""), kpi("GC médio",gc.length?nf1.format(gc.reduce((s,r)=>s+ +r.dados.gc,0)/gc.length)+"%":"-",gc.length?`menor ${nf1.format(Math.min(...gc.map(r=>+r.dados.gc)))}%`:"")),
-      loc.size ? tabelaSimples(["Local","Ensaios de GC","GC médio","Menor GC","Reprovados"], [...loc].map(([l,o])=>[l||"-", o.v.length, nf1.format(o.v.reduce((s,v)=>s+v,0)/o.v.length)+"%", nf1.format(Math.min(...o.v))+"%", o.rp]))
-        : el("p",{class:"info",text:"Nenhum ensaio de grau de compactação ainda. Lance em Ensaios de solo."})),
-    ...dashFvsNc("solo","FVS de escavação e reaterro e plano de ação")];
+  const E0=regs2De("qual","solo"), N0=regs2De("qual","nc").filter(r=>qNaCat("solo",txtNc(r)));
+  const filtros=filtrosDash(DS, [...E0.map(r=>r.dados.local), ...N0.map(r=>r.dados.local)], "Local");
+  const E=E0.filter(r=>noFiltro(DS, r.dados.local, r.data)), ab=N0.filter(r=>ncAberta(r) && (!DS.loc || normTxt(r.dados.local)===normTxt(DS.loc)));
+  const gc=E.filter(r=>r.dados.gc!=null && r.dados.gc!==""), rp=E.filter(r=>r.status==="Reprovado").sort((p,q)=>q.data.localeCompare(p.data));
+  const g=porMesSit(E, [["Aprovado","#2E7D32",r=>r.status==="Aprovado"],["Reprovado","#C62828",r=>r.status==="Reprovado"],["Só registro","#90A4AE",r=>r.status!=="Aprovado"&&r.status!=="Reprovado"]]);
+  return [filtros,
+    el("div",{class:"kpis"}, kpi("Ensaios", nf0.format(E.length), E.length ? `${E.filter(r=>r.status==="Aprovado").length} aprovados` : "nenhum no período"),
+      kpiCor("Reprovados", nf0.format(rp.length), rp.length ? "fora do especificado" : "nenhum", rp.length ? "bad" : E.length ? "ok" : "neutro"),
+      kpi("GC médio", gc.length ? nf1.format(gc.reduce((t,r)=>t+ +r.dados.gc,0)/gc.length)+"%" : "-", gc.length ? `menor ${nf1.format(Math.min(...gc.map(r=>+r.dados.gc)))}%` : "sem grau de compactação"),
+      kpiCor("NC em aberto", nf0.format(ab.length), ab.filter(ncVencida).length ? `${ab.filter(ncVencida).length} vencida(s)` : "nenhuma vencida", ab.length ? "bad" : "ok")),
+    g.rot.length ? el("div",{class:"card"}, grafBarras({titulo:"Ensaios por mês", ...g})) : el("p",{class:"info",text:"Nenhum ensaio de solo registrado. Lance em Solo › Ensaios de solo."}),
+    rp.length || ab.length ? el("div",{class:"card dq-atencao"}, el("h3",{text:"Precisam de atenção"}),
+      rp.length ? tabelaSimples(["Data","Local","Resultado"], rp.slice(0,8).map(r=>[ddmm(r.data), [r.dados.local,r.dados.det].filter(Boolean).join(" · "), soloRuim(r.dados)])) : null,
+      ab.length ? ncLinhas(ab) : null) : null].filter(Boolean);
 }
 // Geral: um resumo de cada categoria
 function dashGeral(){
-  const F=regs2De("qual","fvs"), N=regs2De("qual","nc"), L=linhasCt();
+  const F=regs2De("qual","fvs"), N=regs2De("qual","nc"), L=linhasCt().filter(x=>!x.magro);
   const sr=L.reduce((s,x)=>s+CP_TODAS.filter(i=>ctStatus(x,i)==="Sem resultado").length,0), rp=L.reduce((s,x)=>s+CP_TODAS.filter(i=>ctStatus(x,i)==="Reprovado").length,0);
   const linha=(id,nome)=>{ const f=F.filter(r=>qNaCat(id,r.dados.servico)), n=N.filter(r=>qNaCat(id,txtNc(r))), ab=n.filter(ncAberta);
     return [nome, f.length, f.length?nf0.format(f.filter(r=>r.status!=="Não conforme").length/f.length*100)+"%":"-", ab.length, ab.filter(ncVencida).length]; };

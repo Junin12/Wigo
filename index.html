@@ -2109,7 +2109,7 @@ function setCampo(on){ LS.set("campo",!!on); if(on) document.documentElement.dat
 $("#campo-modo").addEventListener("click", e=>{ const b=e.target.closest("button[data-c]"); if(b) setCampo(b.dataset.c==="1"); });
 setCampo(!!LS.get("campo"));
 
-const VERSAO_APP = "v130"; // igual ao número em sw.js (armacao-v130)
+const VERSAO_APP = "v131"; // igual ao número em sw.js (armacao-v131)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -9103,7 +9103,7 @@ function linhasCt(){
       forn:d.forn||"", res, ids:String(d.ids||"").split(/\D+/).map(Number).filter(i=>CP_TODAS.includes(i))}); }
   // concreto magro: não tem corpo de prova rompido (fica fora do dashboard)
   for(const x of out){ x.magro=/MAGRO/.test(normTxt(`${x.local} ${x.desc||""} ${x.conc?.local||""}`));
-    if(x.magro && x.conc && !cpsDoCam(x.conc, x.cam.n).length && !Object.keys(x.res).length) x.ids=[]; } // magro do app sem moldagem: sem ensaio
+    if(x.magro){ x.ids=[]; x.res={}; } } // magro: não tem corpo de prova (só o volume usado)
   return out.sort((a,b)=>a.data.localeCompare(b.data) || a.nf.localeCompare(b.nf));
 }
 // situação de uma idade, como na planilha: Aprovado / Reprovado (resultado × esperado), Pendente (ainda no prazo) ou
@@ -9158,6 +9158,7 @@ function dashConcreto(){
     sel("Setor", DQ.setor, [["","Todos os setores"], ...[...setores].sort((x,y)=>x[1].localeCompare(y[1]))], v=>{ DQ.setor=v; }),
     sel("Período", DQ.per, [[0,"Toda a obra"],[30,"Últimos 30 dias"],[90,"Últimos 90 dias"]], v=>{ DQ.per=+v; }));
   if(!L.length) return [tipo, filtros, ...vazioDash("Nenhum caminhão com esses filtros.")];
+  if(DQ.magro) return [tipo, filtros, ...dashMagro(L, setores)];
   // cada ensaio (caminhão × idade) com a situação
   const ens=[]; for(const x of L) for(const i of CP_TODAS){ const s=ctStatus(x,i); if(s) ens.push({x, i, s, data:somaDias(x.data,i)}); }
   const n=s=>ens.filter(e=>e.s===s).length, vol=L.reduce((t,x)=>t+x.vol,0);
@@ -9197,6 +9198,22 @@ function dashConcreto(){
       tabelaSimples(["Data","Idade","Setor","Caminhões"], prox.map(({e,n:q})=>[ddmm(e.data), `${e.i} dias`, setores.get(chaveSetor(e.x.setor))||e.x.setor, q]))) : null,
     ms.length>1 ? el("div",{class:"card"}, grafBarras({titulo:`Volume por mês · ${nf1.format(vol)} m³`, rot:ms.map(([m])=>mesC(m)), series:[{nome:"Volume",cor:"#3C5E80",vals:ms.map(([,v])=>v)}], un:"m³"})) : null,
     comNf.length ? el("details",{class:"card"}, el("summary",{class:"pr-sum",text:"Consultar uma nota fiscal"}), iNf, ficha) : null].filter(Boolean);
+}
+// concreto magro: sem corpo de prova, só o controle do que já foi usado na obra (total, por setor e por mês)
+function dashMagro(L, setores){
+  const vol=L.reduce((t,x)=>t+x.vol,0), dias=new Set(L.map(x=>x.data)), ult=L.at(-1);
+  const ps=new Map(); for(const x of L){ const k=chaveSetor(x.setor), o=ps.get(k)||ps.set(k,{nome:setores.get(k)||x.setor,vol:0,n:0}).get(k); o.vol+=x.vol; o.n++; }
+  const ss=[...ps.values()].sort((p,q)=>q.vol-p.vol);
+  const meses=new Map(); for(const x of L){ const k=x.data.slice(0,7); meses.set(k,(meses.get(k)||0)+x.vol); }
+  const ms=[...meses].sort((p,q)=>p[0].localeCompare(q[0]));
+  return [el("div",{class:"kpis"},
+      kpi("Volume usado", `${nf1.format(vol)} m³`, `${L.length} caminh${L.length===1?"ão":"ões"}`),
+      kpi("Dias de lançamento", nf0.format(dias.size), `média ${nf1.format(vol/dias.size)} m³ por dia`),
+      kpi("Setores", nf0.format(ss.length), ss[0] ? `mais usado: ${ss[0].nome}` : ""),
+      kpi("Último lançamento", ult ? ddmm(ult.data) : "-", ult ? `${nf1.format(L.filter(x=>x.data===ult.data).reduce((t,x)=>t+x.vol,0))} m³ · ${setores.get(chaveSetor(ult.setor))||ult.setor}` : "")),
+    el("div",{class:"card"}, el("h3",{text:"Usado por setor"}),
+      tabelaSimples(["Setor","Volume (m³)","Caminhões","% do total"], [...ss.map(o=>[o.nome, nf1.format(o.vol), o.n, nf0.format(o.vol/vol*100)+"%"]), ["Total", nf1.format(vol), L.length, "100%"]])),
+    ms.length>1 ? el("div",{class:"card"}, grafBarras({titulo:`Usado por mês · ${nf1.format(vol)} m³`, rot:ms.map(([m])=>mesCurto(m)), series:[{nome:"Volume",cor:"#3C5E80",vals:ms.map(([,v])=>v)}], un:"m³"})) : null].filter(Boolean);
 }
 // FVS e plano de ação de uma categoria: conformidade por serviço, itens mais reprovados e NC em aberto
 function dashFvsNc(cat, titulo){
@@ -9439,7 +9456,9 @@ async function importarLab(arquivo){
     // nota → caminhão da concretagem
     const porNf=new Map(); for(const c of concs()) for(const k of c.cams||[]) if(k.nf) porNf.set(nfChave(k.nf), {c, k});
     const ok=[], semCam=[], semRes=[];
-    for(const x of lidas){ const a=porNf.get(x.nf); if(!Object.keys(x.v).length){ semRes.push(x.nf); continue; } if(!a){ semCam.push(x.nf); continue; } ok.push({...x, ...a}); }
+    // concreto magro: sem corpo de prova (entra só no controle do volume usado)
+    const magro=x=>/MAGRO/.test(normTxt(`${x.info?.local||""} ${x.info?.desc||""}`));
+    for(const x of lidas){ if(magro(x)) continue; const a=porNf.get(x.nf); if(!Object.keys(x.v).length){ semRes.push(x.nf); continue; } if(!a){ semCam.push(x.nf); continue; } ok.push({...x, ...a}); }
     const lancar=()=>{
       let novas=0, alteradas=0, nc="";
       for(const x of ok){ const {c,k}=x, ex=cpsDoCam(c,k.n)[0];

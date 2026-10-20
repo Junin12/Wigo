@@ -1,10 +1,10 @@
-== 2026-10-20 14:55:36 UTC
-teste=planilha (abre a planilha, lê Config): 1.7 s  {'ok': True, 'teste': 'planilha', 'linhasConfig': 36, 'ms': 411}
-teste=planilha (abre a planilha, lê Config): 1.3 s  {'ok': True, 'teste': 'planilha', 'linhasConfig': 36, 'ms': 295}
-teste=planilha (abre a planilha, lê Config): 1.6 s  {'ok': True, 'teste': 'planilha', 'linhasConfig': 36, 'ms': 609}
-leitura completa (carregar): 5.9 s  101359 bytes  script 32  ok True 
-leitura completa (carregar): 5.4 s  101359 bytes  script 32  ok True 
-leitura completa (carregar): 5.0 s  101359 bytes  script 32  ok True 
+== 2026-10-20 15:01:27 UTC
+teste=planilha (abre a planilha, lê Config): 3.0 s  {'ok': True, 'teste': 'planilha', 'linhasConfig': 36, 'ms': 407}
+teste=planilha (abre a planilha, lê Config): 1.9 s  {'ok': True, 'teste': 'planilha', 'linhasConfig': 36, 'ms': 477}
+teste=planilha (abre a planilha, lê Config): 1.4 s  {'ok': True, 'teste': 'planilha', 'linhasConfig': 36, 'ms': 354}
+leitura completa (carregar): 7.4 s  101523 bytes  script 32  ok True 
+leitura completa (carregar): 10.1 s  101523 bytes  script 32  ok True 
+leitura completa (carregar): 6.3 s  101523 bytes  script 32  ok True 
 == corpos de prova na planilha (maior resultado de cada idade, MPa):
   2026-09-28  FLOCULADORES · Fundo e arranque · 28/09  8627                   fck 40   Aguardando   3d 38.1 7d 40.7
   2026-09-28  FLOCULADORES · Fundo e arranque · 28/09  8628                   fck 40   Aguardando   3d 36.7 7d 40.6
@@ -17,6 +17,17 @@ leitura completa (carregar): 5.0 s  101359 bytes  script 32  ok True
   2026-09-28  FLOCULADORES · Fundo e arranque · 28/09  8639                   fck 40   Aguardando   3d 35.8 7d 39.9
   2026-09-28  FLOCULADORES · Fundo e arranque · 28/09  8640                   fck 40   Aguardando   3d 36.6 7d 40.9
   2026-09-28  FLOCULADORES · Fundo e arranque · 28/09  8644                   fck 40   Aguardando   3d 36.5 7d 42
+  2026-09-28  FLOCULADORES · Fundo e arranque · 28/09  C1 · NF 8627           fck 40   Aguardando   3d 38.1 7d 40.7 21d 45.1
+  2026-09-28  FLOCULADORES · Fundo e arranque · 28/09  C10 · NF 8640          fck 40   Aguardando   3d 36.6 7d 40.9 21d 45.2
+  2026-09-28  FLOCULADORES · Fundo e arranque · 28/09  C11 · NF 8644          fck 40   Aguardando   3d 36.5 7d 42 21d 45.4
+  2026-09-28  FLOCULADORES · Fundo e arranque · 28/09  C2 · NF 8628           fck 40   Aguardando   3d 36.7 7d 40.6 21d 44.8
+  2026-09-28  FLOCULADORES · Fundo e arranque · 28/09  C3 · NF 8629           fck 40   Aguardando   3d 37.4 7d 41.1 21d 44.1
+  2026-09-28  FLOCULADORES · Fundo e arranque · 28/09  C4 · NF 8630           fck 40   Aguardando   3d 37.8 7d 41.6 21d 45.7
+  2026-09-28  FLOCULADORES · Fundo e arranque · 28/09  C5 · NF 8631           fck 40   Aguardando   3d 36.9 7d 40.7 21d 44.4
+  2026-09-28  FLOCULADORES · Fundo e arranque · 28/09  C6 · NF 8636           fck 40   Aguardando   3d 37.7 7d 41 21d 45.1
+  2026-09-28  FLOCULADORES · Fundo e arranque · 28/09  C7 · NF 8635           fck 40   Aguardando   3d 35.2 7d 39.9 21d 43.6
+  2026-09-28  FLOCULADORES · Fundo e arranque · 28/09  C8 · NF 8637           fck 40   Aguardando   3d 36.1 7d 40.9 21d 43.6
+  2026-09-28  FLOCULADORES · Fundo e arranque · 28/09  C9 · NF 8639           fck 40   Aguardando   3d 35.8 7d 39.9 21d 43.6
 == tamanho de cada parte (JSON):
   itens             718926  3641 itens
   efDia              24208  22 itens
@@ -24,10 +35,10 @@ leitura completa (carregar): 5.0 s  101359 bytes  script 32  ok True
   efetivo             9854  62 itens
   lanc                8941  262 itens
   config              6892  36 itens
+  cps                 4141  22 itens
   forma               2212  2 itens
   concreto            1965  2 itens
   semanas             1949  18 itens
-  cps                 1932  11 itens
   equipes              182  1 itens
   versao                26  
   agora                 26  

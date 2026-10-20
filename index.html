@@ -1437,6 +1437,14 @@ const SEMENTES=[
   {id:"CONC_FLOCC_REABRIR", fazer:()=>{
     const c=concs().find(x=>x.data==="2026-10-17" && mapaDe(x)?.k==="FLOC-C");
     if(c && c.status==="Concluída") setConc(c.id, {status:"Em andamento"}, "Status: Em andamento (reaberta para pintar a rastreabilidade)"); }},
+  // laje de fundo + arranque dos floculadores (28/09/2026): a forma continua na folha 1, com a pintura já feita, e entram
+  // todas as paredes dos Floculadores A e C (folha 2 em diante) para pintar só o arranque, de 0 a 0,40 m
+  {id:"CONC_FLOC_ARRANQUE", fazer:()=>{
+    for(const c of concs()){ const t=normTxt(`${c.estrutura} ${c.local}`);
+      if(!c.pdfId || mapaDe(c) || !/FLOC/.test(t) || !/FUNDO/.test(t)) continue;
+      if(tracosDe(c.id).some(x=>x.pag!==1)) continue; // pintura em outra folha da forma ficaria embaixo de uma parede
+      setConc(c.id, {pdfId:mapaFundoArranque(c.pdfId, c.pdfNome), pdfNome:"Laje de fundo e arranque · Floculadores A e C",
+        ...(c.status==="Concluída"?{status:"Em andamento"}:{})}, "Paredes dos Floculadores A e C (arranque, 0 a 0,40 m) junto da forma"); } }},
 ];
 function rodarSementes(){
   if(!S.cfg?.url || !S.lastSync || LS.get("semSementes")) return; // semSementes: teste automático (testa à parte)
@@ -2087,7 +2095,7 @@ function setCampo(on){ LS.set("campo",!!on); if(on) document.documentElement.dat
 $("#campo-modo").addEventListener("click", e=>{ const b=e.target.closest("button[data-c]"); if(b) setCampo(b.dataset.c==="1"); });
 setCampo(!!LS.get("campo"));
 
-const VERSAO_APP = "v121"; // igual ao número em sw.js (armacao-v121)
+const VERSAO_APP = "v122"; // igual ao número em sw.js (armacao-v122)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -7183,7 +7191,7 @@ async function abrirConcretagem(c){
   const m=mapaDe(c);
   // paredes: o mapa é gerado na hora (o id muda quando mudam as paredes, os caminhões ou a data: aí o app gera de novo)
   const f = m ? {id:"mapa-"+cyrb53(c.id+c.pdfId+JSON.stringify(c.cams)+c.data+c.local), nome:c.pdfNome||"Mapa das paredes", atualizado:"",
-      gerar:async()=>(await docMapa(c)).output("arraybuffer")}
+      gerar:()=>mapaPdf(c)}
     : PJ.lista.find(x=>x.id===c.pdfId) || {id:c.pdfId, nome:c.pdfNome||"Forma", atualizado:""};
   CC.cam=c.cams.at(-1)?.n ?? null; CC.desfazer=[];
   CC.modo = pode("producao-edit") && c.status!=="Concluída" && CC.cam!=null ? "pintar" : "mover";
@@ -7276,7 +7284,9 @@ function editarConc(c, pre){
     const estrutura=estAtual().trim(); if(!estrutura) return toast("Escolha a estrutura.");
     if(!iData.value) return toast("Informe a data.");
     let pdfId, pdfNome;
-    if(tipo==="par"){
+    // forma + paredes (laje de fundo e arranque): o mapa fica como está, para a pintura não mudar de folha
+    if(m0?.forma){ pdfId=c.pdfId; pdfNome=c.pdfNome; }
+    else if(tipo==="par"){
       const ps=paredesDisp().filter(p=>marcadas.has(p.id)); if(!ps.length) return toast("Marque pelo menos uma parede.");
       const cat=catParedes(iConj.value), {de,ate}=lerFaixa(); if(de!=null && ate!=null && ate<=de) return toast("No lance, a altura final tem que ser maior que a inicial.");
       const m={k:cat?.k||"", nome:cat ? cat.nome : estrutura, p:ps, ...(de!=null?{de}:{}), ...(ate!=null?{ate}:{}), um:m0 ? m0.um : 1};
@@ -7303,13 +7313,15 @@ function editarConc(c, pre){
        delete S.pendCc[c.id]; for(const [id,x] of Object.entries(S.pendTr)) if(x.conc===c.id) delete S.pendTr[id];
        if(S.cc.some(x=>x.id===c.id)) S.pendCcDel.push(c.id); savePendCc(); scheduleSync(); toast("Concretagem excluída."); fecharEf(); }})]);
   boxEstO.hidden=iEst.value!=="__outro"; montarPdfs(); montarConj(false); desTipo();
+  if(m0?.forma){ volAuto=false; boxTipo.hidden=boxPar.hidden=boxLaje.hidden=true;
+    boxTipo.before(el("p",{class:"info full",text:`Folha 1: forma da laje (${pjTitulo(m0.forma.nome||"PDF da forma")}) · da folha 2 em diante: ${m0.p.length} paredes de ${m0.nome}, de ${nf2(m0.de||0)} a ${nf2(m0.ate??0)} m. As folhas não mudam aqui.`})); }
   // aberta pela etapa (lances): paredes do catálogo da estrutura e a faixa de altura do lance
   if(oPre && pre.etapa>=2){ const k=(oPre.ks||[]).find(x=>catParedes(x)); if(k){ iConj.value=k; marcadas=new Set(catParedes(k).par.map(p=>p.id)); }
     const [a,b]=CE_FAIXA[pre.etapa]; iDe.value=a?String(a).replace(".",","):""; iAte.value=b!=null?String(b).replace(".",","):""; montarLista(); }
 }
 function cardConc(c, ed){
   const lanc=volLancado(c), frac=c.volPrev?lanc/c.volPrev:0, edSt=ed && pode("producao-edit"), m=mapaDe(c);
-  const onde = m ? `🧱 ${m.nome} · ${m.p.length} parede${m.p.length>1?"s":""}${m.de!=null||m.ate!=null?` · lance ${nf2(m.de||0)} a ${m.ate!=null?nf2(m.ate)+" m":"topo"}`:""}`
+  const onde = m ? `${m.forma?"📄 laje (forma) + ":""}🧱 ${m.nome} · ${m.p.length} parede${m.p.length>1?"s":""}${m.de!=null||m.ate!=null?` · lance ${nf2(m.de||0)} a ${m.ate!=null?nf2(m.ate)+" m":"topo"}`:""}`
     : `📄 ${c.pdfNome?pjTitulo(c.pdfNome):"sem PDF da forma"}`;
   const dots=el("div",{class:"cc-dots"}, ...c.cams.map(k=>{ const s=el("span",{class:"cc-dot",text:`C${k.n}`}); s.style.setProperty("--cor",k.cor); return s; }));
   return el("div",{class:"card pr-card "+(CC_COR_ST[c.status]||"")},
@@ -7662,11 +7674,19 @@ const mapaDe = c => {
   if(s.startsWith("mapa:")) try{ m=JSON.parse(s.slice(5)); }catch{ const k=s.match(/"k":"([^"]+)"/)?.[1]; if(k) m={k}; }
   if(!m && nome){ const cat=PAREDES_CAT.find(x=>x.nome===nome); if(cat) m={k:cat.k}; }
   if(!m) return null;
-  if(!m.p){ const cat=catParedes(m.k); if(!cat) return null;
-    m={...m, nome:m.nome||cat.nome, p:m.ids ? m.ids.map(id=>cat.par.find(p=>p.id===id)).filter(Boolean) : cat.par, um:m.um??1}; }
+  if(!m.p){ const cats=catsDe(m); if(!cats.length) return null; const todas=cats.flatMap(x=>x.par);
+    m={...m, nome:m.nome||cats.map(x=>x.nome).join(" e "), p:m.ids ? m.ids.map(id=>todas.find(p=>p.id===id)).filter(Boolean) : todas, um:m.um??1}; }
   return m.p.length ? m : null;
 };
-const mapaCurto = m => "mapa:"+JSON.stringify({k:m.k, nome:m.nome, ids:m.p.map(p=>p.id), ...(m.de!=null?{de:m.de}:{}), ...(m.ate!=null?{ate:m.ate}:{}), um:1});
+// ks: paredes de mais de uma estrutura (ex.: arranque dos Floculadores A e C). forma: {id, nome, pag} = a folha 1 do mapa é a
+// página do PDF da forma (laje de fundo), nas mesmas coordenadas da pintura feita nela; as paredes vêm da folha 2 em diante.
+const catsDe = m => (m.ks||[m.k]).map(catParedes).filter(Boolean);
+const catPar = (m, p) => catsDe(m).find(x=>x.par.includes(p));
+const mapaCurto = m => "mapa:"+JSON.stringify({...(m.forma?{forma:m.forma}:{}), ...(m.ks?{ks:m.ks}:{k:m.k}), nome:m.nome, ids:m.p.map(p=>p.id), ...(m.de!=null?{de:m.de}:{}), ...(m.ate!=null?{ate:m.ate}:{}), um:1});
+// laje de fundo + arranque dos Floculadores A e C: a forma na folha 1 e todas as paredes dos dois, só de 0 a 0,40 m
+const mapaFundoArranque = (id, nome) => mapaCurto({forma:{id, nome:nome||"", pag:1}, ks:["FLOC-A","FLOC-C"], nome:"Floculadores A e C",
+  p:[...catParedes("FLOC-A").par, ...catParedes("FLOC-C").par], ate:0.4});
+const formaArq = m => PJ.lista.find(x=>x.id===m.forma.id) || {id:m.forma.id, nome:m.forma.nome||"Forma", atualizado:""};
 const nf2 = v => (+v||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
 // volume teórico da parede (ou da faixa de altura do lance), sem as passagens desenhadas
 function volPar(p, de, ate){
@@ -7722,7 +7742,7 @@ function volPintado(c, fs, m){
 // área que pode ser pintada numa folha do mapa: a elevação de cada parede só na faixa do lance (de..ate), em mm da folha.
 // Fora disso a pintura não aparece (nem na tela nem no relatório) e um traço todo fora é descartado. null = sem limite (forma em PDF).
 function areaPintavel(c, pag){
-  const m=mapaDe(c); if(!m) return null;
+  const m=mapaDe(c); if(!m || (m.forma && pag===1)) return null; // folha 1 com a forma: pintura livre, como na laje
   const f=folhasMapa(m)[pag-2]; if(!f) return [];
   return f.ws.map(w=>{ const topo=Math.min(m.ate??w.p.h, w.p.h), base=Math.max(0, m.de||0);
     return topo>base ? [w.x, w.y+(w.p.h-topo)*w.s, w.w, (topo-base)*w.s] : null; }).filter(Boolean);
@@ -7872,23 +7892,27 @@ function cabecalhoMapa(doc, c, titulo, sub){
 async function docMapa(c, {pintura=false}={}){
   const m=mapaDe(c); if(!m) throw new Error("Esta concretagem não tem mapa de paredes.");
   await carregarJsPdf();
-  const {jsPDF}=window.jspdf, doc=new jsPDF({unit:"mm",format:"a4",orientation:"landscape"}), fs=folhasMapa(m), cat=catParedes(m.k), pl=cat?.planta;
+  const {jsPDF}=window.jspdf, doc=new jsPDF({unit:"mm",format:"a4",orientation:"landscape"}), fs=folhasMapa(m), cats=catsDe(m), cat=cats.length===1 ? cats[0] : null, pl=cat?.planta;
   doc._logo=await logoEmpresa(); // logo do consórcio no cabeçalho de todas as folhas
   const folhaDe=new Map(); fs.forEach((f,i)=>f.ws.forEach(w=>{ if(!folhaDe.has(w.p.id)) folhaDe.set(w.p.id, i+2); }));
   const atend=paredesPintadas(c, fs), cams=c.cams||[], resto=[];
   const cps=n=>regs2De("qual","cp").filter(r=>r.dados.conc===rotConc(c) && new RegExp(`^C${n}\\b`).test(String(r.dados.cam||""))).reduce((s,r)=>s+(+r.dados.qtd||0),0);
-  // ---- folha 1: planta-chave, caminhões e paredes (sempre uma folha só: o que não cabe vai para o fim) ----
-  cabecalhoMapa(doc, c, `${m.nome} — Mapa de Concretagem das Paredes`, `${c.local||c.estrutura}`);
+  // CPs com o resultado mais recente e o volume que a pintura do caminhão ocupa nas paredes (para comparar com a nota)
+  const rcp=new Map(cams.map(k=>[k.n, cpResumoCam(c,k.n)])), vpin=volPintado(c, fs, m), corDe=i=>cams[i]?.cor;
+  const fx=m.de!=null||m.ate!=null, total=m.p.reduce((s,p)=>s+volPar(p,m.de,m.ate),0);
+  // com a forma: a folha 1 é a laje (no relatório, o trecho pintado; na tela, a página do PDF entra no lugar em mapaPdf)
+  // e o resumo vai para depois das paredes, para não mudar a folha da pintura
+  if(m.forma && pintura) await folhaForma(doc, c, m);
+  const capa=()=>{
+  // ---- resumo: planta-chave, caminhões e paredes (sempre uma folha só: o que não cabe vai para o fim) ----
+  cabecalhoMapa(doc, c, `${m.nome} — Mapa de Concretagem${m.forma?"":" das Paredes"}`, `${c.local||c.estrutura}`);
   const tx = pl ? 128 : 12, tw=285-tx;
   if(pl){ desenharPlanta(doc, pl, 22, 32, 92, 92, null, true);
     doc.setFontSize(6.5); doc.setTextColor(90); doc.text(doc.splitTextToSize("Planta-chave (sem escala)"+(pl.pass?.length?" · tracejado = passagens na base":""), 100), 14, 135); }
   doc.setFont("helvetica","bold"); doc.setFontSize(10); doc.setTextColor(20); doc.text("Caminhões betoneira", tx, 28);
-  // CPs com o resultado mais recente e o volume que a pintura do caminhão ocupa nas paredes (para comparar com a nota)
-  const rcp=new Map(cams.map(k=>[k.n, cpResumoCam(c,k.n)])), vpin=volPintado(c, fs, m);
   const MAXC=9, linhasC=(cams.length?cams:[1,2,3,4,5].map(n=>({n, vazio:true}))).map((k,i)=>k.vazio ? [`${i+1}º`,"","","","","","","","",""] :
     [`${i+1}º`, k.nf||`C${k.n}`, k.inicio||"", k.fim||"", k.vol?nf1.format(+k.vol):"", vpin.has(k.n)?nf1.format(vpin.get(k.n)):"", k.slump!==""&&k.slump!=null?String(k.slump).replace(".",","):"",
       [cps(k.n)||k.cps||"", rcp.get(k.n)?.txt].filter(Boolean).join("\n"), [...(atend.get(k.n)||[])].join(", ")||k.par||"", ""]);
-  const corDe=i=>cams[i]?.cor;
   const tabC=(rows, startY, extra={})=>doc.autoTable({startY, margin:{left:tx,right:12}, tableWidth:tw, theme:"grid",
     head:[["Ordem","Caminhão","Início","Fim","Nota (m³)","Mapa (m³)","Slump (cm)","CPs","Paredes atendidas","Cor"]], body:rows,
     styles:{fontSize:7.5, cellPadding:1.4, halign:"center", valign:"middle", textColor:20, lineColor:120, lineWidth:0.15, minCellHeight:7},
@@ -7899,8 +7923,8 @@ async function docMapa(c, {pintura=false}={}){
   tabC(linhasC.slice(0,MAXC), 30); if(linhasC.length>MAXC) resto.push(["c", linhasC.slice(MAXC), MAXC]);
   let y=doc.lastAutoTable.finalY+7;
   doc.setFont("helvetica","bold"); doc.setFontSize(10); doc.text("Paredes concretadas", tx, y);
-  const fx=m.de!=null||m.ate!=null, linhasP=m.p.map(p=>[p.id, nf2(p.c), nf2(p.h), nf2(p.e), nf2(volPar(p,m.de,m.ate)), String(folhaDe.get(p.id)||"")]);
-  const total=m.p.reduce((s,p)=>s+volPar(p,m.de,m.ate),0), cabeP=Math.max(1, Math.floor((196-y-14)/5.2)), visP=linhasP.length>cabeP ? linhasP.slice(0,cabeP-1) : linhasP;
+  const linhasP=m.p.map(p=>[cats.length>1 ? `${p.id} · ${catPar(m,p)?.nome.replace(/^Floculador /,"Floc. ")||""}` : p.id, nf2(p.c), nf2(p.h), nf2(p.e), nf2(volPar(p,m.de,m.ate)), String(folhaDe.get(p.id)||"")]);
+  const cabeP=Math.max(1, Math.floor((196-y-14)/5.2)), visP=linhasP.length>cabeP ? linhasP.slice(0,cabeP-1) : linhasP;
   if(visP.length<linhasP.length){ visP.push([`… mais ${linhasP.length-visP.length} paredes na última folha`,"","","","",""]); resto.push(["p", linhasP]); }
   doc.autoTable({startY:y+2, margin:{left:tx,right:12}, tableWidth:tw, theme:"grid",
     head:[["Parede","Comprimento (m)","Altura (m)","Espessura (m)",fx?"Volume do lance (m³)":"Volume teórico (m³)","Folha"]], body:visP,
@@ -7909,23 +7933,28 @@ async function docMapa(c, {pintura=false}={}){
     footStyles:{fillColor:[235,235,235], textColor:20, fontStyle:"bold"}});
   // observações (só o que couber na folha 1)
   y=doc.lastAutoTable.finalY+5;
-  const notas=[cat?`Dimensões do levantamento de concreto (comprimento × altura × espessura)${pl?"; planta e encontros conforme o mapa do Floculador A":""}.`:"Paredes cadastradas na concretagem.",
-    fx?`Lance: de ${nf2(m.de||0)} m a ${m.ate!=null?nf2(m.ate)+" m":"o topo"} a partir da base (fora da faixa aparece em cinza nas elevações).`:"",
-    cat?.nota||"", ...m.p.filter(p=>p.obs).map(p=>`${p.id}: ${p.obs}.`), "Volume teórico sem as passagens desenhadas; confira o volume real pelas notas fiscais.",
+  const notas=[m.forma?`Folha 1: laje de fundo, no PDF da forma (${pjTitulo(m.forma.nome||"forma")}); paredes da folha 2 à ${fs.length+1}.`:"",
+    cats.length?`Dimensões do levantamento de concreto (comprimento × altura × espessura)${cats.some(x=>x.planta)?"; planta e encontros conforme o mapa do Floculador A":""}.`:"Paredes cadastradas na concretagem.",
+    fx?`${m.forma&&!m.de?"Arranque":"Lance"}: de ${nf2(m.de||0)} m a ${m.ate!=null?nf2(m.ate)+" m":"o topo"} a partir da base (fora da faixa aparece em cinza nas elevações).`:"",
+    ...cats.map(x=>x.nota), ...m.p.filter(p=>p.obs).map(p=>`${p.id}: ${p.obs}.`), "Volume teórico sem as passagens desenhadas; confira o volume real pelas notas fiscais.",
     vpin.size?"Mapa (m³): área pintada de cada caminhão nas elevações × espessura da parede, para comparar com a nota (diferença grande = pintura incompleta, perda ou forma abrindo).":"",
     (l=>l?loteTxt(l)+(l.aviso?" Atenção: "+l.aviso+".":""):"")(loteConc(c)),
     [...rcp.values()].some(x=>x.txt)?"CPs: resultado mais recente de cada moldagem (maior do par), em MPa; \"abaixo\" = menor que o esperado para a idade (3 d 66%, 7 d 82%, 21 d 95% do fck); \"ok\" = aprovado aos 28 dias.":""].filter(Boolean);
   doc.setFont("helvetica","normal"); doc.setFontSize(7); doc.setTextColor(50);
   for(const n of notas){ const ls=doc.splitTextToSize("• "+n, tw); if(y+ls.length*3.2>203) break; doc.text(ls, tx, y); y+=ls.length*3.2+0.8; }
+  };
+  if(!m.forma) capa();
   // ---- uma folha por elevação ----
   for(const f of fs){
     doc.addPage("a4","landscape");
+    // estrutura da parede (mapa com paredes de mais de uma: Floculador A ou C)
+    const cp=catPar(m, f.ws[0].p), nomeF=cats.length>1 && cp ? cp.nome : m.nome, plF=cp?.planta;
     const ids=f.ws.map(w=>w.p.id), tit=f.ws.length>1 && ids[0].replace(/ (inf|sup)\.$/,"")===ids[1].replace(/ (inf|sup)\.$/,"") ? ids[0].replace(/ (inf|sup)\.$/,"") : ids.join(" · ");
-    cabecalhoMapa(doc, c, tit, f.ws.length>1 ? (tit===ids.join(" · ") ? m.nome : `${descPar({id:tit})} (2 trechos) · ${m.nome}`) : `${descPar(f.ws[0].p)} · ${m.nome}`);
+    cabecalhoMapa(doc, c, tit, f.ws.length>1 ? (tit===ids.join(" · ") ? nomeF : `${descPar({id:tit})} (2 trechos) · ${nomeF}`) : `${descPar(f.ws[0].p)} · ${nomeF}`);
     for(const w of f.ws) desenharElevacao(doc, w, m);
     // rodapé da folha: planta com a parede destacada, caminhões com as cores e a legenda
-    if(pl) desenharPlanta(doc, pl, 12, 165, 34, 34, new Set(ids), false);
-    const lx=pl?52:12; doc.setFont("helvetica","bold"); doc.setFontSize(8); doc.setTextColor(20); doc.text("Caminhões:", lx, 180);
+    if(plF) desenharPlanta(doc, plF, 12, 165, 34, 34, new Set(ids), false);
+    const lx=plF?52:12; doc.setFont("helvetica","bold"); doc.setFontSize(8); doc.setTextColor(20); doc.text("Caminhões:", lx, 180);
     const ks=cams.length ? cams.slice(0,10) : [1,2,3,4,5].map(n=>({n, vazio:true}));
     ks.forEach((k,i)=>{ const bx=lx+20+i*23; doc.setFont("helvetica","normal"); doc.setFontSize(6.5);
       doc.text(k.vazio?`${i+1}º`:`${i+1}º ${k.nf||"C"+k.n}`.slice(0,12), bx, 180, {maxWidth:12});
@@ -7937,7 +7966,8 @@ async function docMapa(c, {pintura=false}={}){
       +`${f.ws.some(w=>w.p.enc?.length)?" Tracejado = encontro com outra parede.":""}`;
     doc.setFontSize(6.5); doc.setTextColor(60); doc.text(doc.splitTextToSize(leg, 285-lx-20), lx, 190);
   }
-  // ---- o que não coube na folha 1 (no fim, para não mudar a folha das elevações) ----
+  if(m.forma){ doc.addPage("a4","landscape"); capa(); }
+  // ---- o que não coube no resumo (no fim, para não mudar a folha das elevações) ----
   for(const [t, rows, off] of resto){
     doc.addPage("a4","landscape"); cabecalhoMapa(doc, c, m.nome, t==="c" ? "Caminhões (continuação)" : "Paredes concretadas (lista completa)");
     if(t==="c") { const cor=corDe; doc.autoTable({startY:24, margin:{left:12,right:12}, theme:"grid", head:[["Ordem","Caminhão","Início","Fim","Volume (m³)","Slump (cm)","Nº CPs","Paredes atendidas","Cor"]], body:rows,
@@ -7982,6 +8012,30 @@ async function docMapa(c, {pintura=false}={}){
   for(let p=1;p<=n;p++){ doc.setPage(p); doc.setFont("helvetica","normal"); doc.setFontSize(6.5); doc.setTextColor(120);
     doc.text(`${nomeObra()} · WIGO · folha ${p} de ${n}`, 285, 206, {align:"right"}); }
   return doc;
+}
+// relatório do mapa com a forma: a folha 1 traz a página da forma com a pintura de cada caminhão, só o trecho pintado
+async function folhaForma(doc, c, m){
+  cabecalhoMapa(doc, c, `${m.nome} — Laje de fundo`, `área concretada por caminhão · ${pjTitulo(m.forma.nome||"forma")}`);
+  await loadPdfjs();
+  const pdf=await pdfjsLib.getDocument({data:new Uint8Array(await obterPdf(formaArq(m)))}).promise;
+  try{
+    const pg=await pdf.getPage(m.forma.pag||1), v1=pg.getViewport({scale:1}), vp=pg.getViewport({scale:Math.min(3600/Math.max(v1.width,v1.height), 5)});
+    const cv=document.createElement("canvas"); cv.width=Math.round(vp.width); cv.height=Math.round(vp.height);
+    const g=cv.getContext("2d"); g.fillStyle="#fff"; g.fillRect(0,0,cv.width,cv.height);
+    await pg.render({canvasContext:g, viewport:vp}).promise;
+    desenharPintura(g, vp, 0, 0, c.id, 1, 2, 3);
+    const cr=recortePintado(cv, vp, tracosDe(c.id).filter(t=>t.pag===1)), r=cr.width/cr.height;
+    let w=273, h=w/r; if(h>174){ h=174; w=h*r; }
+    doc.addImage(cr.toDataURL("image/jpeg",0.82), "JPEG", 12+(273-w)/2, 24, w, h, undefined, "FAST");
+  } finally{ pdf.destroy(); }
+}
+// mapa para pintar na tela: com a forma, a folha 1 é a própria página do PDF da forma (desenho original, mesmas coordenadas)
+async function mapaPdf(c){
+  const m=mapaDe(c), buf=(await docMapa(c)).output("arraybuffer"); if(!m?.forma) return buf;
+  await carregarScript("https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js");
+  const {PDFDocument}=window.PDFLib, out=await PDFDocument.load(buf), forma=await PDFDocument.load(await obterPdf(formaArq(m)), {ignoreEncryption:true});
+  const [pg]=await out.copyPages(forma, [(m.forma.pag||1)-1]); out.removePage(0); out.insertPage(0, pg);
+  return (await out.save()).buffer;
 }
 
 // ================= Módulos novos: motor genérico de registros (aba Registros2) =================

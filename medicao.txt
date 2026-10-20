@@ -1,10 +1,10 @@
-== 2026-10-20 14:27:23 UTC
-teste=planilha (abre a planilha, lê Config): 2.0 s  {'ok': True, 'teste': 'planilha', 'linhasConfig': 36, 'ms': 559}
-teste=planilha (abre a planilha, lê Config): 1.3 s  {'ok': True, 'teste': 'planilha', 'linhasConfig': 36, 'ms': 259}
-teste=planilha (abre a planilha, lê Config): 1.6 s  {'ok': True, 'teste': 'planilha', 'linhasConfig': 36, 'ms': 737}
-leitura completa (carregar): 5.3 s  101359 bytes  script 31  ok True 
-leitura completa (carregar): 6.8 s  101359 bytes  script 31  ok True 
-leitura completa (carregar): 4.1 s  101359 bytes  script 31  ok True 
+== 2026-10-20 14:44:44 UTC
+teste=planilha (abre a planilha, lê Config): 1.6 s  {'ok': True, 'teste': 'planilha', 'linhasConfig': 36, 'ms': 364}
+teste=planilha (abre a planilha, lê Config): 2.6 s  {'ok': True, 'teste': 'planilha', 'linhasConfig': 36, 'ms': 646}
+teste=planilha (abre a planilha, lê Config): 1.3 s  {'ok': True, 'teste': 'planilha', 'linhasConfig': 36, 'ms': 379}
+leitura completa (carregar): 8.4 s  101359 bytes  script 32  ok True 
+leitura completa (carregar): 6.6 s  101359 bytes  script 32  ok True 
+leitura completa (carregar): 7.0 s  101359 bytes  script 32  ok True 
 == tamanho de cada parte (JSON):
   itens             718926  3641 itens
   efDia              24208  22 itens

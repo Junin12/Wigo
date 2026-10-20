@@ -2087,7 +2087,7 @@ function setCampo(on){ LS.set("campo",!!on); if(on) document.documentElement.dat
 $("#campo-modo").addEventListener("click", e=>{ const b=e.target.closest("button[data-c]"); if(b) setCampo(b.dataset.c==="1"); });
 setCampo(!!LS.get("campo"));
 
-const VERSAO_APP = "v119"; // igual ao número em sw.js (armacao-v119)
+const VERSAO_APP = "v120"; // igual ao número em sw.js (armacao-v120)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -7001,7 +7001,7 @@ const agoraHM = () => new Date().toTimeString().slice(0,5);
 function desenharPintura(ctx, vp, ox, oy, conc, pag, dpr=1, letra=1){ // letra: aumenta o "C1, C2…" (relatório)
   const c=concDe(conc); if(!c) return;
   const ts=tracosDe(conc).filter(t=>t.pag===pag); if(!ts.length) return;
-  const cor=n=>c.cams.find(k=>k.n===n)?.cor||"#888", grupos=new Map();
+  const cor=n=>c.cams.find(k=>k.n===n)?.cor||"#888", grupos=new Map(), area=areaPintavel(c, pag);
   for(const t of ts){ if(!grupos.has(t.cam)) grupos.set(t.cam,[]); grupos.get(t.cam).push(t); }
   const off=document.createElement("canvas"); off.width=ctx.canvas.width; off.height=ctx.canvas.height; const o=off.getContext("2d");
   for(const [cam,lista] of grupos){
@@ -7016,6 +7016,9 @@ function desenharPintura(ctx, vp, ox, oy, conc, pag, dpr=1, letra=1){ // letra: 
       if(t.pts.length===2){ const [x,y]=vp.convertToViewportPoint(t.pts[0],t.pts[1]); o.lineTo(x+ox+0.01,y+oy); }
       o.stroke();
     }
+    // mapa das paredes: só a faixa do lance de cada parede (mm da folha → pontos do PDF → tela)
+    recortarArea(o, area, ([x,y,w,h])=>{ const [ax,ay]=vp.convertToViewportPoint(x*72/25.4,(MP.H-y)*72/25.4), [bx,by]=vp.convertToViewportPoint((x+w)*72/25.4,(MP.H-y-h)*72/25.4);
+      return [Math.min(ax,bx)+ox, Math.min(ay,by)+oy, Math.abs(bx-ax), Math.abs(by-ay)]; });
     ctx.save(); ctx.globalAlpha=0.5; ctx.drawImage(off,0,0); ctx.restore();
     // número do caminhão no meio da área dele (no retângulo por cota: "C2 até 1,30 m")
     const fs=Math.max(12*dpr, Math.min(40*dpr, vp.scale*14))*letra;
@@ -7053,6 +7056,12 @@ function cancelarTraco(){ CC.atual=null; limparVivo(); }
 function concluirTraco(){
   const a=CC.atual; CC.atual=null; if(!a) return;
   const id=uid().slice(0,12), c=concDe(CC.conc);
+  // mapa das paredes: traço sem nenhum ponto (com a largura do pincel) dentro da faixa concretada não é gravado
+  const area=areaPintavel(c, V.n), meia=a.w*25.4/72/2;
+  if(area){ let dentro=false;
+    for(let i=0;i<a.pts.length && !dentro;i+=2){ const [x,y]=ptMm(a.pts[i],a.pts[i+1]);
+      dentro=area.some(([rx,ry,rw,rh])=>x>=rx-meia && x<=rx+rw+meia && y>=ry-meia && y<=ry+rh+meia); }
+    if(!dentro){ limparVivo(); toast("Fora da área concretada: pinte dentro da faixa do lance nas paredes."); return; } }
   S.pendTr[id]={conc:CC.conc, cam:CC.cam, pag:V.n, w:Math.round(a.w*10)/10, pts:a.pts.map(v=>Math.round(v*10)/10)};
   CC.desfazer.push(id);
   if(c.status==="Programada") setConc(c.id,{status:"Em andamento"},"Status: Em andamento");
@@ -7700,6 +7709,19 @@ function volPintado(c, fs, m){
     if(v>0) r.set(cam, (r.get(cam)||0)+v); }
   return r;
 }
+// área que pode ser pintada numa folha do mapa: a elevação de cada parede só na faixa do lance (de..ate), em mm da folha.
+// Fora disso a pintura não aparece (nem na tela nem no relatório) e um traço todo fora é descartado. null = sem limite (forma em PDF).
+function areaPintavel(c, pag){
+  const m=mapaDe(c); if(!m) return null;
+  const f=folhasMapa(m)[pag-2]; if(!f) return [];
+  return f.ws.map(w=>{ const topo=Math.min(m.ate??w.p.h, w.p.h), base=Math.max(0, m.de||0);
+    return topo>base ? [w.x, w.y+(w.p.h-topo)*w.s, w.w, (topo-base)*w.s] : null; }).filter(Boolean);
+}
+// recorta uma camada (canvas) à área pintável; ret(r) converte o retângulo em mm para [x,y,l,a] da camada
+function recortarArea(g, area, ret){
+  if(!area) return; g.save(); g.globalCompositeOperation="destination-in"; g.fillStyle="#000";
+  g.beginPath(); for(const r of area){ const [x,y,w,h]=ret(r); g.rect(x,y,w,h); } g.fill(); g.restore();
+}
 // pintura (pontos do PDF, origem embaixo) → mm na folha
 const ptMm = (x,y) => [x*25.4/72, MP.H-y*25.4/72];
 // paredes que cada caminhão pintou: algum ponto do traço dentro da elevação
@@ -7920,17 +7942,25 @@ async function docMapa(c, {pintura=false}={}){
     const porFolha=new Map(); for(const t of tracosDe(c.id)) if(t.pag>=2 && t.pag<=fs.length+1) (porFolha.get(t.pag)||porFolha.set(t.pag,[]).get(t.pag)).push(t);
     for(const [pag, ts] of porFolha){ doc.setPage(pag);
       const grupos=new Map(); for(const t of ts) (grupos.get(t.cam)||grupos.set(t.cam,[]).get(t.cam)).push(t);
-      for(const [cam, lista] of grupos){ const cor=hexRgb(cams.find(k=>k.n===cam)?.cor||"#888888"); let sx=0, sy=0, n=0;
-        doc.saveGraphicsState(); doc.setGState(new doc.GState({"stroke-opacity":0.5, opacity:0.5})); doc.setDrawColor(...cor); doc.setLineCap("round"); doc.setLineJoin("round");
+      // pintura de cada caminhão desenhada opaca numa camada própria e aplicada com 50% de transparência (como na tela):
+      // passar o pincel mais de uma vez no mesmo lugar não escurece a cor. A folha pintada entra como imagem por cima do desenho.
+      const G=6, cv=document.createElement("canvas"); cv.width=MP.W*G; cv.height=MP.H*G; const gp=cv.getContext("2d");
+      const off=document.createElement("canvas"); off.width=cv.width; off.height=cv.height; const go=off.getContext("2d");
+      const marcas=[];
+      for(const [cam, lista] of grupos){ const corHex=cams.find(k=>k.n===cam)?.cor||"#888888", cor=hexRgb(corHex); let sx=0, sy=0, n=0;
+        go.clearRect(0,0,off.width,off.height); go.fillStyle=go.strokeStyle=corHex; go.lineCap=go.lineJoin="round";
         const rets=[];
         for(const t of lista){
           if(t.w<0){ const [x1,y1]=ptMm(t.pts[0],t.pts[1]), [x2,y2]=ptMm(t.pts[2],t.pts[3]), r=[Math.min(x1,x2), Math.min(y1,y2), Math.abs(x2-x1), Math.abs(y2-y1)];
-            doc.setFillColor(...cor); doc.rect(...r, "F"); rets.push([r, -t.w/100]); continue; }
+            go.fillRect(r[0]*G, r[1]*G, r[2]*G, r[3]*G); rets.push([r, -t.w/100]); continue; }
           const ps=[]; for(let i=0;i<t.pts.length;i+=2){ const q=ptMm(t.pts[i],t.pts[i+1]); ps.push(q); sx+=q[0]; sy+=q[1]; n++; }
-          doc.setLineWidth(Math.max(0.3, t.w*25.4/72));
           if(ps.length===1) ps.push([ps[0][0]+0.01, ps[0][1]]);
-          doc.lines(ps.slice(1).map((q,i)=>[q[0]-ps[i][0], q[1]-ps[i][1]]), ps[0][0], ps[0][1], [1,1], "S"); }
-        doc.restoreGraphicsState();
+          go.lineWidth=Math.max(0.3, t.w*25.4/72)*G; go.beginPath(); ps.forEach((q,k)=>k?go.lineTo(q[0]*G,q[1]*G):go.moveTo(q[0]*G,q[1]*G)); go.stroke(); }
+        recortarArea(go, areaPintavel(c, pag), r=>r.map(v=>v*G));
+        gp.save(); gp.globalAlpha=0.5; gp.drawImage(off,0,0); gp.restore();
+        marcas.push({cam, cor, sx, sy, n, rets}); }
+      doc.addImage(cv.toDataURL("image/png"), "PNG", 0, 0, MP.W, MP.H, undefined, "FAST");
+      for(const {cam, cor, sx, sy, n, rets} of marcas){
         if(n){ const lx=sx/n, ly=sy/n; doc.setFont("helvetica","bold"); doc.setFontSize(9); const tw2=doc.getTextWidth("C"+cam)+2;
           doc.setFillColor(255,255,255); doc.roundedRect(lx-tw2/2, ly-3, tw2, 4.4, 0.8, 0.8, "F"); doc.setTextColor(...cor); doc.text("C"+cam, lx, ly+0.4, {align:"center"}); }
         for(const [[x,y,w,h],ate] of rets){ const txt=`C${cam} até ${nf2(ate)} m`; doc.setFont("helvetica","bold"); doc.setFontSize(Math.min(9, Math.max(5, h*2))); const tw3=doc.getTextWidth(txt)+2;

@@ -32,6 +32,9 @@ jobs:
               dt, n, r = get('?teste=planilha'); print('teste=planilha (abre a planilha, lê Config): %.1f s  %s' % (dt, r))
           for i in range(3):
               dt, n, r = get('?k=' + a['k'] + '&gz=1'); print('leitura completa (carregar): %.1f s  %d bytes  script %s  ok %s %s' % (dt, n, r.get('script'), r.get('ok'), r.get('erro', '')))
+          print('== corpos de prova na planilha (maior resultado de cada idade, MPa):')
+          for c in sorted(r.get('cps') or [], key=lambda c: (c['data'], c['cam'])):
+              print('  %s  %-40s %-22s fck %-4s %-12s %s' % (c['data'], c['conc'][:40], c['cam'][:22], c['fck'], c['status'], ' '.join('%sd %s' % (k, v) for k, v in c['res'].items())))
           print('== tamanho de cada parte (JSON):')
           for k, v in sorted(r.items(), key=lambda kv: -len(json.dumps(kv[1]))):
               print('  %-14s %9d  %s' % (k, len(json.dumps(v)), (str(len(v)) + ' itens') if isinstance(v, (list, dict)) else ''))

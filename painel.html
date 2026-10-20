@@ -221,7 +221,7 @@ details.lote-cp{border-top:1px solid var(--line);padding:8px 0}details.lote-cp s
       <div class="card"><h3>m³ concretados por semana</h3><div class="chart" id="c-ch"></div><p class="info nota" id="c-nota"></p></div>
       <div class="card"><h3>Últimas concretagens</h3><div class="tbl" id="c-ult"></div></div>
     </div>
-    <div class="card"><div class="card-top"><h3>Resistência do concreto (corpos de prova)</h3><span class="info">uma linha por caminhão · tracejado = esperado (66% · 82% · 95% · 100% do fck) · lote pela NBR 12655</span></div><div id="c-cp"></div></div>
+    <div class="card"><div class="card-top"><h3>Resistência do concreto (corpos de prova)</h3><span class="info">uma linha por caminhão · tracejado = esperado (66% · 82% · 97% · 100% do fck, NBR 6118) · lote pela NBR 12655</span></div><div id="c-cp"></div></div>
     <div class="card"><div class="card-top"><h3>Etapas por estrutura</h3><span class="info">M = concreto magro · 1 = laje de fundo + arranque · 2 = lance 1 · 3 = lance 2 · 4 = lance 3 + laje de cobertura/passarela · ✓ executada · ◐ em andamento</span></div><div class="tbl" id="c-et"></div></div>
   </section>
 
@@ -454,7 +454,7 @@ function renderConc(E,C,h){
 // ---------- corpos de prova: lote (NBR 12655) e evolução da resistência, por concretagem ----------
 // Mesmas regras do app: exemplar = maior dos 2 CPs aos 28 dias de cada caminhão; amostragem total → fck,est = menor valor
 // (até 20 exemplares); parcial com 6 ou mais → 2·(f1+…+fm−1)/(m−1) − fm, nunca menor que ψ6·f1.
-const IDADES=[3,7,21,28], ESPERADO={3:0.66,7:0.82,21:0.95,28:1}, PSI6={2:0.82,3:0.86,4:0.89,5:0.91,6:0.92,7:0.94,8:0.95,10:0.97,12:0.99,14:1,16:1.02};
+const IDADES=[3,7,21,28], ESPERADO={3:0.6626,7:0.8187,21:0.9695,28:1}, PSI6={2:0.82,3:0.86,4:0.89,5:0.91,6:0.92,7:0.94,8:0.95,10:0.97,12:0.99,14:1,16:1.02};
 const CORES_CP=["#2563A8","#C9772B","#4E7F86","#B42318","#7A4FB5","#1D7A48","#9A5B00","#5B6878","#D6457A","#14263D","#6E9F2C","#0E8A9A"];
 function loteCp(L, cams){
   const f=L.map(x=>x.res[28]).filter(v=>v>0).sort((a,b)=>a-b), n=f.length, fck=Math.max(0,...L.map(x=>x.fck));

@@ -51,6 +51,15 @@ const confere = (ok, msg) => { console.log(`${ok ? "ok  " : "FALHA"} ${msg}`); i
     }, k);
     confere(!r.erro && r.paginas === r.folhas + 1, `mapa ${k}: ${r.erro || r.paginas + " páginas"}`);
   }
+  // Qualidade: dashboards de cada categoria (concreto, aço, solo, forma e geral)
+  const dash = await p.evaluate(() => {
+    try {
+      S.cc = [{ id: "dq", data: "2026-09-28", estrutura: "FLOCULADORES", local: "Fundo e arranque", status: "Concluída", cams: [{ n: 1, nf: "8627", vol: 8, fck: 40, cor: "#E57373" }], pdfId: "", pdfNome: "" }];
+      MEMO_EF.clear();
+      return MOD2.qual.cats.map(c => `${c.id}:${tipoDash.painel(c.id).filter(Boolean).length}`).join(" ");
+    } catch (e) { return "erro: " + e.message; }
+  });
+  confere(!/erro|:0/.test(dash), `dashboards da Qualidade: ${dash}`);
   // relatório de concretagem e prévia na tela
   const rel = await p.evaluate(async () => {
     try {

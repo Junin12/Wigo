@@ -1445,6 +1445,17 @@ const SEMENTES=[
       if(tracosDe(c.id).some(x=>x.pag!==1)) continue; // pintura em outra folha da forma ficaria embaixo de uma parede
       setConc(c.id, {pdfId:mapaFundoArranque(c.pdfId, c.pdfNome), pdfNome:"Laje de fundo e arranque · Floculadores A e C",
         ...(c.status==="Concluída"?{status:"Em andamento"}:{})}, "Paredes dos Floculadores A e C (arranque, 0 a 0,40 m) junto da forma"); } }},
+  // moldagens repetidas pela importação da planilha do laboratório (20/10/2026): as antigas tinham só a nota no caminhão ("8627")
+  // e a importação criou outras ("C1 · NF 8627"). Fica a antiga, com os resultados novos e o nome do caminhão; a repetida sai.
+  {id:"CP_JUNTAR_LAB", fazer:()=>{
+    const L=regs2De("qual","cp");
+    for(const nova of L){ const nf=String(nova.dados.cam||"").match(/^C\d+ · NF (\d+)$/)?.[1]; if(!nf) continue;
+      const velha=L.find(r=>r.id!==nova.id && r.dados.conc===nova.dados.conc && nfChave(r.dados.cam)===nf); if(!velha) continue;
+      const d={...velha.dados}; for(const [k,v] of Object.entries(nova.dados)) if(/^r\d+[ab]$/.test(k)) d[k]=v;
+      d.cam=nova.dados.cam; if(!+d.fck && +nova.dados.fck) d.fck=nova.dados.fck;
+      tipoCp.calc(d); const st=tipoCp.statusAuto(d);
+      setReg2(velha.id, {dados:d, status:st}, `Alterou: ${tituloReg2(tipoCp,{dados:d})} (juntou a moldagem repetida da planilha do laboratório)`);
+      delReg2(nova.id); } }},
 ];
 function rodarSementes(){
   if(!S.cfg?.url || !S.lastSync || LS.get("semSementes")) return; // semSementes: teste automático (testa à parte)
@@ -2095,7 +2106,7 @@ function setCampo(on){ LS.set("campo",!!on); if(on) document.documentElement.dat
 $("#campo-modo").addEventListener("click", e=>{ const b=e.target.closest("button[data-c]"); if(b) setCampo(b.dataset.c==="1"); });
 setCampo(!!LS.get("campo"));
 
-const VERSAO_APP = "v125"; // igual ao número em sw.js (armacao-v125)
+const VERSAO_APP = "v126"; // igual ao número em sw.js (armacao-v126)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -9035,7 +9046,10 @@ function loteConc(c){
 const loteTxt = r => !r ? "" : r.fckEst==null ? `Lote (NBR 12655): ${r.metodo}.`
   : `Lote (NBR 12655): fck,est = ${nf1.format(r.fckEst)} MPa${r.fck?` · fck ${nf1.format(r.fck)} MPa · ${r.aceito?"ACEITO":"NÃO ACEITO (abrir não conformidade e avaliar a estrutura)"}`:""} · ${r.metodo}.`;
 // rastreabilidade: moldagens de um caminhão (C1, C2…) e o resumo dos resultados para os relatórios
-const cpsDoCam = (c, n) => regs2De("qual","cp").filter(r=>r.dados.conc===rotConc(c) && new RegExp(`^C${n}\\b`).test(String(r.dados.cam||"")));
+// moldagens do caminhão: "C1 · NF 8627" ou só a nota dele ("8627", como era lançado à mão)
+const cpsDoCam = (c, n) => { const nf=nfChave(c.cams?.find(k=>k.n===n)?.nf||"");
+  return regs2De("qual","cp").filter(r=>{ const cam=String(r.dados.cam||"");
+    return r.dados.conc===rotConc(c) && (new RegExp(`^C${n}\\b`).test(cam) || (!/^C\d/.test(cam) && !!nf && (cam.match(/\d{3,}/g)||[]).includes(nf))); }); };
 function cpResumoCam(c, n){
   const L=cpsDoCam(c,n), qtd=L.reduce((s,r)=>s+(+r.dados.qtd||0),0), partes=[]; let ruim=false;
   for(const r of L){ const d=r.dados, fck=+d.fck||0;

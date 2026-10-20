@@ -2087,7 +2087,7 @@ function setCampo(on){ LS.set("campo",!!on); if(on) document.documentElement.dat
 $("#campo-modo").addEventListener("click", e=>{ const b=e.target.closest("button[data-c]"); if(b) setCampo(b.dataset.c==="1"); });
 setCampo(!!LS.get("campo"));
 
-const VERSAO_APP = "v120"; // igual ao número em sw.js (armacao-v120)
+const VERSAO_APP = "v121"; // igual ao número em sw.js (armacao-v121)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -7483,19 +7483,29 @@ function renderConc(){
       el("span",{class:"info",text:`${PJ.lista.length} PDFs no app`})) : el("p",{class:"aviso"}, el("b",{text:"Banco não configurado. "}), "Os PDFs das formas vêm da pasta Projetos do Google Drive."));
 }
 
-// recorte da folha renderizada em volta da área pintada: retângulo de todos os traços (pontos + meia espessura) com folga de
-// 5% da folha, para levar junto as paredes e cotas em volta. Se a pintura ocupa quase a folha toda, vai a folha inteira.
+// recorte da folha renderizada: só as regiões pintadas, com uma folga pequena. Traços próximos formam uma região (ex.: o fundo
+// de um floculador); regiões separadas (os dois floculadores, com a laje da passarela entre eles) saem cada uma no seu recorte,
+// lado a lado, e o desenho que fica no meio (outra laje, o nome dela) não entra. Pintura que cobre quase a folha toda: folha inteira.
 function recortePintado(cv, vp, ts){
-  let x0=Infinity, y0=Infinity, x1=-Infinity, y1=-Infinity;
-  for(const t of ts){ const m=t.w>0 ? t.w*vp.scale/2 : 0;
+  const D=Math.max(cv.width,cv.height), folga=0.02*D, junta=0.03*D;
+  let caixas=[];
+  for(const t of ts){ const m=t.w>0 ? t.w*vp.scale/2 : 0; let x0=Infinity, y0=Infinity, x1=-Infinity, y1=-Infinity;
     for(let i=0;i+1<t.pts.length;i+=2){ const [x,y]=vp.convertToViewportPoint(t.pts[i],t.pts[i+1]);
-      x0=Math.min(x0,x-m); y0=Math.min(y0,y-m); x1=Math.max(x1,x+m); y1=Math.max(y1,y+m); } }
-  if(!isFinite(x0)) return cv;
-  const f=0.05*Math.max(cv.width,cv.height);
-  x0=Math.max(0,Math.floor(x0-f)); y0=Math.max(0,Math.floor(y0-f)); x1=Math.min(cv.width,Math.ceil(x1+f)); y1=Math.min(cv.height,Math.ceil(y1+f));
-  if((x1-x0)*(y1-y0) > 0.85*cv.width*cv.height) return cv;
-  const o=document.createElement("canvas"); o.width=x1-x0; o.height=y1-y0;
-  o.getContext("2d").drawImage(cv, x0, y0, o.width, o.height, 0, 0, o.width, o.height);
+      x0=Math.min(x0,x-m); y0=Math.min(y0,y-m); x1=Math.max(x1,x+m); y1=Math.max(y1,y+m); }
+    if(isFinite(x0)) caixas.push([x0,y0,x1,y1]); }
+  if(!caixas.length) return cv;
+  // junta as caixas que se tocam (ou ficam a menos de 3% da folha) até não sobrar nenhuma para juntar
+  for(let mudou=true; mudou;){ mudou=false;
+    for(let a=0;a<caixas.length && !mudou;a++) for(let b=a+1;b<caixas.length;b++){ const A=caixas[a], B=caixas[b];
+      if(A[0]-junta<=B[2] && B[0]-junta<=A[2] && A[1]-junta<=B[3] && B[1]-junta<=A[3]){
+        caixas[a]=[Math.min(A[0],B[0]),Math.min(A[1],B[1]),Math.max(A[2],B[2]),Math.max(A[3],B[3])]; caixas.splice(b,1); mudou=true; break; } } }
+  const rs=caixas.map(([x0,y0,x1,y1])=>[Math.max(0,Math.floor(x0-folga)), Math.max(0,Math.floor(y0-folga)), Math.min(cv.width,Math.ceil(x1+folga)), Math.min(cv.height,Math.ceil(y1+folga))])
+    .sort((a,b)=>a[0]-b[0]||a[1]-b[1]);
+  if(rs.reduce((s,[x0,y0,x1,y1])=>s+(x1-x0)*(y1-y0),0) > 0.85*cv.width*cv.height) return cv;
+  // regiões lado a lado, na mesma altura (centradas), separadas por um espaço branco
+  const H=Math.max(...rs.map(r=>r[3]-r[1])), esp=Math.round(0.015*D), W=rs.reduce((s,r)=>s+r[2]-r[0],0)+esp*(rs.length-1);
+  const o=document.createElement("canvas"); o.width=W; o.height=H; const g=o.getContext("2d"); g.fillStyle="#fff"; g.fillRect(0,0,W,H);
+  let x=0; for(const [x0,y0,x1,y1] of rs){ g.drawImage(cv, x0, y0, x1-x0, y1-y0, x, Math.round((H-(y1-y0))/2), x1-x0, y1-y0); x+=x1-x0+esp; }
   return o;
 }
 // prévia na tela: as páginas do PDF desenhadas uma abaixo da outra, com o botão para baixar/compartilhar se quiser

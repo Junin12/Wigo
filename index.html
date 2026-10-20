@@ -393,7 +393,7 @@ canvas.qr{display:block;width:min(260px,100%);height:auto;image-rendering:pixela
 details.lote{border-top:1px solid var(--line);padding:6px 0}details.lote summary{cursor:pointer}
 /* Qualidade: categorias (concreto, aço, solo…) acima dos tipos; dashboards com gráficos */
 #reg2 .modo.cats{padding-bottom:8px;border-bottom:1px solid var(--line);margin-bottom:6px}#reg2 .modo.cats .chipbtn{font-weight:700}
-.graf-box{margin-top:4px}.kpi.ok b{color:var(--good)}.dq-atencao .tbl+.tbl{margin-top:10px}.dq-atencao td{text-align:left;vertical-align:top}.dq-atencao td:first-child,.dq-atencao th:first-child{white-space:nowrap}.kpi.bad b{color:var(--bad)}.dq-filtros{display:grid;grid-template-columns:1fr 1fr;gap:8px}.dq-filtros select{width:100%}.ct-ficha{display:grid;grid-template-columns:minmax(110px,40%) 1fr;gap:4px 10px;margin:10px 0;font-size:.9rem}.ct-ficha dt{color:var(--muted)}.ct-ficha dd{margin:0;font-weight:600;overflow-wrap:anywhere}#reg2 .card select{width:100%}.graf-box .g-tit{display:block;font-size:.85rem;margin-bottom:4px}#reg2 .card select{max-width:100%}
+.graf-box{margin-top:4px}.kpi.ok b{color:var(--good)}.dq-atencao .tbl+.tbl{margin-top:10px}.dq-atencao td{text-align:left;vertical-align:top}.dq-atencao td:first-child,.dq-atencao th:first-child{white-space:nowrap}.kpi.bad b{color:var(--bad)}.dq-tipo{display:grid;grid-template-columns:1fr 1fr;gap:0;margin:10px 0 8px;padding:3px;border:1px solid var(--line);border-radius:999px;background:var(--surface)}.dq-tipo .chipbtn{border:0;border-radius:999px;text-align:center;justify-content:center;width:100%}.dq-filtros{display:grid;grid-template-columns:1fr 1fr;gap:8px}.dq-filtros select{width:100%}.ct-ficha{display:grid;grid-template-columns:minmax(110px,40%) 1fr;gap:4px 10px;margin:10px 0;font-size:.9rem}.ct-ficha dt{color:var(--muted)}.ct-ficha dd{margin:0;font-weight:600;overflow-wrap:anywhere}#reg2 .card select{width:100%}.graf-box .g-tit{display:block;font-size:.85rem;margin-bottom:4px}#reg2 .card select{max-width:100%}
 .ver-pdf{display:grid;gap:10px}.ver-pdf canvas{width:100%;height:auto;display:block;background:#fff;border:1px solid var(--line);border-radius:6px}
 .tela-logo{height:40px;width:auto;max-width:62vw;object-fit:contain;display:block;background:#fff;border-radius:10px;padding:4px 6px;box-shadow:0 4px 14px -6px rgba(0,0,0,.45)}
 .tela-obra{text-align:right;line-height:1.15}
@@ -2109,7 +2109,7 @@ function setCampo(on){ LS.set("campo",!!on); if(on) document.documentElement.dat
 $("#campo-modo").addEventListener("click", e=>{ const b=e.target.closest("button[data-c]"); if(b) setCampo(b.dataset.c==="1"); });
 setCampo(!!LS.get("campo"));
 
-const VERSAO_APP = "v129"; // igual ao número em sw.js (armacao-v129)
+const VERSAO_APP = "v130"; // igual ao número em sw.js (armacao-v130)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -9102,7 +9102,8 @@ function linhasCt(){
     out.push({nf, data:r.data, setor:d.setor||"", local:d.local||"", vol:+d.vol||0, fck:+d.fck||0, cim:d.cim||"", desc:d.desc||"", slT:d.slT||"", slM:d.slM||"",
       forn:d.forn||"", res, ids:String(d.ids||"").split(/\D+/).map(Number).filter(i=>CP_TODAS.includes(i))}); }
   // concreto magro: não tem corpo de prova rompido (fica fora do dashboard)
-  for(const x of out) x.magro=/MAGRO/.test(normTxt(`${x.local} ${x.desc||""} ${x.conc?.local||""}`));
+  for(const x of out){ x.magro=/MAGRO/.test(normTxt(`${x.local} ${x.desc||""} ${x.conc?.local||""}`));
+    if(x.magro && x.conc && !cpsDoCam(x.conc, x.cam.n).length && !Object.keys(x.res).length) x.ids=[]; } // magro do app sem moldagem: sem ensaio
   return out.sort((a,b)=>a.data.localeCompare(b.data) || a.nf.localeCompare(b.nf));
 }
 // situação de uma idade, como na planilha: Aprovado / Reprovado (resultado × esperado), Pendente (ainda no prazo) ou
@@ -9141,11 +9142,14 @@ const COR_ST={Aprovado:"#2E7D32", Reprovado:"#C62828", "Sem resultado":"#F9A825"
 const vazioDash = t => [el("p",{class:"info",text:t})];
 // Concreto: o essencial do controle tecnológico, com filtro de setor e de período: volume, situação dos ensaios, o que precisa
 // de atenção (reprovado ou sem resultado), os próximos rompimentos e o volume por mês. A consulta por nota fica recolhida no fim.
-const DQ={setor:"", per:0};
+const DQ={setor:"", per:0, magro:false};
 const kpiCor = (rot, val, sub, cor) => { const k=kpi(rot, val, sub); k.classList.add(cor); return k; };
 function dashConcreto(){
-  const todas=linhasCt().filter(x=>!x.magro);
-  if(!todas.length) return vazioDash("Nenhum caminhão ainda: lance as concretagens (Produtividade › Concreto) ou importe a planilha do laboratório (Corpos de prova).");
+  // concreto estrutural ou magro: cada um com o seu dashboard (o magro quase não tem corpo de prova)
+  const tipo=el("div",{class:"modo dq-tipo",role:"group","aria-label":"Tipo de concreto"}, ...[[false,"Concreto estrutural"],[true,"Concreto magro"]].map(([v,t])=>
+    el("button",{class:"chipbtn"+(DQ.magro===v?" on":""),type:"button",text:t,"aria-pressed":String(DQ.magro===v),onclick:()=>{ DQ.magro=v; DQ.setor=""; renderReg2(); }})));
+  const todas=linhasCt().filter(x=>x.magro===DQ.magro);
+  if(!todas.length) return [tipo, ...vazioDash(DQ.magro ? "Nenhum caminhão de concreto magro." : "Nenhum caminhão ainda: lance as concretagens (Produtividade › Concreto) ou importe a planilha do laboratório (Corpos de prova).")];
   const setores=new Map(); for(const x of todas){ const k=chaveSetor(x.setor); if(!setores.has(k) || /^ETA/.test(x.setor)) setores.set(k, String(x.setor||"Outros").replace(/^ETA\s*-\s*/,"")); }
   const desde=DQ.per ? somaDias(hojeISO(),-DQ.per) : "", L=todas.filter(x=>(!DQ.setor || chaveSetor(x.setor)===DQ.setor) && (!desde || x.data>=desde));
   const sel=(rot, val, ops, set)=>campoEf(rot, el("select",{"aria-label":rot,onchange:e=>{ set(e.target.value); renderReg2(); }},
@@ -9153,7 +9157,7 @@ function dashConcreto(){
   const filtros=el("div",{class:"filtros dq-filtros"},
     sel("Setor", DQ.setor, [["","Todos os setores"], ...[...setores].sort((x,y)=>x[1].localeCompare(y[1]))], v=>{ DQ.setor=v; }),
     sel("Período", DQ.per, [[0,"Toda a obra"],[30,"Últimos 30 dias"],[90,"Últimos 90 dias"]], v=>{ DQ.per=+v; }));
-  if(!L.length) return [filtros, ...vazioDash("Nenhum caminhão com esses filtros.")];
+  if(!L.length) return [tipo, filtros, ...vazioDash("Nenhum caminhão com esses filtros.")];
   // cada ensaio (caminhão × idade) com a situação
   const ens=[]; for(const x of L) for(const i of CP_TODAS){ const s=ctStatus(x,i); if(s) ens.push({x, i, s, data:somaDias(x.data,i)}); }
   const n=s=>ens.filter(e=>e.s===s).length, vol=L.reduce((t,x)=>t+x.vol,0);
@@ -9181,7 +9185,7 @@ function dashConcreto(){
       tabelaSimples(["Idade","Esperado","Resultado","Situação"], CP_TODAS.filter(i=>ctStatus(x,i)).map(i=>{ const v=cpRes(x.res,i), e=ctEsperado(x,i);
         return [`${i} dias`, e!=null?nf1.format(e):"-", v!=null?nf1.format(v):"-", ctStatus(x,i)]; }))); };
   iNf.onchange=desNf; desNf();
-  return [filtros, kpis,
+  return [tipo, filtros, kpis,
     ens.length ? el("div",{class:"card"}, grafIdade, el("p",{class:"info",text:"Aprovado = resultado (maior dos 2 CPs) ≥ esperado para a idade (NBR 6118; aos 28 dias, o fck)."}))
       : el("p",{class:"info",text:"Nenhum corpo de prova registrado para esses caminhões."}),
     atencao.length ? el("div",{class:"card dq-atencao"}, el("h3",{text:"Precisam de atenção"}),

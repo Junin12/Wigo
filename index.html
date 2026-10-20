@@ -2095,7 +2095,7 @@ function setCampo(on){ LS.set("campo",!!on); if(on) document.documentElement.dat
 $("#campo-modo").addEventListener("click", e=>{ const b=e.target.closest("button[data-c]"); if(b) setCampo(b.dataset.c==="1"); });
 setCampo(!!LS.get("campo"));
 
-const VERSAO_APP = "v124"; // igual ao número em sw.js (armacao-v124)
+const VERSAO_APP = "v125"; // igual ao número em sw.js (armacao-v125)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -9092,25 +9092,35 @@ const numLab = v => { if(typeof v==="number") return v>0 ? v : null; const n=par
 function lerPlanilhaLab(linhas){
   const T=v=>normTxt(v);
   // coluna da nota: o cabeçalho com "NOTA", "ROMANEIO" ou "NF"
-  let hNf=-1, cNf=-1;
-  for(let i=0;i<Math.min(linhas.length,30) && cNf<0;i++) linhas[i].forEach((v,j)=>{ if(cNf<0 && /NOTA|ROMANEIO|^N[FºO°]?\s*NF$|^NF$/.test(T(v))){ hNf=i; cNf=j; } });
+  // (vários cabeçalhos servem: fica a coluna com mais números embaixo)
+  const NCAB=Math.min(linhas.length,40), notaDe=v=>{ const s=nfChave(v); return /^\d+$/.test(s) ? s : (String(v??"").match(/^\D{0,6}(\d{3,})\s*$/)||[])[1]||""; };
+  let hNf=-1, cNf=-1, melhor=0;
+  for(let i=0;i<NCAB;i++) (linhas[i]||[]).forEach((v,j)=>{ if(!/NOTA|ROMANEIO|^N[FºO°.]?\s*NF$|^NF$|^NFS?\b/.test(T(v))) return;
+    const n=linhas.slice(i+1).filter(r=>notaDe(r?.[j])).length; if(n>melhor){ melhor=n; hNf=i; cNf=j; } });
   if(cNf<0) throw new Error("Não achei a coluna do número da nota fiscal (cabeçalho com \"NOTA\", \"ROMANEIO\" ou \"NF\").");
-  // blocos de idade e as colunas RESULTADO 1/2 de cada um
-  const idades=[];
-  // "7 DIAS" numa célula, ou o número numa célula e "DIAS" logo depois (planilha FVM.06 de controle tecnológico: 7 | | DIAS)
-  for(let i=Math.max(0,hNf-3);i<=Math.min(linhas.length-1,hNf+4);i++) linhas[i].forEach((v,j,L)=>{
-    const m=T(v).match(/^(\d{1,2})\s*DIAS?$/) || (/^\d{1,2}$/.test(T(v)) && L.slice(j+1,j+4).some(x=>/^DIAS?$/.test(T(x))) ? [,T(v)] : null);
-    if(m && CP_TODAS.includes(+m[1])) idades.push({i:+m[1], lin:i, col:j}); });
-  if(!idades.length) throw new Error("Não achei os blocos de idade (títulos como \"7 DIAS\" e \"28 DIAS\").");
-  idades.sort((a,b)=>a.col-b.col);
-  let fimCab=hNf;
-  idades.forEach((b,k)=>{ const ate=k+1<idades.length ? idades[k+1].col : Infinity;
-    for(let i=b.lin;i<=Math.min(linhas.length-1,b.lin+6);i++) linhas[i].forEach((v,j)=>{ if(j<b.col || j>=ate) return; const t=T(v);
-      if(/RESULTADO\s*1/.test(t) && b.c1==null){ b.c1=j; fimCab=Math.max(fimCab,i); } if(/RESULTADO\s*2/.test(t) && b.c2==null){ b.c2=j; fimCab=Math.max(fimCab,i); } }); });
-  const blocos=idades.filter(b=>b.c1!=null);
-  if(!blocos.length) throw new Error("Não achei as colunas \"RESULTADO 1\" e \"RESULTADO 2\" dentro dos blocos de idade.");
+  let fimCab=hNf, blocos=[];
+  // cabeçalho curto com a idade na própria coluna: "RESIST1 7D", "RESULTADO 2 28D", "R1 3 DIAS"
+  const curtos=new Map();
+  for(let i=0;i<NCAB;i++) (linhas[i]||[]).forEach((v,j)=>{ const m=T(v).match(/^(?:RESIST(?:ENCIA)?|RESULTADO|RES|R|CP)\.?\s*([12])\s*[-–(]?\s*(\d{1,2})\s*D(?:IAS?)?\)?$/);
+    if(!m || !CP_TODAS.includes(+m[2])) return; const b=curtos.get(+m[2]) || curtos.set(+m[2],{i:+m[2]}).get(+m[2]); b["c"+m[1]]??=j; fimCab=Math.max(fimCab,i); });
+  if([...curtos.values()].some(b=>b.c1!=null)) blocos=[...curtos.values()].filter(b=>b.c1!=null);
+  else {
+    // blocos de idade e as colunas RESULTADO 1/2 de cada um. "7 DIAS" numa célula, ou o número numa célula e "DIAS" logo depois
+    // (planilha FVM.06 de controle tecnológico: 7 | | DIAS)
+    const idades=[];
+    for(let i=0;i<NCAB;i++) (linhas[i]||[]).forEach((v,j,L)=>{
+      const m=T(v).match(/^(\d{1,2})\s*DIAS?$/) || (/^\d{1,2}$/.test(T(v)) && L.slice(j+1,j+4).some(x=>/^DIAS?$/.test(T(x))) ? [,T(v)] : null);
+      if(m && CP_TODAS.includes(+m[1])) idades.push({i:+m[1], lin:i, col:j}); });
+    if(!idades.length) throw new Error("Não achei os blocos de idade (títulos como \"7 DIAS\" e \"28 DIAS\", ou colunas como \"RESIST1 7D\").");
+    idades.sort((a,b)=>a.col-b.col);
+    idades.forEach((b,k)=>{ const ate=k+1<idades.length ? idades[k+1].col : Infinity;
+      for(let i=b.lin;i<=Math.min(linhas.length-1,b.lin+6);i++) (linhas[i]||[]).forEach((v,j)=>{ if(j<b.col || j>=ate) return; const t=T(v);
+        if(/RESULTADO\s*1/.test(t) && b.c1==null){ b.c1=j; fimCab=Math.max(fimCab,i); } if(/RESULTADO\s*2/.test(t) && b.c2==null){ b.c2=j; fimCab=Math.max(fimCab,i); } }); });
+    blocos=idades.filter(b=>b.c1!=null);
+    if(!blocos.length) throw new Error("Não achei as colunas \"RESULTADO 1\" e \"RESULTADO 2\" dentro dos blocos de idade.");
+  }
   const res=[];
-  for(let i=fimCab+1;i<linhas.length;i++){ const nf=nfChave(linhas[i][cNf]); if(!/^\d+$/.test(nf)) continue;
+  for(let i=fimCab+1;i<linhas.length;i++){ const nf=notaDe(linhas[i]?.[cNf]); if(!nf) continue;
     const v={}; for(const b of blocos){ const a=numLab(linhas[i][b.c1]), c=b.c2!=null?numLab(linhas[i][b.c2]):null; if(a!=null) v["r"+b.i+"a"]=a; if(c!=null) v["r"+b.i+"b"]=c; }
     res.push({nf, v}); }
   return {res, idades:blocos.map(b=>b.i)};
@@ -9120,8 +9130,11 @@ async function importarLab(arquivo){
     await loadXLSX();
     const wb=XLSX.read(await arquivo.arrayBuffer(), {type:"array"}), lidas=[];
     let idades=[];
-    for(const nome of wb.SheetNames){ try{ const r=lerPlanilhaLab(XLSX.utils.sheet_to_json(wb.Sheets[nome],{header:1, raw:true, defval:""})); lidas.push(...r.res); idades=[...new Set([...idades,...r.idades])]; }catch(e){ if(wb.SheetNames.length===1) throw e; } }
-    if(!lidas.length) throw new Error("Não encontrei nenhuma linha com número de nota na planilha.");
+    const motivos=[];
+    for(const nome of wb.SheetNames){ try{ const r=lerPlanilhaLab(XLSX.utils.sheet_to_json(wb.Sheets[nome],{header:1, raw:true, defval:""})); lidas.push(...r.res); idades=[...new Set([...idades,...r.idades])];
+      if(!r.res.length) motivos.push(`${nome}: nenhuma linha com nota abaixo do cabeçalho`); }catch(e){ if(wb.SheetNames.length===1) throw e; motivos.push(`${nome}: ${e.message}`); } }
+    // o motivo de cada aba aparece na mensagem (para saber o que a planilha tem de diferente)
+    if(!lidas.length) throw new Error(`Não encontrei nenhuma linha com número de nota na planilha (app ${VERSAO_APP}). ${motivos.join(" · ")}`.slice(0,600));
     // nota → caminhão da concretagem
     const porNf=new Map(); for(const c of concs()) for(const k of c.cams||[]) if(k.nf) porNf.set(nfChave(k.nf), {c, k});
     const ok=[], semCam=[], semRes=[];
@@ -9142,7 +9155,8 @@ async function importarLab(arquivo){
       semCam.length ? el("p",{class:"aviso full",text:`Sem caminhão no app com estas notas (ficam de fora): ${semCam.join(", ")}. Lance os caminhões na concretagem e importe de novo.`}) : null,
       semRes.length ? el("p",{class:"info full",text:`Sem resultado na planilha: ${semRes.join(", ")}.`}) : null],
       ok.length ? [el("button",{class:"btn pri",type:"button",text:`Lançar ${ok.length} resultado${ok.length===1?"":"s"}`,onclick:lancar})] : []);
-  }catch(e){ toast(e.message||"Não foi possível ler a planilha."); }
+  }catch(e){ const m=e.message||"Não foi possível ler a planilha.";
+    if(m.length>120) efModal("Importar planilha do laboratório", [el("p",{class:"aviso full",text:m})], []); else toast(m); }
 }
 // botão da concretagem: nova moldagem ou ver as desta concretagem
 function cpDaConc(c){

@@ -339,6 +339,12 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
 .mq-item .chipbtn.on.bad{background:var(--bad);border-color:var(--bad);color:#fff}
 .chipbtn.mq-ng{border-color:var(--bad);color:var(--bad)}
 .r2-itens{display:grid;gap:6px}
+.geo-mapa{height:240px;border-radius:10px;overflow:hidden;margin-top:8px;background:#223}
+.geo-mapa.geo-grande{height:min(70vh,560px)}
+.hid-res{display:grid;gap:4px;margin-top:8px}
+.hid-l{display:flex;justify-content:space-between;gap:10px;border-bottom:1px dashed var(--line);padding:3px 0}
+.hid-l b{text-align:right}
+.pres-relogio{font-size:1.6rem;font-variant-numeric:tabular-nums}
 .r2-item{flex-wrap:nowrap}
 .r2-item input:first-child{flex:1;min-width:0}
 .cfg-link summary{cursor:pointer;min-height:44px;display:flex;align-items:center;font-weight:600}
@@ -2117,7 +2123,7 @@ function setCampo(on){ LS.set("campo",!!on); if(on) document.documentElement.dat
 $("#campo-modo").addEventListener("click", e=>{ const b=e.target.closest("button[data-c]"); if(b) setCampo(b.dataset.c==="1"); });
 setCampo(!!LS.get("campo"));
 
-const VERSAO_APP = "v133"; // igual ao número em sw.js (armacao-v133)
+const VERSAO_APP = "v134"; // igual ao número em sw.js (armacao-v134)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -4047,13 +4053,13 @@ const MODULOS=[
   {id:"fotos", nome:"Fotos",            desc:"Tirar e guardar fotos da obra",  c:["#E25C8A","#A8305C"], ativo:true},
   {id:"rdo",   nome:"RDO",              desc:"Diário de obra",                 c:["#3C8DD8","#1F5FA8"], ativo:true},
   {id:"prod",  nome:"Produtividade",    desc:"Painéis e insights: aço · forma · concreto", c:["#1A9BDC","#0067A6"], ativo:true},
-  {id:"obras", nome:"Obras e projetos", desc:"Estruturas, etapas e pranchas",  c:["#4F7CE8","#2747B0"], ativo:true},
+  {id:"obras", nome:"Obras e projetos", desc:"Estruturas, pranchas, pontos no mapa e hidráulica",  c:["#4F7CE8","#2747B0"], ativo:true},
   {id:"rel",   nome:"Relatórios",       desc:"PDF semanal e painéis",          c:["#8A6BE0","#5A3FB0"], ativo:true},
   {id:"sup",   nome:"Suprimentos",      desc:"Pedidos e recebimento",          c:["#F2AE3D","#D27D1F"], ativo:true},
-  {id:"qual",  nome:"Qualidade",        desc:"Fichas de verificação (FVS)",    c:["#36B37E","#1D7A48"], ativo:true},
-  {id:"seg",   nome:"Segurança",        desc:"DDS, inspeções e checklists de máquinas",           c:["#F2783A","#C9461A"], ativo:true},
-  {id:"med",   nome:"Medições",         desc:"Boletins e avanço físico",       c:["#45A1D6","#22709F"], ativo:true},
-  {id:"equip", nome:"Equipamentos",     desc:"Máquinas e horímetros",          c:["#7D8B99","#4A5866"], ativo:true},
+  {id:"qual",  nome:"Qualidade",        desc:"FVS, concreto e teste de pressão da rede",    c:["#36B37E","#1D7A48"], ativo:true},
+  {id:"seg",   nome:"Segurança",        desc:"DDS, inspeções, escavações e checklists de máquinas",           c:["#F2783A","#C9461A"], ativo:true},
+  {id:"med",   nome:"Medições",         desc:"Boletins, avanço físico e rede assentada",       c:["#45A1D6","#22709F"], ativo:true},
+  {id:"equip", nome:"Equipamentos",     desc:"Máquinas, horímetros e diesel",          c:["#7D8B99","#4A5866"], ativo:true},
   // todos: aparece para qualquer cargo (não depende da lista de módulos do cargo)
   {id:"ferr",  nome:"Ferramentas",      desc:"Editor PDF, converter para Word e mais", c:["#E2544A","#B3261E"], ativo:true, todos:true},
   {id:"arquivo", nome:"Arquivo da obra", desc:"Recebimentos e cálculos da Calculadora de obra", c:["#D98A3D","#9C5A1C"], ativo:true, todos:true},
@@ -9545,7 +9551,7 @@ function pendInicio(){
   return bts.length ? el("div",{class:"row"}, ...bts) : null;
 }
 const MOD2={
-  equip:{nome:"Equipamentos", desc:"Cadastro e apontamento diário", edit:"equip-edit", tipos:[
+  equip:{nome:"Equipamentos", desc:"Cadastro e apontamento diário, com horímetro e diesel", edit:"equip-edit", tipos:[
     {id:"apont", nome:"Apontamentos", novo:"Novo apontamento", status:["Trabalhando","Parado","Em manutenção"],
       campos:[{k:"equip",rot:"Equipamento",t:"equip",obrig:true},{k:"hi",rot:"Horímetro inicial",t:"num",un:"h"},{k:"hf",rot:"Horímetro final",t:"num",un:"h"},
         {k:"horas",rot:"Horas trabalhadas",t:"num",un:"h",dica:"Ou deixe em branco: conta pelo horímetro"},{k:"operador",rot:"Operador",t:"pessoa"},{k:"obs",rot:"Observação",t:"area"}],
@@ -9555,7 +9561,7 @@ const MOD2={
       campos:[{k:"nome",rot:"Nome",t:"txt",obrig:true,dica:"Ex.: Escavadeira 01"},{k:"tipo",rot:"Tipo",t:"txt",ops:EQUIP_PADRAO},{k:"ident",rot:"Identificação / placa",t:"txt"},
         {k:"posse",rot:"Próprio ou locado",t:"sel",ops:["Próprio","Locado"]},{k:"empresa",rot:"Empresa",t:"txt"}]}],
     topo:(T)=>T.id==="apont" && !equipsCadastrados().length ? [el("p",{class:"aviso",text:"Cadastre os equipamentos primeiro (aba Cadastro)."})] : []},
-  seg:{nome:"Segurança", desc:"DDS, inspeções, checklists de máquinas e ocorrências", edit:"seg-edit", tipos:[
+  seg:{nome:"Segurança", desc:"DDS, inspeções, escavações (NR-18), checklists de máquinas e ocorrências", edit:"seg-edit", tipos:[
     {id:"dds", nome:"DDS", novo:"Novo DDS", fotos:"Foto do DDS",
       campos:[{k:"tema",rot:"Tema",t:"txt",obrig:true,full:true},{k:"part",rot:"Participantes",t:"pessoas"},{k:"resp",rot:"Quem conduziu",t:"pessoa",padrao:()=>nomeRel(U?.nome)},{k:"obs",rot:"Observação",t:"area"}],
       titulo:d=>d.tema},
@@ -9576,7 +9582,7 @@ const MOD2={
       titulo:d=>`${d.classe||"Ocorrência"}${d.local?" · "+d.local:""}`},
     tipoNc()],
     topo:T=>T.id==="maq" ? menuMaq() : T.id==="nc" ? resumoNc("seg") : []},
-  qual:{nome:"Qualidade", desc:"Concreto, aço, solo e forma: dashboards, FVS, plano de ação, corpos de prova e ensaios", edit:"qual-edit", cats:catsQual(), tipos:[
+  qual:{nome:"Qualidade", desc:"Concreto, aço, solo, forma e rede: dashboards, FVS, plano de ação, corpos de prova, ensaios e teste de pressão", edit:"qual-edit", cats:catsQual(), tipos:[
     tipoDash,
     {id:"fvs", nome:"FVS", novo:"Nova FVS", fotos:"Foto", status:["Conforme","Não conforme","Reinspecionada"], pre:cat=>Q_SERV[cat] ? {servico:Q_SERV[cat]} : {},
       campos:[{k:"servico",rot:"Serviço",t:"sel",ops:()=>[...new Set([...Object.keys(FVS_PADRAO), ...regs2De("qual","modelo").map(r=>r.dados.servico)])],obrig:true,mudou:(v,ctx)=>ctx.recheck?.(itensFvs(v))},
@@ -9596,7 +9602,7 @@ const MOD2={
       const ls=liberacoesFrentes();
       return [el("details",{class:"card"}, el("summary",{class:"pr-sum",text:`Checklists de concretagem das Frentes · ${ls.length}`}),
         ls.length ? tabelaSimples(["Data","Estrutura","Local","Lance","Responsável","Situação"], ls.slice(0,60).map(l=>[ddmm(l[0]),...l.slice(1)])) : el("p",{class:"info",text:"Nenhum checklist de concretagem ainda (aba Frentes do aço)."}))]; }},
-  med:{nome:"Medições", desc:"Boletins e avanço físico", edit:"med-edit", tipos:[
+  med:{nome:"Medições", desc:"Boletins, avanço físico e rede assentada (GPS ou trena)", edit:"med-edit", tipos:[
     {id:"bol", nome:"Boletins", novo:"Novo boletim", status:["Rascunho","Fechado"],
       campos:[{k:"num",rot:"Número",t:"txt",obrig:true,padrao:()=>String(regs2De("med","bol").length+1)},{k:"ini",rot:"Período: de",t:"data",obrig:true},{k:"fim",rot:"até",t:"data",obrig:true,padrao:()=>hojeISO()},
         {k:"itens",rot:"Itens medidos (manuais)",t:"itens",semCard:false},{k:"obs",rot:"Observação",t:"area"}],
@@ -9605,7 +9611,7 @@ const MOD2={
     rodape:(T, lista)=>lista.length ? [el("p",{class:"info",text:"No PDF de cada boletim sai também o avanço físico do aço por estrutura até a data final."}),
       el("div",{class:"row"}, ...lista.slice(0,3).map(r=>el("button",{class:"btn",type:"button",text:`📄 Boletim ${r.dados.num} (PDF)`,onclick:e=>pdfBoletim(r,e.target)}),),
         el("button",{class:"btn",type:"button",text:"Excel dos boletins",onclick:e=>excelBoletins(lista,e.target)}))] : []},
-  obras:{nome:"Obras e projetos", desc:"Dados da obra, estruturas e pranchas", edit:"obras-edit", tipos:[
+  obras:{nome:"Obras e projetos", desc:"Dados da obra, estruturas, pranchas, pontos no mapa e cálculos hidráulicos", edit:"obras-edit", tipos:[
     {id:"est", nome:"Estruturas", novo:"Nova estrutura", semData:true, status:["Ativa","Inativa"],
       campos:[{k:"nome",rot:"Estrutura",t:"txt",obrig:true},{k:"emp",rot:"Empreendimento",t:"txt",ops:()=>[...new Set(S.items.map(i=>i.emp))]},{k:"obs",rot:"Observação",t:"area"}],
       titulo:d=>d.nome}],
@@ -9746,6 +9752,374 @@ async function pdfArquivo(r, btn){
   }catch(e){ toast(e.message||"Não foi possível gerar o PDF."); }
   finally{ btn.disabled=false; btn.textContent=txt; }
 }
+// ================= Campo: GPS e mapa (pontos da rede, rede assentada) =================
+// Mapa = Leaflet (cdnjs) com o satélite da Esri; o service worker guarda o que foi visto. O Leaflet sai do window.L (noConflict).
+const GEO={L:null};
+const nf6 = new Intl.NumberFormat("pt-BR",{minimumFractionDigits:6,maximumFractionDigits:6});
+async function carregarLeaflet(){
+  if(GEO.L) return GEO.L;
+  if(!document.querySelector("link[data-leaflet]")) document.head.append(el("link",{rel:"stylesheet",href:"https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css","data-leaflet":"1"}));
+  await carregarScript("https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js");
+  return GEO.L = window.L.noConflict();
+}
+// distância em metros entre [lat, lon] (esfera de raio médio: erro desprezível em trechos de obra)
+const distM = (a,b) => { const r=Math.PI/180, s=Math.sin((b[0]-a[0])*r/2)**2+Math.cos(a[0]*r)*Math.cos(b[0]*r)*Math.sin((b[1]-a[1])*r/2)**2; return 2*6371008.8*Math.asin(Math.sqrt(s)); };
+const compPts = pts => pts.reduce((s,p,i)=>i?s+distM(pts[i-1],p):0,0);
+// estacas a cada `passo` metros ao longo do percurso: [lat, lon, distância]
+function estacasPts(pts, passo){
+  if(pts.length<2 || !(passo>0)) return [];
+  const out=[[...pts[0],0]]; let acum=0, prox=passo;
+  for(let i=1;i<pts.length;i++){ const a=pts[i-1], b=pts[i], d=distM(a,b);
+    while(d>0 && acum+d>=prox){ const f=(prox-acum)/d; out.push([a[0]+(b[0]-a[0])*f, a[1]+(b[1]-a[1])*f, prox]); prox+=passo; }
+    acum+=d; }
+  return out;
+}
+// fica ouvindo o GPS por `seg` segundos e devolve a mediana da metade mais precisa das leituras (bem melhor que uma leitura só)
+function gpsFixo(seg, prog){
+  return new Promise(res=>{
+    if(!navigator.geolocation) return res({erro:"Este aparelho não informa a localização."});
+    const L=[]; let id=null, t=null;
+    const fim=()=>{ navigator.geolocation.clearWatch(id); clearTimeout(t);
+      if(!L.length) return res({erro:"Sem sinal de GPS. Vá para um lugar aberto e tente de novo."});
+      const m=L.sort((a,b)=>a.acc-b.acc).slice(0,Math.ceil(L.length/2));
+      const med=k=>{ const v=m.map(x=>x[k]).sort((a,b)=>a-b), n=v.length; return n%2 ? v[(n-1)/2] : (v[n/2-1]+v[n/2])/2; };
+      res({lat:med("lat"), lon:med("lon"), prec:med("acc"), n:L.length}); };
+    id=navigator.geolocation.watchPosition(p=>{ L.push({lat:p.coords.latitude, lon:p.coords.longitude, acc:p.coords.accuracy}); prog?.(L.length, p.coords.accuracy); },
+      e=>{ if(e.code===1){ navigator.geolocation.clearWatch(id); clearTimeout(t); res({erro:"Localização não autorizada. Libere a localização para este site nas permissões do navegador."}); } },
+      {enableHighAccuracy:true, maximumAge:0, timeout:30000});
+    t=setTimeout(fim, seg*1000);
+  });
+}
+// mapa de satélite num div: camadas = [{pts, linha, cor, rotulos, estacas}]
+async function mapaCampo(box, camadas){
+  let LF; try{ LF=await carregarLeaflet(); }catch{ repor(box, el("p",{class:"info",text:"O mapa precisa de internet na primeira vez."})); return null; }
+  if(box._mapa){ box._mapa.remove(); box._mapa=null; }
+  repor(box);
+  const m=box._mapa=LF.map(box,{attributionControl:false});
+  LF.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",{maxZoom:21, maxNativeZoom:18}).addTo(m);
+  const b=[];
+  for(const c of camadas){ if(!c.pts?.length) continue; b.push(...c.pts.map(p=>[p[0],p[1]]));
+    const dica=(x,t)=>t ? x.bindTooltip(t) : x;
+    if(c.linha) dica(LF.polyline(c.pts,{color:c.cor||"#ffd400",weight:4}).addTo(m), c.rotulos?.[0]);
+    else c.pts.forEach((p,i)=>dica(LF.circleMarker(p,{radius:7,color:"#fff",weight:2,fillColor:c.cor||"#e2544a",fillOpacity:1}).addTo(m), c.rotulos?.[i]));
+    for(const e of c.estacas||[]) LF.circleMarker([e[0],e[1]],{radius:4,color:"#000",weight:1,fillColor:"#fff",fillOpacity:1}).addTo(m).bindTooltip(`${nf0.format(e[2])} m`);
+  }
+  b.length ? m.fitBounds(b,{padding:[24,24],maxZoom:18}) : m.setView([-19.75,-47.93],13);
+  setTimeout(()=>m.invalidateSize(),250);
+  return m;
+}
+const xmlTxt = s => String(s??"").replace(/[<&>"]/g,c=>({"<":"&lt;","&":"&amp;",">":"&gt;",'"':"&quot;"}[c]));
+function kmlCampo(nome, itens){
+  const pm=i=>`<Placemark><name>${xmlTxt(i.nome)}</name><description>${xmlTxt(i.desc)}</description>`+(i.linha
+    ? `<Style><LineStyle><color>ff00d4ff</color><width>4</width></LineStyle></Style><LineString><tessellate>1</tessellate><coordinates>${i.pts.map(p=>`${p[1]},${p[0]},0`).join(" ")}</coordinates></LineString>`
+    : `<Point><coordinates>${i.pts[0][1]},${i.pts[0][0]},0</coordinates></Point>`)+"</Placemark>";
+  return new Blob([`<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>${xmlTxt(nome)}</name>${itens.map(pm).join("")}</Document></kml>`],{type:"application/vnd.google-earth.kml+xml"});
+}
+const csvBlob = (cab, linhas) => new Blob(["﻿"+[cab,...linhas].map(l=>l.map(v=>{ const s=String(v??""); return /[;"\n]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s; }).join(";")).join("\r\n")],{type:"text/csv;charset=utf-8"});
+const arqNome = s => String(s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/\W+/g,"_");
+
+// campo: posição de um ponto (média de 15 s parado no lugar); dá para corrigir digitando
+function campoGps(rot, v){
+  let p = v?.lat!=null ? {...v} : null;
+  const info=el("p",{class:"info"}), mapa=el("div",{class:"geo-mapa",hidden:true});
+  const bt=el("button",{class:"btn pri",type:"button",text:"📍 Pegar a posição no GPS (fique parado 15 s)"});
+  const iLat=el("input",{type:"text",inputMode:"decimal",autocomplete:"off",placeholder:"-19,750000"}), iLon=el("input",{type:"text",inputMode:"decimal",autocomplete:"off",placeholder:"-47,930000"});
+  const mostrar=()=>{ iLat.value=p?nf6.format(p.lat):""; iLon.value=p?nf6.format(p.lon):"";
+    info.textContent = !p ? "Fique em cima do ponto, com o céu aberto, e toque no botão." : p.manual ? "Coordenadas digitadas." : `Precisão ±${nf0.format(p.prec||0)} m · média de ${p.n} leituras`;
+    mapa.hidden=!p; if(p) mapaCampo(mapa,[{pts:[[p.lat,p.lon]]}]); };
+  bt.onclick=async()=>{ bt.disabled=true;
+    const g=await gpsFixo(15,(n,a)=>{ bt.textContent=`Lendo o GPS… ${n} leituras (agora ±${nf0.format(a)} m)`; });
+    bt.disabled=false; bt.textContent="📍 Pegar de novo";
+    if(g.erro) return toast(g.erro);
+    p={lat:+g.lat.toFixed(7), lon:+g.lon.toFixed(7), prec:Math.round(g.prec*10)/10, n:g.n}; mostrar(); };
+  iLat.onchange=iLon.onchange=()=>{ const la=num(iLat.value), lo=num(iLon.value);
+    if(iLat.value.trim() && iLon.value.trim() && la && lo && Math.abs(la)<=90 && Math.abs(lo)<=180) p={lat:la, lon:lo, manual:true}; else if(!iLat.value.trim() && !iLon.value.trim()) p=null;
+    mostrar(); };
+  mostrar();
+  return {elm:el("div",{class:"campo full"}, rot, bt, info, el("div",{class:"filtros"}, campoEf("Latitude",iLat), campoEf("Longitude",iLon)), mapa), ler:()=>p||""};
+}
+const fmtPos = v => v?.lat!=null ? `${nf6.format(v.lat)}, ${nf6.format(v.lon)}`+(v.prec?` ±${nf0.format(v.prec)} m`:"") : "";
+
+// campo: percurso andando com o GPS (um ponto a cada 2 s, quando andou e a leitura é boa); o comprimento soma os trechos
+function campoPercurso(v, ctx){
+  let pts=Array.isArray(v?.pts) ? v.pts.map(p=>[...p]) : [], id=null, ult=0;
+  const info=el("p",{class:"info"}), mapa=el("div",{class:"geo-mapa",hidden:true});
+  const bt=el("button",{class:"btn pri",type:"button"}), apagar=el("button",{class:"btn",type:"button",text:"Apagar percurso"});
+  const parar=()=>{ if(id!=null){ navigator.geolocation.clearWatch(id); id=null; } };
+  const passo=()=>num(ctx.valor?.("estaca"))||20;
+  const desenhar=()=>{ mapa.hidden=pts.length<2; if(pts.length>=2) mapaCampo(mapa,[{pts, linha:true, estacas:estacasPts(pts, passo())}]); };
+  const mostrar=(msg)=>{ bt.textContent = id!=null ? "⏹ Parar" : pts.length ? "▶ Continuar o percurso" : "▶ Começar a gravar";
+    apagar.hidden=!pts.length || id!=null;
+    info.textContent = msg || (pts.length ? `${pts.length} pontos · ${nf1.format(compPts(pts))} m` + (id!=null?" · gravando…":"") : "Ande por cima da rede, do começo ao fim do trecho, com o celular na mão."); };
+  bt.onclick=()=>{
+    if(id!=null){ parar(); desenhar(); return mostrar(); }
+    if(!navigator.geolocation) return toast("Este aparelho não informa a localização.");
+    id=navigator.geolocation.watchPosition(p=>{
+      if(!bt.isConnected) return parar(); // fechou a janela gravando
+      const c=p.coords; if(c.accuracy>20) return mostrar(`Sinal fraco (±${nf0.format(c.accuracy)} m): esperando melhorar…`);
+      const q=[+c.latitude.toFixed(7), +c.longitude.toFixed(7)], agora=Date.now();
+      if(agora-ult<2000 || (pts.length && distM(pts.at(-1),q)<Math.max(1.5, c.accuracy*0.3))) return;
+      if(pts.length>=1500){ parar(); desenhar(); return mostrar("Percurso no limite de pontos: salve este trecho e grave o próximo em outro registro."); }
+      pts.push(q); ult=agora; mostrar(); },
+      e=>{ if(e.code===1){ parar(); mostrar(); toast("Localização não autorizada. Libere a localização para este site."); } },
+      {enableHighAccuracy:true, maximumAge:0});
+    mostrar(); };
+  apagar.onclick=()=>{ if(!confirm("Apagar o percurso gravado?")) return; pts=[]; desenhar(); mostrar(); };
+  ctx.redesenharPercurso=desenhar;
+  mostrar(); desenhar();
+  return {elm:el("div",{class:"campo full"}, "Percurso no GPS", el("div",{class:"row"}, bt, apagar), info, mapa),
+    ler:()=>{ parar(); return pts.length>=2 ? {pts, m:Math.round(compPts(pts)*10)/10} : ""; }};
+}
+
+// --- Obras e projetos › Pontos no mapa: registros, ventosas, PVs, interferências… com a posição do GPS ---
+const TIPOS_PONTO=["Registro","Ventosa","Descarga","Hidrante","PV / poço de visita","Caixa","Curva / derivação","Bloco de ancoragem","Travessia","Interferência (outra rede)","Marco / referência","Outro"];
+const DN_LISTA=["DN 50","DN 75","DN 100","DN 150","DN 200","DN 250","DN 300","DN 350","DN 400","DN 500","DN 600","DN 700","DN 800","DN 900","DN 1000"];
+const MAT_TUBO=["PVC PBA","PVC DEFOFO","PEAD","Ferro fundido","Aço","Concreto","PRFV"];
+const tituloPonto = d => `${d.tipo||"Ponto"}${d.ident?" "+d.ident:""}${d.local?" · "+d.local:""}`;
+MOD2.obras.tipos.push({id:"pto", nome:"Pontos no mapa", novo:"Novo ponto", fotos:"Foto", status:["Executado","Projetado"],
+  campos:[{k:"tipo",rot:"O que é",t:"sel",ops:TIPOS_PONTO,obrig:true},{k:"ident",rot:"Identificação",t:"txt",dica:"Ex.: RG-03"},{k:"local",rot:"Local",t:"est"},
+    {k:"pos",rot:"Posição",t:"custom",obrig:true,render:v=>campoGps("Posição",v),fmt:fmtPos},
+    {k:"diam",rot:"Diâmetro",t:"txt",ops:DN_LISTA},{k:"prof",rot:"Profundidade",t:"num",un:"m"},{k:"obs",rot:"Observação",t:"area"}],
+  titulo:tituloPonto});
+// --- Medições › Rede assentada: comprimento por trecho, no GPS ou na trena, com estaqueamento ---
+MOD2.med.tipos.push({id:"rede", nome:"Rede assentada", novo:"Novo trecho", fotos:"Foto", status:["Assentado","Testado","Reaterrado"],
+  campos:[{k:"trecho",rot:"Trecho",t:"txt",obrig:true,dica:"Ex.: AT-01, estaca 0 a 15"},{k:"local",rot:"Local",t:"est"},
+    {k:"diam",rot:"Diâmetro",t:"txt",ops:DN_LISTA},{k:"mat",rot:"Material",t:"sel",ops:MAT_TUBO},
+    {k:"estaca",rot:"Estaca a cada",t:"num",un:"m",padrao:20,semCard:true,mudou:(v,ctx)=>ctx.redesenharPercurso?.()},
+    {k:"perc",rot:"Percurso no GPS",t:"custom",render:campoPercurso,fmt:v=>v?.m?`${nf1.format(v.m)} m`:"",semCard:true,semPdf:true},
+    {k:"comp",rot:"Comprimento",t:"num",un:"m",dica:"Em branco: vale o do GPS. Medido na trena: escreva aqui"},
+    {k:"equipe",rot:"Equipe",t:"pessoas",semCard:true},{k:"obs",rot:"Observação",t:"area"}],
+  calc:d=>{ if(d.comp==null && d.perc?.m) d.comp=d.perc.m; },
+  validar:d=> d.comp>0 ? "" : "Informe o comprimento ou grave o percurso no GPS.",
+  titulo:d=>`${d.trecho||"Trecho"}${d.diam?" · "+d.diam:""} · ${nf1.format(d.comp||0)} m`});
+const tituloTrecho = MOD2.med.tipos.at(-1).titulo;
+
+// mapa com os pontos e os trechos de rede (os dois tipos juntos, que é como se usa em campo), KML e CSV
+function camadasCampo(){
+  const pts=regs2De("obras","pto").filter(r=>r.dados.pos?.lat!=null), tr=regs2De("med","rede").filter(r=>r.dados.perc?.pts?.length>1);
+  return {pts, tr, camadas:[...tr.map(r=>({pts:r.dados.perc.pts, linha:true, rotulos:[tituloTrecho(r.dados)]})),
+    {pts:pts.map(r=>[r.dados.pos.lat, r.dados.pos.lon]), rotulos:pts.map(r=>tituloPonto(r.dados))}]};
+}
+function verMapaCampo(){
+  const {pts, tr, camadas}=camadasCampo(), box=el("div",{class:"geo-mapa geo-grande"});
+  efModal(`Mapa da obra · ${pts.length} ponto${pts.length===1?"":"s"} · ${tr.length} trecho${tr.length===1?"":"s"}`, [el("div",{class:"full"}, box)], []);
+  mapaCampo(box, camadas);
+}
+function exportarCampo(fmt){
+  const {pts, tr}=camadasCampo();
+  if(!pts.length && !tr.length) return toast("Nada com posição no GPS ainda.");
+  if(fmt==="kml") return baixar(`Mapa_${arqNome(nomeObra())}_${hojeISO()}.kml`, kmlCampo(nomeObra(), [
+    ...pts.map(r=>({nome:tituloPonto(r.dados), desc:[r.status, r.dados.diam, r.dados.prof!=null?`prof. ${nf1.format(r.dados.prof)} m`:"", r.dados.obs].filter(Boolean).join(" · "), pts:[[r.dados.pos.lat,r.dados.pos.lon]]})),
+    ...tr.map(r=>({nome:tituloTrecho(r.dados), desc:[r.status, r.dados.mat, dataBR(r.data)].filter(Boolean).join(" · "), pts:r.dados.perc.pts, linha:true}))]));
+  baixar(`Pontos_${arqNome(nomeObra())}_${hojeISO()}.csv`, csvBlob(["Tipo","Identificação","Local","Situação","Latitude","Longitude","Precisão (m)","Diâmetro","Profundidade (m)","Data","Observação"],
+    pts.map(r=>{ const d=r.dados; return [d.tipo, d.ident, d.local, r.status, d.pos.lat, d.pos.lon, d.pos.prec??"", d.diam, d.prof??"", dataBR(r.data), d.obs]; })));
+}
+const botoesMapa = () => el("div",{class:"row"}, el("button",{class:"btn",type:"button",text:"🗺 Ver no mapa",onclick:verMapaCampo}),
+  el("button",{class:"btn",type:"button",text:"KML (Google Earth)",onclick:()=>exportarCampo("kml")}), el("button",{class:"btn",type:"button",text:"CSV dos pontos",onclick:()=>exportarCampo("csv")}));
+function topoRede(lista){
+  if(!lista.length) return [botoesMapa()];
+  const tot=lista.reduce((s,r)=>s+(+r.dados.comp||0),0), dns=new Map();
+  for(const r of lista){ const k=[r.dados.diam||"Sem diâmetro", r.dados.mat].filter(Boolean).join(" · "); dns.set(k,(dns.get(k)||0)+(+r.dados.comp||0)); }
+  return [el("div",{class:"kpis"}, kpi("Assentado no período", `${nf1.format(tot)} m`, `${lista.length} trecho${lista.length>1?"s":""}`)),
+    el("div",{class:"card"}, el("h3",{text:"Por diâmetro"}), tabelaSimples(["Diâmetro / material","Metros"], [...dns].sort((a,b)=>b[1]-a[1]).map(([k,m])=>[k, nf1.format(m)]))),
+    el("p",{class:"info",text:"O comprimento pelo GPS tem erro de 1 a 3%: para o boletim, confira na trena ou com a topografia."}), botoesMapa()];
+}
+
+// --- Obras e projetos › Cálculos hidráulicos: perda de carga (Hazen-Williams), diâmetro e bomba ---
+const HW_C=[["PVC ou PEAD",150],["Ferro fundido revestido",130],["Aço revestido",120],["Concreto",120],["Ferro fundido antigo",100]];
+const DN_MM=[50,75,100,150,200,250,300,350,400,450,500,600,700,800,900,1000,1200];
+const CV_COM=[0.5,0.75,1,1.5,2,3,4,5,6,7.5,10,12.5,15,20,25,30,40,50,60,75,100,125,150,175,200,250,300,350,400,450,500];
+function hidCalc(e){
+  const q=(+e.Q||0)/1000, C=+e.C||150, L=+e.L||0, loc=(+e.loc||0)/100;
+  if(!(q>0)) return null;
+  // Bresse (K = 1,2) para o diâmetro econômico; o comercial é o próximo acima
+  const dB=1.2*Math.sqrt(q)*1000, dnB=DN_MM.find(x=>x>=dB)||DN_MM.at(-1);
+  const D=(+e.D||dnB)/1000, A=Math.PI*D*D/4, v=q/A;
+  const J=10.67*q**1.852/(C**1.852*D**4.87), hf=J*L*(1+loc);
+  const r={D:D*1000, dB, dnB, v, Jkm:J*1000, hf, av:[]};
+  if(v<0.6) r.av.push("Velocidade abaixo de 0,6 m/s: risco de depósito; um diâmetro menor pode servir.");
+  if(v>3) r.av.push("Velocidade acima de 3 m/s: perda de carga alta e risco de golpe de aríete; aumente o diâmetro.");
+  if(e.modo==="bomba"){
+    const H=(+e.Hg||0)+hf, eta=(+e.eta||65)/100;
+    r.H=H; r.kW=9.81*q*H/eta; r.cv=1000*q*H/(75*eta);
+    // folga do motor (prática usual): +50% até 2 cv, +30% até 5, +20% até 10, +15% até 20, +10% acima
+    const f=r.cv<=2?1.5:r.cv<=5?1.3:r.cv<=10?1.2:r.cv<=20?1.15:1.1; r.cvMotor=CV_COM.find(x=>x>=r.cv*f)||Math.ceil(r.cv*f);
+    r.kWh=r.kW/0.9*(+e.h||0)*30; r.custo=r.kWh*(+e.tar||0);
+  }
+  return r;
+}
+const hidTxt = (e,r) => !r ? "" : e.modo==="bomba" ? `Bomba ${nf1.format(e.Q)} L/s · Hman ${nf1.format(r.H)} m · ${nf1.format(r.cv)} cv → motor ${String(r.cvMotor).replace(".",",")} cv`
+  : `${nf1.format(e.Q)} L/s · DN ${nf0.format(r.D)} · v ${nf2(r.v)} m/s · perda ${nf2(r.hf)} m`;
+function campoHid(v){
+  const e={modo:"tubo", C:150, loc:10, eta:65, h:20, tar:0.8, ...(v?.ent||{})}, res=el("div",{class:"card hid-res"});
+  const ent=(k,rot,un,ph)=>{ const i=el("input",{type:"text",inputMode:"decimal",autocomplete:"off",value:e[k]!=null&&e[k]!==""?String(e[k]).replace(".",","):"",placeholder:ph||""});
+    i.oninput=()=>{ e[k]=i.value.trim()==="" ? "" : num(i.value); calc(); }; return campoEf(`${rot}${un?` (${un})`:""}`, i); };
+  const selC=el("select",{}, ...HW_C.map(([n,c])=>el("option",{value:c,text:`${n} (C = ${c})`,selected:+e.C===c}))); selC.onchange=()=>{ e.C=+selC.value; calc(); };
+  const bomba=el("div",{class:"filtros"}, ent("Hg","Desnível geométrico","m","sucção + recalque"), ent("eta","Rendimento da bomba","%"), ent("h","Horas por dia","h"), ent("tar","Tarifa","R$/kWh"));
+  const modo=el("div",{class:"pr-bts"}), desM=()=>{ repor(modo, ...[["tubo","Tubulação"],["bomba","Bomba"]].map(([k,t])=>el("button",{class:"chipbtn"+(e.modo===k?" on":""),type:"button",text:t,"aria-pressed":String(e.modo===k),onclick:()=>{ e.modo=k; desM(); calc(); }}))); bomba.hidden=e.modo!=="bomba"; };
+  const linha=(a,b)=>el("div",{class:"hid-l"}, el("span",{text:a}), el("b",{text:b}));
+  function calc(){ const r=hidCalc(e);
+    if(!r) return repor(res, el("p",{class:"info",text:"Informe a vazão para calcular."}));
+    repor(res, linha("Diâmetro econômico (Bresse)", `${nf0.format(r.dB)} mm → DN ${r.dnB}`), linha("Diâmetro usado", `DN ${nf0.format(r.D)}`),
+      linha("Velocidade", `${nf2(r.v)} m/s`), linha("Perda de carga unitária", `${nf2(r.Jkm)} m/km`), linha("Perda de carga total", `${nf2(r.hf)} m`),
+      ...(e.modo==="bomba" ? [linha("Altura manométrica", `${nf2(r.H)} m`), linha("Potência absorvida", `${nf2(r.kW)} kW (${nf2(r.cv)} cv)`),
+        linha("Motor recomendado", `${String(r.cvMotor).replace(".",",")} cv`), linha("Energia por mês", `${nf0.format(r.kWh)} kWh`+(r.custo?` · R$ ${nf2(r.custo)}`:""))] : []),
+      ...r.av.map(a=>el("p",{class:"aviso",text:a}))); }
+  desM(); calc();
+  return {elm:el("div",{class:"campo full"}, "Cálculo", modo,
+      el("div",{class:"filtros"}, ent("Q","Vazão","L/s"), ent("D","Diâmetro interno","mm","em branco: o econômico"), ent("L","Comprimento da linha","m"), campoEf("Material",selC), ent("loc","Perdas localizadas","% da linha")),
+      bomba, res, el("small",{class:"info",text:"Hazen-Williams: J = 10,67·Q^1,852 / (C^1,852·D^4,87). Potência = 9,81·Q·H / η. Confira com o projeto antes de comprar."})),
+    ler:()=>{ const r=hidCalc(e); return r ? {ent:{...e}, txt:hidTxt(e,r)} : ""; }};
+}
+MOD2.obras.tipos.push({id:"hid", nome:"Cálculos hidráulicos", novo:"Novo cálculo",
+  campos:[{k:"nome",rot:"Identificação",t:"txt",obrig:true,dica:"Ex.: Adutora AT-01, recalque da EEAT"},{k:"hid",rot:"Resultado",t:"custom",obrig:true,render:campoHid,fmt:v=>v?.txt||""},{k:"obs",rot:"Observação",t:"area"}],
+  titulo:d=>d.nome});
+{ const topo0=MOD2.obras.topo, rod0=MOD2.obras.rodape;
+  MOD2.obras.topo=(T,lista)=>T.id==="pto" ? [botoesMapa()] : T.id==="est" ? topo0(T,lista) : [];
+  MOD2.obras.rodape=(T,lista)=>T.id==="est" ? rod0(T,lista) : []; }
+{ const topo0=MOD2.med.topo, rod0=MOD2.med.rodape;
+  MOD2.med.topo=(T,lista)=>T.id==="rede" ? topoRede(lista) : topo0(T,lista);
+  MOD2.med.rodape=(T,lista)=>T.id==="rede" ? [] : rod0(T,lista); }
+
+// --- Qualidade › Rede: teste de pressão e estanqueidade da tubulação ---
+// Pressão de ensaio = 1,5 × a de serviço (NBR 9650 / prática usual). Água que pode ser reposta (AWWA C600, métrico):
+// L (L/h) = S·D·√P / 715317, com S em m, D em mm e P em kPa. Queda de pressão aceita no período: até 3,5 mca (5 psi).
+const presPerm = d => d.comp>0 && d.diam>0 && d.pTeste>0 ? d.comp*d.diam*Math.sqrt(d.pTeste*9.80665)/715317*((+d.dur||60)/60) : null;
+function campoLeituras(v){
+  const L=Array.isArray(v) ? v.map(x=>({...x})) : []; let t0=null, tick=null;
+  const relogio=el("b",{class:"pres-relogio",text:"00:00"}), iMin=el("input",{type:"text",inputMode:"decimal",placeholder:"0"}), iP=el("input",{type:"text",inputMode:"decimal",placeholder:"mca"}), box=el("div");
+  const desenhar=()=>repor(box, L.length ? tabelaSimples(["Minuto","Pressão (mca)"], L.map(x=>[nf1.format(x.min), nf1.format(x.p)])) : el("p",{class:"info",text:"Nenhuma leitura ainda."}),
+    L.length ? el("button",{class:"linkbtn",type:"button",text:"Tirar a última leitura",onclick:()=>{ L.pop(); desenhar(); }}) : null);
+  const ini=el("button",{class:"btn",type:"button",text:"▶ Iniciar o cronômetro"});
+  ini.onclick=()=>{ t0=Date.now()-(L.at(-1)?.min||0)*60000; clearInterval(tick); ini.hidden=true;
+    tick=setInterval(()=>{ if(!box.isConnected) return clearInterval(tick); const s=Math.floor((Date.now()-t0)/1000);
+      relogio.textContent=`${String(Math.floor(s/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`; if(document.activeElement!==iMin) iMin.value=String(Math.floor(s/60)); },1000); };
+  const add=el("button",{class:"btn pri",type:"button",text:"+ Leitura",onclick:()=>{
+    if(iP.value.trim()==="") return toast("Escreva a pressão lida no manômetro.");
+    L.push({min:iMin.value.trim()==="" ? (L.length ? L.at(-1).min : 0) : num(iMin.value), p:num(iP.value)}); L.sort((a,b)=>a.min-b.min); iP.value=""; desenhar(); }});
+  desenhar();
+  return {elm:el("div",{class:"campo full"}, "Leituras do manômetro", el("div",{class:"row"}, ini, relogio),
+      el("div",{class:"filtros"}, campoEf("Minuto",iMin), campoEf("Pressão (mca)",iP)), add, box), ler:()=>L.length ? L : ""};
+}
+const tipoPres={id:"pres", nome:"Teste de pressão", novo:"Novo teste", fotos:"Foto do manômetro", status:["Em andamento"],
+  campos:[{k:"trecho",rot:"Trecho",t:"txt",obrig:true,dica:"Ex.: AT-01, estaca 0 a 15"},{k:"local",rot:"Local",t:"est"},
+    {k:"diam",rot:"Diâmetro interno",t:"num",un:"mm",obrig:true},{k:"mat",rot:"Material",t:"sel",ops:MAT_TUBO},{k:"comp",rot:"Comprimento testado",t:"num",un:"m",obrig:true},
+    {k:"pServ",rot:"Pressão de serviço",t:"num",un:"mca"},{k:"pTeste",rot:"Pressão de ensaio",t:"num",un:"mca",dica:"Em branco: 1,5 × a de serviço"},
+    {k:"dur",rot:"Duração",t:"num",un:"min",padrao:60},{k:"leit",rot:"Leituras",t:"custom",render:campoLeituras,semCard:true,semPdf:true,fmt:v=>`${v.length} leituras`},
+    {k:"rep",rot:"Água reposta no fim",t:"num",un:"L",dica:"Volume para voltar à pressão de ensaio"},{k:"resp",rot:"Responsável",t:"pessoa",padrao:()=>nomeRel(U?.nome)},{k:"obs",rot:"Observação",t:"area"}],
+  calc:d=>{ if(d.pTeste==null && d.pServ>0) d.pTeste=Math.round(d.pServ*1.5*10)/10;
+    const pm=presPerm(d); if(pm!=null) d.perm=Math.round(pm*100)/100; else delete d.perm;
+    if(d.leit?.length>1){ const ps=d.leit.map(x=>x.p); d.queda=Math.round((ps[0]-Math.min(...ps))*10)/10; } else delete d.queda; },
+  statusAuto:d=>{ const fim=d.rep!=null || (d.leit?.length>1 && d.leit.at(-1).min>=(+d.dur||60));
+    if(!fim) return "Em andamento";
+    return (d.rep==null || d.perm==null || d.rep<=d.perm) && (d.queda==null || d.queda<=3.5) ? "Aprovado" : "Reprovado"; },
+  aberto:r=>r.status==="Em andamento",
+  aoSalvar:(id,d,st,mod,data)=> st!=="Reprovado" ? "" : criarNCs("qual", id, [{chave:"pres", data, dados:{
+    desc:`Teste de pressão reprovado: ${d.trecho}`+(d.rep!=null&&d.perm!=null?` · reposição ${nf1.format(d.rep)} L (permitido ${nf2(d.perm)} L)`:"")+(d.queda!=null?` · queda ${nf1.format(d.queda)} mca`:""),
+    origem:"Teste de pressão da rede", local:d.local||"", resp:d.resp||"", prazo:somaDias(hojeISO(),3)}}]),
+  titulo:d=>`${d.trecho||"Teste"}${d.diam?` · DN ${nf0.format(d.diam)}`:""}`+(d.pTeste?` · ${nf1.format(d.pTeste)} mca`:"")+(d.perm!=null?` · permitido ${nf2(d.perm)} L`:"")};
+MOD2.qual.tipos.splice(MOD2.qual.tipos.findIndex(t=>t.id==="modelo"), 0, tipoPres);
+FVS_PADRAO["Assentamento de tubulação"]=["Fundo da vala regularizado e berço conforme projeto","Alinhamento e declividade conforme projeto","Juntas, anéis ou soldas conforme o fabricante",
+  "Blocos de ancoragem nas curvas e derivações","Envoltória e reaterro compactado em camadas","Teste de pressão feito antes de fechar a vala"];
+Q_CATS.push(["rede","Rede",/TUBUL|ADUTORA|\bREDE\b|ESTANQUE|PRESSAO|ASSENTAMENTO|\bPEAD\b|\bPVC\b|DEFOFO|FERRO FUNDIDO|ANCORAGEM/]);
+Q_SERV.rede="Assentamento de tubulação";
+{ const cs=MOD2.qual.cats, geral=cs.findIndex(c=>c.id==="geral");
+  cs.splice(geral, 0, {id:"rede", nome:"Rede", tipos:["dash","pres","fvs","nc","modelo"], filtro:{fvs:r=>qNaCat("rede",r.dados.servico), modelo:r=>qNaCat("rede",r.dados.servico), nc:r=>qNaCat("rede",txtNc(r))}});
+  cs[geral+1].tipos.splice(cs[geral+1].tipos.indexOf("solo")+1, 0, "pres"); }
+
+// --- Segurança › Escavações: escoramento, talude e checklist (NR-18) ---
+// Acima de 1,25 m a escavação precisa de escoramento ou talude dimensionado (NR-18). O talude de referência (H:V) segue a
+// prática usual por tipo de solo; o dimensionamento final é do projeto.
+const SOLOS_VALA=[["Rocha sã",0],["Argila rija / solo firme",0.75],["Argila mole, silte ou solo fissurado",1],["Areia, pedregulho ou aterro",1.5],["Solo encharcado ou instável",1.5]];
+const PROT_VALA=["Escoramento contínuo","Escoramento descontínuo","Talude","Blindagem (caixa de vala)","Nenhuma"];
+const CHECK_VALA=["Escoramento ou talude conforme projeto","Material escavado afastado da borda (mínimo metade da profundidade)","Escada ou rampa de saída perto de quem trabalha",
+  "Borda sinalizada e isolada (guarda-corpo onde há passagem)","Redes e cabos localizados antes de escavar","Água drenada ou bombeada","Máquinas e caminhões afastados da borda","Vistoria feita depois de chuva"];
+function valaCalc(d){
+  const prof=+d.prof||0, comp=+d.comp||0, larg=+d.larg||0, solo=SOLOS_VALA.find(s=>s[0]===d.solo), r={exige:prof>1.25, av:[]};
+  if(solo && d.prot==="Talude"){ r.talude=solo[1]; if(larg) r.boca=larg+2*prof*solo[1]; }
+  if(/Escoramento/.test(d.prot||"") && comp && prof){ const f=d.prot==="Escoramento contínuo" ? 1 : 0.5;
+    r.madeira=2*comp*prof*f; r.estroncas=(Math.ceil(comp/1.35)+1)*Math.max(1,Math.ceil(prof/1.0)); }
+  if(r.exige && (!d.prot || d.prot==="Nenhuma")) r.av.push("Acima de 1,25 m: não pode trabalhar sem escoramento, talude ou blindagem (NR-18).");
+  if(solo && solo[1]>=1.5 && d.prot==="Escoramento descontínuo") r.av.push("Em areia ou solo instável use escoramento contínuo.");
+  if(prof) r.afast=prof/2;
+  return r;
+}
+function campoVala(v, ctx){
+  const box=el("div",{class:"card hid-res"}), linha=(a,b)=>el("div",{class:"hid-l"}, el("span",{text:a}), el("b",{text:b}));
+  ctx.recVala=()=>{ const d={}; for(const k of ["prof","larg","comp","solo","prot"]) d[k]=ctx.valor(k); const r=valaCalc(d);
+    if(!d.prof) return repor(box, el("p",{class:"info",text:"Informe a profundidade para ver o que a norma pede."}));
+    repor(box, linha("Profundidade", `${nf2(+d.prof)} m · ${r.exige?"acima de 1,25 m: precisa de proteção":"até 1,25 m"}`),
+      r.afast ? linha("Terra escavada a pelo menos", `${nf2(r.afast)} m da borda`) : null,
+      r.talude!=null ? linha("Talude de referência (H:V)", `${nf2(r.talude)} : 1`+(r.boca?` · boca da vala ≈ ${nf2(r.boca)} m`:"")) : null,
+      r.madeira ? linha("Pranchas (estimativa)", `${nf1.format(r.madeira)} m² · ≈ ${r.estroncas} estroncas`) : null,
+      ...r.av.map(a=>el("p",{class:"aviso",text:a}))); };
+  setTimeout(()=>ctx.recVala(),0);
+  return {elm:el("div",{class:"campo full"}, "O que a norma pede", box, el("small",{class:"info",text:"Referência para o campo. O escoramento acima de 1,25 m é dimensionado no projeto por profissional habilitado."})), ler:()=>""};
+}
+const recVala = (v,ctx) => ctx.recVala?.();
+MOD2.seg.tipos.splice(MOD2.seg.tipos.findIndex(t=>t.id==="ocor"), 0, {id:"vala", nome:"Escavações", novo:"Nova escavação", fotos:"Foto", status:["Liberada"],
+  campos:[{k:"local",rot:"Local",t:"est",obrig:true},{k:"det",rot:"Detalhe",t:"txt",dica:"Ex.: estaca 12 a 15"},
+    {k:"prof",rot:"Profundidade",t:"num",un:"m",obrig:true,mudou:recVala},{k:"larg",rot:"Largura no fundo",t:"num",un:"m",mudou:recVala},{k:"comp",rot:"Comprimento aberto",t:"num",un:"m",mudou:recVala},
+    {k:"solo",rot:"Solo",t:"sel",ops:SOLOS_VALA.map(s=>s[0]),mudou:recVala},{k:"prot",rot:"Proteção",t:"sel",ops:PROT_VALA,mudou:recVala},
+    {k:"rec",rot:"Recomendação",t:"custom",render:campoVala,semCard:true,semPdf:true},
+    {k:"ck",rot:"Checklist",t:"check",itens:CHECK_VALA},{k:"resp",rot:"Responsável",t:"pessoa",padrao:()=>nomeRel(U?.nome)},{k:"obs",rot:"Observação",t:"area"}],
+  calc:d=>{ const r=valaCalc(d); if(r.madeira) d.madeira=Math.round(r.madeira*10)/10; else delete d.madeira; },
+  statusAuto:d=> (valaCalc(d).exige && (!d.prot || d.prot==="Nenhuma")) || Object.values(d.ck||{}).includes("NC") ? "Bloqueada" : "Liberada",
+  aoSalvar:(id,d,st,mod,data)=>criarNCs("seg", id, [...ncsDoCheck(d.ck, {data, origem:"Escavação", local:d.local, det:d.det, resp:d.resp}),
+    ...(valaCalc(d).exige && (!d.prot || d.prot==="Nenhuma") ? [{chave:"semprot", data, dados:{desc:`Escavação de ${nf2(+d.prof)} m sem escoramento ou talude${d.det?" ("+d.det+")":""}`, origem:"Escavação", local:d.local||"", acao:"Parar o serviço na vala e escorar ou fazer o talude", resp:d.resp||"", prazo:hojeISO()}}] : [])]),
+  chip:r=>r.status==="Bloqueada" ? ["Bloqueada","bad"] : null,
+  titulo:d=>`${d.local||"Escavação"}${d.det?" · "+d.det:""} · ${nf2(+d.prof||0)} m`+(d.prot?` · ${d.prot.toLowerCase()}`:"")});
+
+// --- Produtividade › Escavação: volume pelas seções (método das áreas médias) ---
+// seções = [{dist: até a anterior, ac: área de corte, aa: área de aterro}] → volumes de corte e aterro
+function volSecoes(L){ let c=0, a=0;
+  for(let i=1;i<L.length;i++){ const d=+L[i].dist||0; c+=((+L[i-1].ac||0)+(+L[i].ac||0))/2*d; a+=((+L[i-1].aa||0)+(+L[i].aa||0))/2*d; }
+  return {c, a}; }
+function campoSecoes(v, ctx){
+  const L=Array.isArray(v) ? v.map(x=>({...x})) : [], box=el("div",{class:"r2-itens"}), tot=el("p",{class:"info"});
+  const vols=()=>volSecoes(L);
+  const atual=()=>{ const {c,a}=vols(); tot.textContent = L.length>1 ? `Corte ${nf1.format(c)} m³ · aterro ${nf1.format(a)} m³ (volumes no corte, sem empolamento)` : "Pelo menos duas seções."; };
+  const desenhar=()=>{ repor(box, ...L.map((x,k)=>{ const f=(cp,ph,w)=>{ const i=el("input",{type:"text",inputMode:"decimal",value:x[cp]!=null&&x[cp]!==""?String(x[cp]).replace(".",","):"",placeholder:ph,style:`width:${w}`}); i.oninput=()=>{ x[cp]=i.value.trim()===""?"":num(i.value); atual(); }; return i; };
+      return el("div",{class:"row r2-item"}, el("span",{text:`S${k+1}`}), k ? f("dist","Dist. (m)","6em") : el("span",{class:"info",text:"início",style:"width:6em"}), f("ac","Corte (m²)","6.5em"), f("aa","Aterro (m²)","6.5em"),
+        el("button",{class:"linkbtn del",type:"button",text:"✕","aria-label":"Tirar seção",onclick:()=>{ L.splice(k,1); desenhar(); }})); }),
+      el("button",{class:"btn",type:"button",text:"+ Seção",onclick:()=>{ L.push({dist:L.length?20:"",ac:"",aa:""}); desenhar(); }})); atual(); };
+  desenhar();
+  return {elm:el("div",{class:"campo full"}, "Calcular pelas seções (opcional)", el("small",{class:"info",text:"Área de cada seção transversal e a distância até a anterior. Volume = média das áreas × distância."}), box, tot),
+    ler:()=>{ const s=L.filter(x=>x.ac!==""||x.aa!==""); return s.length>1 ? s : ""; }};
+}
+{ const T=MOD2.esc.tipos[0], calc0=T.calc;
+  T.campos.find(c=>c.k==="vol").dica="Em branco: vem das seções abaixo";
+  T.campos.find(c=>c.k==="vol").obrig=false;
+  T.campos.splice(T.campos.findIndex(c=>c.k==="vol")+1, 0, {k:"sec",rot:"Seções",t:"custom",render:campoSecoes,semCard:true,semPdf:true,fmt:v=>`${v.length} seções`},
+    {k:"volAt",rot:"Aterro (pelas seções)",t:"num",un:"m³",semCard:true},
+    {k:"vs",rot:"",t:"custom",semCard:true,semPdf:true,fmt:()=>"",render:v=>({elm:el("span",{hidden:true}), ler:()=>v??""})});
+  // o volume que veio das seções acompanha as seções (vs guarda o último calculado); escrito à mão, fica o escrito
+  T.calc=d=>{ if(d.sec?.length>1){ const {c,a}=volSecoes(d.sec), vc=Math.round(c*10)/10, va=Math.round(a*10)/10;
+      if(d.vol==null || d.vol===d.vs?.c) d.vol=vc; if(d.volAt==null || d.volAt===d.vs?.a) d.volAt=va||undefined; d.vs={c:vc, a:va}; } else delete d.vs;
+    if(d.volAt==null) delete d.volAt;
+    calc0(d); };
+  const val0=T.validar; T.validar=(d,st)=> d.vol>0 ? (val0?.(d,st)||"") : "Informe o volume ou as seções."; }
+
+// --- Equipamentos › Apontamentos: diesel abastecido e consumo (L/h) ---
+{ const T=MOD2.equip.tipos.find(t=>t.id==="apont"), calc0=T.calc, topo0=MOD2.equip.topo;
+  T.campos.splice(T.campos.findIndex(c=>c.k==="operador"), 0, {k:"litros",rot:"Diesel abastecido",t:"num",un:"L"});
+  T.calc=d=>{ calc0(d); if(d.litros>0 && d.horas>0) d.lh=Math.round(d.litros/d.horas*10)/10; else delete d.lh; };
+  MOD2.equip.topo=(T2,lista)=>{ const out=topo0(T2,lista); if(T2.id!=="apont" || !lista.length) return out;
+    const m=new Map(); for(const r of lista){ const k=r.dados.equip||"—", x=m.get(k)||{h:0,l:0,hl:0}; x.h+=+r.dados.horas||0; x.l+=+r.dados.litros||0; if(r.dados.litros>0) x.hl+=+r.dados.horas||0; m.set(k,x); }
+    if(![...m.values()].some(x=>x.l)) return out;
+    return [...out, el("div",{class:"card"}, el("h3",{text:"Horas e diesel no período"}),
+      tabelaSimples(["Equipamento","Horas","Diesel (L)","Consumo (L/h)"], [...m].sort((a,b)=>b[1].h-a[1].h).map(([k,x])=>[k, nf1.format(x.h), nf0.format(x.l), x.l&&x.hl ? nf1.format(x.l/x.hl) : "–"])),
+      el("p",{class:"info",text:"O consumo conta só os dias com abastecimento e horas lançados."}))]; }; }
+
+// --- Suprimentos (areia, rachão, bica, BGS): as cubicagens guardadas pela Calculadora de obra, junto do recebimento ---
+{ const rod0=MOD2.sup.rodape, MATS={areia:/^Areia/i, rachao:/^Rach/i, bica:/Bica/i, bgs:/BGS|graduada/i};
+  MOD2.sup.rodape=(T,lista)=>{ const out=rod0(T,lista); if(!MATS[T.id]) return out;
+    const cs=regs2De("arquivo","receb").filter(r=>MATS[T.id].test(r.dados.material||""));
+    return [...out, el("details",{class:"card"}, el("summary",{class:"pr-sum",text:`Cubicagens de caminhão (Calculadora de obra) · ${cs.length}`}),
+      el("div",{class:"row"}, el("button",{class:"btn",type:"button",text:"🧮 Cubicar um caminhão",onclick:()=>abrirFerramentas(CALC_URL+"#cubicagem")})),
+      cs.length ? tabelaSimples(["Data","Fornecedor","NF","Medido","Situação"], cs.slice(0,60).map(r=>[ddmm(r.data), r.dados.v?.fornecedor||"", r.dados.v?.nf||"", r.dados.destaque||"", r.dados.situacao||r.status]))
+        : el("p",{class:"info",text:"Nenhuma cubicagem guardada ainda. Elas ficam também no Arquivo da obra."}))]; }; }
+
 // produtividade do período: total, pessoas-dia e média por pessoa por dia
 function resumoProd(lista, qtd, un){
   if(!lista.length) return [];

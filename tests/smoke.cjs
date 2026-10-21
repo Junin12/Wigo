@@ -41,6 +41,15 @@ const confere = (ok, msg) => { console.log(`${ok ? "ok  " : "FALHA"} ${msg}`); i
     "botão Ferramentas disponível para todos os cargos");
   confere(await p.evaluate(() => MODULOS.some(m => m.id === "arquivo" && m.todos) && !!MOD2.arquivo && typeof importarArquivo === "function" && window.wigoArquivo === importarArquivo),
     "Arquivo da obra disponível e recebendo a fila da Calculadora de obra");
+  // campo e saneamento: abas novas nos módulos que já existiam e as contas de referência
+  confere(await p.evaluate(() => {
+    const tem = (m, t) => MOD2[m].tipos.some(x => x.id === t);
+    const h = hidCalc({ modo: "bomba", Q: 50, D: 300, L: 2000, C: 150, loc: 10, Hg: 40, eta: 65 });
+    const v = volSecoes([{ ac: 4, aa: 0 }, { dist: 20, ac: 6, aa: 1 }, { dist: 20, ac: 5, aa: 2 }]);
+    return tem("obras", "pto") && tem("obras", "hid") && tem("med", "rede") && tem("qual", "pres") && tem("seg", "vala")
+      && Math.abs(h.Jkm - 1.36) < 0.01 && Math.abs(h.kW - 32.45) < 0.05 && v.c === 210 && v.a === 40
+      && Math.abs(presPerm({ comp: 300, diam: 300, pTeste: 90, dur: 60 }) - 3.74) < 0.01 && valaCalc({ prof: 2.2, prot: "Nenhuma" }).av.length === 1;
+  }), "pontos no mapa, rede assentada, hidráulica, teste de pressão e escavações (NR-18)");
 
   // mapa das paredes dos floculadores A e C (gera o PDF inteiro, sem baixar)
   for (const k of ["FLOC-A", "FLOC-C"]) {

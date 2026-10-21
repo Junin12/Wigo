@@ -2117,7 +2117,7 @@ function setCampo(on){ LS.set("campo",!!on); if(on) document.documentElement.dat
 $("#campo-modo").addEventListener("click", e=>{ const b=e.target.closest("button[data-c]"); if(b) setCampo(b.dataset.c==="1"); });
 setCampo(!!LS.get("campo"));
 
-const VERSAO_APP = "v132"; // igual ao número em sw.js (armacao-v132)
+const VERSAO_APP = "v133"; // igual ao número em sw.js (armacao-v133)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -4032,6 +4032,7 @@ const ICO={
   conc:'<path d="M2 17h3"/><ellipse cx="11" cy="11" rx="6" ry="4" transform="rotate(-18 11 11)"/><path d="M17 9h2l3 4v4h-4M5 15.5h12"/><circle cx="7" cy="18" r="1.8"/><circle cx="18" cy="18" r="1.8"/>',
   esc:'<path d="M14 4l6 6M17 7l-8 8"/><path d="M4 20l3-1 4-4-2-2-4 4z"/>',
   ferr:'<path d="M14.5 6.5a4 4 0 0 0-5.3 5.3L4 17l3 3 5.2-5.2a4 4 0 0 0 5.3-5.3l-2.4 2.4-2.6-.4-.4-2.6z"/>',
+  arquivo:'<path d="M3 8h18v12H3z"/><path d="M4 8l2-4h12l2 4"/><path d="M9.5 12.5h5"/>',
   lancar:'<path d="M12 5v14M5 12h14"/>', frentes:'<path d="M3 21h18M5 21V9l7-5 7 5v12"/><path d="M9 21v-6h6v6"/>', pdf:'<path d="M14 3H6v18h12V7z"/><path d="M14 3v4h4M9 13h6M9 17h4"/>', painel:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
   casa:'<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/>',
   rachao:'<path d="M3 19l2-6 4-3 4 2 3-2 5 9z"/><path d="M9 10l1 9M16 10l-2 9"/>',
@@ -4055,6 +4056,7 @@ const MODULOS=[
   {id:"equip", nome:"Equipamentos",     desc:"Máquinas e horímetros",          c:["#7D8B99","#4A5866"], ativo:true},
   // todos: aparece para qualquer cargo (não depende da lista de módulos do cargo)
   {id:"ferr",  nome:"Ferramentas",      desc:"Editor PDF, converter para Word e mais", c:["#E2544A","#B3261E"], ativo:true, todos:true},
+  {id:"arquivo", nome:"Arquivo da obra", desc:"Recebimentos e cálculos da Calculadora de obra", c:["#D98A3D","#9C5A1C"], ativo:true, todos:true},
 ];
 const podeMod = m => m.todos || pode(m.id);
 const SERVICOS=[
@@ -4104,9 +4106,11 @@ const acaoModulo = m => m.id==="ferr" ? abrirFerramentas : ["prod","sup","ponto"
 // --- Ferramentas: o app de utilidades do site (wiapps.com.br/ferramentas), aberto numa tela cheia dentro do WIGO ---
 // O iframe é criado a cada abertura e removido ao fechar: assim o histórico de páginas dele some junto e o Voltar do celular fecha a tela.
 const FERR_URL = "/ferramentas/?de=wigo";
-async function abrirFerramentas(){
-  if(navigator.onLine){ try{ const r=await fetch(FERR_URL,{method:"HEAD",cache:"no-store"}); if(!r.ok) return toast("As ferramentas ainda não estão publicadas no site."); }catch{} } // sem rede: tenta a cópia guardada
-  $("#ferr").append(el("iframe",{src:FERR_URL,title:"Ferramentas",allow:"clipboard-write"}));
+// url: uma ferramenta direto (ex.: a Calculadora de obra, pelo Arquivo da obra); sem ela, a tela inicial das ferramentas
+async function abrirFerramentas(url){
+  if(typeof url!=="string") url=FERR_URL;
+  if(navigator.onLine){ try{ const r=await fetch(url,{method:"HEAD",cache:"no-store"}); if(!r.ok) return toast("As ferramentas ainda não estão publicadas no site."); }catch{} } // sem rede: tenta a cópia guardada
+  $("#ferr").append(el("iframe",{src:url,title:"Ferramentas",allow:"clipboard-write"}));
   $("#ferr").hidden=false; history.pushState({ferr:1},"");
 }
 // peloVoltar: o usuário já saiu do histórico (botão Voltar do celular)
@@ -4115,6 +4119,7 @@ function fecharFerramentas(peloVoltar){
   try{ sujo=!!f?.contentWindow?.temAlteracoes?.(); }catch{}
   if(sujo && !confirm("Há edições não salvas no PDF. Fechar mesmo assim?")){ if(peloVoltar) history.pushState({ferr:1},""); return; }
   f?.remove(); $("#ferr").hidden=true;
+  importarArquivo(); // o que a Calculadora de obra guardou para o Arquivo da obra
   if(!peloVoltar) history.back();
 }
 $("#ferr-fechar").addEventListener("click", ()=>fecharFerramentas(false));
@@ -8237,14 +8242,14 @@ const catAtual = M => { if(!M.cats) return null; const t=RG.tipo[RG.mod];
 const tiposDe = M => { const c=catAtual(M); return c ? c.tipos.map(id=>M.tipos.find(x=>x.id===id)).filter(Boolean) : M.tipos; };
 function abrirModulo(mod){
   const M=MOD2[mod]; if(!M) return;
-  if(!pode(M.acesso||mod)) return toast("Seu cargo não tem acesso a esta parte do app.");
+  if(!M.todos && !pode(M.acesso||mod)) return toast("Seu cargo não tem acesso a esta parte do app.");
   RG.mod=mod; RG.busca=""; abrirTela("reg");
 }
 function listaReg2(){
   const M=MOD2[RG.mod], TS=tiposDe(M), T=TS.find(x=>x.id===RG.tipo[RG.mod]) || TS[0], q=normTxt(RG.busca), desde=T.semData||!RG.dias ? "" : somaDias(hojeISO(),-RG.dias);
   const cat=catAtual(M), fc=cat?.filtro?.[T.id];
   // em aberto (T.aberto) aparece sempre, mesmo fora do período: uma pendência antiga não pode sumir da lista
-  const lista=regs2De(RG.mod, T.id).filter(r=>(!fc || fc(r)) && (!desde || r.data>=desde || T.aberto?.(r)) && (!q || normTxt(tituloReg2(T,r)+" "+T.campos.map(c=>fmtVal(c,r.dados[c.k])).join(" ")+" "+r.status).includes(q)));
+  const lista=regs2De(RG.mod, T.id).filter(r=>(!fc || fc(r)) && (!T.filtro || T.filtro(r)) &&(!desde || r.data>=desde || T.aberto?.(r)) && (!q || normTxt(tituloReg2(T,r)+" "+T.campos.map(c=>fmtVal(c,r.dados[c.k])).join(" ")+" "+r.status).includes(q)));
   if(T.ordem) lista.sort(T.ordem);
   return {M, T, lista};
 }
@@ -8259,7 +8264,7 @@ function cardReg2(r, T){
 }
 function renderReg2(){
   const box=$("#reg2"); if(!box || !RG.mod) return;
-  const {M, T, lista}=listaReg2(), ed=pode(M.edit);
+  const {M, T, lista}=listaReg2(), ed=M.todos || pode(M.edit);
   if(M.render) return M.render(box); // telas especiais (Relatórios)
   const busca=el("input",{type:"search",placeholder:"Buscar",value:RG.busca,"aria-label":"Buscar"});
   let bT; busca.oninput=()=>{ clearTimeout(bT); bT=setTimeout(()=>{ RG.busca=busca.value; renderReg2(); $("#reg2 input[type=search]")?.focus(); },300); };
@@ -9650,6 +9655,97 @@ const MOD2={
       titulo:d=>`${d.local||"Escavação"}${d.det?" · "+d.det:""} · ${nf1.format(d.vol||0)} m³`+(d.prod?` · ${nf1.format(d.prod)} m³/pessoa`:"")}],
     topo:(T,lista)=>resumoProd(lista, r=>r.dados.vol||0, "m³")},
 };
+
+// ================= Arquivo da obra: o que a Calculadora de obra (site, /ferramentas/obra/) guardou =================
+// A calculadora fica no mesmo endereço do app: ela põe cada registro na fila "ferr-arquivo-fila" deste aparelho e o app pega
+// a fila ao abrir, ao voltar para a tela, ao fechar as Ferramentas e na hora (window.wigoArquivo, chamado de dentro do iframe).
+// Cada registro é do módulo "arquivo" (aba Registros2), tipo "receb" (cubicagem de caminhão) ou "calc" (os outros cálculos):
+// dados = {calc, calcNome, titulo, obra, material, destaque, sub, valor, unidade, situacao, resumo:[[rótulo, valor]], tabela:{cab, linhas}, avisos, v}
+// (v = o que foi digitado na calculadora, para abrir de novo lá). Status: Conforme, Divergente ou Arquivado.
+const ARQ={obra:"", mat:"", calc:""}, CALC_URL="/ferramentas/obra/?de=wigo";
+function importarArquivo(){
+  let fila; try{ fila=JSON.parse(localStorage.getItem("ferr-arquivo-fila")||"[]"); }catch{ fila=[]; }
+  if(!Array.isArray(fila) || !fila.length) return 0;
+  for(const r of fila) if(r?.id && r.dados) setReg2(String(r.id), {modulo:"arquivo", tipo:r.tipo==="receb"?"receb":"calc", data:r.data||hojeISO(), status:r.status||"Arquivado", dados:r.dados}, String(r.dados.titulo||"").slice(0,120));
+  try{ localStorage.removeItem("ferr-arquivo-fila"); }catch{}
+  toast(`${fila.length} registro${fila.length>1?"s":""} no Arquivo da obra.`);
+  if(!$("#tela-reg").hidden && RG.mod==="arquivo") renderReg2();
+  return fila.length;
+}
+window.wigoArquivo = importarArquivo;
+setTimeout(importarArquivo, 1500); // o que ficou na fila enquanto o app estava fechado
+document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="visible") importarArquivo(); });
+const corArq = r => r.status==="Conforme" ? "ok" : r.status==="Divergente" ? "bad" : "";
+// filtros do Arquivo: obra e material (recebimentos) ou tipo de cálculo
+function topoArquivo(T, lista){
+  const todos=regs2De("arquivo", T.id), unicos = k => [...new Set(todos.map(r=>r.dados?.[k]).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"pt-BR"));
+  const sel=(rot, val, ops, set)=>el("label",{class:"campo"}, rot, el("select",{onchange:e=>{ set(e.target.value); renderReg2(); }},
+    el("option",{value:"",text:"Todas"}), ...ops.map(o=>el("option",{value:o,text:o,selected:o===val}))));
+  const out=[el("div",{class:"row"}, el("button",{class:"btn",type:"button",text:"🧮 Abrir a Calculadora de obra",onclick:()=>abrirFerramentas(CALC_URL)}))];
+  if(!todos.length){ out.push(el("p",{class:"info",text:"Os registros chegam pela Calculadora de obra: faça o cálculo e toque em “Guardar no Arquivo da obra”."})); return out; }
+  out.push(el("div",{class:"dq-filtros"}, sel("Obra", ARQ.obra, unicos("obra"), v=>ARQ.obra=v),
+    T.id==="receb" ? sel("Material", ARQ.mat, unicos("material"), v=>ARQ.mat=v) : sel("Cálculo", ARQ.calc, unicos("calcNome"), v=>ARQ.calc=v)));
+  // recebimentos: total medido por material no filtro e quantos vieram abaixo da nota
+  if(T.id==="receb" && lista.length){
+    const mats=[...new Set(lista.map(r=>r.dados.material||"—"))], div=lista.filter(r=>r.status==="Divergente").length;
+    out.push(el("div",{class:"card"}, el("b",{text:`Recebido no filtro · ${lista.length} entrega${lista.length>1?"s":""}${div?` · ${div} abaixo da nota`:""}`}),
+      tabelaSimples(["Material","Entregas","Volume medido"], mats.map(m=>{ const rs=lista.filter(r=>(r.dados.material||"—")===m); return [m, rs.length, rs.reduce((s,r)=>s+(+r.dados.valor||0),0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})+" m³"]; }))));
+  }
+  return out;
+}
+const campoV = (k, rot, f) => ({k:"v", rot, t:"txt", fmt:v=>f ? f(v) : String(v?.[k]??"")});
+MOD2.arquivo={nome:"Arquivo da obra", desc:"Recebimentos de material e cálculos guardados pela Calculadora de obra", todos:true, tipos:[
+  {id:"receb", nome:"Recebimentos", semNovo:true, status:["Conforme","Divergente"],
+    vazio:"Nenhum recebimento no período e filtro escolhidos.",
+    campos:[{k:"titulo",rot:"Material",t:"txt"},{k:"obra",rot:"Obra",t:"txt"},{k:"destaque",rot:"Medido",t:"txt"},
+      campoV("qtdNf","Na nota",v=>v?.qtdNf ? nf1.format(v.qtdNf).replace(/,0$/,"")+(v.unNf==="t"?" t":" m³") : ""),{k:"situacao",rot:"Situação",t:"txt"},
+      campoV("fornecedor","Fornecedor"),campoV("nf","NF"),campoV("placa","Placa")],
+    titulo:d=>d.titulo||d.material||"Recebimento", dataTxt:r=>dataBR(r.data)+(r.dados?.hora?" "+r.dados.hora:""),
+    chip:r=>[r.dados?.situacao||r.status, corArq(r)], filtro:r=>(!ARQ.obra || r.dados?.obra===ARQ.obra) && (!ARQ.mat || r.dados?.material===ARQ.mat),
+    abrir:r=>verArquivo(r)},
+  {id:"calc", nome:"Cálculos", semNovo:true, vazio:"Nenhum cálculo no período e filtro escolhidos.",
+    campos:[{k:"titulo",rot:"Cálculo",t:"txt"},{k:"calcNome",rot:"Tipo",t:"txt"},{k:"obra",rot:"Obra",t:"txt"},{k:"destaque",rot:"Resultado",t:"txt"}],
+    titulo:d=>d.titulo||d.calcNome||"Cálculo", chip:r=>[r.dados?.calcNome||"", ""],
+    filtro:r=>(!ARQ.obra || r.dados?.obra===ARQ.obra) && (!ARQ.calc || r.dados?.calcNome===ARQ.calc), abrir:r=>verArquivo(r)}],
+  topo:topoArquivo};
+
+function verArquivo(r){
+  const d=r.dados||{}, podeApagar=!r.criadoPor || r.criadoPor===U?.nome || pode("rel");
+  efModal(`${d.calcNome||"Cálculo"} · ${dataBR(r.data)}`, [
+    el("div",{class:"full"}, el("b",{style:"font-size:1.6rem;display:block",text:d.destaque||""}), d.sub ? el("small",{class:"info",text:d.sub}) : null,
+      d.situacao ? el("div",{}, el("span",{class:"chip "+corArq(r),text:d.situacao})) : null),
+    el("dl",{class:"ct-ficha full"}, ...(d.resumo||[]).flatMap(([a,b])=>[el("dt",{text:a}), el("dd",{text:b})])),
+    d.tabela ? el("div",{class:"full"}, tabelaSimples(d.tabela.cab, d.tabela.linhas)) : null,
+    d.avisos?.length ? el("p",{class:"info full",text:d.avisos.join(" ")}) : null,
+    el("p",{class:"info full",text:`Guardado por ${r.criadoPor||U?.nome||"este celular"}${r.criadoEm?" em "+new Date(r.criadoEm).toLocaleString("pt-BR"):""}${r.pend?" · a enviar para a planilha":""}`})
+  ].filter(Boolean), [
+    el("button",{class:"btn pri",type:"button",text:"📄 PDF",onclick:e=>pdfArquivo(r, e.target)}),
+    d.calc && d.v ? el("button",{class:"btn",type:"button",text:"Abrir na calculadora",onclick:()=>{
+      try{ localStorage.setItem("obra-abrir", JSON.stringify({id:String(r.id).replace(/^calc-/,""), calc:d.calc, v:d.v, destaque:d.destaque, titulo:d.titulo})); }catch{}
+      fecharEf(); abrirFerramentas(CALC_URL+"#abrir"); }}) : null,
+    podeApagar ? el("button",{class:"btn",type:"button",text:"Excluir",onclick:()=>{ if(!confirm("Excluir este registro do Arquivo da obra?")) return; delReg2(r.id); fecharEf(); toast("Registro excluído."); }}) : null
+  ].filter(Boolean));
+}
+async function pdfArquivo(r, btn){
+  const d=r.dados||{}, txt=btn.textContent, M=12;
+  // Helvetica do PDF só tem os caracteres do Windows-1252
+  const ansi = s => String(s??"").replace(/≈/g,"~").replace(/[↔→]/g,"-").replace(/[−–—]/g,"-").replace(/[^\x20-\x7E\xA0-\xFF•]/g,"?");
+  btn.disabled=true; btn.textContent="Gerando PDF…";
+  try{
+    const doc=await novoPdf(ansi(`${d.calcNome||"Cálculo"} — ${d.titulo||""}`).slice(0,70), ansi(`${nomeObra()}${d.obra?" · "+d.obra:""} · ${dataBR(r.data)}${d.hora?" "+d.hora:""}`));
+    doc.setFont("helvetica","bold"); doc.setFontSize(20); doc.text(ansi(d.destaque), M, 44);
+    if(d.situacao){ doc.setFontSize(11); doc.text(ansi(d.situacao), 210-M, 44, {align:"right"}); }
+    doc.autoTable({startY:50, margin:{left:M,right:M}, body:(d.resumo||[]).map(([a,b])=>[ansi(a),ansi(b)]), styles:{fontSize:9,cellPadding:1.6,textColor:20},
+      columnStyles:{0:{fontStyle:"bold",cellWidth:62}}, alternateRowStyles:{fillColor:[244,246,249]}});
+    if(d.tabela) doc.autoTable({startY:doc.lastAutoTable.finalY+6, margin:{left:M,right:M}, head:[d.tabela.cab.map(ansi)], body:d.tabela.linhas.map(l=>l.map(ansi)),
+      styles:{fontSize:8.5,cellPadding:1.5,textColor:20}, headStyles:{fillColor:PDF_AZ,textColor:255,fontStyle:"bold"}});
+    if(d.avisos?.length){ doc.setFont("helvetica","normal"); doc.setFontSize(8); doc.text(doc.splitTextToSize(ansi(d.avisos.join(" ")), 186), M, doc.lastAutoTable.finalY+7); }
+    rodapePdf(doc, (p,n)=>`Guardado por ${ansi(r.criadoPor||U?.nome||"")} · Calculadora de obra · página ${p} de ${n}`);
+    const arq = s => String(s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/\W+/g,"_");
+    await entregarPdf(doc, `${arq(d.calcNome)}_${arq(d.titulo)}_${r.data}`.slice(0,90)+".pdf", d.calcNome||"Cálculo");
+  }catch(e){ toast(e.message||"Não foi possível gerar o PDF."); }
+  finally{ btn.disabled=false; btn.textContent=txt; }
+}
 // produtividade do período: total, pessoas-dia e média por pessoa por dia
 function resumoProd(lista, qtd, un){
   if(!lista.length) return [];

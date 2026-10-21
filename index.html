@@ -505,6 +505,10 @@ html[data-campo][data-ajuda] .ajuda-btn{background:var(--accent);color:var(--on-
 .cb-escala{display:flex;justify-content:space-between;font-size:.75rem;color:var(--muted);font-weight:400}
 /* Ponto e efetivo */
 .modal.ef{z-index:30}
+/* Ferramentas (wiapps.com.br/ferramentas): abre por cima de tudo, dentro do app */
+.ferr-tela{position:fixed;inset:0;z-index:40;background:var(--bg);display:flex;flex-direction:column}
+.ferr-top{display:flex;align-items:center;gap:10px;padding:8px 12px;padding-top:calc(8px + env(safe-area-inset-top,0px));background:var(--surface);border-bottom:1px solid var(--line)}
+.ferr-tela iframe{flex:1;width:100%;border:0;background:var(--bg)}
 #ponto{grid-template-columns:minmax(0,1fr)}
 #ponto .kpi b{display:block}
 #ponto input[type=date]{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 10px;min-height:44px;max-width:100%}
@@ -823,6 +827,10 @@ html[data-campo][data-ajuda] .ajuda-btn{background:var(--accent);color:var(--on-
     <div class="form-oc" id="ef-m-corpo"></div>
     <div class="row" id="ef-m-acoes"></div>
   </div>
+</div>
+
+<div class="ferr-tela" id="ferr" role="dialog" aria-modal="true" aria-label="Ferramentas" hidden>
+  <div class="ferr-top"><button class="btn" id="ferr-fechar" type="button">✕ Fechar</button><b>Ferramentas</b></div>
 </div>
 
 
@@ -2109,7 +2117,7 @@ function setCampo(on){ LS.set("campo",!!on); if(on) document.documentElement.dat
 $("#campo-modo").addEventListener("click", e=>{ const b=e.target.closest("button[data-c]"); if(b) setCampo(b.dataset.c==="1"); });
 setCampo(!!LS.get("campo"));
 
-const VERSAO_APP = "v131"; // igual ao número em sw.js (armacao-v131)
+const VERSAO_APP = "v132"; // igual ao número em sw.js (armacao-v132)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -4023,6 +4031,7 @@ const ICO={
   forma:'<rect x="4" y="4" width="16" height="16" rx="1"/><path d="M4 9.5h16M4 14.5h16M10 4v5.5M14 9.5v5M10 14.5V20"/>',
   conc:'<path d="M2 17h3"/><ellipse cx="11" cy="11" rx="6" ry="4" transform="rotate(-18 11 11)"/><path d="M17 9h2l3 4v4h-4M5 15.5h12"/><circle cx="7" cy="18" r="1.8"/><circle cx="18" cy="18" r="1.8"/>',
   esc:'<path d="M14 4l6 6M17 7l-8 8"/><path d="M4 20l3-1 4-4-2-2-4 4z"/>',
+  ferr:'<path d="M14.5 6.5a4 4 0 0 0-5.3 5.3L4 17l3 3 5.2-5.2a4 4 0 0 0 5.3-5.3l-2.4 2.4-2.6-.4-.4-2.6z"/>',
   lancar:'<path d="M12 5v14M5 12h14"/>', frentes:'<path d="M3 21h18M5 21V9l7-5 7 5v12"/><path d="M9 21v-6h6v6"/>', pdf:'<path d="M14 3H6v18h12V7z"/><path d="M14 3v4h4M9 13h6M9 17h4"/>', painel:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
   casa:'<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/>',
   rachao:'<path d="M3 19l2-6 4-3 4 2 3-2 5 9z"/><path d="M9 10l1 9M16 10l-2 9"/>',
@@ -4044,7 +4053,10 @@ const MODULOS=[
   {id:"seg",   nome:"Segurança",        desc:"DDS, inspeções e checklists de máquinas",           c:["#F2783A","#C9461A"], ativo:true},
   {id:"med",   nome:"Medições",         desc:"Boletins e avanço físico",       c:["#45A1D6","#22709F"], ativo:true},
   {id:"equip", nome:"Equipamentos",     desc:"Máquinas e horímetros",          c:["#7D8B99","#4A5866"], ativo:true},
+  // todos: aparece para qualquer cargo (não depende da lista de módulos do cargo)
+  {id:"ferr",  nome:"Ferramentas",      desc:"Editor PDF, converter para Word e mais", c:["#E2544A","#B3261E"], ativo:true, todos:true},
 ];
+const podeMod = m => m.todos || pode(m.id);
 const SERVICOS=[
   {id:"aco",   nome:"Aço",       desc:"Armação: coleta, frentes e produtividade", c:["#1A9BDC","#0067A6"], ativo:true},
   {id:"forma", nome:"Forma",     desc:"Montagem e desforma",                       c:["#D49A5A","#9C6430"], ativo:true},
@@ -4069,7 +4081,7 @@ function abrirTela(t, empilhar=true, forcar=false){
   if(empilhar) history.pushState({tela:t},"");
   navApp(t);
 }
-addEventListener("popstate", e=>{ if(e.state?.tela) abrirTela(e.state.tela,false); });
+addEventListener("popstate", e=>{ if(!$("#ferr").hidden && !e.state?.ferr) return fecharFerramentas(true); if(e.state?.tela) abrirTela(e.state.tela,false); });
 document.querySelectorAll("[data-voltar]").forEach(b=>b.onclick=()=>history.back());
 function irAco(aba){ abrirTela("aco"); show(aba); }
 // barra de baixo, igual em todas as telas (no aço vale a barra própria dele: Coleta, Painel, Frentes…; o 🏠 do topo volta ao início)
@@ -4088,9 +4100,26 @@ function alternarAjuda(){ const on=document.documentElement.dataset.ajuda!=="1";
   document.querySelectorAll("#ajuda-btn,#nav-app .nav-ajuda").forEach(b=>b.setAttribute("aria-pressed",String(on))); toast(on?"Textos de ajuda visíveis":"Textos de ajuda escondidos"); }
 $("#ajuda-btn").addEventListener("click", alternarAjuda);
 // o que cada módulo da tela inicial abre (usado também no menu Mais)
-const acaoModulo = m => ["prod","sup","ponto","fotos","producao","rdo"].includes(m.id) ? ()=>abrirTela(m.id) : MOD2[m.id] ? ()=>abrirModulo(m.id) : null;
+const acaoModulo = m => m.id==="ferr" ? abrirFerramentas : ["prod","sup","ponto","fotos","producao","rdo"].includes(m.id) ? ()=>abrirTela(m.id) : MOD2[m.id] ? ()=>abrirModulo(m.id) : null;
+// --- Ferramentas: o app de utilidades do site (wiapps.com.br/ferramentas), aberto numa tela cheia dentro do WIGO ---
+// O iframe é criado a cada abertura e removido ao fechar: assim o histórico de páginas dele some junto e o Voltar do celular fecha a tela.
+const FERR_URL = "/ferramentas/?de=wigo";
+async function abrirFerramentas(){
+  if(navigator.onLine){ try{ const r=await fetch(FERR_URL,{method:"HEAD",cache:"no-store"}); if(!r.ok) return toast("As ferramentas ainda não estão publicadas no site."); }catch{} } // sem rede: tenta a cópia guardada
+  $("#ferr").append(el("iframe",{src:FERR_URL,title:"Ferramentas",allow:"clipboard-write"}));
+  $("#ferr").hidden=false; history.pushState({ferr:1},"");
+}
+// peloVoltar: o usuário já saiu do histórico (botão Voltar do celular)
+function fecharFerramentas(peloVoltar){
+  const f=$("#ferr iframe"); let sujo=false;
+  try{ sujo=!!f?.contentWindow?.temAlteracoes?.(); }catch{}
+  if(sujo && !confirm("Há edições não salvas no PDF. Fechar mesmo assim?")){ if(peloVoltar) history.pushState({ferr:1},""); return; }
+  f?.remove(); $("#ferr").hidden=true;
+  if(!peloVoltar) history.back();
+}
+$("#ferr-fechar").addEventListener("click", ()=>fecharFerramentas(false));
 function menuMais(){
-  const ops=MODULOS.filter(m=>pode(m.id) && acaoModulo(m)).map(m=>[m.nome, m.desc, acaoModulo(m)]);
+  const ops=MODULOS.filter(m=>podeMod(m) && acaoModulo(m)).map(m=>[m.nome, m.desc, acaoModulo(m)]);
   if(pode("prod")) ops.splice(1,0,["Frentes","Liberações e concretagem",()=>irAco("frentes")],["Relatório PDF","Aço · semana atual",()=>{ irAco("painel"); setTimeout(()=>$("#rel-pdf")?.click(),300); }]);
   ops.push(["Ajustes","Tema, modo em campo, banco e versão do app",()=>irAco("dados")]);
   escolher("Mais", ops);
@@ -4196,7 +4225,7 @@ function renderInicio(){
     el("button",{class:"btn",id:"aviso-senha",type:"button",hidden:true,style:"color:var(--bad)",text:"⚠ Senha do app errada: nada está sendo gravado nem baixado. Toque para corrigir.",
       onclick:()=>{ irAco("dados"); $("#cfg-tok").focus(); }}));
   setSync();
-  const mods=MODULOS.filter(m=>pode(m.id)).map(m=>({...m, acao: acaoModulo(m)}));
+  const mods=MODULOS.filter(podeMod).map(m=>({...m, acao: acaoModulo(m)}));
   document.querySelectorAll(".tela-obra").forEach(o=>{ o.querySelector("b").textContent=nomeObra(); o.querySelector("span").textContent=cidadeObra(); });
   const hoje=resumoEfDia(hojeISO());
   $("#mods").replaceChildren(...mods.map((m,k)=>moduloBtn(m,k, m.id==="prod" ? (b)=>{ b.append(el("span",{class:"num",id:"num-prod"})); }

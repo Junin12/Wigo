@@ -2138,7 +2138,7 @@ function setCampo(on){ LS.set("campo",!!on); if(on) document.documentElement.dat
 $("#campo-modo").addEventListener("click", e=>{ const b=e.target.closest("button[data-c]"); if(b) setCampo(b.dataset.c==="1"); });
 setCampo(!!LS.get("campo"));
 
-const VERSAO_APP = "v140"; // igual ao número em sw.js (armacao-v140)
+const VERSAO_APP = "v141"; // igual ao número em sw.js (armacao-v141)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -4154,6 +4154,7 @@ $("#ferr-fechar").addEventListener("click", ()=>fecharFerramentas(false));
 function menuMais(){
   const ops=MODULOS.filter(m=>podeMod(m) && acaoModulo(m)).map(m=>[m.nome, m.desc, acaoModulo(m)]);
   if(pode("prod")) ops.splice(1,0,["Frentes","Liberações e concretagem",()=>irAco("frentes")],["Relatório PDF","Aço · semana atual",()=>{ irAco("painel"); setTimeout(()=>$("#rel-pdf")?.click(),300); }]);
+  ops.push(["Normas em cards","NBR 6118, concreto, ensaios, rede, NRs e acessibilidade em desenhos",()=>abrirFerramentas("/ferramentas/?g=normas&de=wigo")]);
   ops.push(["Ajustes","Tema, modo em campo, banco e versão do app",()=>irAco("dados")]);
   escolher("Mais", ops);
 }
@@ -8251,7 +8252,8 @@ function formReg2(mod, tipo, r, pre){
   };
   const quem = r ? el("p",{class:"info full",text:`Criado por ${r.criadoPor||quemSou()}${r.criadoEm?" em "+quandoTxt(r.criadoEm):""}`+(r.atualizadoPor&&r.atualizadoEm?` · última alteração: ${r.atualizadoPor}, ${quandoTxt(r.atualizadoEm)}`:"")+(r.pend?" · a enviar":"")}) : null;
   efModal(`${nova?"Novo":ed?"Editar":"Ver"}: ${T.nomeForm||T.nome}`,
-    [iData ? campoEf(T.rotData||"Data",iData) : null, ...cs.map(x=>x.elm), iSt ? el("div",{class:"campo full"}, "Situação", iSt) : null, boxF, quem],
+    [iData ? campoEf(T.rotData||"Data",iData) : null, ...cs.map(x=>x.elm), iSt ? el("div",{class:"campo full"}, "Situação", iSt) : null, boxF,
+      T.normas ? el("div",{class:"campo full"}, "Consultar a norma", el("div",{class:"row"}, ...T.normas.map(([t,u])=>el("button",{class:"btn",type:"button",text:"📘 "+t,onclick:()=>abrirFerramentas("/ferramentas/"+u)})))) : null, quem],
     ed ? [el("button",{class:"btn pri",type:"button",text:nova?"Criar":"Salvar",onclick:salvar}),
       nova ? null : el("button",{class:"btn",type:"button",text:"Excluir",style:"color:var(--bad);margin-left:auto",onclick:()=>{
         if(!confirm(`Excluir este registro (${T.nome})? A exclusão fica registrada no Histórico da planilha.`)) return;
@@ -10873,6 +10875,22 @@ const tipoLaudo={id:"laudo", nome:"Laudos do laboratório", semNovo:true, status
   aberto:()=>true, // poucos laudos, emitidos semanas antes: aparecem sempre, sem depender do período
   titulo:d=>d.titulo||"Laudo", chip:r=>[r.status, r.status==="Conforme"?"ok":r.status==="Atenção"?"and":"bad"], abrir:r=>verLaudo(r)};
 MOD2.qual.tipos.splice(MOD2.qual.tipos.findIndex(t=>t.id==="modelo"), 0, tipoLaudo);
+// Normas em cards (wiapps.com.br/ferramentas): botões "📘" no formulário de cada tipo abrem o card certo da norma
+const NORMAS_TIPO={
+  "qual/cp":[["Moldagem dos CPs","nbr5738/#adensamento-manual"],["Idade de ruptura","nbr5738/#idade-e-tolerancia"],["fck estimado","nbr12655/#fck-estimado"]],
+  "qual/ct":[["Lotes","nbr12655/#formacao-de-lotes"],["Slump","nbr12655/#consistencia-slump"],["Caminhão na obra","nbr12655/#caminhao-na-obra"]],
+  "qual/solo":[["Grau de compactação","nbr7182/#grau-de-compactacao-gc"],["CBR","nbr7182/#indice-de-suporte-cbr"]],
+  "qual/pres":[["Pressões na rede","nbr12218/#pressoes-na-rede"]],
+  "med/rede":[["Recobrimento","nbr9649/#diametro-e-recobrimento"],["Declividade","nbr9649/#autolimpeza-tensao-trativa"],["Berço e reaterro","nbr12266/#berco-e-reaterro"]],
+  "obras/hid":[["Diâmetro e velocidade","nbr12218/#diametro-e-velocidade"],["Declividade do esgoto","nbr9649/#autolimpeza-tensao-trativa"]],
+  "seg/vala":[["NR-18 · vala","nr18/#vala-e-escavacao"],["Quando escorar","nbr12266/#quando-escorar"],["Tipos de escoramento","nbr12266/#tipos-de-escoramento"]],
+  "seg/pt":[["NR-35 · permissão","nr35/#analise-de-risco-e-permissao"],["NR-35 · zona livre de queda","nr35/#zona-livre-de-queda"],["NR-33 · gases","nr33/#medicao-de-gases"]],
+  "seg/trein":[["NR-35","nr35/#treinamento-e-aptidao"],["NR-33","nr33/#pet-e-treinamento"],["NR-18","nr18/#pgr-e-treinamento"]],
+  "seg/epi":[["EPI por parte do corpo","nr6/#epi-por-parte-do-corpo"],["CA","nr6/#certificado-de-aprovacao-ca"],["Ficha de entrega","nr6/#ficha-de-entrega"]],
+  "seg/insp":[["Guarda-corpo","nr18/#guarda-corpo"],["Andaime","nr18/#andaime"],["Abertura no piso","nr18/#abertura-no-piso"],["Escada de mão","nr18/#escada-de-mao"]],
+  "forma/apont":[["Escoras","nbr15696/#escora-bem-apoiada"],["Desforma","nbr14931/#retirada-de-formas-e-escoras"],["Ordem de retirada","nbr15696/#ordem-de-retirada"]],
+};
+Object.entries(NORMAS_TIPO).forEach(([k,l])=>{ const [m,t]=k.split("/"), T=MOD2[m]?.tipos.find(x=>x.id===t); if(T) T.normas=l; });
 { const LCAT={conc:["traco","graudo","miudo"], solo:["comp","carac"]};
   for(const c of MOD2.qual.cats){ if(c.id==="conc"||c.id==="solo"||c.id==="geral"){ c.tipos.splice(1,0,"laudo"); if(LCAT[c.id]) (c.filtro ??= {}).laudo=r=>LCAT[c.id].includes(r.dados.tipo); } }
   const topo0=MOD2.qual.topo; MOD2.qual.topo=(T,lista)=>T.id==="laudo" ? topoLaudos(lista) : topo0(T,lista); }

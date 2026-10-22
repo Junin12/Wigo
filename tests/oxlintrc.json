@@ -1,0 +1,27 @@
+{
+  "env": { "browser": true, "serviceworker": true, "es2024": true },
+  "globals": {
+    "pdfjsLib": "readonly", "jspdf": "readonly", "XLSX": "readonly", "ExcelJS": "readonly", "PDFLib": "readonly", "JSZip": "readonly"
+  },
+  "categories": { "correctness": "off" },
+  "rules": {
+    "no-undef": "error",
+    "no-const-assign": "error",
+    "no-dupe-keys": "error",
+    "no-dupe-class-members": "error",
+    "no-dupe-else-if": "error",
+    "no-duplicate-case": "error",
+    "no-self-assign": "error",
+    "no-unsafe-finally": "error",
+    "no-obj-calls": "error",
+    "use-isnan": "error",
+    "valid-typeof": "error",
+    "no-compare-neg-zero": "error",
+    "no-unsafe-negation": "error",
+    "for-direction": "error",
+    "getter-return": "error",
+    "no-setter-return": "error",
+    "no-unused-vars": "warn",
+    "no-unreachable": "warn"
+  }
+}

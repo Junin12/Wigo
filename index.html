@@ -10618,6 +10618,8 @@ async function pdfChecagem(R, btn){
   }catch(e){ toast(e.message||"Não foi possível gerar o PDF."); }
   finally{ btn.disabled=false; btn.textContent=txt; }
 }
+// em Relatórios: a checagem fica no topo, com o semáforo
+{ const rel0=renderRelatorios; renderRelatorios=function(box){ rel0(box); box.querySelector(".saud")?.after(el("button",{class:"btn pr-opcao",type:"button",onclick:verChecagem}, el("b",{text:"🚦 Checagem da obra"}), el("small",{text:"Semáforo do que está pendente: testes, valas, permissões, treinamentos, NCs, CPs, RDO, almoxarifado e cronograma"}))); }; }
 // no início: aviso quando há item vermelho
 { const p0=pendInicio; pendInicio=function(){ const o=p0(); let n=0; try{ n=checagemObra().filter(x=>x.cor==="bad").length; }catch{}
   if(!n) return o; const b=el("button",{class:"btn",type:"button",style:"color:var(--bad)",text:`🚦 Checagem da obra: ${n} item${n>1?"s":""} vermelho${n>1?"s":""}`,onclick:verChecagem});

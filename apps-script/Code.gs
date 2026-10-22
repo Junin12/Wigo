@@ -255,8 +255,64 @@ function devDados_(corpo) {
   const n = Math.max(50, Math.min(Number(corpo.n) || 800, 3000));
   return {
     historico: ultimasLinhas_('Historico', n).map(r => ({ em: iso(r[0]), usuario: String(r[1] || ''), cargo: String(r[2] || ''), acao: String(r[3] || ''), det: String(r[4] || '') })),
+    abas: SpreadsheetApp.getActive().getSheets().map(sh => ({ nome: sh.getName(), linhas: sh.getLastRow(), colunas: sh.getLastColumn() })),
     erros: ultimasLinhas_('Erros', 300).map(r => ({ em: iso(r[0]), aparelho: String(r[1] || ''), usuario: String(r[2] || ''), versao: String(r[3] || ''), msg: String(r[4] || ''), onde: String(r[5] || '') })),
   };
+}
+// ---------- Chat do Claude no Painel Dev (só o desenvolvedor) ----------
+// O app manda a conversa; aqui entram a chave (Propriedades do script: ANTHROPIC_API_KEY), o modelo, as instruções
+// e a lista de ferramentas (fixas aqui, o app não escolhe). As ferramentas rodam no app: leitura direto,
+// alteração só depois que o desenvolvedor confirma.
+const DEV_CHAT_SISTEMA = 'Você é o assistente técnico do WIGO, app de gestão da obra SAA Rio Grande (Uberaba/MG), dentro do Painel Dev. '
+  + 'Quem fala com você é o desenvolvedor do app. Ajude a achar e resolver problemas: funções com erro, avisos dos usuários, '
+  + 'lançamentos indevidos, permissões de cargos e celulares com dados presos.\n'
+  + 'Use as ferramentas para olhar os dados reais antes de concluir qualquer coisa; nunca invente números, nomes ou ids. '
+  + 'Ferramentas de alteração (mudar_permissao, marcar_resolvido, apagar_registro, voltar_lancamento_aco, correcao) só rodam '
+  + 'depois que o desenvolvedor confirma no app: explique antes, em uma frase, o que vai fazer e por quê. '
+  + 'Você não altera o código do app. Quando a solução exigir mudar o código, diga o que mudar e onde (função, tela) e '
+  + 'sugira gerar o pacote (gerar_pacote) para o desenvolvedor levar ao Claude Code no computador.\n'
+  + 'Escreva em português do Brasil, frases curtas, sem jargão. Termine dizendo o que foi feito e o que falta.';
+const s_ = (d) => ({ type: 'string', description: d });
+const ferr_ = (name, description, props) => ({ name: name, description: description, strict: true,
+  input_schema: { type: 'object', additionalProperties: false, required: Object.keys(props), properties: props } });
+const DEV_CHAT_FERRAMENTAS = [
+  ferr_('rodar_diagnostico', 'Roda os testes internos do app neste celular (versões, sincronização, pendências, memória, permissões, cálculos, registros que quebram telas, erros).', {}),
+  ferr_('ler_avisos', 'Lista os avisos em aberto: problemas relatados pelos usuários, lançamentos indevidos e erros automáticos dos celulares.', {}),
+  ferr_('ler_permissoes', 'Mostra o nível (edit, ver, nao) de cada função para um cargo, e o padrão do código.', { cargo: s_('Cargo exato, ou "" para todos') }),
+  ferr_('ler_historico', 'Lê o Histórico da planilha: cada alteração feita por qualquer celular, com nome, cargo e horário.',
+    { pessoa: s_('Nome (ou começo do nome), ou ""'), dia: s_('AAAA-MM-DD, ou ""'), de: s_('HH:MM, ou ""'), ate: s_('HH:MM, ou ""'), limite: { type: 'integer', description: 'Máximo de linhas (até 150)' } }),
+  ferr_('ler_aparelhos', 'Lista os celulares: pessoa, cargo, versão do app, última sincronização e lançamentos ainda não enviados.', {}),
+  ferr_('mudar_permissao', 'Muda o nível de uma função para um cargo (precisa de confirmação).',
+    { cargo: s_('Cargo exato'), funcao: s_('Id da função, como em ler_permissoes'), nivel: { type: 'string', enum: ['edit', 'ver', 'nao'] } }),
+  ferr_('marcar_resolvido', 'Marca um aviso (problema, lançamento indevido ou erro) como resolvido (precisa de confirmação).', { id: s_('Id do aviso, como em ler_avisos') }),
+  ferr_('apagar_registro', 'Apaga um registro de módulo (Qualidade, Segurança, Medições etc.); a cópia fica no registro de mudanças (precisa de confirmação).', { id: s_('Id do registro') }),
+  ferr_('voltar_lancamento_aco', 'Grava a quantidade de barras de uma posição de aço numa semana e equipe (precisa de confirmação).',
+    { semana: { type: 'integer' }, codigo: s_('Código da posição'), equipe: s_('Equipe exatamente como no Histórico'), barras: { type: 'number' } }),
+  ferr_('correcao', 'Faz uma correção simples neste celular (precisa de confirmação).', { nome: { type: 'string', enum: ['sincronizar', 'recalcular', 'atualizar_app', 'limpar_erros'] } }),
+  ferr_('gerar_pacote', 'Gera o pacote de texto (diagnóstico, mudanças, aparelhos, erros, permissões) para levar ao Claude Code.', {}),
+];
+function devChat_(corpo) {
+  const chave = PropertiesService.getScriptProperties().getProperty('ANTHROPIC_API_KEY');
+  if (!chave) throw new Error('Falta a chave ANTHROPIC_API_KEY nas Propriedades do script.');
+  const msgs = Array.isArray(corpo.mensagens) ? corpo.mensagens : [];
+  if (!msgs.length) throw new Error('Conversa vazia.');
+  if (JSON.stringify(msgs).length > 600000) throw new Error('Conversa longa demais: comece uma nova.');
+  const resp = UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', {
+    method: 'post', contentType: 'application/json', muteHttpExceptions: true,
+    headers: { 'x-api-key': chave, 'anthropic-version': '2023-06-01', 'anthropic-beta': 'server-side-fallback-2026-07-01' },
+    payload: JSON.stringify({
+      model: CLAUDE_MODELO, max_tokens: 8000,
+      fallbacks: 'default', // se o modelo recusar, o servidor tenta outro sozinho
+      output_config: { effort: 'medium' },
+      cache_control: { type: 'ephemeral' }, // instruções e ferramentas fixas: reaproveitadas entre as mensagens
+      system: DEV_CHAT_SISTEMA, tools: DEV_CHAT_FERRAMENTAS, tool_choice: { type: 'auto' },
+      messages: msgs,
+    }),
+  });
+  const cod = resp.getResponseCode();
+  let j; try { j = JSON.parse(resp.getContentText()); } catch (e) { throw new Error('Resposta inválida da IA (HTTP ' + cod + ').'); }
+  if (cod !== 200) throw new Error('IA indisponível (HTTP ' + cod + '): ' + ((j.error && j.error.message) || '').slice(0, 300));
+  return { content: j.content || [], stop_reason: j.stop_reason, modelo: j.model, uso: j.usage || {} };
 }
 function listaAcessos_() {
   const iso = v => v instanceof Date ? v.toISOString() : String(v || '');
@@ -359,6 +415,10 @@ function doPost(e) {
     if (corpo.acao === 'devDados') {
       if (!dev) throw new Error('Só o desenvolvedor vê o Histórico.');
       return devDados_(corpo);
+    }
+    if (corpo.acao === 'devChat') {
+      if (!dev) throw new Error('Só o desenvolvedor usa o chat do Painel Dev.');
+      return devChat_(corpo);
     }
     if (corpo.acao === 'projetos') return listarProjetos(String(corpo.pasta || 'Projetos'));
     if (corpo.acao === 'pdf') return lerPdf(String(corpo.id || ''), corpo.parte, corpo.ini, corpo.tam);
@@ -666,7 +726,7 @@ function linhas(nome) {
 // 31: leitura do ticket por foto retirada (sem chave da IA por enquanto).
 // 32: sincronização mais rápida: área pintada nova vai no fim da aba ConcretagemTracos (antes a aba inteira era lida e
 //     regravada a cada envio), leitura dos traços só das linhas da concretagem e observação da concretagem até 2.000 caracteres.
-const VERSAO_SCRIPT = 33;
+const VERSAO_SCRIPT = 34;
 
 // Colunas de código que precisam ficar como TEXTO. Sem isso o Planilhas converte
 // "DEC-0001" em data (dez/2001) e o código se perde.

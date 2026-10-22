@@ -526,6 +526,8 @@ html[data-campo][data-ajuda] .ajuda-btn{background:var(--accent);color:var(--on-
 /* Ponto e efetivo */
 .modal.ef{z-index:30}
 /* Ferramentas (wiapps.com.br/ferramentas): abre por cima de tudo, dentro do app */
+#ver-como{position:fixed;left:8px;bottom:calc(76px + env(safe-area-inset-bottom,0px));z-index:45;border:0;border-radius:999px;padding:8px 14px;background:var(--warn,#b26a00);color:#fff;font:600 13px system-ui,sans-serif;box-shadow:0 2px 10px rgba(0,0,0,.25)}
+.aviso-geral{background:var(--surface);border-left:4px solid var(--warn,#b26a00);border-radius:8px;padding:10px 12px;margin:8px 0;font-weight:600}
 .ver-lanc :is(#lista,#elem,#v-semanas) :is(input:not([type=search]),textarea){pointer-events:none;opacity:.75}
 .ferr-tela{position:fixed;inset:0;z-index:40;background:var(--bg);display:flex;flex-direction:column}
 .ferr-top{display:flex;align-items:center;gap:10px;padding:8px 12px;padding-top:calc(8px + env(safe-area-inset-top,0px));background:var(--surface);border-bottom:1px solid var(--line)}
@@ -1269,11 +1271,14 @@ function cyrb53(s, seed=7){
 }
 const ehDev = nome => cyrb53(String(nome||"").toUpperCase().replace(/\s+/g,""))===DEV_RESUMO;
 let U=LS.get("usuario"); if(U && (!CARGOS[U.cargo] || (CARGOS[U.cargo].dev && !ehDev(U.nome)))) U=null;
+// "Ver como" (Painel Dev): o Desenvolvedor usa o app com as permissões de outro cargo; o login e o souDev() continuam os reais
+let VER_COMO = LS.get("verComo") || "";
+const cargoEf = () => (VER_COMO && U && CARGOS[U.cargo]?.dev && CARGOS[VER_COMO]) ? VER_COMO : U?.cargo;
 const quemSou = () => U ? `${U.nome} (${U.cargo})` : "sem login";
-const pode = k => { const c=CARGOS[U?.cargo]; return !!c && (c.m.split(" ").includes(k) || c.x.split(" ").includes(k)); };
+const pode = k => { const c=CARGOS[cargoEf()]; return !!c && (c.m.split(" ").includes(k) || c.x.split(" ").includes(k)); };
 // lançamentos de produção (aço, forma, concreto), frentes e relatório: só o Engenheiro de produção e o Desenvolvedor alteram; os outros só veem
-const podePdf = () => !!CARGOS[U?.cargo]?.pdf; // Relatório PDF do aço
-const veDash = () => !!CARGOS[U?.cargo]?.dash; // números da produção no início, embaixo do bom dia
+const podePdf = () => !!CARGOS[cargoEf()]?.pdf; // Relatório PDF do aço
+const veDash = () => !!CARGOS[cargoEf()]?.dash; // números da produção no início, embaixo do bom dia
 const podeLanc = () => { if(pode("lanc-edit")) return true; toast("Só visualização: quem altera é o Engenheiro de produção."); return false; };
 // ---------- liberação de acesso: o desenvolvedor libera cada celular (nome + cargo) ----------
 // APARELHO = código aleatório deste celular; AC = última resposta do Google {status: pendente|liberado|recusado|novo, nome, cargo, motivo}
@@ -2150,7 +2155,7 @@ function setCampo(on){ LS.set("campo",!!on); if(on) document.documentElement.dat
 $("#campo-modo").addEventListener("click", e=>{ const b=e.target.closest("button[data-c]"); if(b) setCampo(b.dataset.c==="1"); });
 setCampo(!!LS.get("campo"));
 
-const VERSAO_APP = "v143"; // igual ao número em sw.js (armacao-v143)
+const VERSAO_APP = "v144"; // igual ao número em sw.js (armacao-v144)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -4104,7 +4109,7 @@ const MODULOS=[
   {id:"ferr",  nome:"Ferramentas",      desc:"Editor PDF, converter para Word e mais", c:["#E2544A","#B3261E"], ativo:true, todos:true},
   {id:"arquivo", nome:"Arquivo da obra", desc:"Recebimentos e cálculos da Calculadora de obra", c:["#D98A3D","#9C5A1C"], ativo:true, todos:true},
 ];
-const podeMod = m => (m.todos && !CARGOS[U?.cargo]?.restrito) || pode(m.id);
+const podeMod = m => (m.todos && !CARGOS[cargoEf()]?.restrito) || pode(m.id);
 const SERVICOS=[
   {id:"aco",   nome:"Aço",       desc:"Armação: coleta, frentes e produtividade", c:["#1A9BDC","#0067A6"], ativo:true},
   {id:"forma", nome:"Forma",     desc:"Montagem e desforma",                       c:["#D49A5A","#9C6430"], ativo:true},
@@ -11031,7 +11036,7 @@ function avisarIndevido(){
 
 // ---------- o módulo Painel Dev ----------
 const DV={aba:LS.get("devAba")||"saude", cargo:"", rascunho:null, abertos:new Set(), quem:"", dia:"", de:"", ate:"", hist:null, diag:null};
-const ABAS_DEV=[["saude","Saúde"],["perm","Permissões"],["lanc","Lançamentos"],["diag","Diagnóstico"],["mud","Mudanças"]];
+const ABAS_DEV=[["saude","Saúde"],["perm","Permissões"],["lanc","Lançamentos"],["aparelhos","Aparelhos"],["avisos","Avisos"],["diag","Diagnóstico"],["mud","Mudanças"],["claude","Claude"]];
 const dataHoraBR = iso => { if(!iso) return ""; const d=new Date(iso); return isNaN(d) ? String(iso) : d.toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",year:"2-digit",hour:"2-digit",minute:"2-digit"}); };
 function renderDev(box){
   if(!souDev()) return repor(box, el("p",{class:"info",text:"Só o Desenvolvedor acessa o Painel Dev."}));
@@ -11039,7 +11044,7 @@ function renderDev(box){
     onclick:()=>{ DV.aba=id; LS.set("devAba",id); renderReg2(); }})));
   const corpo=el("div",{class:"lista full"});
   repor(box, el("p",{class:"saud"}, "Painel Dev", el("small",{text:"Controle do app: permissões, saúde das funções, lançamentos, diagnóstico e o que foi mudado por aqui."})), abas, corpo);
-  ({saude:devSaude, perm:devPerm, lanc:devLanc, diag:devDiag, mud:devMud}[DV.aba]||devSaude)(corpo);
+  ({saude:devSaude, perm:devPerm, lanc:devLanc, aparelhos:devAparelhos, avisos:devAvisos, diag:devDiag, mud:devMud, claude:devClaude}[DV.aba]||devSaude)(corpo);
 }
 const linhaInfo = t => el("p",{class:"info",text:t});
 const cartaoDev = (...k) => el("div",{class:"card"}, ...k);
@@ -11092,7 +11097,9 @@ function devPerm(box){
   const R=DV.rascunho.n, mudou=FUNCOES.filter(f=>R[f.id]!==nivelDe(DV.cargo,f,P));
   const sel=el("select",{"aria-label":"Cargo",onchange:e=>{ if(mudou.length && !DV.avisouDescarte){ DV.avisouDescarte=true; toast("Há mudanças não salvas neste cargo: troque de novo para descartar."); e.target.value=DV.cargo; return; } DV.avisouDescarte=false; DV.cargo=e.target.value; DV.rascunho=null; renderReg2(); }},
     ...cargos.map(c=>el("option",{value:c,text:c+(P[c]&&Object.keys(P[c]).length?" · alterado":""),selected:c===DV.cargo})));
-  box.append(campoEf("Cargo", sel, true), linhaInfo("Editar: vê e altera. Ver: só visualiza. Negar: some do app. Grava na planilha e vale para todos na próxima sincronização. O Desenvolvedor sempre tem tudo."));
+  const sem=auditoriaPerm(P);
+  if(sem.length) box.append(el("p",{class:"aviso-geral",text:"⚠ Ninguém (fora você) pode editar: "+sem.join(", ")}));
+  box.append(campoEf("Cargo", sel, true), el("button",{class:"btn",type:"button",text:"👁 Ver o app como "+DV.cargo,onclick:()=>verComo(DV.cargo)}), linhaInfo("Editar: vê e altera. Ver: só visualiza. Negar: some do app. Grava na planilha e vale para todos na próxima sincronização. O Desenvolvedor sempre tem tudo."));
   for(const f of FUNCOES){
     const pad=nivelPadrao(DV.cargo,f);
     box.append(cartaoDev(el("div",{class:"i-top"}, el("b",{text:f.nome}), R[f.id]!==pad ? el("span",{class:"chip and",text:"fora do padrão"}) : null),
@@ -11239,7 +11246,8 @@ function devDiag(box){
   box.append(el("div",{class:"row"},
     el("button",{class:"btn",type:"button",text:"📋 Gerar relatório",onclick:()=>{ DV.diag.resolvido=!temProblema; const txt=relatorioDiag(DV.diag);
       setReg2(novoId(), {modulo:"dev", tipo:"relatorio", data:hojeISO(), status:temProblema?"Precisa de análise":"Resolvido", dados:{texto:txt.slice(0,45000)}}, "Relatório de diagnóstico");
-      mostrarTexto("Relatório de diagnóstico", txt, `wigo-diagnostico-${hojeISO()}.txt`); }})));
+      mostrarTexto("Relatório de diagnóstico", txt, `wigo-diagnostico-${hojeISO()}.txt`); }}),
+    el("button",{class:"btn",type:"button",text:"📦 Pacote para o Claude",onclick:()=>mostrarTexto("Pacote para o Claude", pacoteClaude(), `wigo-pacote-${hojeISO()}.txt`)})));
 }
 
 // --- Mudanças: tudo que foi alterado pelo painel, para virar relatório e commit ---
@@ -11256,11 +11264,242 @@ function devMud(box){
   box.append(linhaInfo("Cada mudança feita por este painel fica guardada aqui. Quando formos trabalhar juntos, gere o relatório e anexe na conversa; depois do commit, marque como levadas ao código."),
     el("div",{class:"row"},
       el("button",{class:"btn pri",type:"button",text:`📋 Relatório das ${pend.length} pendente(s)`,disabled:!pend.length,onclick:()=>mostrarTexto("Mudanças para levar ao código", relatorioMudancas(pend), `wigo-mudancas-${hojeISO()}.txt`)}),
+      el("button",{class:"btn",type:"button",text:"📦 Pacote para o Claude",onclick:()=>mostrarTexto("Pacote para o Claude", pacoteClaude(), `wigo-pacote-${hojeISO()}.txt`)}),
       el("button",{class:"btn",type:"button",text:"✓ Marcar todas como levadas ao código",disabled:!pend.length,onclick:e=>{
         if(!e.target.dataset.ok){ e.target.dataset.ok=1; e.target.textContent="Toque de novo para confirmar"; return; }
         for(const r of pend) setReg2(r.id,{status:"No código"}); toast("Marcadas como levadas ao código."); renderReg2(); }})));
   for(const r of L.slice(0,80)) box.append(cartaoDev(el("div",{class:"i-top"}, el("b",{text:r.dados.acao}), el("span",{class:"chip "+(r.status==="No código"?"ok":"and"),text:r.status})),
-    el("p",{class:"i-sub",text:r.dados.detalhe}), el("p",{class:"info",text:dataHoraBR(r.dados.em||r.criadoEm)})));
+    el("p",{class:"i-sub",text:r.dados.detalhe}), el("p",{class:"info",text:dataHoraBR(r.dados.em||r.criadoEm)}),
+    (r.dados.apagado || r.dados.historico) && r.status!=="Desfeita" ? el("button",{class:"btn",type:"button",text:"↩ Desfazer",onclick:e=>{ if(!e.target.dataset.ok){ e.target.dataset.ok=1; e.target.textContent="Toque de novo para desfazer"; return; } desfazerMudanca(r); }}) : null));
+}
+
+// --- "Ver como": o Desenvolvedor usa o app com as permissões de outro cargo (o login não muda) ---
+function verComo(cargo){
+  VER_COMO = cargo || ""; LS.set("verComo", VER_COMO);
+  barraVerComo(); renderInicio(); abrirTela("inicio");
+  toast(cargo ? `Vendo o app como ${cargo}. O que você gravar vai com o seu nome.` : "De volta ao Desenvolvedor.");
+}
+function barraVerComo(){
+  let b=$("#ver-como");
+  if(!VER_COMO || !CARGOS[U?.cargo]?.dev){ b?.remove(); return; }
+  if(!b){ b=el("button",{id:"ver-como",type:"button",onclick:()=>verComo("")}); document.body.append(b); }
+  b.textContent=`👁 Vendo como ${VER_COMO} · toque para sair`;
+}
+
+// --- avisos para os usuários: faixa geral, funções em manutenção e novidades da versão ---
+const cfgJson = (k, def) => { try{ return JSON.parse(cfgv(k,"")) || def; }catch{ return def; } };
+const manutDe = id => !souDev() && cfgJson("MANUTENCAO",{})[id];
+const avisaManut = id => toast(`🔧 ${nomeFuncao(id)} em manutenção: ${manutDe(id)}`);
+function avisosIni(){
+  if(!liberado()) return;
+  const a=cfgJson("AVISO_GERAL",null), cargo=cargoEf();
+  let box=$("#aviso-geral");
+  if(!box){ box=el("div",{id:"aviso-geral"}); $("#ind-ini")?.before(box); }
+  const vale = a && a.texto && (!a.ate || a.ate>=hojeISO()) && (!a.cargos?.length || a.cargos.includes(cargo));
+  repor(box, vale ? el("p",{class:"aviso-geral",text:"📢 "+a.texto}) : null);
+  // funções em manutenção: etiqueta no botão do módulo
+  const M=cfgJson("MANUTENCAO",{});
+  document.querySelectorAll("#mods button").forEach(b=>{ const m=MODULOS.find(x=>x.nome===b.querySelector("b")?.textContent); b.querySelector(".manut")?.remove();
+    if(m && M[m.id]) b.append(el("span",{class:"num manut",text:"🔧 em manutenção"})); });
+  // novidades: cada pessoa vê uma vez
+  const nv=cfgJson("NOVIDADES",null), visto=LS.get("novVisto");
+  if(nv && nv.texto && visto!==nv.em && !$("#inicio").hidden){
+    LS.set("novVisto", nv.em);
+    efModal(`Novidades do app (${nv.versao})`, [el("p",{class:"full",style:"white-space:pre-wrap",text:nv.texto})], [el("button",{class:"btn pri",type:"button",text:"Entendi",onclick:fecharEf})]);
+  }
+}
+{ const o=renderInicio; renderInicio=function(){ o(); try{ avisosIni(); barraVerComo(); }catch(e){ guardarErro(e.message,"avisosIni"); } }; }
+{ const o=abrirTela; abrirTela=function(t, ...r){ const mod=TELA_MOD[t]; if(mod && manutDe(mod)) return avisaManut(mod); return o(t, ...r); }; }
+{ const o=abrirModulo; abrirModulo=function(mod){ if(manutDe(mod)) return avisaManut(mod); return o(mod); }; }
+{ const o=abrirFerramentas; abrirFerramentas=function(url){ if(manutDe("ferr")) return avisaManut("ferr"); return o(url); }; }
+
+function devAvisos(box){
+  const a=cfgJson("AVISO_GERAL",{texto:"",cargos:[],ate:""}), cargos=Object.keys(CARGOS_PADRAO);
+  const tx=el("textarea",{rows:3,placeholder:"Ex.: Sistema em manutenção hoje às 18h. Lance antes disso."}); tx.value=a.texto||"";
+  const ate=el("input",{type:"date",value:a.ate||"",min:hojeISO()});
+  const chks=cargos.map(c=>{ const i=el("input",{type:"checkbox",value:c}); i.checked=!a.cargos?.length || a.cargos.includes(c); return el("label",{class:"chk"}, i, " "+c); });
+  box.append(el("h3",{text:"📢 Aviso geral (faixa na tela inicial)"}), campoEf("Texto", tx, true), campoEf("Mostrar até (vazio = sem fim)", ate),
+    el("details",{class:"full"}, el("summary",{text:"Para quais cargos"}), el("div",{class:"lista"}, ...chks)),
+    el("div",{class:"row"},
+      el("button",{class:"btn pri",type:"button",text:"Publicar aviso",onclick:()=>{ const sel=chks.map(l=>l.querySelector("input")).filter(i=>i.checked).map(i=>i.value);
+        if(!tx.value.trim()) return toast("Escreva o aviso.");
+        const v={texto:tx.value.trim().slice(0,500), cargos:sel.length===cargos.length?[]:sel, ate:ate.value};
+        setCfg("AVISO_GERAL", JSON.stringify(v)); logDev("Aviso geral publicado", `${v.texto} · ${v.cargos.length?v.cargos.join(", "):"todos"}${v.ate?" · até "+dataBR(v.ate):""}`); toast("Aviso publicado."); renderReg2(); }}),
+      el("button",{class:"btn",type:"button",text:"Tirar o aviso",onclick:()=>{ setCfg("AVISO_GERAL",""); logDev("Aviso geral retirado",""); toast("Aviso retirado."); renderReg2(); }})));
+  const M=cfgJson("MANUTENCAO",{});
+  box.append(el("h3",{text:"🔧 Modo manutenção"}), linhaInfo("A função fica bloqueada para todos (menos você) com a mensagem abaixo. Use quando algo estiver com bug."));
+  for(const f of FUNC_SAUDE().filter(f=>MODULOS.some(m=>m.id===f.id))){
+    const msg=el("input",{type:"text",value:M[f.id]||"",placeholder:"Mensagem (ex.: voltamos às 14h)"});
+    box.append(cartaoDev(el("div",{class:"i-top"}, el("b",{text:f.nome}), M[f.id] ? el("span",{class:"chip bad",text:"em manutenção"}) : el("span",{class:"chip ok",text:"no ar"})), msg,
+      el("button",{class:"btn",type:"button",text:M[f.id]?"Voltar ao ar":"Colocar em manutenção",onclick:()=>{ const n={...cfgJson("MANUTENCAO",{})};
+        if(n[f.id]){ delete n[f.id]; logDev("Manutenção encerrada", f.nome); } else { n[f.id]=msg.value.trim()||"voltamos logo"; logDev("Manutenção iniciada", `${f.nome}: ${n[f.id]}`); }
+        setCfg("MANUTENCAO", JSON.stringify(n)); renderReg2(); }})));
+  }
+  const nv=cfgJson("NOVIDADES",{texto:""}), nt=el("textarea",{rows:4,placeholder:"O que mudou nesta versão, em frases curtas."}); nt.value=nv.texto||"";
+  box.append(el("h3",{text:"✨ Novidades da versão"}), linhaInfo(`Cada usuário vê uma vez ao abrir o app. Versão atual: ${VERSAO_APP}.`), campoEf("Texto", nt, true),
+    el("button",{class:"btn pri",type:"button",text:"Publicar novidades",onclick:()=>{ if(!nt.value.trim()) return toast("Escreva as novidades.");
+      setCfg("NOVIDADES", JSON.stringify({versao:VERSAO_APP, texto:nt.value.trim().slice(0,2000), em:new Date().toISOString()})); logDev("Novidades publicadas", nt.value.trim().slice(0,300)); toast("Novidades publicadas."); }}));
+}
+
+// --- Aparelhos e tamanho da planilha ---
+async function carregarDevDados(){
+  const j=await post({acao:"devDados", n:1500});
+  if(!j.historico) throw new Error("Atualize o script da planilha para a versão 34.");
+  DV.hist=j.historico; DV.errosSrv=j.erros||[]; DV.abas=j.abas||null; return j;
+}
+function devAparelhos(box){
+  const L=(S.acessos||[]).slice().sort((a,b)=>String(b.ultimaSinc).localeCompare(String(a.ultimaSinc)));
+  box.append(el("div",{class:"row"},
+    el("button",{class:"btn",type:"button",text:"↻ Atualizar aparelhos",onclick:async e=>{ e.target.disabled=true; try{ const j=await post({acao:"acessos"}); S.acessos=j.acessos; LS.set("acessos",j.acessos); }catch(err){ toast(err.message); } renderReg2(); }}),
+    el("button",{class:"btn",type:"button",text:"📊 Tamanho da planilha",onclick:async e=>{ e.target.disabled=true; try{ await carregarDevDados(); }catch(err){ toast(err.message); } renderReg2(); }})));
+  const velhos=L.filter(a=>a.status==="liberado" && a.versaoApp && a.versaoApp!==VERSAO_APP), presos=L.filter(a=>a.pendentes>0 && a.pendenteDesde && Date.now()-new Date(a.pendenteDesde)>864e5);
+  box.append(linhaInfo(`${L.filter(a=>a.status==="liberado").length} celulares liberados · ${velhos.length} em versão antiga · ${presos.length} com lançamentos parados há mais de 1 dia`));
+  for(const a of L){
+    const dias=a.ultimaSinc ? Math.floor((Date.now()-new Date(a.ultimaSinc))/864e5) : null;
+    const cor = a.status!=="liberado" ? "" : presos.includes(a) ? "bad" : (a.versaoApp && a.versaoApp!==VERSAO_APP) || dias>3 ? "and" : "ok";
+    box.append(cartaoDev(el("div",{class:"i-top"}, el("b",{text:`${a.nome} · ${a.cargo}`}), el("span",{class:"chip "+cor,text:a.status==="liberado"?(a.versaoApp||"versão ?"):a.status})),
+      el("p",{class:"i-sub",text:[a.ultimaSinc?`última sincronização: ${dataHoraBR(a.ultimaSinc)}`:"nunca sincronizou", a.pendentes?`${a.pendentes} a enviar desde ${dataHoraBR(a.pendenteDesde)}`:"nada pendente"].join(" · ")})));
+  }
+  if(DV.abas){
+    box.append(el("h3",{text:"Tamanho da planilha"}), linhaInfo("O Google aceita até 10 milhões de células por planilha. Acima de 50 mil linhas numa aba o app começa a ficar lento para sincronizar."));
+    const tot=DV.abas.reduce((s,x)=>s+x.linhas*x.colunas,0);
+    box.append(cartaoDev(el("b",{text:`Total: ${nf0.format(tot)} células (${pct(tot/1e7)} do limite)`})));
+    for(const x of DV.abas.slice().sort((a,b)=>b.linhas-a.linhas)) box.append(cartaoDev(el("div",{class:"i-top"}, el("b",{text:x.nome}),
+      el("span",{class:"chip "+(x.linhas>50000?"bad":x.linhas>20000?"and":"ok"),text:nf0.format(x.linhas)+" linhas"}))));
+  }
+}
+
+// --- Desfazer (aba Mudanças), auditoria de permissões e pacote para o Claude ---
+function desfazerMudanca(r){
+  const d=r.dados;
+  if(d.apagado){ const a=d.apagado; setReg2(a.id, {modulo:a.modulo, tipo:a.tipo, data:a.data, dados:a.dados, status:a.status||""}, "Restaurou registro apagado"); }
+  else if(d.historico){ const m=/^Semana (\d+) · (.+?) · ([-\d.,]+) barras · (.*)$/.exec(d.historico.det); if(!m) return toast("Não deu para ler o lançamento original.");
+    const [, n, cod, q, eq]=m; (S.pend[n] ??= {}); (S.pend[n].raw ??= {})[K(cod,eq)]=num(q); savePend(); recompute(); scheduleSync(); }
+  else return toast("Esta mudança não tem como desfazer por aqui.");
+  setReg2(r.id, {status:"Desfeita"}); logDev("Desfez: "+d.acao, d.detalhe, {ref:r.id}); toast("Desfeito."); renderReg2();
+}
+function auditoriaPerm(P=permMudadas()){
+  const cargos=Object.keys(CARGOS_PADRAO).filter(c=>!CARGOS_PADRAO[c].dev);
+  return FUNCOES.filter(f=>niveisDe(f).includes("edit") && !cargos.some(c=>nivelDe(c,f,P)==="edit")).map(f=>f.nome);
+}
+function pacoteClaude(){
+  const pend=regs2De("dev","mudanca").filter(r=>r.status==="Pendente");
+  const ap=(S.acessos||[]).filter(a=>a.status==="liberado").map(a=>`- ${a.nome} (${a.cargo}) · ${a.versaoApp||"?"} · última sinc ${dataHoraBR(a.ultimaSinc)} · ${a.pendentes||0} pendentes`);
+  const errSrv=(DV.errosSrv||[]).slice(0,40).map(e=>`- ${dataHoraBR(e.em)} · ${e.usuario} · ${e.versao} · ${e.msg} · ${e.onde}`);
+  return [relatorioDiag({testes:testesDev(), feitas:[], resolvido:false}), "", relatorioMudancas(pend), "",
+    "## Aparelhos", ...(ap.length?ap:["- (toque em Atualizar aparelhos no Painel Dev)"]), "",
+    "## Erros da aba Erros da planilha", ...(errSrv.length?errSrv:["- (carregue o Histórico ou o Tamanho da planilha no Painel Dev)"]), "",
+    "## Funções que ninguém pode editar (fora o Dev)", ...(auditoriaPerm().map(n=>"- "+n)), ""].join("\n");
+}
+
+// --- Chat do Claude: a conversa passa pelo script da planilha (que guarda a chave); as ferramentas rodam aqui ---
+// Leitura roda direto; alteração espera o "Confirmar" do desenvolvedor e vai para o registro de mudanças.
+const CH={msgs:LS.get("devChat")||[], ocupado:false, pend:null};
+const salvarChat = () => LS.set("devChat", CH.msgs); // inteira: cortar o começo deixaria resultado de ferramenta sem a chamada (a API recusa)
+const ESCRITA=new Set(["mudar_permissao","marcar_resolvido","apagar_registro","voltar_lancamento_aco","correcao"]);
+const regDevPorId = id => regs2().find(r=>r.id===id);
+async function ferramentaDev(nome, a){
+  switch(nome){
+    case "rodar_diagnostico": return testesDev().map(x=>`${x.st} · ${x.nome}: ${x.det}`).join("\n");
+    case "ler_avisos": return regs2().filter(r=>r.modulo==="dev" && ["falha","indevido","erro"].includes(r.tipo) && r.status!=="Resolvido").slice(0,60)
+      .map(r=>({id:r.id, tipo:r.tipo, quem:r.criadoPor, quando:r.criadoEm, ...r.dados, erros:undefined}));
+    case "ler_permissoes": { const P=permMudadas(), cs=a.cargo ? [a.cargo] : Object.keys(CARGOS_PADRAO).filter(c=>!CARGOS_PADRAO[c].dev);
+      if(a.cargo && !CARGOS_PADRAO[a.cargo]) throw new Error("Cargo não existe. Cargos: "+Object.keys(CARGOS_PADRAO).join(", "));
+      return {funcoes:FUNCOES.map(f=>({id:f.id, nome:f.nome, niveis:niveisDe(f)})), cargos:Object.fromEntries(cs.map(c=>[c, Object.fromEntries(FUNCOES.map(f=>[f.id, {nivel:nivelDe(c,f,P), padrao:nivelPadrao(c,f)}]))]))}; }
+    case "ler_historico": { if(!DV.hist) await carregarDevDados();
+      const lim=Math.min(150, a.limite>0 ? a.limite : 80);
+      return DV.hist.filter(h=>{ if(a.pessoa && !String(h.usuario).toLowerCase().startsWith(a.pessoa.toLowerCase())) return false;
+        const d=new Date(h.em), dia=new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,10), hm=d.toTimeString().slice(0,5);
+        return (!a.dia || dia===a.dia) && (!a.de || hm>=a.de) && (!a.ate || hm<=a.ate); }).slice(0,lim); }
+    case "ler_aparelhos": { try{ const j=await post({acao:"acessos"}); S.acessos=j.acessos; LS.set("acessos",j.acessos); }catch{ /* usa a lista guardada */ }
+      return (S.acessos||[]).map(x=>({nome:x.nome, cargo:x.cargo, status:x.status, versao:x.versaoApp, ultimaSinc:x.ultimaSinc, pendentes:x.pendentes, pendenteDesde:x.pendenteDesde})); }
+    case "gerar_pacote": { const t=pacoteClaude(); DV.pacote=t; return t.slice(0,20000); }
+    case "mudar_permissao": { const f=FUNCOES.find(x=>x.id===a.funcao);
+      if(!CARGOS_PADRAO[a.cargo] || CARGOS_PADRAO[a.cargo].dev) throw new Error("Cargo inválido.");
+      if(!f || !niveisDe(f).includes(a.nivel)) throw new Error("Função ou nível inválido.");
+      const P=permMudadas(), antes=nivelDe(a.cargo,f,P), novo={...P, [a.cargo]:{...(P[a.cargo]||{})}};
+      if(a.nivel===nivelPadrao(a.cargo,f)) delete novo[a.cargo][f.id]; else novo[a.cargo][f.id]=a.nivel;
+      if(!Object.keys(novo[a.cargo]).length) delete novo[a.cargo];
+      setCfg("PERMISSOES", JSON.stringify(novo)); aplicarPermissoes();
+      logDev("Permissões: "+a.cargo+" (pelo chat)", `${f.nome}: ${NIV_PERM[antes]} → ${NIV_PERM[a.nivel]}`, {cargo:a.cargo, permissoes:novo});
+      return `${a.cargo} · ${f.nome}: ${NIV_PERM[antes]} → ${NIV_PERM[a.nivel]}`; }
+    case "marcar_resolvido": { const r=regDevPorId(a.id); if(!r || r.modulo!=="dev") throw new Error("Aviso não encontrado.");
+      setReg2(r.id,{status:"Resolvido"},"Resolveu aviso"); logDev("Marcou resolvido (pelo chat)", (r.dados.texto||r.dados.msg||"").slice(0,200), {ref:r.id}); return "Marcado como resolvido."; }
+    case "apagar_registro": { const r=regDevPorId(a.id); if(!r || r.modulo==="dev") throw new Error("Registro não encontrado.");
+      logDev("Apagou lançamento (pelo chat)", `${MOD2[r.modulo]?.nome||r.modulo} › ${r.tipo} · lançado por ${r.criadoPor||"?"} em ${dataHoraBR(r.criadoEm)}`, {apagado:{id:r.id, modulo:r.modulo, tipo:r.tipo, data:r.data, status:r.status, dados:r.dados, criadoPor:r.criadoPor, criadoEm:r.criadoEm}});
+      delReg2(r.id); return "Apagado; a cópia ficou na aba Mudanças (dá para desfazer)."; }
+    case "voltar_lancamento_aco": { const n=String(a.semana), k=K(a.codigo, a.equipe), antes=num(S.pend[n]?.raw?.[k] ?? S.weeks[n]?.raw?.[k] ?? 0);
+      (S.pend[n] ??= {}); (S.pend[n].raw ??= {})[k]=a.barras; savePend(); recompute(); scheduleSync();
+      logDev("Voltou lançamento de aço (pelo chat)", `Semana ${n} · ${a.codigo} · ${a.equipe}: ${antes} → ${a.barras} barras`, {historico:{det:`Semana ${n} · ${a.codigo} · ${antes} barras · ${a.equipe}`}, valorNovo:a.barras});
+      return `Semana ${n} · ${a.codigo} · ${a.equipe}: ${antes} → ${a.barras} barras.`; }
+    case "correcao": { const i={sincronizar:0, recalcular:1, atualizar_app:2, limpar_erros:3}[a.nome]; if(i==null) throw new Error("Correção desconhecida.");
+      const r=await CORRECOES[i][2](); logDev("Correção (pelo chat): "+CORRECOES[i][0], r); return r; }
+  }
+  throw new Error("Ferramenta desconhecida: "+nome);
+}
+const descreverAcao = (nome, a) => { const r=a.id ? regDevPorId(a.id) : null;
+  const f={mudar_permissao:()=>`Mudar ${a.cargo} · ${FUNCOES.find(x=>x.id===a.funcao)?.nome||a.funcao} para ${NIV_PERM[a.nivel]||a.nivel}`,
+    marcar_resolvido:()=>`Marcar como resolvido: ${String(r?.dados.texto||r?.dados.msg||a.id).slice(0,120)}`,
+    apagar_registro:()=>`Apagar o registro ${a.id} (${r?`${MOD2[r.modulo]?.nome||r.modulo}, de ${r.criadoPor||"?"}`:"não encontrado"})`,
+    voltar_lancamento_aco:()=>`Gravar ${a.barras} barras em ${a.codigo}, semana ${a.semana}, equipe ${a.equipe}`,
+    correcao:()=>`Fazer neste celular: ${a.nome}`}[nome];
+  return f ? f() : nome; };
+async function rodarFerramenta(b){
+  try{ const r=await ferramentaDev(b.name, b.input||{}); return {type:"tool_result", tool_use_id:b.id, content:typeof r==="string"?r:JSON.stringify(r).slice(0,30000)}; }
+  catch(e){ return {type:"tool_result", tool_use_id:b.id, content:"Erro: "+e.message, is_error:true}; }
+}
+// manda a conversa e trata a resposta: ferramentas de leitura rodam e voltam sozinhas; as de alteração esperam o desenvolvedor
+async function chatEnviar(){
+  CH.ocupado=true; renderReg2();
+  try{
+    for(let volta=0; volta<8; volta++){
+      const j=await post({acao:"devChat", mensagens:CH.msgs}, 180000);
+      if(!j.content) throw new Error("Atualize o script da planilha para a versão 34.");
+      CH.msgs.push({role:"assistant", content:j.content}); salvarChat(); // o conteúdo volta inteiro, sem mexer (inclui o raciocínio)
+      if(j.stop_reason==="refusal"){ toast("O Claude não respondeu a este pedido. Reformule."); break; }
+      const usos=j.content.filter(b=>b.type==="tool_use");
+      if(j.stop_reason!=="tool_use" || !usos.length) break;
+      if(usos.some(b=>ESCRITA.has(b.name))){ CH.pend={usos, resultados:{}}; break; } // espera Confirmar/Recusar
+      CH.msgs.push({role:"user", content:await Promise.all(usos.map(rodarFerramenta))}); salvarChat();
+    }
+  }catch(e){ toast(e.message); }
+  CH.ocupado=false; renderReg2();
+}
+async function chatDecidir(ok){
+  const {usos}=CH.pend; CH.pend=null; CH.ocupado=true; renderReg2();
+  const res=[];
+  for(const b of usos) res.push(ESCRITA.has(b.name) && !ok ? {type:"tool_result", tool_use_id:b.id, content:"O desenvolvedor recusou esta ação.", is_error:true} : await rodarFerramenta(b));
+  CH.msgs.push({role:"user", content:res}); salvarChat();
+  await chatEnviar();
+}
+function devClaude(box){
+  // conversa interrompida no meio de uma ferramenta (app fechado): retoma pedindo a decisão de novo
+  const ult=CH.msgs[CH.msgs.length-1];
+  if(!CH.pend && !CH.ocupado && ult?.role==="assistant" && Array.isArray(ult.content) && ult.content.some(b=>b.type==="tool_use")) CH.pend={usos:ult.content.filter(b=>b.type==="tool_use")};
+  box.append(linhaInfo("Converse com o Claude sobre o app. Ele lê o diagnóstico, os avisos, o Histórico, as permissões e os aparelhos; para alterar algo, pede a sua confirmação. Usa a chave da Anthropic do script da planilha (gasta créditos)."));
+  const lista=el("div",{class:"lista full"});
+  for(const m of CH.msgs){
+    const blocos=Array.isArray(m.content) ? m.content : [{type:"text", text:m.content}];
+    for(const b of blocos){
+      if(b.type==="text" && b.text?.trim()) lista.append(el("div",{class:"card",style:m.role==="user"?"margin-left:15%;border-color:var(--pri,#1A9BDC)":"margin-right:5%"},
+        el("small",{class:"info",text:m.role==="user"?"Você":"Claude"}), el("p",{style:"white-space:pre-wrap;margin:4px 0 0",text:b.text})));
+      else if(b.type==="tool_use") lista.append(el("p",{class:"info",text:(ESCRITA.has(b.name)?"✏️ ":"🔎 ")+b.name+" "+JSON.stringify(b.input)}));
+      else if(b.type==="tool_result") lista.append(el("p",{class:"info",text:(b.is_error?"⚠ ":"↳ ")+String(b.content).slice(0,160)+(String(b.content).length>160?"…":"")}));
+    }
+  }
+  if(!CH.msgs.length) lista.append(linhaInfo("Ex.: \"Por que a Produção está amarela?\" · \"Quem lançou aço ontem à tarde?\" · \"O mestre de obras precisa ver o RDO\"."));
+  box.append(lista);
+  if(CH.pend) box.append(el("div",{class:"card",style:"border-color:var(--warn,#b26a00)"},
+    el("b",{text:CH.pend.usos.some(b=>ESCRITA.has(b.name))?"O Claude quer fazer:":"Continuar a consulta do Claude?"}), ...CH.pend.usos.filter(b=>ESCRITA.has(b.name)).map(b=>el("p",{class:"i-sub",text:"• "+descreverAcao(b.name, b.input||{})})),
+    el("div",{class:"row"}, el("button",{class:"btn pri",type:"button",text:"✓ Confirmar",onclick:()=>chatDecidir(true)}), el("button",{class:"btn",type:"button",text:"Recusar",onclick:()=>chatDecidir(false)}))));
+  const tx=el("textarea",{rows:3,placeholder:CH.ocupado?"Claude pensando…":"Escreva para o Claude",disabled:CH.ocupado||!!CH.pend});
+  box.append(campoEf("Mensagem", tx, true), el("div",{class:"row"},
+    el("button",{class:"btn pri",type:"button",text:CH.ocupado?"Aguarde…":"Enviar",disabled:CH.ocupado||!!CH.pend,onclick:()=>{ const t=tx.value.trim(); if(!t) return;
+      // a primeira mensagem leva o retrato do app (versão, cargo, situação), para o Claude não começar no escuro
+      const ctx = CH.msgs.length ? "" : `[Contexto: app ${VERSAO_APP}, script ${S.scriptVer||"?"}, ${quemSou()}, hoje ${hojeISO()}, ${regs2De("dev","falha").filter(r=>r.status!=="Resolvido").length} aviso(s) de problema e ${regs2De("dev","indevido").filter(r=>r.status!=="Resolvido").length} de lançamento indevido em aberto]\n\n`;
+      CH.msgs.push({role:"user", content:ctx+t}); salvarChat(); chatEnviar(); }}),
+    el("button",{class:"btn",type:"button",text:"Nova conversa",disabled:CH.ocupado,onclick:()=>{ CH.msgs=[]; CH.pend=null; salvarChat(); renderReg2(); }}),
+    DV.pacote ? el("button",{class:"btn",type:"button",text:"📦 Ver o pacote gerado",onclick:()=>mostrarTexto("Pacote para o Claude", DV.pacote, `wigo-pacote-${hojeISO()}.txt`)}) : null));
 }
 
 MOD2.dev={nome:"Painel Dev", desc:"Controle do app (só o Desenvolvedor)", edit:"dev", acesso:"dev", semAbas:true, render:box=>renderDev(box),

@@ -31,3 +31,17 @@ Módulo `MOD2.dev` (`render: renderDev`), abas em `ABAS_DEV`, permissões em `FU
 - [x] **Vigia diário** (`Extras.gs`): `vigiaDiaria()` confere erros das últimas 24 h, avisos abertos, celulares com
   pendências antigas e tamanho das abas, e manda e-mail ao desenvolvedor; `instalarVigia()` cria o gatilho diário
   (rodar uma vez no editor e autorizar o envio de e-mail).
+
+## Pendente: RDO por voz com Gemini (22/10/2026, fim da sessão)
+- Script 35 publicado (implantação "Version 37"; a cabeça do projeto tem o commit 656cf7f) com `GEMINI_API_KEY` já
+  cadastrada pelo Wiliam. `geminiModelos_()` lista os Flash da chave (estáveis primeiro, do mais novo) e
+  `geminiJson_()` tenta o próximo modelo quando um dá 503/429/5xx.
+- Problema visto: o modelo escolhido foi `gemini-3.8-flash`; um pedido curto voltou 503 ("high demand") em 0,4 s,
+  mas o pedido do RDO (com `responseSchema`) ficou mais de 100 s sem resposta, duas vezes.
+- Próximos passos: (1) no editor, rodar `testeRdoGemini` (está no fim do Extras.gs, só na cabeça do projeto, não
+  publicado) depois de criar a propriedade `GEMINI_MODELO` com um modelo estável mais antigo (ver a lista no log de
+  `geminiModelos_`) e medir o tempo; (2) se o problema for o esquema, mandar sem `responseSchema` (JSON no texto) ou
+  desligar o raciocínio (`thinkingConfig`) e confirmar o nome do campo na documentação do Google; (3) garantir que o
+  pedido do app não espera mais que ~25 s (o app desiste antes); (4) publicar nova versão e apagar `testeRdoGemini`.
+- Commit da versão que funcionar: publicar no Apps Script (puxar o arquivo de raw.githubusercontent.com no editor) e
+  atualizar o LEIA-ME.

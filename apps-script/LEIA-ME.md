@@ -7,6 +7,10 @@ Cópia do script publicado no Apps Script (sem senhas: a senha do app, TOKEN, e 
 ficam nas Propriedades do script). Quando mudar o script aqui, cole no Apps Script e publique:
 **Implantar → Gerenciar implantações → lápis ✏️ → Versão: Nova versão → Implantar** (o endereço /exec não muda).
 
+Versão 35: o RDO por voz também funciona com o **Gemini gratuito** (Google AI Studio). Crie a propriedade
+`GEMINI_API_KEY`; com ela o RDO usa o Gemini, sem ela usa o Claude (`ANTHROPIC_API_KEY`), e sem nenhuma o app organiza
+sozinho. O modelo é o "Flash" mais novo que a chave enxerga; para fixar um, crie `GEMINI_MODELO`.
+
 Versão 34: chat do Claude no Painel Dev (ação `devChat`, só o desenvolvedor, usa a mesma ANTHROPIC_API_KEY do RDO por voz)
 e o tamanho de cada aba em `devDados`. No Extras.gs: vigia diário (rode `instalarVigia` uma vez e autorize o e-mail), que avisa
 o desenvolvedor às 7h quando há erros, avisos em aberto, celulares com envios parados ou abas grandes.

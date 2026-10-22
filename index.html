@@ -2129,7 +2129,7 @@ function setCampo(on){ LS.set("campo",!!on); if(on) document.documentElement.dat
 $("#campo-modo").addEventListener("click", e=>{ const b=e.target.closest("button[data-c]"); if(b) setCampo(b.dataset.c==="1"); });
 setCampo(!!LS.get("campo"));
 
-const VERSAO_APP = "v137"; // igual ao número em sw.js (armacao-v137)
+const VERSAO_APP = "v138"; // igual ao número em sw.js (armacao-v138)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -7365,7 +7365,7 @@ function editarConc(c, pre){
         && !confirm("Já há áreas pintadas neste mapa. Mudando as paredes, as folhas mudam e a pintura pode ficar na parede errada. Continuar?")) return;
       // mapa novo de estrutura do catálogo: só os ids (curto); mapa antigo continua com as paredes inteiras (a pintura já feita fica no lugar)
       pdfId = cat && m.um ? mapaCurto(m) : "mapa:"+JSON.stringify(m); pdfNome=`Mapa das paredes · ${m.nome}`;
-    } else { pdfId=iPdf.value; pdfNome=PJ.lista.find(x=>x.id===iPdf.value)?.nome || (iPdf.value===pdfAnt ? c.pdfNome : ""); }
+    } else { pdfId=iPdf.value; pdfNome=PJ.lista.find(x=>x.id===iPdf.value)?.nome || (iPdf.value===pdfAnt ? c?.pdfNome||"" : ""); }
     const campos={data:iData.value, estrutura, local:iLoc.value.trim(), volPrev:Math.max(0,num(iVol.value)), obs:iObs.value.trim(), pdfId, pdfNome};
     const id=nova ? uid().slice(0,10) : c.id;
     if(nova){ setConc(id, {...campos, status:"Programada", cams:[]}, "Programada"); toast("Concretagem programada."); }
@@ -8290,7 +8290,7 @@ function renderReg2(){
   const per=T.semData ? null : el("select",{"aria-label":"Período",onchange:e=>{ RG.dias=+e.target.value; LS.set("rgDias",RG.dias); renderReg2(); }},
     ...[[7,"Últimos 7 dias"],[30,"Últimos 30 dias"],[120,"Últimos 120 dias"],[0,"Todos"]].map(([v,t])=>el("option",{value:v,text:t,selected:RG.dias===v})));
   const cat=catAtual(M), TS=tiposDe(M);
-  const cabeca=[el("p",{class:"saud"}, M.titulo?.(T)||M.nome, el("small",{text:M.desc})),
+  const cabeca=[el("p",{class:"saud"}, M.titulo?.(T)||M.nome, (M.cats || (tiposDe(M).length>1 && !M.semAbas)) ? null : el("small",{text:M.desc})), // com abas, a descrição só repetia o nome delas
     !ed ? el("p",{class:"info",text:"Só leitura para o seu cargo."}) : null,
     // categorias (Qualidade): ao trocar, abre o primeiro tipo dela (o Dashboard)
     cat ? el("div",{class:"modo cats",role:"group","aria-label":"Categoria"}, ...M.cats.map(x=>el("button",{class:"chipbtn"+(x===cat?" on":""),type:"button",text:x.nome,"aria-pressed":String(x===cat),
@@ -10622,7 +10622,7 @@ async function pdfChecagem(R, btn){
 { const rel0=renderRelatorios; renderRelatorios=function(box){ rel0(box); box.querySelector(".saud")?.after(el("button",{class:"btn pr-opcao",type:"button",onclick:verChecagem}, el("b",{text:"🚦 Checagem da obra"}), el("small",{text:"Semáforo do que está pendente: testes, valas, permissões, treinamentos, NCs, CPs, RDO, almoxarifado e cronograma"}))); }; }
 // no início: aviso quando há item vermelho
 { const p0=pendInicio; pendInicio=function(){ const o=p0(); let n=0; try{ n=checagemObra().filter(x=>x.cor==="bad").length; }catch{}
-  if(!n) return o; const b=el("button",{class:"btn",type:"button",style:"color:var(--bad)",text:`🚦 Checagem da obra: ${n} item${n>1?"s":""} vermelho${n>1?"s":""}`,onclick:verChecagem});
+  if(!n) return o; const b=el("button",{class:"btn",type:"button",style:"color:var(--bad)",text:`🚦 Checagem da obra: ${n} ${n>1?"itens vermelhos":"item vermelho"}`,onclick:verChecagem});
   if(o){ o.prepend(b); return o; } return el("div",{class:"row"}, b); }; }
 
 // produtividade do período: total, pessoas-dia e média por pessoa por dia

@@ -2129,7 +2129,7 @@ function setCampo(on){ LS.set("campo",!!on); if(on) document.documentElement.dat
 $("#campo-modo").addEventListener("click", e=>{ const b=e.target.closest("button[data-c]"); if(b) setCampo(b.dataset.c==="1"); });
 setCampo(!!LS.get("campo"));
 
-const VERSAO_APP = "v135"; // igual ao número em sw.js (armacao-v135)
+const VERSAO_APP = "v136"; // igual ao número em sw.js (armacao-v136)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -2324,7 +2324,7 @@ async function montarRelatorio(aviso){
 
 function loadXLSX(){
   if(window.XLSX) return Promise.resolve();
-  return new Promise((res,rej)=>{ const s=document.createElement("script"); s.src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
+  return new Promise((res,rej)=>{ const s=document.createElement("script"); s.src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js";
     s.onload=res; s.onerror=()=>rej(new Error("Não consegui carregar o leitor de Excel. Abra o app uma vez com internet.")); document.head.append(s); });
 }
 const periodoISO = p => { const m=String(p).match(/(\d{2})\/(\d{2})\/(\d{2,4})\s*a\s*(\d{2})\/(\d{2})\/(\d{2,4})/); if(!m) return null;

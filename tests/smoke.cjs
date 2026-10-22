@@ -25,7 +25,7 @@ const confere = (ok, msg) => { console.log(`${ok ? "ok  " : "FALHA"} ${msg}`); i
   if (process.env.WIGO_LIBS) {
     const L = process.env.WIGO_LIBS, loc = { "jspdf.umd.min.js": "jspdf/dist/jspdf.umd.min.js", "jspdf.plugin.autotable.min.js": "jspdf-autotable/dist/jspdf.plugin.autotable.min.js",
       "pdf.min.js": "pdfjs-dist/build/pdf.min.js", "pdf.worker.min.js": "pdfjs-dist/build/pdf.worker.min.js", "xlsx.full.min.js": "xlsx/dist/xlsx.full.min.js" };
-    await ctx.route(/cdnjs\.cloudflare\.com/, r => { const k = Object.keys(loc).find(k => r.request().url().endsWith("/" + k));
+    await ctx.route(/cdnjs\.cloudflare\.com|cdn\.sheetjs\.com/, r => { const k = Object.keys(loc).find(k => r.request().url().endsWith("/" + k));
       return k ? r.fulfill({ body: fs.readFileSync(path.join(L, loc[k])), contentType: "text/javascript" }) : r.abort(); });
     await ctx.route(/fonts\.(googleapis|gstatic)\.com/, r => r.abort());
   }

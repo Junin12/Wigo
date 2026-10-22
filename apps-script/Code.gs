@@ -492,23 +492,24 @@ const RDO_VOZ_SCHEMA = {
 // ---------- Gemini (Google AI Studio, plano gratuito) para o RDO por voz ----------
 // Chave nas Propriedades do script: GEMINI_API_KEY. O modelo é escolhido sozinho (o "Flash" mais novo que a chave
 // enxerga, guardado por 6 horas); para fixar um, crie a propriedade GEMINI_MODELO (ex.: gemini-2.5-flash).
-function geminiModelo_(chave) {
+// lista de modelos Flash para tentar em ordem (o mais novo primeiro; lançamento recente costuma dar "muita demanda" (503))
+function geminiModelos_(chave) {
   const fixo = PropertiesService.getScriptProperties().getProperty('GEMINI_MODELO');
-  if (fixo) return fixo;
-  const cache = CacheService.getScriptCache(), guardado = cache.get('GEMINI_MODELO');
-  if (guardado) return guardado;
+  if (fixo) return [fixo];
+  const cache = CacheService.getScriptCache(), guardado = cache.get('GEMINI_MODELOS');
+  if (guardado) return JSON.parse(guardado);
   const r = UrlFetchApp.fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200', { headers: { 'x-goog-api-key': chave }, muteHttpExceptions: true });
   if (r.getResponseCode() !== 200) throw new Error('A chave do Gemini foi recusada (HTTP ' + r.getResponseCode() + '). Confira GEMINI_API_KEY.');
   const todos = (JSON.parse(r.getContentText()).models || []).filter(m => (m.supportedGenerationMethods || []).indexOf('generateContent') >= 0 && /flash/.test(m.name)
     && !/image|tts|audio|live|embedding|thinking/.test(m.name));
-  const estaveis = todos.filter(m => !/lite|exp|preview/.test(m.name));
-  const lista = estaveis.length ? estaveis : todos;
-  if (!lista.length) throw new Error('Nenhum modelo Flash disponível para esta chave do Gemini.');
+  if (!todos.length) throw new Error('Nenhum modelo Flash disponível para esta chave do Gemini.');
+  // estáveis primeiro (do mais novo ao mais antigo), depois lite/preview como reserva
   const versao = n => Number((String(n).match(/(\d+(?:\.\d+)?)/) || [0, 0])[1]);
-  lista.sort((a, b) => versao(b.name) - versao(a.name) || a.name.length - b.name.length);
-  const nome = lista[0].name.replace(/^models\//, '');
-  cache.put('GEMINI_MODELO', nome, 21600);
-  return nome;
+  const reserva = m => /lite|exp|preview/.test(m.name) ? 1 : 0;
+  todos.sort((a, b) => reserva(a) - reserva(b) || versao(b.name) - versao(a.name) || a.name.length - b.name.length);
+  const nomes = todos.map(m => m.name.replace(/^models\//, '')).slice(0, 6);
+  cache.put('GEMINI_MODELOS', JSON.stringify(nomes), 21600);
+  return nomes;
 }
 // JSON Schema (como o do Claude) → formato de esquema do Gemini (tipos em maiúsculas, sem additionalProperties)
 function paraGemini_(s) {
@@ -523,7 +524,15 @@ function paraGemini_(s) {
 }
 // pede ao Gemini um JSON no formato do esquema; se o esquema for recusado (HTTP 400), tenta de novo com o esquema no texto
 function geminiJson_(chave, sistema, usuario, esquema) {
-  const modelo = geminiModelo_(chave);
+  const modelos = geminiModelos_(chave);
+  let ultimo = '';
+  for (const modelo of modelos) {
+    try { return geminiJsonModelo_(chave, modelo, sistema, usuario, esquema); }
+    catch (e) { if (!e.ocupado) throw e; ultimo = e.message; } // sobrecarregado: tenta o próximo modelo
+  }
+  throw new Error(ultimo || 'Gemini indisponível agora: tente de novo em alguns minutos.');
+}
+function geminiJsonModelo_(chave, modelo, sistema, usuario, esquema) {
   const pedir = comEsquema => UrlFetchApp.fetch('https://generativelanguage.googleapis.com/v1beta/models/' + modelo + ':generateContent', {
     method: 'post', contentType: 'application/json', muteHttpExceptions: true, headers: { 'x-goog-api-key': chave },
     payload: JSON.stringify({
@@ -536,7 +545,7 @@ function geminiJson_(chave, sistema, usuario, esquema) {
   if (resp.getResponseCode() === 400) resp = pedir(false);
   const cod = resp.getResponseCode();
   let j; try { j = JSON.parse(resp.getContentText()); } catch (e) { throw new Error('Resposta inválida do Gemini (HTTP ' + cod + ').'); }
-  if (cod === 429) throw new Error('Limite gratuito do Gemini atingido por agora: tente de novo em alguns minutos.');
+  if (cod === 429 || cod >= 500) { const e = new Error(cod === 429 ? 'Limite gratuito do Gemini atingido por agora: tente de novo em alguns minutos.' : 'Gemini sobrecarregado agora: tente de novo em alguns minutos.'); e.ocupado = true; throw e; }
   if (cod !== 200) throw new Error('Gemini indisponível (HTTP ' + cod + '): ' + ((j.error && j.error.message) || '').slice(0, 200));
   const c = (j.candidates || [])[0];
   if (!c || !c.content) throw new Error('O Gemini não organizou este relato (' + ((c && c.finishReason) || (j.promptFeedback && j.promptFeedback.blockReason) || 'sem resposta') + '). Preencha manualmente.');

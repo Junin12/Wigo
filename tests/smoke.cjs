@@ -50,6 +50,14 @@ const confere = (ok, msg) => { console.log(`${ok ? "ok  " : "FALHA"} ${msg}`); i
       && Math.abs(h.Jkm - 1.36) < 0.01 && Math.abs(h.kW - 32.45) < 0.05 && v.c === 210 && v.a === 40
       && Math.abs(presPerm({ comp: 300, diam: 300, pTeste: 90, dur: 60 }) - 3.74) < 0.01 && valaCalc({ prof: 2.2, prot: "Nenhuma" }).av.length === 1;
   }), "pontos no mapa, rede assentada, hidráulica, teste de pressão e escavações (NR-18)");
+  // segurança, cronograma, almoxarifado, pendência na prancha e checagem
+  confere(await p.evaluate(() => {
+    const tem = (m, t) => MOD2[m].tipos.some(x => x.id === t);
+    const pt = problemasPT({ tipo: "Espaço confinado (NR-33)", exec: [], gases: { o2: 18, lel: 0, h2s: 0, co: 0 } });
+    return ["trein", "pt", "epi"].every(t => tem("seg", t)) && tem("med", "crono") && tem("sup", "almox") && MATERIAIS.some(m => m.id === "almox")
+      && MOD2.qual.tipos.find(t => t.id === "nc").campos.some(c => c.k === "pr") && !!document.querySelector("#v-pend")
+      && pt.length === 1 && /O₂/.test(pt[0]) && addMeses("2026-01-31", 1) === "2026-03-03" && Array.isArray(checagemObra());
+  }), "treinamentos, permissão de trabalho, EPI, curva S, almoxarifado, pendência na prancha e checagem");
 
   // mapa das paredes dos floculadores A e C (gera o PDF inteiro, sem baixar)
   for (const k of ["FLOC-A", "FLOC-C"]) {

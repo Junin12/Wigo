@@ -345,6 +345,11 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
 .hid-l{display:flex;justify-content:space-between;gap:10px;border-bottom:1px dashed var(--line);padding:3px 0}
 .hid-l b{text-align:right}
 .pres-relogio{font-size:1.6rem;font-variant-numeric:tabular-nums}
+.ass-box{display:grid;gap:10px}
+.ass-item{display:grid;gap:4px}
+.ass-pad{width:100%;max-width:520px;aspect-ratio:3/1;background:#fff;border:1px dashed var(--line);border-radius:10px;touch-action:none}
+.ass-img{max-height:70px;max-width:240px;background:#fff;border-radius:6px;padding:4px}
+#v-pend.on{background:#B42318;border-color:#B42318}
 .r2-item{flex-wrap:nowrap}
 .r2-item input:first-child{flex:1;min-width:0}
 .cfg-link summary{cursor:pointer;min-height:44px;display:flex;align-items:center;font-weight:600}
@@ -1140,6 +1145,7 @@ html[data-campo][data-ajuda] .ajuda-btn{background:var(--accent);color:var(--on-
     <button id="v-menos" type="button" aria-label="Diminuir zoom">−</button>
     <button id="v-mais" type="button" aria-label="Aumentar zoom">+</button>
     <button id="v-ajustar" type="button">Ajustar</button>
+    <button id="v-pend" type="button" title="Marcar uma pendência (não conformidade) na prancha">📍 Pendência</button>
     <button id="v-fora" type="button" title="Abrir no leitor de PDF do celular" hidden>⤓ Abrir fora</button>
     <span id="v-alvo" class="v-alvo" hidden>
       <button id="v-mk-ant" type="button" aria-label="Marcação anterior">‹</button>
@@ -2123,7 +2129,7 @@ function setCampo(on){ LS.set("campo",!!on); if(on) document.documentElement.dat
 $("#campo-modo").addEventListener("click", e=>{ const b=e.target.closest("button[data-c]"); if(b) setCampo(b.dataset.c==="1"); });
 setCampo(!!LS.get("campo"));
 
-const VERSAO_APP = "v134"; // igual ao número em sw.js (armacao-v134)
+const VERSAO_APP = "v135"; // igual ao número em sw.js (armacao-v135)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -2798,19 +2804,23 @@ function textoGps(){
   const i=CB.info, g=$("#cb-gps");
   if(i.erro){ g.className="msg"; g.textContent=i.erro; return; }
   if(i.lat==null){ g.className="info"; g.textContent="Obtendo localização…"; return; }
-  g.className="okmsg"; g.textContent=`Localização obtida (±${Math.round(i.prec)} m)` + (i.end ? "" : navigator.onLine ? " · buscando endereço…" : " · sem internet: o endereço fica de fora");
+  g.className="okmsg"; g.textContent=(i.daFoto ? "Localização gravada na foto" : `Localização obtida (±${Math.round(i.prec)} m)`) + (i.end ? "" : navigator.onLine ? " · buscando endereço…" : " · sem internet: o endereço fica de fora");
 }
 // abre a tela do carimbo e devolve a foto pronta (ou null se cancelar)
 async function carimbarFoto(file, contexto){
   const orig=await createImageBitmap(file), s=Math.min(1,1600/Math.max(orig.width,orig.height));
-  const agora=Date.now(), quando=new Date(file.lastModified && Math.abs(agora-file.lastModified)<36e5 ? file.lastModified : agora);
+  // foto da galeria: vale a data e o GPS gravados no arquivo (EXIF); sem GPS gravado e antiga, fica sem lugar (o GPS de agora seria outro lugar)
+  const agora=Date.now(), recente=file.lastModified && Math.abs(agora-file.lastModified)<36e5, ex=await lerExif(file);
+  const quando=ex?.quando || new Date(recente ? file.lastModified : agora);
   // reduz uma vez só, em etapas (foto mais nítida e arquivo menor); a prévia e o carimbo desenham sobre essa cópia
   const W=Math.round(orig.width*s), H=Math.round(orig.height*s), bmp=s<1 ? reduzirImagem(orig, W, H) : orig;
   if(bmp!==orig) orig.close?.();
-  Object.assign(CB,{bmp, W, H, info:{quando, ctx:contexto}});
+  Object.assign(CB,{bmp, W, H, geo:null, info:{quando, ctx:contexto}});
   if(CB.cfg.logo && !CB.logo) carregarLogoCarimbo();
   $("#cb").hidden=false; sincronizarControles(); textoGps(); desenharPrevia();
-  localizacao().then(async g=>{
+  const antiga = !recente && !(ex?.quando && agora-ex.quando<36e5);
+  (ex?.lat!=null ? Promise.resolve({lat:ex.lat, lon:ex.lon, prec:0, daFoto:true})
+    : antiga ? Promise.resolve({erro:"Foto antiga sem localização gravada: sai sem o endereço (depois dá para marcar no mapa)."}) : localizacao()).then(async g=>{
     if(!CB.bmp) return;
     Object.assign(CB.info,g); textoGps(); desenharPrevia();
     if(g.lat!=null){ const e=await endereco(g.lat,g.lon); if(!CB.bmp) return; CB.info.end=e; textoGps(); desenharPrevia(); }
@@ -2840,6 +2850,7 @@ function copiarParaCelular(canvas, quando){
 }
 function salvarCarimbo(celular){
   CB.cfg.celular=celular; salvarCfgCarimbo(); desenharPrevia();
+  CB.geo = CB.info?.lat!=null ? {lat:CB.info.lat, lon:CB.info.lon} : null; // vai para o mapa da obra com a foto
   const c=$("#cb-prev");
   if(celular){ try{ copiarParaCelular(c, CB.info?.quando); }catch{ toast("Não foi possível salvar a cópia no celular. A foto fica no app."); } }
   c.toBlob(b=>fecharCarimbo(b),"image/jpeg",JPEG_APP);
@@ -3878,6 +3889,8 @@ function soltar(e){
     if(arrastou){ ultimoToque=0; return; }
     if(CC.conc && CC.modo==="apagar"){ apagarTracoEm(p); return; }
     if(MK.marcando){ tocarMarca(p); return; }
+    if(PEND.marcando){ tocarPend(p); return; }
+    const pin=pendNoToque(p); if(pin){ formReg2(pin.m, "nc", pin.r); return; }
     if(agora-ultimoToque<300){ if(V.z>V.fit*1.5) ajustar(); else { zoomEm(p.x,p.y,3); mudou(); } ultimoToque=0; }
     else ultimoToque=agora;
   }
@@ -4055,10 +4068,10 @@ const MODULOS=[
   {id:"prod",  nome:"Produtividade",    desc:"Painéis e insights: aço · forma · concreto", c:["#1A9BDC","#0067A6"], ativo:true},
   {id:"obras", nome:"Obras e projetos", desc:"Estruturas, pranchas, pontos no mapa e hidráulica",  c:["#4F7CE8","#2747B0"], ativo:true},
   {id:"rel",   nome:"Relatórios",       desc:"PDF semanal e painéis",          c:["#8A6BE0","#5A3FB0"], ativo:true},
-  {id:"sup",   nome:"Suprimentos",      desc:"Pedidos e recebimento",          c:["#F2AE3D","#D27D1F"], ativo:true},
+  {id:"sup",   nome:"Suprimentos",      desc:"Pedidos, recebimento e almoxarifado",          c:["#F2AE3D","#D27D1F"], ativo:true},
   {id:"qual",  nome:"Qualidade",        desc:"FVS, concreto e teste de pressão da rede",    c:["#36B37E","#1D7A48"], ativo:true},
-  {id:"seg",   nome:"Segurança",        desc:"DDS, inspeções, escavações e checklists de máquinas",           c:["#F2783A","#C9461A"], ativo:true},
-  {id:"med",   nome:"Medições",         desc:"Boletins, avanço físico e rede assentada",       c:["#45A1D6","#22709F"], ativo:true},
+  {id:"seg",   nome:"Segurança",        desc:"DDS, permissão de trabalho, treinamentos, EPI e escavações",           c:["#F2783A","#C9461A"], ativo:true},
+  {id:"med",   nome:"Medições",         desc:"Boletins, rede assentada e curva S",       c:["#45A1D6","#22709F"], ativo:true},
   {id:"equip", nome:"Equipamentos",     desc:"Máquinas, horímetros e diesel",          c:["#7D8B99","#4A5866"], ativo:true},
   // todos: aparece para qualquer cargo (não depende da lista de módulos do cargo)
   {id:"ferr",  nome:"Ferramentas",      desc:"Editor PDF, converter para Word e mais", c:["#E2544A","#B3261E"], ativo:true, todos:true},
@@ -8222,7 +8235,7 @@ function formReg2(mod, tipo, r, pre){
     if(T.dataNorm) data=T.dataNorm(data, d); // ex.: lançamento semanal fica guardado na segunda-feira
     const msg=T.validar?.(d, st); if(msg) return toast(msg);
     // situação calculada pelo próprio registro (ex.: corpo de prova aprovado ou abaixo do fck)
-    const stF=T.statusAuto ? T.statusAuto(d) : st;
+    const stF=T.statusAuto ? T.statusAuto(d, st) : st;
     setReg2(id, {modulo:mod, tipo, data, dados:d, status:stF}, nova?`Criou: ${tituloReg2(T,{dados:d})}`:`Alterou: ${tituloReg2(T,{dados:d})}`);
     const extra=T.aoSalvar?.(id, d, stF, mod, data) || ""; // ex.: não conformidades vão para o plano de ação
     toast((nova?"Registro criado.":"Registro salvo.")+extra); fecharEf();
@@ -9561,7 +9574,7 @@ const MOD2={
       campos:[{k:"nome",rot:"Nome",t:"txt",obrig:true,dica:"Ex.: Escavadeira 01"},{k:"tipo",rot:"Tipo",t:"txt",ops:EQUIP_PADRAO},{k:"ident",rot:"Identificação / placa",t:"txt"},
         {k:"posse",rot:"Próprio ou locado",t:"sel",ops:["Próprio","Locado"]},{k:"empresa",rot:"Empresa",t:"txt"}]}],
     topo:(T)=>T.id==="apont" && !equipsCadastrados().length ? [el("p",{class:"aviso",text:"Cadastre os equipamentos primeiro (aba Cadastro)."})] : []},
-  seg:{nome:"Segurança", desc:"DDS, inspeções, escavações (NR-18), checklists de máquinas e ocorrências", edit:"seg-edit", tipos:[
+  seg:{nome:"Segurança", desc:"DDS, inspeções, escavações, treinamentos e ASO, permissão de trabalho, EPI, máquinas e ocorrências", edit:"seg-edit", tipos:[
     {id:"dds", nome:"DDS", novo:"Novo DDS", fotos:"Foto do DDS",
       campos:[{k:"tema",rot:"Tema",t:"txt",obrig:true,full:true},{k:"part",rot:"Participantes",t:"pessoas"},{k:"resp",rot:"Quem conduziu",t:"pessoa",padrao:()=>nomeRel(U?.nome)},{k:"obs",rot:"Observação",t:"area"}],
       titulo:d=>d.tema},
@@ -9602,7 +9615,7 @@ const MOD2={
       const ls=liberacoesFrentes();
       return [el("details",{class:"card"}, el("summary",{class:"pr-sum",text:`Checklists de concretagem das Frentes · ${ls.length}`}),
         ls.length ? tabelaSimples(["Data","Estrutura","Local","Lance","Responsável","Situação"], ls.slice(0,60).map(l=>[ddmm(l[0]),...l.slice(1)])) : el("p",{class:"info",text:"Nenhum checklist de concretagem ainda (aba Frentes do aço)."}))]; }},
-  med:{nome:"Medições", desc:"Boletins, avanço físico e rede assentada (GPS ou trena)", edit:"med-edit", tipos:[
+  med:{nome:"Medições", desc:"Boletins, rede assentada (GPS ou trena) e cronograma com curva S", edit:"med-edit", tipos:[
     {id:"bol", nome:"Boletins", novo:"Novo boletim", status:["Rascunho","Fechado"],
       campos:[{k:"num",rot:"Número",t:"txt",obrig:true,padrao:()=>String(regs2De("med","bol").length+1)},{k:"ini",rot:"Período: de",t:"data",obrig:true},{k:"fim",rot:"até",t:"data",obrig:true,padrao:()=>hojeISO()},
         {k:"itens",rot:"Itens medidos (manuais)",t:"itens",semCard:false},{k:"obs",rot:"Observação",t:"area"}],
@@ -9801,7 +9814,7 @@ async function mapaCampo(box, camadas){
   for(const c of camadas){ if(!c.pts?.length) continue; b.push(...c.pts.map(p=>[p[0],p[1]]));
     const dica=(x,t)=>t ? x.bindTooltip(t) : x;
     if(c.linha) dica(LF.polyline(c.pts,{color:c.cor||"#ffd400",weight:4}).addTo(m), c.rotulos?.[0]);
-    else c.pts.forEach((p,i)=>dica(LF.circleMarker(p,{radius:7,color:"#fff",weight:2,fillColor:c.cor||"#e2544a",fillOpacity:1}).addTo(m), c.rotulos?.[i]));
+    else c.pts.forEach((p,i)=>{ const mk=dica(LF.circleMarker(p,{radius:7,color:"#fff",weight:2,fillColor:c.cor||"#e2544a",fillOpacity:1}).addTo(m), c.rotulos?.[i]); if(c.acoes?.[i]) mk.on("click", c.acoes[i]); });
     for(const e of c.estacas||[]) LF.circleMarker([e[0],e[1]],{radius:4,color:"#000",weight:1,fillColor:"#fff",fillOpacity:1}).addTo(m).bindTooltip(`${nf0.format(e[2])} m`);
   }
   b.length ? m.fitBounds(b,{padding:[24,24],maxZoom:18}) : m.setView([-19.75,-47.93],13);
@@ -10119,6 +10132,496 @@ function campoSecoes(v, ctx){
       el("div",{class:"row"}, el("button",{class:"btn",type:"button",text:"🧮 Cubicar um caminhão",onclick:()=>abrirFerramentas(CALC_URL+"#cubicagem")})),
       cs.length ? tabelaSimples(["Data","Fornecedor","NF","Medido","Situação"], cs.slice(0,60).map(r=>[ddmm(r.data), r.dados.v?.fornecedor||"", r.dados.v?.nf||"", r.dados.destaque||"", r.dados.situacao||r.status]))
         : el("p",{class:"info",text:"Nenhuma cubicagem guardada ainda. Elas ficam também no Arquivo da obra."}))]; }; }
+
+// ================= Segurança: treinamentos, permissão de trabalho, EPI e investigação de ocorrências =================
+const addMeses = (iso, m) => { const d=new Date(iso+"T12:00"); d.setMonth(d.getMonth()+m); return d.toISOString().slice(0,10); };
+// treinamento → validade padrão em meses (0 = sem vencimento); dá para mudar no registro
+const TREINOS=[["ASO (exame periódico)",12],["Integração de segurança",12],["NR-35 Trabalho em altura",24],["NR-33 Espaço confinado (trabalhador ou vigia)",12],
+  ["NR-33 Supervisor de entrada",12],["NR-18 Construção civil",24],["NR-10 Eletricidade",24],["NR-12 Operador de máquina",0],["NR-11 Operador de munck ou empilhadeira",12],
+  ["NR-06 Uso de EPI",0],["Primeiros socorros / brigada",12]];
+const vencTrein = r => +r.dados.val>0 ? addMeses(r.data, +r.dados.val) : null;
+// o mais recente de cada pessoa + treinamento
+const treinAtuais = () => memoEf("treinAt", ()=>{ const m=new Map();
+  for(const r of regs2De("seg","trein")){ const k=normTxt(r.dados.pessoa)+"|"+r.dados.trein, a=m.get(k); if(!a || r.data>a.data) m.set(k,r); }
+  return [...m.values()]; });
+// [texto, cor, vencimento]
+const sitTrein = r => { const v=vencTrein(r), h=hojeISO(); return !v ? ["válido","ok",null] : v<h ? ["vencido "+ddmm(v),"bad",v] : v<=somaDias(h,30) ? ["vence "+ddmm(v),"and",v] : ["até "+ddmm(v),"ok",v]; };
+const treinDe = nome => treinAtuais().filter(r=>normTxt(r.dados.pessoa)===normTxt(nome));
+const vencidosDe = nome => treinDe(nome).filter(r=>sitTrein(r)[1]==="bad");
+const temTrein = (nome, re) => treinDe(nome).some(r=>re.test(r.dados.trein) && sitTrein(r)[1]!=="bad");
+const curtoTrein = s => String(s).replace(/ \(.*\)$/,"").replace(/^(NR-\d+) .*/,"$1").replace("Integração de segurança","Integração").replace("Primeiros socorros / brigada","1ºs socorros");
+function matrizTrein(){
+  const at=treinAtuais();
+  if(!at.length) return [el("p",{class:"info",text:"Lance o ASO e os treinamentos de cada pessoa: o app monta a matriz, avisa 30 dias antes de vencer e alerta no Ponto quem estiver vencido."})];
+  const nomes=[...new Set(at.map(r=>r.dados.pessoa))].sort((a,b)=>a.localeCompare(b,"pt-BR"));
+  const cols=[...new Set([...TREINOS.map(x=>x[0]), ...at.map(r=>r.dados.trein)])].filter(c=>at.some(r=>r.dados.trein===c));
+  const venc=at.filter(r=>sitTrein(r)[1]!=="ok").sort((a,b)=>String(sitTrein(a)[2]).localeCompare(String(sitTrein(b)[2])));
+  return [venc.length ? el("div",{class:"card"}, el("h3",{text:`Vencidos ou vencendo em 30 dias · ${venc.length}`}),
+      ...venc.slice(0,40).map(r=>{ const [tx,cor]=sitTrein(r); return el("div",{class:"i-top"}, el("span",{text:`${r.dados.pessoa} · ${curtoTrein(r.dados.trein)}`}), el("span",{class:"chip "+cor,text:tx})); }))
+      : el("p",{class:"okmsg",text:"Nenhum treinamento vencido ou vencendo nos próximos 30 dias."}),
+    el("details",{class:"card"}, el("summary",{class:"pr-sum",text:`Matriz de treinamentos · ${nomes.length} pessoa${nomes.length>1?"s":""}`}),
+      el("div",{class:"tbl"}, el("table",{}, el("thead",{}, el("tr",{}, el("th",{text:"Pessoa"}), ...cols.map(c=>el("th",{text:curtoTrein(c),title:c})))),
+        el("tbody",{}, ...nomes.map(n=>el("tr",{}, el("td",{text:n}), ...cols.map(c=>{ const r=at.find(x=>x.dados.pessoa===n && x.dados.trein===c);
+          if(!r) return el("td",{text:"–"}); const [tx,cor,v]=sitTrein(r); return el("td",{}, el("span",{class:"chip "+cor,text:cor==="ok"&&v?ddmm(v):tx})); })))))))];
+}
+MOD2.seg.tipos.splice(MOD2.seg.tipos.findIndex(t=>t.id==="ocor"), 0, {id:"trein", nome:"Treinamentos", novo:"Novo treinamento ou ASO", fotos:"Foto do certificado",
+  rotData:"Data do treinamento ou exame",
+  campos:[{k:"pessoa",rot:"Pessoa",t:"pessoa",obrig:true},
+    {k:"trein",rot:"Treinamento ou exame",t:"sel",ops:TREINOS.map(x=>x[0]),obrig:true,mudou:(v,ctx)=>{ const i=ctx.campo("val")?.querySelector("input"), m=TREINOS.find(x=>x[0]===v); if(i && m) i.value=String(m[1]); }},
+    {k:"val",rot:"Validade",t:"num",un:"meses",padrao:12,dica:"0 = não vence"},{k:"carga",rot:"Carga horária",t:"num",un:"h",semCard:true},
+    {k:"inst",rot:"Instrutor ou clínica",t:"txt",semCard:true},{k:"obs",rot:"Observação",t:"area"}],
+  chip:r=>treinAtuais().includes(r) ? sitTrein(r).slice(0,2) : ["renovado",""],
+  titulo:d=>`${d.pessoa||"?"} · ${curtoTrein(d.trein||"")}`});
+
+// --- permissão de trabalho (PT) com análise de risco da tarefa (APR) ---
+const PT_TIPOS={
+  "Espaço confinado (NR-33)":{re:/NR-33/, gases:true, itens:["Espaço identificado e sinalizado","Energias e tubulações bloqueadas e etiquetadas","Ventilação ligada antes e durante o serviço",
+    "Vigia do lado de fora o tempo todo","Equipamento de resgate no local","Comunicação entre vigia e quem está dentro","Detector de gases calibrado"]},
+  "Trabalho em altura (NR-35)":{re:/NR-35/, itens:["Ancoragem e linha de vida conferidas","Cinto paraquedista e talabarte duplo inspecionados","Área de baixo isolada",
+    "Andaime ou plataforma liberado","Plano de resgate","Sem chuva forte nem vento"]},
+  "Trabalho a quente":{itens:["Inflamáveis retirados ou protegidos (10 m em volta)","Extintor ao lado","Observador de incêndio","Biombo ou manta de proteção","Cilindros presos e com válvula antirretrocesso"]},
+  "Escavação":{itens:CHECK_VALA},
+  "Eletricidade (NR-10)":{re:/NR-10/, itens:["Circuito desligado e bloqueado","Ausência de tensão testada","Aterramento temporário","Ferramentas isoladas","Área sinalizada"]},
+  "Içamento de carga":{re:/NR-11|NR-12/, itens:["Carga dentro da tabela do equipamento (plano de içamento)","Cintas, cabos e manilhas inspecionados","Patolas em base firme",
+    "Área isolada embaixo da carga","Sinaleiro definido","Longe da rede elétrica"]}};
+// gases (NR-33 e limites de tolerância da NR-15): [chave, nome, unidade, aceito?, texto do limite]
+const GASES=[["o2","O₂","%",v=>v>=19.5&&v<=23,"19,5 a 23%"],["lel","Inflamáveis (LEL)","%",v=>v<10,"abaixo de 10%"],["h2s","H₂S","ppm",v=>v<=8,"até 8 ppm"],["co","CO","ppm",v=>v<=39,"até 39 ppm"]];
+function problemasPT(d){
+  const T=PT_TIPOS[d.tipo]||{}, out=[];
+  if(T.gases) for(const [k,n,u,ok,lim] of GASES){ const v=d.gases?.[k]; if(v==null || v==="") out.push(`${n} não medido`); else if(!ok(+v)) out.push(`${n} em ${nf1.format(+v)} ${u} (aceito ${lim})`); }
+  const quem=[...(d.exec||[]), ...(T.gases && d.vigia ? [d.vigia] : [])];
+  if(T.re) for(const n of quem) if(!temTrein(n, T.re)) out.push(`${n}: sem ${T.re.source.replace("|"," ou ")} válido`);
+  for(const n of quem) if(vencidosDe(n).some(r=>/^ASO/.test(r.dados.trein))) out.push(`${n}: ASO vencido`);
+  for(const [it,v] of Object.entries(d.ck||{})) if(v==="NC") out.push(`Não conforme: ${it}`);
+  return out;
+}
+function campoGases(v, ctx){
+  const val={...(v||{})}, box=el("div",{class:"filtros"}), elm=el("div",{class:"campo full"}, "Medição de gases (antes de entrar)", box, el("small",{class:"info",text:"Meça de novo a cada entrada e se o serviço parar."}));
+  box.append(...GASES.map(([k,n,u,ok,lim])=>{ const i=el("input",{type:"text",inputMode:"decimal",value:val[k]!=null?String(val[k]).replace(".",","):"",placeholder:lim}), s=el("small",{});
+    const ver=()=>{ if(i.value.trim()===""){ delete val[k]; s.textContent=""; } else { val[k]=num(i.value); s.textContent=ok(val[k])?"✓ ok":"✗ fora"; s.style.color=ok(val[k])?"var(--good)":"var(--bad)"; } ctx.recPT?.(); };
+    i.oninput=ver; ver(); return el("label",{class:"campo"}, `${n} (${u})`, i, s); }));
+  setTimeout(()=>{ elm.hidden=!PT_TIPOS[ctx.valor?.("tipo")]?.gases; },0);
+  return {elm, ler:()=>Object.keys(val).length ? {...val} : ""};
+}
+// análise de risco da tarefa: risco, controle e o nível antes e depois do controle
+const NIVEIS=["Baixo","Médio","Alto"];
+function campoApr(v){
+  const L=Array.isArray(v) ? v.map(x=>({...x})) : [], box=el("div",{class:"r2-itens"});
+  const sel=(x,k)=>{ if(!x[k]) x[k]=k==="a"?"Alto":"Baixo"; const s=el("select",{"aria-label":k==="a"?"Risco antes":"Risco depois"}, ...NIVEIS.map(n=>el("option",{value:n,text:(k==="a"?"Antes: ":"Depois: ")+n,selected:x[k]===n}))); s.onchange=()=>{ x[k]=s.value; }; return s; };
+  const des=()=>repor(box, ...L.map((x,k)=>{ const t=(cp,ph)=>{ const i=el("input",{type:"text",value:x[cp]||"",placeholder:ph,maxLength:160}); i.oninput=()=>{ x[cp]=i.value; }; return i; };
+      return el("div",{class:"card"}, t("risco","Risco (ex.: queda do trabalhador)"), t("ctrl","Controle (ex.: linha de vida e cinto)"), el("div",{class:"row"}, sel(x,"a"), sel(x,"d"),
+        el("button",{class:"linkbtn del",type:"button",text:"✕ tirar",onclick:()=>{ L.splice(k,1); des(); }}))); }),
+    el("button",{class:"btn",type:"button",text:"+ Risco",onclick:()=>{ L.push({risco:"",ctrl:""}); des(); }}));
+  des();
+  return {elm:el("div",{class:"campo full"}, "Análise de risco da tarefa (APR)", box), ler:()=>L.filter(x=>String(x.risco||"").trim()).map(x=>({risco:x.risco.trim(), ctrl:String(x.ctrl||"").trim(), a:x.a, d:x.d}))};
+}
+// assinaturas na tela: cada uma vira um PNG pequeno (o registro tem limite de tamanho)
+function campoAss(rotulos){
+  return (v)=>{
+    const val={...(v||{})}, box=el("div",{class:"ass-box"});
+    const pad=rot=>{
+      if(val[rot]) return el("div",{class:"ass-item"}, el("small",{text:rot}), el("img",{src:val[rot],alt:"Assinatura de "+rot,class:"ass-img"}),
+        el("button",{class:"linkbtn",type:"button",text:"Refazer",onclick:()=>{ delete val[rot]; des(); }}));
+      const c=el("canvas",{width:600,height:200,class:"ass-pad","aria-label":"Assine aqui: "+rot}), g=c.getContext("2d"); let tr=null, riscou=false;
+      const pt=e=>{ const r=c.getBoundingClientRect(); return [(e.clientX-r.left)*c.width/r.width,(e.clientY-r.top)*c.height/r.height]; };
+      c.onpointerdown=e=>{ try{ c.setPointerCapture(e.pointerId); }catch{} tr=pt(e); Object.assign(g,{lineWidth:5,lineCap:"round",lineJoin:"round",strokeStyle:"#0b2a8a"}); };
+      c.onpointermove=e=>{ if(!tr) return; const q=pt(e); g.beginPath(); g.moveTo(...tr); g.lineTo(...q); g.stroke(); tr=q; riscou=true; };
+      c.onpointerup=c.onpointercancel=()=>{ tr=null; if(riscou) val[rot]=recortarAss(c); };
+      return el("div",{class:"ass-item"}, el("small",{text:rot}), c, el("button",{class:"linkbtn",type:"button",text:"Limpar",onclick:()=>{ g.clearRect(0,0,c.width,c.height); riscou=false; delete val[rot]; }}));
+    };
+    const des=()=>repor(box, ...rotulos.map(pad)); des();
+    return {elm:el("div",{class:"campo full"}, "Assinaturas", box), ler:()=>Object.keys(val).length ? {...val} : ""};
+  };
+}
+function recortarAss(c){
+  const {width:W,height:H}=c, px=c.getContext("2d").getImageData(0,0,W,H).data; let x0=W,y0=H,x1=0,y1=0;
+  for(let y=0;y<H;y+=2) for(let x=0;x<W;x+=2) if(px[(y*W+x)*4+3]){ if(x<x0)x0=x; if(x>x1)x1=x; if(y<y0)y0=y; if(y>y1)y1=y; }
+  const w=Math.max(1,x1-x0+8), h=Math.max(1,y1-y0+8), k=Math.min(1,240/w), o=el("canvas",{width:Math.max(1,Math.round(w*k)),height:Math.max(1,Math.round(h*k))});
+  o.getContext("2d").drawImage(c, x0-4, y0-4, w, h, 0, 0, o.width, o.height);
+  return o.toDataURL("image/png");
+}
+function campoVerifPT(v, ctx){
+  const box=el("div",{});
+  ctx.recPT=()=>{ const d={tipo:ctx.valor("tipo"), exec:ctx.valor("exec"), vigia:ctx.valor("vigia"), gases:ctx.valor("gases"), ck:ctx.valor("ck")}, p=problemasPT(d);
+    repor(box, p.length ? el("div",{class:"aviso"}, el("b",{text:"A permissão fica BLOQUEADA até resolver:"}), el("ul",{}, ...p.map(x=>el("li",{text:x}))))
+      : el("p",{class:"okmsg",text:"Nada impede a liberação. Confira os itens e colha as assinaturas."})); };
+  setTimeout(()=>ctx.recPT(),0);
+  return {elm:el("div",{class:"campo full"}, "Conferência", box, el("button",{class:"btn",type:"button",text:"Conferir de novo",onclick:()=>ctx.recPT()})), ler:()=>""};
+}
+const horaAgora = () => new Date().toTimeString().slice(0,5);
+const ptVencida = r => (r.status==="Aberta"||r.status==="Bloqueada") && (r.data<hojeISO() || (r.data===hojeISO() && !!r.dados.hf && r.dados.hf<horaAgora()));
+MOD2.seg.tipos.splice(MOD2.seg.tipos.findIndex(t=>t.id==="ocor"), 0, {id:"pt", nome:"Permissão de trabalho", novo:"Nova permissão", fotos:"Foto", status:["Aberta","Encerrada","Cancelada"],
+  campos:[{k:"tipo",rot:"Tipo de trabalho",t:"sel",ops:Object.keys(PT_TIPOS),obrig:true,
+      mudou:(v,ctx)=>{ ctx.recheck?.(PT_TIPOS[v]?.itens||[]); const g=ctx.campo("gases"); if(g) g.hidden=!PT_TIPOS[v]?.gases; ctx.recPT?.(); }},
+    {k:"local",rot:"Local",t:"est",obrig:true},{k:"det",rot:"O que vai ser feito",t:"txt",obrig:true,full:true},
+    {k:"hi",rot:"Início",t:"hora",padrao:()=>horaAgora()},{k:"hf",rot:"Válida até",t:"hora",padrao:"17:00"},
+    {k:"exec",rot:"Executantes",t:"pessoas"},{k:"vigia",rot:"Vigia (espaço confinado)",t:"pessoa",semCard:true},{k:"resp",rot:"Emitente / supervisor",t:"pessoa",padrao:()=>nomeRel(U?.nome)},
+    {k:"gases",rot:"Gases",t:"custom",render:campoGases,semCard:true,semPdf:true,fmt:v=>GASES.filter(g=>v[g[0]]!=null).map(g=>`${g[1]} ${nf1.format(v[g[0]])}`).join(" · ")},
+    {k:"apr",rot:"APR",t:"custom",render:campoApr,semCard:true,semPdf:true,fmt:v=>`${v.length} risco${v.length>1?"s":""}`},
+    {k:"ck",rot:"Checklist",t:"check",itens:ctx=>PT_TIPOS[ctx.dados.tipo]?.itens||[]},{k:"epis",rot:"EPIs obrigatórios",t:"txt",full:true,semCard:true},
+    {k:"verif",rot:"",t:"custom",render:campoVerifPT,semCard:true,semPdf:true,fmt:()=>""},
+    {k:"ass",rot:"Assinaturas",t:"custom",render:campoAss(["Emitente","Executante","Vigia ou supervisor"]),semCard:true,semPdf:true,fmt:v=>Object.keys(v).join(", ")},
+    {k:"obs",rot:"Observação",t:"area"}],
+  statusAuto:(d,st)=> st==="Encerrada"||st==="Cancelada" ? st : problemasPT(d).length ? "Bloqueada" : "Aberta",
+  aberto:r=>r.status==="Aberta"||r.status==="Bloqueada",
+  chip:r=> ptVencida(r) ? ["Fora do horário: encerre","bad"] : r.status==="Bloqueada" ? ["Bloqueada","bad"] : r.status==="Aberta" ? [`Aberta até ${r.dados.hf||"?"}`,"and"] : null,
+  aoSalvar:(id,d,st)=> st==="Bloqueada" ? " Permissão BLOQUEADA: veja a conferência." : "",
+  titulo:d=>`${(d.tipo||"PT").replace(/ \(.*\)/,"")} · ${d.local||""}${d.det?" · "+d.det:""}`.slice(0,110)});
+
+// --- entrega de EPI (ficha da NR-6, com a assinatura do trabalhador) ---
+const EPI_LISTA=["Capacete","Óculos de proteção","Protetor auricular","Luva de vaqueta","Luva nitrílica","Luva isolante","Botina de segurança","Bota de PVC","Cinto paraquedista",
+  "Talabarte duplo","Trava-quedas","Máscara PFF2","Respirador semifacial","Colete refletivo","Perneira","Avental de raspa","Máscara de solda","Protetor solar","Uniforme","Capa de chuva"];
+function campoEpis(v){
+  const L=Array.isArray(v) ? v.map(x=>({...x})) : [{epi:"",ca:"",qtd:1}], box=el("div",{class:"r2-itens"}), dl="dl-epi-"+uid().slice(0,5);
+  const des=()=>repor(box, ...L.map((x,k)=>{ const f=(cp,ph,w,dec)=>{ const i=el("input",{type:"text",value:x[cp]??"",placeholder:ph,style:`width:${w}`,inputMode:dec?"decimal":"text"}); if(cp==="epi") i.setAttribute("list",dl); i.oninput=()=>{ x[cp]=dec?num(i.value):i.value; }; return i; };
+      return el("div",{class:"row r2-item"}, f("epi","EPI","100%"), f("ca","CA","5.5em"), f("qtd","Qtd.","3.5em",true), el("button",{class:"linkbtn del",type:"button",text:"✕","aria-label":"Tirar",onclick:()=>{ L.splice(k,1); des(); }})); }),
+    el("button",{class:"btn",type:"button",text:"+ EPI",onclick:()=>{ L.push({epi:"",ca:"",qtd:1}); des(); }}), listaDatalist(dl, EPI_LISTA));
+  des();
+  return {elm:el("div",{class:"campo full"}, "EPIs entregues", box), ler:()=>L.filter(x=>String(x.epi||"").trim()).map(x=>({epi:x.epi.trim(), ca:String(x.ca||"").trim(), qtd:num(x.qtd)||1}))};
+}
+MOD2.seg.tipos.splice(MOD2.seg.tipos.findIndex(t=>t.id==="ocor"), 0, {id:"epi", nome:"Entrega de EPI", novo:"Nova entrega",
+  campos:[{k:"pessoa",rot:"Trabalhador",t:"pessoa",obrig:true},{k:"itens",rot:"EPIs",t:"custom",render:campoEpis,obrig:true,fmt:v=>v.map(x=>`${x.qtd>1?x.qtd+"× ":""}${x.epi}`).join(", ")},
+    {k:"mot",rot:"Motivo",t:"sel",ops:["Admissão","Troca por desgaste","Perda","Dano","Entrega periódica"],padrao:"Troca por desgaste"},
+    {k:"ass",rot:"Assinatura",t:"custom",render:campoAss(["Trabalhador"]),semCard:true,semPdf:true,fmt:v=>v?.Trabalhador?"assinado":""},{k:"obs",rot:"Observação",t:"area"}],
+  chip:r=>r.dados.ass?.Trabalhador ? ["assinado","ok"] : ["sem assinatura","and"],
+  titulo:d=>`${d.pessoa||"?"} · ${(d.itens||[]).length} EPI${(d.itens||[]).length>1?"s":""}`});
+function topoEpi(){
+  const nomes=[...new Set(regs2De("seg","epi").map(r=>r.dados.pessoa).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"pt-BR"));
+  if(!nomes.length) return [el("p",{class:"info",text:"Cada entrega fica na ficha do trabalhador, com a assinatura dele na tela."})];
+  const s=el("select",{"aria-label":"Trabalhador"}, ...nomes.map(n=>el("option",{value:n,text:n})));
+  return [el("div",{class:"card"}, el("h3",{text:"Ficha de EPI (NR-6)"}), el("div",{class:"row"}, s, el("button",{class:"btn",type:"button",text:"📄 Ficha em PDF",onclick:e=>pdfFichaEpi(s.value,e.target)})))];
+}
+async function pdfFichaEpi(nome, btn){
+  const txt=btn.textContent; btn.disabled=true; btn.textContent="Gerando…";
+  try{
+    const L=regs2De("seg","epi").filter(r=>r.dados.pessoa===nome).sort((a,b)=>a.data.localeCompare(b.data));
+    const doc=await novoPdf(`Ficha de entrega de EPI — ${nome}`, `${nomeObra()} · ${cidadeObra()}`), M=12;
+    doc.setFontSize(8.5); doc.text(doc.splitTextToSize("Declaro que recebi gratuitamente os equipamentos de proteção individual abaixo, que fui orientado sobre o uso correto, a guarda e a conservação, e que devo devolvê-los quando danificados ou ao sair da empresa (NR-6).",186), M, 40);
+    const linhas=L.flatMap(r=>(r.dados.itens||[]).map((x,k)=>({r, k, cel:[dataBR(r.data), x.epi, x.ca||"", String(x.qtd||1), r.dados.mot||"", ""]})));
+    doc.autoTable({startY:50, margin:{left:M,right:M}, head:[["Data","EPI","CA","Qtd.","Motivo","Assinatura"]], body:linhas.map(l=>l.cel),
+      styles:{fontSize:8.5,cellPadding:1.5,textColor:20,minCellHeight:11}, headStyles:{fillColor:PDF_AZ,textColor:255}, columnStyles:{5:{cellWidth:42}},
+      didDrawCell:c=>{ if(c.section!=="body" || c.column.index!==5) return; const l=linhas[c.row.index], a=l?.r.dados.ass?.Trabalhador; if(!a || l.k) return;
+        try{ const p=doc.getImageProperties(a), h=Math.min(c.cell.height-2, 9), w=Math.min(c.cell.width-2, h*p.width/p.height); doc.addImage(a,"PNG",c.cell.x+1,c.cell.y+1,w,h); }catch{} }});
+    rodapePdf(doc);
+    await entregarPdf(doc, `Ficha_EPI_${arqNome(nome)}.pdf`, "Ficha de EPI");
+  }catch(e){ toast(e.message||"Não foi possível gerar a ficha."); }
+  finally{ btn.disabled=false; btn.textContent=txt; }
+}
+
+// --- ocorrências: investigação (5 porquês, causa raiz, ação preventiva) e taxas de frequência e gravidade (NBR 14280) ---
+function campoPorques(v){
+  const val=Array.isArray(v) ? [...v] : [], ins=[0,1,2,3,4].map(k=>el("input",{type:"text",maxLength:200,value:val[k]||"",placeholder:k?"E por que isso aconteceu?":"Por que aconteceu?"}));
+  return {elm:el("div",{class:"campo full"}, "Os 5 porquês", ...ins.map((i,k)=>el("label",{class:"campo"}, `${k+1}º porquê`, i))), ler:()=>{ const l=ins.map(i=>i.value.trim()); while(l.length && !l.at(-1)) l.pop(); return l.length ? l : ""; }};
+}
+const HH_DIA=8.8; // jornada de 44 h em 5 dias
+// horas-homem trabalhadas no período, pelo efetivo do Ponto (presentes de cada função)
+function hhtPeriodo(desde, ate){ let p=0;
+  for(const d of datasEf()) if(d>=desde && d<=ate) for(const x of Object.values(diaVals(d))) p+=+(Array.isArray(x)?x[0]:x)||0;
+  return p*HH_DIA; }
+{ const T=MOD2.seg.tipos.find(t=>t.id==="ocor"), salvar0=T.aoSalvar;
+  T.campos.splice(T.campos.findIndex(c=>c.k==="acao")+1, 0,
+    {k:"afast",rot:"Teve afastamento?",t:"sel",ops:["Não","Sim"],semCard:true},{k:"dias",rot:"Dias perdidos",t:"num",semCard:true},
+    {k:"pq",rot:"5 porquês",t:"custom",render:campoPorques,semCard:true,semPdf:true,fmt:v=>v.join(" → ")},
+    {k:"causa",rot:"Causa raiz",t:"area",semCard:true},{k:"prev",rot:"Ação preventiva",t:"area",dica:"O que muda para não acontecer de novo (vai para o Plano de ação)"},
+    {k:"respPrev",rot:"Responsável pela ação",t:"pessoa",semCard:true},{k:"prazoPrev",rot:"Prazo da ação",t:"data",semCard:true});
+  T.aoSalvar=(id,d,st,mod,data)=>(salvar0?.(id,d,st,mod,data)||"")+(d.prev ? criarNCs("seg", id, [{chave:"prev", data, dados:{desc:`Ação preventiva: ${d.prev}`.slice(0,300),
+    origem:`Ocorrência (${d.classe||""})`, local:d.local||"", acao:d.prev, resp:d.respPrev||"", prazo:d.prazoPrev||somaDias(hojeISO(),15)}}]) : ""); }
+function topoOcor(lista){
+  const h=hojeISO(), desde=RG.dias ? somaDias(h,-RG.dias) : (lista.map(r=>r.data).sort()[0]||h), hht=hhtPeriodo(desde,h);
+  const ac=lista.filter(r=>r.dados.classe==="Acidente"), afast=ac.filter(r=>r.dados.afast==="Sim"), dias=ac.reduce((s,r)=>s+(+r.dados.dias||0),0);
+  return [el("div",{class:"kpis"}, kpi("Acidentes",nf0.format(ac.length),`${afast.length} com afastamento · ${lista.length-ac.length} incidentes e quase-acidentes`),
+    kpi("Taxa de frequência", hht ? nf1.format(afast.length*1e6/hht) : "–", hht ? `por milhão de horas · ${nf0.format(hht)} h trabalhadas` : "sem efetivo no Ponto"),
+    kpi("Taxa de gravidade", hht ? nf0.format(dias*1e6/hht) : "–", `${nf0.format(dias)} dias perdidos`)),
+    el("p",{class:"info",text:"NBR 14280: frequência = acidentes com afastamento × 1.000.000 ÷ horas trabalhadas; gravidade = dias perdidos × 1.000.000 ÷ horas. As horas vêm do efetivo do Ponto (8,8 h por pessoa por dia)."})];
+}
+{ const topo0=MOD2.seg.topo; MOD2.seg.topo=(T,lista)=>T.id==="trein" ? matrizTrein() : T.id==="epi" ? topoEpi() : T.id==="ocor" ? topoOcor(lista)
+  : T.id==="pt" ? [el("p",{class:"info",text:"A permissão só libera com os gases dentro do limite, os executantes com treinamento e ASO válidos e o checklist sem não conformidade. Encerre no fim do serviço."})] : topo0(T,lista); }
+// no Ponto: quem chega com treinamento ou ASO vencido recebe o aviso na hora
+{ const marcar0=marcar; marcar=function(p, d, st){ marcar0(p, d, st);
+  if(st==="P" && d===hojeISO()){ const v=vencidosDe(p.nome); if(v.length) toast(`⚠ ${p.nome}: ${v.map(r=>curtoTrein(r.dados.trein)).join(", ")} vencido. Não pode fazer essa atividade até renovar.`); } }; }
+
+// --- Equipamentos: etiqueta QR que abre o apontamento da máquina ---
+async function etiquetasQr(btn){
+  const nomes=equipsCadastrados(); if(!nomes.length) return toast("Cadastre os equipamentos primeiro.");
+  const txt=btn.textContent; btn.disabled=true; btn.textContent="Gerando…";
+  try{
+    await carregarScript("https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js");
+    const doc=await novoPdf("Etiquetas QR dos equipamentos", `${nomeObra()} · aponte a câmera para abrir o apontamento da máquina`), W=62, H=70, M=12;
+    nomes.forEach((n,k)=>{ const pg=Math.floor(k/9), i=k%9; if(i===0 && k) doc.addPage(); const x=M+(i%3)*W, y=(pg?14:36)+Math.floor(i/3)*H;
+      const q=window.qrcode(0,"M"); q.addData(new URL("./?equip="+encodeURIComponent(n), location.href).href); q.make();
+      const m=q.getModuleCount(), s=44/m; doc.setDrawColor(180); doc.rect(x+1,y,W-2,H-4);
+      doc.setFillColor(0); for(let r=0;r<m;r++) for(let c=0;c<m;c++) if(q.isDark(r,c)) doc.rect(x+(W-44)/2+c*s, y+4+r*s, s, s, "F");
+      doc.setFontSize(10); doc.setFont("helvetica","bold"); doc.text(doc.splitTextToSize(n, W-6), x+W/2, y+54, {align:"center"}); doc.setFont("helvetica","normal"); });
+    await entregarPdf(doc, `Etiquetas_QR_equipamentos_${hojeISO()}.pdf`, "Etiquetas QR");
+  }catch(e){ toast(e.message||"Não foi possível gerar as etiquetas (precisa de internet na primeira vez)."); }
+  finally{ btn.disabled=false; btn.textContent=txt; }
+}
+{ const topo0=MOD2.equip.topo; MOD2.equip.topo=(T,lista)=>[...topo0(T,lista), ...(T.id==="cad" && equipsCadastrados().length ? [el("div",{class:"row"}, el("button",{class:"btn",type:"button",text:"🏷 Etiquetas QR (PDF)",onclick:e=>etiquetasQr(e.target)}))] : [])]; }
+// endereço ?equip=Nome (etiqueta QR): abre o apontamento daquela máquina
+{ const q=new URLSearchParams(location.search).get("equip");
+  if(q){ history.replaceState(history.state, "", location.pathname);
+    const tenta=n=>{ if(liberado()){ RG.tipo.equip="apont"; abrirModulo("equip"); formReg2("equip","apont",null,{equip:q}); } else if(n<30) setTimeout(()=>tenta(n+1),500); };
+    setTimeout(()=>tenta(0),1200); } }
+
+// ================= Medições › Cronograma: curva S (planejado × realizado) com os dias de chuva do RDO =================
+const casaTxt = (f, arr) => !f || arr.some(x=>normTxt(x).includes(normTxt(f)));
+const somaDe = (l, f) => l.reduce((s,x)=>s+(+f(x)||0),0);
+// realizado acumulado até a data, por fonte (o filtro é parte do nome do trecho, local ou estrutura)
+const CRONO_FONTES={
+  "Rede assentada (m)":(f,ate)=>somaDe(regs2De("med","rede").filter(r=>r.data<=ate && casaTxt(f,[r.dados.trecho,r.dados.local,r.dados.diam])), r=>r.dados.comp),
+  "Escavação (m³)":(f,ate)=>somaDe(regs2De("esc","apont").filter(r=>r.data<=ate && casaTxt(f,[r.dados.local,r.dados.det])), r=>r.dados.vol),
+  "Concreto lançado (m³)":(f,ate)=>somaDe(concs().filter(c=>c.data<=ate && casaTxt(f,[c.estrutura,c.local])), volLancado),
+  "Forma montada (m²)":(f,ate)=>somaDe(regs2De("forma","apont").filter(r=>r.data<=ate && casaTxt(f,[r.dados.est,r.dados.det,r.dados.obra])), r=>r.dados.mont),
+  "Aço armado (t)":(f,ate)=>somaDe(avancoAco(ate).filter(x=>casaTxt(f,[x.est])), x=>x.e)/1000,
+  "Manual (eu informo)":null};
+const diasEntre = (a,b) => Math.round((new Date(b+"T12:00")-new Date(a+"T12:00"))/864e5);
+const limita = v => Math.max(0, Math.min(1, v||0));
+function realCrono(d, ate){
+  const f=CRONO_FONTES[d.fonte], h=hojeISO();
+  if(f) return f(d.filtro, ate);
+  // manual: o valor de hoje, distribuído no tempo desde o início (para a curva)
+  return (+d.real||0) * (ate>=h ? 1 : limita(diasEntre(d.ini, ate)/Math.max(1, diasEntre(d.ini, h))));
+}
+const planCrono = (d, ate) => limita((diasEntre(d.ini, ate)+1)/(diasEntre(d.ini, d.fim)+1));
+function chuvaPeriodo(ini, fim){
+  const ate=fim<hojeISO()?fim:hojeISO(); let c=0, imp=0;
+  for(let d=ini; d<=ate; d=somaDias(d,1)){ const cl=Object.values(rdoDe(d)?.dados?.clima||{}); if(cl.includes("Impraticável")) imp++; else if(cl.includes("Chuva")) c++; }
+  return {c, imp};
+}
+function resumoCrono(lista){
+  const h=hojeISO(), P=lista.map(r=>({r, d:r.dados, w:+r.dados.peso||1})).filter(x=>x.d.ini && x.d.fim && +x.d.prev>0), W=somaDe(P,x=>x.w);
+  if(!P.length) return null;
+  const ini=P.map(x=>x.d.ini).sort()[0], fim=P.map(x=>x.d.fim).sort().at(-1), pts=[], ponto=t=>({d:t, p:somaDe(P,x=>x.w*planCrono(x.d,t))/W, r: t<=h ? somaDe(P,x=>x.w*limita(realCrono(x.d,t)/x.d.prev))/W : null});
+  const passo=Math.max(1, Math.ceil(diasEntre(ini,fim)/60));
+  for(let d=ini;; d=somaDias(d,passo)){ const t=d>fim?fim:d; pts.push(ponto(t)); if(t>=fim) break; }
+  if(h>ini && h<fim && !pts.some(x=>x.d===h)){ pts.push(ponto(h)); pts.sort((a,b)=>a.d.localeCompare(b.d)); }
+  const linhas=P.map(x=>{ const real=realCrono(x.d,h), pr=limita(real/x.d.prev), esp=planCrono(x.d,h), ch=chuvaPeriodo(x.d.ini, x.d.fim);
+    return {x, real, pr, esp, ch, atraso: pr < esp-0.1}; });
+  const hoje=pts.filter(x=>x.d<=h).at(-1);
+  return {ini, fim, pts, linhas, real:hoje?.r ?? 0, plan:hoje?.p ?? 0, chuva:chuvaPeriodo(ini, fim)};
+}
+// gráfico da curva S num canvas (tela e PDF)
+// medidas proporcionais à largura: o mesmo desenho fica legível no celular (720 px reduzidos) e no PDF (1200 px)
+function graficoCurvaS(R, W=720, H=360){
+  const fs=Math.round(W/30), ml=fs*3.2, mr=fs*0.8, mt=fs*2.2, mb=fs*2.4, c=el("canvas",{width:W,height:H}), g=c.getContext("2d");
+  const x=t=>ml+(W-ml-mr)*diasEntre(R.ini,t)/Math.max(1,diasEntre(R.ini,R.fim)), y=v=>mt+(H-mt-mb)*(1-v);
+  g.fillStyle="#fff"; g.fillRect(0,0,W,H); g.font=`${fs}px sans-serif`; g.fillStyle="#555"; g.strokeStyle="#ddd"; g.lineWidth=1; g.textBaseline="middle";
+  for(let k=0;k<=4;k++){ const v=k/4; g.beginPath(); g.moveTo(ml,y(v)); g.lineTo(W-mr,y(v)); g.stroke(); g.fillText(`${k*25}%`, fs*0.3, y(v)); }
+  g.fillText(dataBR(R.ini), ml, H-fs*0.9); g.textAlign="right"; g.fillText(dataBR(R.fim), W-mr, H-fs*0.9); g.textAlign="left";
+  const h=hojeISO(); if(h>R.ini && h<R.fim){ g.strokeStyle="#999"; g.setLineDash([fs/3,fs/3]); g.beginPath(); g.moveTo(x(h),mt); g.lineTo(x(h),H-mb); g.stroke(); g.setLineDash([]); g.fillText("hoje", x(h)+fs/3, mt+fs*0.6); }
+  const linha=(k,cor)=>{ g.strokeStyle=cor; g.lineWidth=fs/4; g.lineJoin="round"; g.beginPath(); let ini=true; for(const p of R.pts){ if(p[k]==null) continue; if(ini){ g.moveTo(x(p.d),y(p[k])); ini=false; } else g.lineTo(x(p.d),y(p[k])); } g.stroke(); };
+  linha("p","#1F5FA8"); linha("r","#E2702A");
+  const leg=(cor,txt,x0)=>{ g.fillStyle=cor; g.fillRect(x0, fs*0.8, fs*1.2, fs/3); g.fillStyle="#333"; g.fillText(txt, x0+fs*1.5, fs*0.95); };
+  leg("#1F5FA8","Planejado", ml); leg("#E2702A","Realizado", ml+fs*8);
+  return c;
+}
+function topoCrono(lista){
+  const R=resumoCrono(lista);
+  if(!R) return [el("p",{class:"info",text:"Cadastre as atividades com quantidade prevista, início e fim. O realizado vem sozinho da rede assentada, escavação, concreto, forma e aço (ou você informa), e o app desenha a curva S."})];
+  const cg=graficoCurvaS(R); cg.style.cssText="width:100%;height:auto;border-radius:10px";
+  const dv=R.real-R.plan;
+  return [el("div",{class:"kpis"}, kpi("Realizado", pct(R.real), `previsto para hoje: ${pct(R.plan)}`), kpi("Desvio", `${dv>=0?"+":""}${nf1.format(dv*100)} p.p.`, dv<-0.05?"atrasado":dv>0.05?"adiantado":"no prazo"),
+      kpi("Dias de chuva", nf0.format(R.chuva.c+R.chuva.imp), `${R.chuva.imp} impraticáveis (pelo RDO)`)),
+    el("div",{class:"card"}, cg),
+    el("div",{class:"card"}, el("h3",{text:"Atividades"}), tabelaSimples(["Atividade","Previsto","Realizado","%","Esperado hoje","Chuva"],
+      R.linhas.map(l=>[l.x.d.ativ+(l.atraso?" ⚠":""), `${nf1.format(+l.x.d.prev)} ${l.x.d.un||""}`, nf1.format(l.real), pct(l.pr), pct(l.esp), `${l.ch.c+l.ch.imp} d`]))),
+    el("div",{class:"row"}, el("button",{class:"btn",type:"button",text:"📄 Curva S em PDF",onclick:e=>pdfCrono(R,e.target)}))];
+}
+async function pdfCrono(R, btn){
+  const txt=btn.textContent; btn.disabled=true; btn.textContent="Gerando…";
+  try{
+    const doc=await novoPdf(`Cronograma — curva S`, `${nomeObra()} · ${dataBR(R.ini)} a ${dataBR(R.fim)} · posição em ${dataBR(hojeISO())}`), M=12;
+    doc.addImage(graficoCurvaS(R, 1200, 600).toDataURL("image/jpeg", 0.85), "JPEG", M, 38, 186, 93);
+    doc.setFontSize(10); doc.text(`Realizado ${pct(R.real)} · previsto ${pct(R.plan)} · ${R.chuva.c+R.chuva.imp} dias de chuva (${R.chuva.imp} impraticáveis) registrados no RDO`, M, 138);
+    doc.autoTable({startY:143, margin:{left:M,right:M}, head:[["Atividade","Fonte","Início","Fim","Previsto","Realizado","%","Esperado hoje","Dias de chuva"]],
+      body:R.linhas.map(l=>[l.x.d.ativ, l.x.d.fonte.replace(/ \(.*\)/,""), dataBR(l.x.d.ini), dataBR(l.x.d.fim), `${nf1.format(+l.x.d.prev)} ${l.x.d.un||""}`, nf1.format(l.real), pct(l.pr), pct(l.esp), `${l.ch.c+l.ch.imp} (${l.ch.imp} impr.)`]),
+      styles:{fontSize:8,cellPadding:1.4,textColor:20}, headStyles:{fillColor:PDF_AZ,textColor:255}});
+    rodapePdf(doc);
+    await entregarPdf(doc, `Curva_S_${arqNome(nomeObra())}_${hojeISO()}.pdf`, "Curva S");
+  }catch(e){ toast(e.message||"Não foi possível gerar o PDF."); }
+  finally{ btn.disabled=false; btn.textContent=txt; }
+}
+MOD2.med.tipos.push({id:"crono", nome:"Cronograma", novo:"Nova atividade", semData:true,
+  campos:[{k:"ativ",rot:"Atividade",t:"txt",obrig:true,full:true,dica:"Ex.: Adutora AT-01 DN 300"},{k:"fonte",rot:"Realizado vem de",t:"sel",ops:Object.keys(CRONO_FONTES),obrig:true,
+      mudou:(v,ctx)=>{ const i=ctx.campo("un")?.querySelector("input"); const u=(v.match(/\((.+)\)/)||[])[1]; if(i && u && !/informo/.test(u) && !i.value) i.value=u; }},
+    {k:"filtro",rot:"Contar só o que tiver no nome",t:"txt",dica:"Ex.: AT-01 (em branco: conta tudo da fonte)"},{k:"un",rot:"Unidade",t:"txt"},
+    {k:"prev",rot:"Quantidade prevista",t:"num",obrig:true},{k:"ini",rot:"Início previsto",t:"data",obrig:true},{k:"fim",rot:"Fim previsto",t:"data",obrig:true},
+    {k:"peso",rot:"Peso na curva",t:"num",padrao:1,semCard:true,dica:"Ex.: o valor do item no contrato"},{k:"real",rot:"Realizado até hoje (só no manual)",t:"num",semCard:true},{k:"obs",rot:"Observação",t:"area"}],
+  validar:d=> d.fim<d.ini ? "O fim previsto é antes do início." : "",
+  titulo:d=>`${d.ativ} · ${pct(d.prev>0 ? limita(realCrono(d,hojeISO())/d.prev) : 0)}`,
+  chip:r=>{ const d=r.dados; if(!(d.prev>0) || !d.ini) return null; const pr=limita(realCrono(d,hojeISO())/d.prev), esp=planCrono(d,hojeISO());
+    return pr>=1 ? ["Concluída","ok"] : pr<esp-0.1 ? [`Atrasada (${pct(esp)} esperado)`,"bad"] : esp>0 ? ["No prazo",""] : ["A iniciar",""]; }});
+{ const topo0=MOD2.med.topo; MOD2.med.topo=(T,lista)=>T.id==="crono" ? topoCrono(lista) : topo0(T,lista);
+  const rod0=MOD2.med.rodape; MOD2.med.rodape=(T,lista)=>T.id==="crono" ? [] : rod0(T,lista); }
+
+// ================= Suprimentos › Almoxarifado: entradas, saídas, ferramentas emprestadas e saldo =================
+MAT2.almox={nome:"Almoxarifado", un:""};
+MATERIAIS.push({id:"almox", nome:"Almoxarifado", desc:"Entradas, saídas, ferramentas emprestadas e saldo", c:["#7D8B99","#4A5866"], ativo:true});
+ICO.almox='<path d="M3 9l9-5 9 5v11H3z"/><path d="M7 20v-7h10v7M7 16.5h10"/>';
+const MOVS={"Entrada":1, "Devolução":1, "Saída":-1, "Empréstimo":-1};
+const itensAlmox = () => [...new Set(regs2De("sup","almox").map(r=>r.dados.item).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"pt-BR"));
+function saldosAlmox(){
+  const m=new Map();
+  for(const r of regs2De("sup","almox").slice().sort((a,b)=>String(a.data).localeCompare(String(b.data)))){ const d=r.dados, k=normTxt(d.item); if(!k) continue;
+    const x=m.get(k)||{item:d.item, un:d.un||"", saldo:0, min:null, com:new Map()};
+    x.saldo+=(MOVS[d.mov]||0)*(+d.qtd||0); if(d.un) x.un=d.un; if(d.min!=null && d.min!=="") x.min=+d.min;
+    if(d.mov==="Empréstimo" || d.mov==="Devolução"){ const p=d.pessoa||"(sem nome)"; x.com.set(p,(x.com.get(p)||0)+(d.mov==="Empréstimo"?1:-1)*(+d.qtd||0)); }
+    m.set(k,x); }
+  return [...m.values()].sort((a,b)=>a.item.localeCompare(b.item,"pt-BR"));
+}
+const almoxBaixos = () => saldosAlmox().filter(x=>x.min!=null && x.saldo<x.min);
+const n1 = v => nf1.format(+v||0).replace(/,0$/,"");
+MOD2.sup.tipos.push({id:"almox", nome:"Movimentos", novo:"Novo movimento",
+  campos:[{k:"mov",rot:"Movimento",t:"sel",ops:Object.keys(MOVS),obrig:true,padrao:"Saída"},{k:"item",rot:"Item",t:"txt",obrig:true,ops:()=>itensAlmox(),dica:"Ex.: cimento CP-II 50 kg, furadeira 01"},
+    {k:"un",rot:"Unidade",t:"txt",ops:["un","sc","kg","m","m²","m³","L","cx","pç","rolo"]},{k:"qtd",rot:"Quantidade",t:"num",obrig:true},
+    {k:"pessoa",rot:"Quem retirou ou devolveu",t:"pessoa"},{k:"local",rot:"Frente de serviço",t:"est"},
+    {k:"min",rot:"Estoque mínimo do item",t:"num",semCard:true,dica:"Opcional: abaixo disso o app avisa"},{k:"obs",rot:"Observação",t:"area"}],
+  chip:r=>[r.dados.mov, MOVS[r.dados.mov]>0 ? "ok" : ""],
+  titulo:d=>`${d.item||"?"} · ${MOVS[d.mov]>0?"+":"−"}${n1(d.qtd)} ${d.un||""}`});
+function topoAlmox(){
+  const S2=saldosAlmox(); if(!S2.length) return [el("p",{class:"info",text:"Lance as entradas e saídas: o app mostra o saldo de cada item, avisa o que está abaixo do mínimo e com quem estão as ferramentas emprestadas."})];
+  const baixos=S2.filter(x=>x.min!=null && x.saldo<x.min), emp=S2.flatMap(x=>[...x.com].filter(([,q])=>q>0).map(([p,q])=>[x.item, p, n1(q)+" "+x.un]));
+  return [baixos.length ? el("p",{class:"aviso",text:`⚠ Abaixo do mínimo: ${baixos.map(x=>`${x.item} (${n1(x.saldo)} de ${n1(x.min)} ${x.un})`).join(", ")}`}) : null,
+    el("details",{class:"card",open:true}, el("summary",{class:"pr-sum",text:`Saldo · ${S2.length} itens`}),
+      tabelaSimples(["Item","Saldo","Mínimo",""], S2.map(x=>[x.item, `${n1(x.saldo)} ${x.un}`, x.min!=null?n1(x.min):"–", x.min!=null&&x.saldo<x.min?"⚠ repor":x.saldo<0?"⚠ saldo negativo":""]))),
+    emp.length ? el("details",{class:"card"}, el("summary",{class:"pr-sum",text:`Ferramentas emprestadas · ${emp.length}`}), tabelaSimples(["Item","Com quem","Qtd."], emp)) : null].filter(Boolean);
+}
+{ const topo0=MOD2.sup.topo; MOD2.sup.topo=(T,lista)=>T.id==="almox" ? topoAlmox() : topo0(T,lista); }
+
+// ================= Pendência marcada na prancha (Plano de ação da Qualidade e da Segurança) =================
+// A não conformidade guarda dados.pr = {f: id do PDF, nome, n: folha, x, y em pontos do PDF}; o alfinete aparece no visualizador.
+const PEND={marcando:false};
+function campoPrancha(v){
+  if(!v?.f) return {elm:el("span",{hidden:true}), ler:()=>""};
+  return {elm:el("div",{class:"campo full"}, "Na prancha", el("div",{class:"row"}, el("span",{text:`📍 ${pjTitulo(v.nome||"")} · folha ${v.n}`}),
+      el("button",{class:"btn",type:"button",text:"Ver na prancha",onclick:()=>{ const f=PJ.lista.find(x=>x.id===v.f) || {id:v.f, nome:v.nome}; fecharEf(); abrirPdf(f, v.n); }}))), ler:()=>v};
+}
+for(const m of ["qual","seg"]) MOD2[m].tipos.find(t=>t.id==="nc").campos.push({k:"pr",rot:"Prancha",t:"custom",render:campoPrancha,semPdf:true,semCard:true,fmt:v=>v?.nome?`${pjTitulo(v.nome)} f.${v.n}`:""});
+const pendsFolha = () => ["qual","seg"].flatMap(m=>regs2De(m,"nc").map(r=>({r,m}))).filter(x=>x.r.dados.pr?.f===V.fid && +x.r.dados.pr.n===V.n);
+{ const des0=desenharMarcas;
+  desenharMarcas=function(ctx, vp, ox, oy, dpr){ des0(ctx, vp, ox, oy, dpr);
+    pendsFolha().forEach((x,k)=>{ const [px,py]=vp.convertToViewportPoint(x.r.dados.pr.x, x.r.dados.pr.y), cx=px+ox, cy=py+oy, r=11*dpr;
+      const cor = x.r.status==="Resolvida" ? "#1E8E3E" : ncVencida(x.r) ? "#7A0E0B" : "#E0201B";
+      ctx.save(); ctx.fillStyle=cor; ctx.strokeStyle="#fff"; ctx.lineWidth=2.5*dpr;
+      ctx.beginPath(); ctx.arc(cx, cy-r*1.3, r, Math.PI*0.85, Math.PI*0.15); ctx.lineTo(cx, cy); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.fillStyle="#fff"; ctx.font=`bold ${11*dpr}px sans-serif`; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText(String(k+1), cx, cy-r*1.3); ctx.restore(); }); }; }
+// alfinete tocado (em pixels da tela), ou null
+function pendNoToque(p){
+  if(!V.page) return null; const vp=V.page.getViewport({scale:V.z});
+  return pendsFolha().find(x=>{ const [px,py]=vp.convertToViewportPoint(x.r.dados.pr.x, x.r.dados.pr.y); return Math.hypot(px+V.tx-p.x, py+V.ty-14-p.y)<24; }) || null;
+}
+function tocarPend(p){
+  PEND.marcando=false; $("#v-pend").classList.remove("on"); $("#v-aviso").hidden=true;
+  const [x,y]=V.page.getViewport({scale:V.z}).convertToPdfPoint(p.x-V.tx, p.y-V.ty), mod=pode("qual-edit") || !pode("seg-edit") ? "qual" : "seg";
+  RG.tipo[mod]="nc"; formReg2(mod, "nc", null, {pr:{f:V.fid, nome:V.nome, n:V.n, x:Math.round(x*10)/10, y:Math.round(y*10)/10}, origem:`Prancha ${pjTitulo(V.nome)}, folha ${V.n}`});
+}
+$("#v-pend").onclick=()=>{ PEND.marcando=!PEND.marcando; $("#v-pend").classList.toggle("on",PEND.marcando); const a=$("#v-aviso");
+  a.hidden=!PEND.marcando; a.textContent="Toque no ponto da prancha onde está a pendência. Os alfinetes ficam vermelhos em aberto, escuros vencidos e verdes resolvidos."; };
+// redesenha a folha quando a janela do registro fecha (alfinete novo ou situação mudada)
+new MutationObserver(()=>{ if($("#ef-modal").hidden && !$("#viewer").hidden && V.page) mudou(0); }).observe($("#ef-modal"), {attributes:true, attributeFilter:["hidden"]});
+
+// ================= Fotos no mapa: posição gravada na foto (EXIF) ou do GPS na hora; marcar no mapa depois =================
+// lê data e GPS do EXIF de um JPEG (só o começo do arquivo)
+async function lerExif(file){
+  try{
+    if(!/jpe?g/i.test(file.type||"") && !/\.jpe?g$/i.test(file.name||"")) return null;
+    const b=new DataView(await file.slice(0,262144).arrayBuffer()); if(b.getUint16(0)!==0xFFD8) return null;
+    for(let o=2; o+10<b.byteLength;){ const m=b.getUint16(o), len=b.getUint16(o+2);
+      if(m===0xFFE1 && b.getUint32(o+4)===0x45786966) return tiffExif(b, o+10);
+      if((m&0xFF00)!==0xFF00 || m===0xFFDA) break; o+=2+len; }
+  }catch{} return null;
+}
+function tiffExif(b, t){
+  const le=b.getUint16(t)===0x4949, u16=p=>b.getUint16(t+p,le), u32=p=>b.getUint32(t+p,le);
+  const ifd=p=>{ const n=u16(p), o={}; for(let i=0;i<n;i++){ const e=p+2+i*12; o[u16(e)]={tipo:u16(e+2), n:u32(e+4), v:e+8}; } return o; };
+  const val=x=>{ if(!x) return null; const tam={1:1,2:1,3:2,4:4,5:8,7:1,10:8}[x.tipo]||1, p=x.n*tam>4 ? u32(x.v) : x.v;
+    if(x.tipo===2){ let s=""; for(let i=0;i<x.n-1;i++) s+=String.fromCharCode(b.getUint8(t+p+i)); return s; }
+    if(x.tipo===5) return Array.from({length:x.n},(_,i)=>u32(p+i*8)/(u32(p+i*8+4)||1));
+    return x.tipo===3 ? u16(p) : x.tipo===4 ? u32(p) : null; };
+  const i0=ifd(u32(4)), out={};
+  if(i0[0x8769]){ const d=val(ifd(val(i0[0x8769]))[0x9003]), m=d?.match(/(\d{4}):(\d\d):(\d\d) (\d\d):(\d\d):(\d\d)/); if(m) out.quando=new Date(+m[1],m[2]-1,+m[3],+m[4],+m[5],+m[6]); }
+  if(i0[0x8825]){ const g=ifd(val(i0[0x8825])), la=val(g[2]), lo=val(g[4]), dec=a=>a[0]+a[1]/60+a[2]/3600;
+    if(la?.length===3 && lo?.length===3 && (dec(la)||dec(lo))){ out.lat=dec(la)*(val(g[1])==="S"?-1:1); out.lon=dec(lo)*(val(g[3])==="W"?-1:1); } }
+  return out;
+}
+const geoFotos = () => memoEf("geoFotos", ()=>new Map(regs2De("fotos","geo").map(r=>[r.dados.foto, r.dados])));
+function salvarGeoFoto(foto, lat, lon, data, txt){ setReg2("fg"+String(foto.id||foto).slice(0,30), {modulo:"fotos", tipo:"geo", data:data||hojeISO(), dados:{foto:foto.id||foto, lat:+lat.toFixed(7), lon:+lon.toFixed(7), txt:txt||""}}); }
+// toda foto nova guarda a posição do carimbo (do GPS do arquivo ou do celular na hora)
+{ const add0=addReg; addReg=function(r){ add0(r); if(r.tipo==="foto" && CB.geo){ salvarGeoFoto(r, CB.geo.lat, CB.geo.lon, r.data, r.texto); CB.geo=null; } }; }
+// marcar no mapa a posição de uma foto sem GPS
+function marcarFotoNoMapa(r){
+  const box=el("div",{class:"geo-mapa geo-grande"}), aviso=el("p",{class:"info",text:"Toque no mapa onde a foto foi tirada."});
+  efModal("Onde foi esta foto?", [el("div",{class:"full"}, aviso, box)], []);
+  mapaCampo(box, camadasCampo().camadas).then(m=>{ if(!m) return; let mk=null;
+    m.on("click", e=>{ const {lat,lng}=e.latlng; if(mk) mk.remove(); mk=GEO.L.circleMarker([lat,lng],{radius:9,color:"#fff",weight:2,fillColor:"#E25C8A",fillOpacity:1}).addTo(m);
+      repor(aviso, el("button",{class:"btn pri",type:"button",text:"Guardar este lugar",onclick:()=>{ salvarGeoFoto(r, lat, lng, r.data, r.texto); toast("Lugar da foto guardado."); fecharEf(); }})); }); });
+}
+// camadas do mapa da obra: trechos, pontos e fotos (a foto abre ao tocar)
+{ const cam0=camadasCampo; camadasCampo=function(){ const o=cam0(), gf=geoFotos(), fs=regsAll().filter(r=>r.tipo==="foto" && gf.has(r.id));
+  o.fotos=fs; o.camadas.push({pts:fs.map(r=>[gf.get(r.id).lat, gf.get(r.id).lon]), cor:"#E25C8A", rotulos:fs.map(r=>`📷 ${dataBR(r.data)}${r.texto?" · "+r.texto:""}`), acoes:fs.map(r=>()=>verFoto(r))});
+  return o; }; }
+{ const ver0=verFoto; verFoto=function(r){ ver0(r); const g=geoFotos().get(r.id), corpo=$("#ef-m-corpo"); if(!corpo) return;
+  corpo.append(el("div",{class:"row full"}, g ? el("button",{class:"btn",type:"button",text:"🗺 Ver no mapa da obra",onclick:verMapaCampo})
+    : el("button",{class:"btn",type:"button",text:"📍 Marcar no mapa onde foi",onclick:()=>marcarFotoNoMapa(r)}))); }; }
+{ const ren0=renderFotos; renderFotos=function(){ ren0(); const box=$("#fotos"); if(!box) return; const n=geoFotos().size;
+  box.querySelector(".saud")?.after(el("div",{class:"row"}, el("button",{class:"btn",type:"button",text:`🗺 Mapa da obra${n?` · ${n} foto${n>1?"s":""} com lugar`:""}`,onclick:verMapaCampo}))); }; }
+
+// ================= Checagem da obra: semáforo com o que está pendente ou fora do padrão =================
+const mesmoTrecho = (a,b) => { const x=normTxt(a).replace(/[^A-Z0-9]/g,""), y=normTxt(b).replace(/[^A-Z0-9]/g,""); return !!x && !!y && (x===y || x.includes(y) || y.includes(x)); };
+function checagemObra(){
+  const h=hojeISO(), R=[], item=(cor, tit, det=[], abrir)=>R.push({cor, tit, det, abrir});
+  const redes=regs2De("med","rede"), testes=regs2De("qual","pres");
+  const aprovado = tr => testes.some(t=>t.status==="Aprovado" && mesmoTrecho(t.dados.trecho, tr));
+  const semTeste=redes.filter(r=>!aprovado(r.dados.trecho)), reat=semTeste.filter(r=>r.status==="Reaterrado");
+  if(redes.length) item(reat.length ? "bad" : semTeste.length ? "and" : "ok", reat.length ? `${reat.length} trecho(s) reaterrado(s) sem teste de pressão aprovado` : semTeste.length ? `${semTeste.length} trecho(s) de rede sem teste de pressão aprovado` : "Todos os trechos de rede com teste de pressão aprovado",
+    semTeste.slice(0,12).map(r=>`${r.dados.trecho} (${r.status})`), ()=>{ RG.tipo.med="rede"; abrirModulo("med"); });
+  const reprov=testes.filter(t=>t.status==="Reprovado" && !aprovado(t.dados.trecho));
+  if(testes.length) item(reprov.length?"bad":"ok", reprov.length ? `${reprov.length} teste(s) de pressão reprovado(s) sem novo teste aprovado` : "Nenhum teste de pressão reprovado em aberto", reprov.map(t=>t.dados.trecho), ()=>{ RG.cat.qual="rede"; RG.tipo.qual="pres"; abrirModulo("qual"); });
+  const valas=regs2De("seg","vala").filter(r=>r.status==="Bloqueada" && r.data>=somaDias(h,-7));
+  item(valas.length?"bad":"ok", valas.length ? `${valas.length} escavação(ões) bloqueada(s) nos últimos 7 dias` : "Nenhuma escavação bloqueada nos últimos 7 dias", valas.map(r=>`${r.dados.local} · ${nf2(+r.dados.prof)} m`), ()=>{ RG.tipo.seg="vala"; abrirModulo("seg"); });
+  const pts=regs2De("seg","pt").filter(r=>r.status==="Aberta"||r.status==="Bloqueada"), ptv=pts.filter(ptVencida);
+  if(pts.length) item(ptv.length?"bad":"and", ptv.length ? `${ptv.length} permissão(ões) de trabalho fora do horário, sem encerrar` : `${pts.length} permissão(ões) de trabalho aberta(s)`, pts.map(r=>`${ddmm(r.data)} · ${r.dados.local} · ${r.status}`), ()=>{ RG.tipo.seg="pt"; abrirModulo("seg"); });
+  const at=treinAtuais(), venc=at.filter(r=>sitTrein(r)[1]==="bad"), aVencer=at.filter(r=>sitTrein(r)[1]==="and");
+  if(at.length) item(venc.length?"bad":aVencer.length?"and":"ok", venc.length ? `${venc.length} treinamento(s) ou ASO vencido(s)` : aVencer.length ? `${aVencer.length} treinamento(s) vencendo em 30 dias` : "Treinamentos e ASO em dia",
+    [...venc, ...aVencer].slice(0,15).map(r=>`${r.dados.pessoa} · ${curtoTrein(r.dados.trein)} · ${sitTrein(r)[0]}`), ()=>{ RG.tipo.seg="trein"; abrirModulo("seg"); });
+  for(const [m,nome] of [["qual","Qualidade"],["seg","Segurança"]]){ const ab=regs2De(m,"nc").filter(ncAberta), v=ab.filter(ncVencida);
+    item(v.length?"bad":ab.length?"and":"ok", v.length ? `${nome}: ${v.length} não conformidade(s) vencida(s)` : ab.length ? `${nome}: ${ab.length} não conformidade(s) em aberto` : `${nome}: nenhuma não conformidade em aberto`,
+      v.slice(0,10).map(r=>`${String(r.dados.desc).slice(0,70)} · prazo ${ddmm(r.dados.prazo)}`), ()=>{ RG.tipo[m]="nc"; abrirModulo(m); }); }
+  const cps=cpPendentes().filter(x=>x.data<h);
+  item(cps.length?"bad":"ok", cps.length ? `${cps.length} rompimento(s) de corpo de prova atrasado(s)` : "Rompimentos de corpo de prova em dia", cps.slice(0,10).map(x=>`${tituloReg2(tipoCp,x.r)} · ${x.idade} dias (${ddmm(x.data)})`), ()=>{ RG.tipo.qual="cp"; abrirModulo("qual"); });
+  const baixos=almoxBaixos(); if(regs2De("sup","almox").length) item(baixos.length?"and":"ok", baixos.length ? `${baixos.length} item(ns) do almoxarifado abaixo do mínimo` : "Almoxarifado acima do mínimo", baixos.map(x=>`${x.item}: ${n1(x.saldo)} ${x.un}`), ()=>{ RG.tipo.sup="almox"; abrirModulo("sup"); });
+  const uteis=[1,2,3,4,5,6,7].map(k=>somaDias(h,-k)).filter(d=>{ const w=new Date(d+"T12:00").getDay(); return w>0 && w<6; }), semRdo=uteis.filter(d=>!rdoDe(d));
+  item(semRdo.length>2?"bad":semRdo.length?"and":"ok", semRdo.length ? `${semRdo.length} dia(s) útil(eis) da última semana sem RDO` : "RDO de todos os dias úteis da última semana", semRdo.map(dataBR), ()=>abrirTela("rdo"));
+  const pend=["qual","seg"].flatMap(m=>regs2De(m,"nc")).filter(r=>r.dados.pr && ncAberta(r));
+  if(pend.length) item("and", `${pend.length} pendência(s) marcada(s) na prancha em aberto`, pend.slice(0,10).map(r=>`${pjTitulo(r.dados.pr.nome)} f.${r.dados.pr.n} · ${String(r.dados.desc).slice(0,60)}`), ()=>{ RG.tipo.qual="nc"; abrirModulo("qual"); });
+  const cr=resumoCrono(regs2De("med","crono")), atr=cr?.linhas.filter(l=>l.atraso)||[];
+  if(cr) item(atr.length?"and":"ok", atr.length ? `${atr.length} atividade(s) do cronograma atrasada(s)` : "Cronograma sem atividade atrasada", atr.map(l=>`${l.x.d.ativ}: ${pct(l.pr)} de ${pct(l.esp)} esperado`), ()=>{ RG.tipo.med="crono"; abrirModulo("med"); });
+  const ordem={bad:0, and:1, ok:2}; return R.sort((a,b)=>ordem[a.cor]-ordem[b.cor]);
+}
+const COR_SEM={bad:"🔴", and:"🟡", ok:"🟢"};
+function verChecagem(){
+  const R=checagemObra(), n=c=>R.filter(x=>x.cor===c).length;
+  efModal(`Checagem da obra · ${n("bad")} vermelho, ${n("and")} amarelo, ${n("ok")} verde`, [
+    ...R.map(x=>el("div",{class:"card full"}, el("div",{class:"i-top"}, el("b",{text:`${COR_SEM[x.cor]} ${x.tit}`}), x.abrir && x.cor!=="ok" ? el("button",{class:"linkbtn",type:"button",text:"Abrir",onclick:()=>{ fecharEf(); x.abrir(); }}) : null),
+      x.det.length && x.cor!=="ok" ? el("small",{class:"info",text:x.det.join(" · ")}) : null))],
+    [el("button",{class:"btn pri",type:"button",text:"📄 PDF",onclick:e=>pdfChecagem(R,e.target)})]);
+}
+async function pdfChecagem(R, btn){
+  const txt=btn.textContent; btn.disabled=true; btn.textContent="Gerando…";
+  try{
+    const doc=await novoPdf("Checagem da obra", `${nomeObra()} · ${dataBR(hojeISO())} ${horaAgora()}`), M=12, cor={bad:[217,48,37], and:[242,174,61], ok:[30,142,62]};
+    doc.autoTable({startY:38, margin:{left:M,right:M}, head:[["","Item","Detalhe"]], body:R.map(x=>["", x.tit, x.cor==="ok" ? "" : x.det.join("; ")]),
+      styles:{fontSize:8.5,cellPadding:1.6,textColor:20}, headStyles:{fillColor:PDF_AZ,textColor:255}, columnStyles:{0:{cellWidth:6},1:{cellWidth:70}},
+      didDrawCell:c=>{ if(c.section==="body" && c.column.index===0){ doc.setFillColor(...cor[R[c.row.index].cor]); doc.circle(c.cell.x+3, c.cell.y+c.cell.height/2, 1.8, "F"); } }});
+    rodapePdf(doc);
+    await entregarPdf(doc, `Checagem_${arqNome(nomeObra())}_${hojeISO()}.pdf`, "Checagem da obra");
+  }catch(e){ toast(e.message||"Não foi possível gerar o PDF."); }
+  finally{ btn.disabled=false; btn.textContent=txt; }
+}
+// no início: aviso quando há item vermelho
+{ const p0=pendInicio; pendInicio=function(){ const o=p0(); let n=0; try{ n=checagemObra().filter(x=>x.cor==="bad").length; }catch{}
+  if(!n) return o; const b=el("button",{class:"btn",type:"button",style:"color:var(--bad)",text:`🚦 Checagem da obra: ${n} item${n>1?"s":""} vermelho${n>1?"s":""}`,onclick:verChecagem});
+  if(o){ o.prepend(b); return o; } return el("div",{class:"row"}, b); }; }
 
 // produtividade do período: total, pessoas-dia e média por pessoa por dia
 function resumoProd(lista, qtd, un){

@@ -7,6 +7,9 @@ Cópia do script publicado no Apps Script (sem senhas: a senha do app, TOKEN, e 
 ficam nas Propriedades do script). Quando mudar o script aqui, cole no Apps Script e publique:
 **Implantar → Gerenciar implantações → lápis ✏️ → Versão: Nova versão → Implantar** (o endereço /exec não muda).
 
+Versão 33: Painel Dev do app. A ação `devDados` (só o desenvolvedor) devolve as últimas linhas das abas **Historico**
+(quem gravou o quê e quando, para achar e desfazer lançamentos indevidos) e **Erros** (erros dos celulares).
+
 Versão 32: sincronização mais rápida. A área pintada nova é gravada no fim da aba ConcretagemTracos (antes a aba
 inteira era lida e regravada a cada envio e ficava mais lenta a cada pincelada), os traços de uma concretagem são lidos
 só nas linhas dela e a observação da concretagem aceita até 2.000 caracteres.

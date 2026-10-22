@@ -1255,7 +1255,7 @@ const CARGOS={
   "Recursos humanos":         {m:"ponto rel fotos", x:"ponto-ger"},
   "Assistente social":        {m:"ponto rel fotos rdo", x:""},
   // perfil do desenvolvedor do app: acesso a tudo. Só aparece no login quando o nome digitado é a palavra combinada.
-  "Desenvolvedor":            {m:TODOS_MODULOS, x:TUDO+" lanc-edit", dev:true, dash:true, pdf:true},
+  "Desenvolvedor":            {m:TODOS_MODULOS+" dev", x:TUDO+" lanc-edit ponto-edit fotos-edit", dev:true, dash:true, pdf:true},
 };
 // A palavra não fica escrita no código (que é público no GitHub): guarda só o resumo dela (cyrb53, maiúsculas, sem espaços).
 // Não é senha de verdade, só tira a palavra da vista. Para trocar, calcule cyrb53("NOVAPALAVRA") e cole em DEV_RESUMO.
@@ -1411,7 +1411,7 @@ function applyServer(j){
   if(j.equipes){ S.eqs=j.equipes; LS.set("equipes",S.eqs); }
   if(j.registros){ S.regs=j.registros; LS.set("regs",S.regs); }
   if(j.elementos){ S.els=j.elementos; LS.set("elementos",S.els); }
-  if(j.config){ S.cfgObra=j.config; LS.set("cfgObra",S.cfgObra); }
+  if(j.config){ S.cfgObra=j.config; LS.set("cfgObra",S.cfgObra); try{ aplicarPermissoes(); }catch{ /* painel Dev ainda carregando */ } }
   if(j.efetivo){ S.ef=j.efetivo; S.efDia=j.efDia||{}; S.pes=j.pessoas||[]; S.presEf=j.presencas||{};
     LS.set("ef",S.ef); LS.set("efDia",S.efDia); LS.set("pes",S.pes); LS.set("presEf",S.presEf); }
   if(j.presPor){ S.presPor=j.presPor; LS.set("presPor",S.presPor); }
@@ -2150,7 +2150,7 @@ function setCampo(on){ LS.set("campo",!!on); if(on) document.documentElement.dat
 $("#campo-modo").addEventListener("click", e=>{ const b=e.target.closest("button[data-c]"); if(b) setCampo(b.dataset.c==="1"); });
 setCampo(!!LS.get("campo"));
 
-const VERSAO_APP = "v142"; // igual ao número em sw.js (armacao-v142)
+const VERSAO_APP = "v143"; // igual ao número em sw.js (armacao-v143)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -2905,6 +2905,7 @@ const fotosGaleria = () => regsAll().filter(r=>r.tipo==="foto" && r.cod===COD_GA
 async function guardarFoto(f){
   const legenda=FT.legenda.trim(), hoje=hojeISO();
   const blob=await carimbarFoto(f, nomeObra()+(legenda?" · "+legenda:"")); if(!blob) return false;
+  if(!pode("fotos-edit")){ toast("Só visualização: seu cargo não envia fotos."); return false; }
   const r={id:uid(), data:hoje, sem:semanaDaData(hoje), equipe:"", tipo:"foto", cod:COD_GALERIA, texto:legenda};
   await (await caches.open(FOTOS)).put("foto/"+r.id, new Response(blob,{headers:{"Content-Type":"image/jpeg"}}));
   addReg(r); return true;
@@ -2940,7 +2941,7 @@ function verFoto(r){
      r.url ? el("a",{class:"btn",href:r.url,target:"_blank",rel:"noopener",text:"Abrir no Drive"}) : null,
      el("button",{class:"btn",type:"button",text:"Apagar",style:"color:var(--bad);margin-left:auto",onclick:async()=>{
        if(!confirm("Apagar esta foto? Ela sai também do Google Drive.")) return;
-       await delReg(r.id); $("#ef-modal").hidden=true; toast("Foto apagada"); renderFotos(); }})]);
+       if(!pode("fotos-edit")) return toast("Só visualização: seu cargo não apaga fotos."); await delReg(r.id); $("#ef-modal").hidden=true; toast("Foto apagada"); renderFotos(); }})]);
 }
 function renderFotos(){
   const box=$("#fotos"); if(!box) return;
@@ -4099,6 +4100,7 @@ const MODULOS=[
   {id:"med",   nome:"Medições",         desc:"Boletins, rede assentada e curva S",       c:["#45A1D6","#22709F"], ativo:true},
   {id:"equip", nome:"Equipamentos",     desc:"Máquinas, horímetros e diesel",          c:["#7D8B99","#4A5866"], ativo:true},
   // todos: aparece para qualquer cargo (não depende da lista de módulos do cargo)
+  {id:"dev",   nome:"Painel Dev",       desc:"Permissões, saúde do app, lançamentos e diagnóstico", c:["#4A5466","#1E2430"], ativo:true},
   {id:"ferr",  nome:"Ferramentas",      desc:"Editor PDF, converter para Word e mais", c:["#E2544A","#B3261E"], ativo:true, todos:true},
   {id:"arquivo", nome:"Arquivo da obra", desc:"Recebimentos e cálculos da Calculadora de obra", c:["#D98A3D","#9C5A1C"], ativo:true, todos:true},
 ];
@@ -4170,6 +4172,8 @@ $("#ferr-fechar").addEventListener("click", ()=>fecharFerramentas(false));
 function menuMais(){
   const ops=MODULOS.filter(m=>podeMod(m) && acaoModulo(m)).map(m=>[m.nome, m.desc, acaoModulo(m)]);
   if(pode("prod")) ops.splice(1,0,["Frentes","Liberações e concretagem",()=>irAco("frentes")], ...(podePdf() ? [["Relatório PDF","Aço · semana atual",()=>{ irAco("painel"); setTimeout(()=>$("#rel-pdf")?.click(),300); }]] : []));
+  ops.push(["⚠ Avisar problema no app","Algo travou ou deu errado: avise o desenvolvedor",avisarProblema]);
+  ops.push(["⚠ Avisar lançamento indevido","Alguém lançou errado: diga o que, quando e quem",avisarIndevido]);
   ops.push(["Normas em cards","NBR 6118, concreto, ensaios, rede, NRs e acessibilidade em desenhos",()=>abrirFerramentas("/ferramentas/?g=normas&de=wigo")]);
   ops.push(["Ajustes","Tema, modo em campo, banco e versão do app",()=>irAco("dados")]);
   escolher("Mais", ops);
@@ -5425,6 +5429,7 @@ function abrirDia(d){
   savePendEf(); scheduleSync();
 }
 function marcar(p, d, st){
+  if(!pode("ponto-edit")) return toast("Só visualização: seu cargo não marca o ponto.");
   if(!diaAberto(d)) abrirDia(d);
   const hora = st==="P" && d===hojeISO() ? new Date().toTimeString().slice(0,5) : "";
   S.pendEf.pres[d+"|"+p.id] = st ? (st+" "+hora).trim() : "";
@@ -10908,6 +10913,359 @@ const NORMAS_TIPO={
   "forma/apont":[["Escoras","nbr15696/#escora-bem-apoiada"],["Desforma","nbr14931/#retirada-de-formas-e-escoras"],["Ordem de retirada","nbr15696/#ordem-de-retirada"]],
 };
 Object.entries(NORMAS_TIPO).forEach(([k,l])=>{ const [m,t]=k.split("/"), T=MOD2[m]?.tipos.find(x=>x.id===t); if(T) T.normas=l; });
+
+// ================= Painel Dev (só o Desenvolvedor) =================
+// Permissões de cada cargo (gravadas na planilha, chave PERMISSOES: valem para todos na próxima sincronização),
+// saúde das funções (avisos dos usuários e erros dos celulares), lançamentos indevidos, diagnóstico
+// e o registro de tudo que foi mudado pelo painel, para virar relatório e ir para o código depois.
+const CARGOS_PADRAO = JSON.parse(JSON.stringify(CARGOS));
+// cada função: o que o nível "Editar" libera (chaves de edição); sem chaves = só Ver ou Negar
+const FUNCOES=[
+  {id:"producao", nome:"Produção", ed:["producao-edit"]},
+  {id:"ponto",    nome:"Ponto e efetivo (marcar)", ed:["ponto-edit"], edPadrao:true},
+  {id:"pontoger", nome:"Ponto: gerenciar empresas, importar e relatórios", ed:["ponto-ger"], semModulo:true},
+  {id:"fotos",    nome:"Fotos", ed:["fotos-edit"], edPadrao:true},
+  {id:"rdo",      nome:"RDO", ed:["rdo-edit","rdo-fechar"]},
+  {id:"prod",     nome:"Produtividade e lançamentos (aço, forma, concreto, frentes)", ed:["lanc-edit"]},
+  {id:"obras",    nome:"Obras e projetos", ed:["obras-edit"]},
+  {id:"rel",      nome:"Relatórios", ed:[]},
+  {id:"sup",      nome:"Suprimentos", ed:["sup-edit"]},
+  {id:"qual",     nome:"Qualidade", ed:["qual-edit"]},
+  {id:"seg",      nome:"Segurança", ed:["seg-edit"]},
+  {id:"med",      nome:"Medições", ed:["med-edit"]},
+  {id:"equip",    nome:"Equipamentos", ed:["equip-edit"]},
+  {id:"ferr",     nome:"Ferramentas (inclui Normas em cards)", ed:[], todos:true},
+  {id:"arquivo",  nome:"Arquivo da obra", ed:[], todos:true},
+  {id:"pdf",      nome:"Relatório PDF do aço", ed:[], flag:"pdf"},
+  {id:"dash",     nome:"Números da produção no início", ed:[], flag:"dash"},
+];
+const NIV_PERM={edit:"Editar", ver:"Ver", nao:"Negar"};
+const niveisDe = f => f.semModulo ? ["edit","nao"] : f.ed.length ? ["edit","ver","nao"] : ["ver","nao"];
+function nivelPadrao(cargo, f){
+  const c=CARGOS_PADRAO[cargo], m=c.m.split(" "), x=c.x.split(" ");
+  if(f.flag) return c[f.flag] ? "ver" : "nao";
+  if(f.semModulo) return f.ed.some(k=>x.includes(k)) ? "edit" : "nao";
+  const tem = f.todos ? (!c.restrito || m.includes(f.id)) : m.includes(f.id);
+  if(!tem) return "nao";
+  if(!f.ed.length) return "ver";
+  return f.edPadrao || f.ed.some(k=>x.includes(k)) ? "edit" : "ver";
+}
+const permMudadas = () => { try{ const p=JSON.parse(cfgv("PERMISSOES","{}")); return p && typeof p==="object" ? p : {}; }catch{ return {}; } };
+const nivelDe = (cargo, f, P=permMudadas()) => P[cargo]?.[f.id] || nivelPadrao(cargo, f);
+// monta m (módulos) e x (edição) de cada cargo: padrão do código + o que o Desenvolvedor mudou no painel
+function aplicarPermissoes(){
+  const P=permMudadas();
+  for(const cargo of Object.keys(CARGOS_PADRAO)){
+    const p=CARGOS_PADRAO[cargo]; if(p.dev) continue;
+    const m=new Set(p.m.split(" ").filter(Boolean)), x=new Set(p.x.split(" ").filter(Boolean)), novo={...p, restrito:true};
+    for(const f of FUNCOES){
+      const n=nivelDe(cargo, f, P);
+      if(f.flag){ novo[f.flag] = n!=="nao"; continue; }
+      if(!f.semModulo){ if(n==="nao") m.delete(f.id); else m.add(f.id); }
+      f.ed.forEach(k=>x.delete(k)); if(n==="edit") f.ed.forEach(k=>x.add(k));
+    }
+    novo.m=[...m].join(" "); novo.x=[...x].join(" ");
+    CARGOS[cargo]=novo;
+  }
+}
+aplicarPermissoes();
+
+// ---------- registro das mudanças feitas pelo painel (vira relatório para levar ao código) ----------
+const novoId = () => uid().slice(0,12);
+function logDev(acao, detalhe, extra){
+  setReg2(novoId(), {modulo:"dev", tipo:"mudanca", data:hojeISO(), status:"Pendente",
+    dados:{acao, detalhe:String(detalhe||"").slice(0,4000), ...(extra||{}), em:new Date().toISOString(), versao:VERSAO_APP}}, `Painel Dev: ${acao}`);
+}
+
+// ---------- onde o usuário está (para os avisos e os erros) ----------
+function telaAtual(){
+  const t=Object.entries(TELAS).find(([,s])=>{ const e=$(s); return e && !e.hidden; })?.[0] || "inicio";
+  return t==="reg" && RG.mod ? "reg:"+RG.mod : t;
+}
+const FUNC_DA_TELA={prod:"prod", aco:"prod", fpainel:"prod", prelev:"prod", conc:"prod", sup:"sup", supaco:"sup", supped:"sup", supconf:"sup", ponto:"ponto", fotos:"fotos", producao:"producao", rdo:"rdo", login:"sync", inicio:"inicio"};
+const funcaoAtual = () => { const t=telaAtual(); return t.startsWith("reg:") ? t.slice(4) : FUNC_DA_TELA[t] || t; };
+const FUNC_SAUDE = () => [...MODULOS.filter(m=>m.id!=="dev").map(m=>({id:m.id, nome:m.nome})), {id:"inicio",nome:"Tela inicial"}, {id:"sync",nome:"Sincronização e login"}, {id:"outro",nome:"Outro"}];
+const nomeFuncao = id => FUNC_SAUDE().find(f=>f.id===id)?.nome || id;
+
+// erros de JavaScript: além da fila que vai para a aba Erros, viram um registro "dev/erro" (no máximo 5 por dia por celular)
+let devErroOcupado=false;
+function avisarErroDev(msg, onde){
+  if(devErroOcupado || !liberado() || !S.cfg?.url) return;
+  devErroOcupado=true;
+  try{
+    const dia=hojeISO(), env=LS.get("devErrEnv")||{}, chave=dia+"|"+String(msg).slice(0,80);
+    for(const k of Object.keys(env)) if(!k.startsWith(dia)) delete env[k];
+    if(env[chave] || Object.keys(env).length>=5) return;
+    env[chave]=1; LS.set("devErrEnv", env);
+    setReg2(novoId(), {modulo:"dev", tipo:"erro", data:dia, status:"Aberto",
+      dados:{msg:String(msg).slice(0,500), onde:String(onde||"").slice(0,300), funcao:funcaoAtual(), tela:telaAtual(), versao:VERSAO_APP, cargo:U?.cargo||""}});
+  }catch{ /* sem aviso: o erro já ficou na fila da aba Erros */ }
+  finally{ devErroOcupado=false; }
+}
+{ const orig=guardarErro; guardarErro=function(msg, onde){ orig(msg, onde); avisarErroDev(msg, onde); }; }
+
+// ---------- avisos dos usuários (menu Mais) ----------
+function avisarProblema(){
+  const sel=el("select",{"aria-label":"Função"}, ...FUNC_SAUDE().filter(f=>["inicio","sync","outro"].includes(f.id) || podeMod(MODULOS.find(m=>m.id===f.id)||{})).map(f=>el("option",{value:f.id,text:f.nome,selected:f.id===funcaoAtual()})));
+  const txt=el("textarea",{rows:4,placeholder:"O que aconteceu? Ex.: ao salvar a concretagem, a tela travou."});
+  efModal("Avisar problema no app", [campoEf("Onde", sel, true), campoEf("O que aconteceu", txt, true),
+    el("p",{class:"info full",text:"Vai junto: a versão do app, a tela e os últimos erros deste celular. O desenvolvedor vê no Painel Dev."})],
+    [el("button",{class:"btn pri",type:"button",text:"Enviar aviso",onclick:()=>{
+      const t=txt.value.trim(); if(!t) return toast("Conte o que aconteceu.");
+      setReg2(novoId(), {modulo:"dev", tipo:"falha", data:hojeISO(), status:"Aberto",
+        dados:{funcao:sel.value, texto:t.slice(0,2000), versao:VERSAO_APP, tela:telaAtual(), cargo:U?.cargo||"", erros:ERR.fila.slice(-5)}}, "Avisou problema: "+nomeFuncao(sel.value));
+      fecharEf(); toast("Aviso enviado. Obrigado!"); }})]);
+}
+const O_QUE_LANC=["Aço: lançamento ou semana","Forma","Concreto","Ponto e efetivo","RDO","Fotos","Registro de Qualidade, Segurança, Medições ou outro módulo","Outro"];
+function avisarIndevido(){
+  const oque=el("select",{"aria-label":"O que foi lançado"}, ...O_QUE_LANC.map(t=>el("option",{value:t,text:t})));
+  const dia=el("input",{type:"date",value:hojeISO(),max:hojeISO()}), hora=el("input",{type:"time"}), quem=el("input",{type:"text",placeholder:"Se souber"});
+  const txt=el("textarea",{rows:3,placeholder:"Ex.: lançaram 120 barras na posição P12 da semana 30, o certo era 12."});
+  efModal("Avisar lançamento indevido", [campoEf("O que foi lançado", oque, true), campoEf("Dia", dia), campoEf("Hora aproximada", hora), campoEf("Quem lançou", quem, true), campoEf("O que está errado", txt, true)],
+    [el("button",{class:"btn pri",type:"button",text:"Enviar aviso",onclick:()=>{
+      const t=txt.value.trim(); if(!t) return toast("Conte o que está errado.");
+      setReg2(novoId(), {modulo:"dev", tipo:"indevido", data:hojeISO(), status:"Aberto",
+        dados:{oque:oque.value, dia:dia.value, hora:hora.value, quem:quem.value.trim().slice(0,80), texto:t.slice(0,2000), cargo:U?.cargo||""}}, "Avisou lançamento indevido");
+      fecharEf(); toast("Aviso enviado ao desenvolvedor."); }})]);
+}
+
+// ---------- o módulo Painel Dev ----------
+const DV={aba:LS.get("devAba")||"saude", cargo:"", rascunho:null, abertos:new Set(), quem:"", dia:"", de:"", ate:"", hist:null, diag:null};
+const ABAS_DEV=[["saude","Saúde"],["perm","Permissões"],["lanc","Lançamentos"],["diag","Diagnóstico"],["mud","Mudanças"]];
+const dataHoraBR = iso => { if(!iso) return ""; const d=new Date(iso); return isNaN(d) ? String(iso) : d.toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",year:"2-digit",hour:"2-digit",minute:"2-digit"}); };
+function renderDev(box){
+  if(!souDev()) return repor(box, el("p",{class:"info",text:"Só o Desenvolvedor acessa o Painel Dev."}));
+  const abas=el("div",{class:"modo",role:"group","aria-label":"Painel Dev"}, ...ABAS_DEV.map(([id,nome])=>el("button",{class:"chipbtn"+(DV.aba===id?" on":""),type:"button",text:nome,"aria-pressed":String(DV.aba===id),
+    onclick:()=>{ DV.aba=id; LS.set("devAba",id); renderReg2(); }})));
+  const corpo=el("div",{class:"lista full"});
+  repor(box, el("p",{class:"saud"}, "Painel Dev", el("small",{text:"Controle do app: permissões, saúde das funções, lançamentos, diagnóstico e o que foi mudado por aqui."})), abas, corpo);
+  ({saude:devSaude, perm:devPerm, lanc:devLanc, diag:devDiag, mud:devMud}[DV.aba]||devSaude)(corpo);
+}
+const linhaInfo = t => el("p",{class:"info",text:t});
+const cartaoDev = (...k) => el("div",{class:"card"}, ...k);
+
+// --- Saúde: verde (ok), amarelo (1 aviso ou algo fora do esperado), vermelho (2+ pessoas, erro em 2+ celulares ou falha automática) ---
+function saudeDe(f){
+  const desde=somaDias(hojeISO(),-3);
+  const avisos=regs2De("dev","falha").filter(r=>r.dados.funcao===f.id && r.status!=="Resolvido");
+  const pessoas=new Set(avisos.map(r=>r.criadoPor||r.id));
+  const erros=regs2De("dev","erro").filter(r=>r.dados.funcao===f.id && r.status!=="Resolvido" && r.data>=desde);
+  const celulares=new Set(erros.map(r=>r.criadoPor||r.id));
+  const motivos=[]; let cor="ok";
+  if(f.id==="sync"){
+    if(S.err){ cor="bad"; motivos.push("Erro na sincronização: "+S.err); }
+    else if(S.lastSync && Date.now()-new Date(S.lastSync)>864e5){ cor="and"; motivos.push("Última sincronização há mais de 1 dia neste celular"); }
+    if(S.scriptVelho){ cor=cor==="bad"?"bad":"and"; motivos.push(`Script da planilha antigo (versão ${S.scriptVer})`); }
+  }
+  if(pessoas.size>=2 || celulares.size>=2) cor="bad";
+  else if((pessoas.size || erros.length) && cor==="ok") cor="and";
+  if(avisos.length) motivos.push(`${avisos.length} aviso(s) de ${pessoas.size} pessoa(s)`);
+  if(erros.length) motivos.push(`${erros.length} erro(s) em ${celulares.size} celular(es) nos últimos 3 dias`);
+  return {cor, motivos, avisos, erros};
+}
+const COR_TXT={ok:"OK", and:"Atenção", bad:"Com problema"};
+function devSaude(box){
+  const L=FUNC_SAUDE().map(f=>({f, ...saudeDe(f)})), conta=c=>L.filter(x=>x.cor===c).length;
+  box.append(el("div",{class:"row"}, ...["bad","and","ok"].map(c=>el("span",{class:"chip "+c,text:`${COR_TXT[c]}: ${conta(c)}`}))),
+    linhaInfo("Amarelo: um aviso de usuário ou algo fora do esperado. Vermelho: duas ou mais pessoas avisaram a mesma coisa, o mesmo erro em dois ou mais celulares, ou falha automática. Toque para ver e marcar como resolvido."));
+  L.sort((a,b)=>["bad","and","ok"].indexOf(a.cor)-["bad","and","ok"].indexOf(b.cor));
+  for(const x of L){
+    const aberto=DV.abertos.has(x.f.id);
+    const c=el("button",{class:"card r2-card",type:"button",onclick:()=>{ aberto?DV.abertos.delete(x.f.id):DV.abertos.add(x.f.id); renderReg2(); }},
+      el("div",{class:"i-top"}, el("b",{text:(x.cor==="bad"?"🔴 ":x.cor==="and"?"🟡 ":"🟢 ")+x.f.nome}), el("span",{class:"chip "+x.cor,text:COR_TXT[x.cor]})),
+      x.motivos.length ? el("div",{class:"i-sub",text:x.motivos.join(" · ")}) : null);
+    box.append(c);
+    if(aberto) for(const r of [...x.avisos, ...x.erros]) box.append(cartaoDev(
+      el("div",{class:"i-top"}, el("b",{text:r.tipo==="falha"?`Aviso de ${r.criadoPor||"?"} (${r.dados.cargo||""})`:`Erro · ${r.criadoPor||"?"}`}), el("span",{class:"info",text:dataHoraBR(r.criadoEm)||dataBR(r.data)})),
+      el("p",{class:"i-sub",text:r.dados.texto||r.dados.msg||""}),
+      r.dados.onde ? el("p",{class:"info",text:"Onde: "+r.dados.onde+" · v"+(r.dados.versao||"")}) : el("p",{class:"info",text:"Tela: "+(r.dados.tela||"")+" · "+(r.dados.versao||"")}),
+      el("button",{class:"btn",type:"button",text:"✓ Marcar resolvido",onclick:()=>{ setReg2(r.id,{status:"Resolvido"},"Resolveu aviso"); logDev("Marcou resolvido", `${x.f.nome}: ${(r.dados.texto||r.dados.msg||"").slice(0,200)}`, {ref:r.id}); renderReg2(); }})));
+  }
+}
+
+// --- Permissões: Editar / Ver / Negar por cargo e função ---
+function devPerm(box){
+  const cargos=Object.keys(CARGOS_PADRAO).filter(c=>!CARGOS_PADRAO[c].dev);
+  if(!cargos.includes(DV.cargo)) DV.cargo=cargos[0];
+  const P=permMudadas();
+  if(!DV.rascunho || DV.rascunho.cargo!==DV.cargo) DV.rascunho={cargo:DV.cargo, n:Object.fromEntries(FUNCOES.map(f=>[f.id, nivelDe(DV.cargo,f,P)]))};
+  const R=DV.rascunho.n, mudou=FUNCOES.filter(f=>R[f.id]!==nivelDe(DV.cargo,f,P));
+  const sel=el("select",{"aria-label":"Cargo",onchange:e=>{ if(mudou.length && !DV.avisouDescarte){ DV.avisouDescarte=true; toast("Há mudanças não salvas neste cargo: troque de novo para descartar."); e.target.value=DV.cargo; return; } DV.avisouDescarte=false; DV.cargo=e.target.value; DV.rascunho=null; renderReg2(); }},
+    ...cargos.map(c=>el("option",{value:c,text:c+(P[c]&&Object.keys(P[c]).length?" · alterado":""),selected:c===DV.cargo})));
+  box.append(campoEf("Cargo", sel, true), linhaInfo("Editar: vê e altera. Ver: só visualiza. Negar: some do app. Grava na planilha e vale para todos na próxima sincronização. O Desenvolvedor sempre tem tudo."));
+  for(const f of FUNCOES){
+    const pad=nivelPadrao(DV.cargo,f);
+    box.append(cartaoDev(el("div",{class:"i-top"}, el("b",{text:f.nome}), R[f.id]!==pad ? el("span",{class:"chip and",text:"fora do padrão"}) : null),
+      el("div",{class:"modo",role:"group","aria-label":f.nome}, ...niveisDe(f).map(n=>el("button",{class:"chipbtn"+(R[f.id]===n?" on":""),type:"button","aria-pressed":String(R[f.id]===n),
+        text:NIV_PERM[n]+(n===pad?" (padrão)":""), onclick:()=>{ R[f.id]=n; renderReg2(); }})))));
+  }
+  box.append(el("div",{class:"row"},
+    el("button",{class:"btn pri",type:"button",text:mudou.length?`Salvar ${mudou.length} mudança(s)`:"Nada mudou",disabled:!mudou.length,onclick:()=>{
+      const novo={...P}, dif={};
+      for(const f of FUNCOES){ if(R[f.id]!==nivelPadrao(DV.cargo,f)) dif[f.id]=R[f.id]; }
+      if(Object.keys(dif).length) novo[DV.cargo]=dif; else delete novo[DV.cargo];
+      const txt=mudou.map(f=>`${f.nome}: ${NIV_PERM[nivelDe(DV.cargo,f,P)]} → ${NIV_PERM[R[f.id]]}`).join("; ");
+      setCfg("PERMISSOES", JSON.stringify(novo)); aplicarPermissoes();
+      logDev("Permissões: "+DV.cargo, txt, {cargo:DV.cargo, permissoes:novo});
+      DV.rascunho=null; toast("Permissões salvas."); renderReg2(); renderInicio(); }}),
+    el("button",{class:"btn",type:"button",text:"Voltar este cargo ao padrão do código",onclick:()=>{ DV.rascunho.n=Object.fromEntries(FUNCOES.map(f=>[f.id,nivelPadrao(DV.cargo,f)])); renderReg2(); }})));
+  // visão geral: todos os cargos x funções
+  const ab={edit:"E",ver:"V",nao:"–"};
+  box.append(el("details",{class:"full"}, el("summary",{text:"Visão geral: todos os cargos (E editar · V ver · – negado)"}),
+    el("div",{class:"tbl"}, el("table",{}, el("thead",{}, el("tr",{}, el("th",{text:"Cargo"}), ...FUNCOES.map(f=>el("th",{text:f.id,title:f.nome})))),
+      el("tbody",{}, ...cargos.map(c=>el("tr",{}, el("td",{text:c}), ...FUNCOES.map(f=>{ const n=nivelDe(c,f,P); return el("td",{text:ab[n],style:n!==nivelPadrao(c,f)?"color:var(--warn);font-weight:700":""}); }))))))));
+}
+
+// --- Lançamentos: avisos de indevido, registros por pessoa e horário, e o Histórico da planilha ---
+function devLanc(box){
+  const av=regs2De("dev","indevido").filter(r=>r.status!=="Resolvido");
+  box.append(el("h3",{text:`Avisos de lançamento indevido (${av.length})`}));
+  if(!av.length) box.append(linhaInfo("Nenhum aviso em aberto."));
+  for(const r of av) box.append(cartaoDev(
+    el("div",{class:"i-top"}, el("b",{text:r.dados.oque}), el("span",{class:"info",text:`de ${r.criadoPor||"?"} · ${dataHoraBR(r.criadoEm)}`})),
+    el("p",{class:"i-sub",text:r.dados.texto}),
+    el("p",{class:"info",text:`Lançado em ${r.dados.dia?dataBR(r.dados.dia):"?"}${r.dados.hora?" por volta das "+r.dados.hora:""}${r.dados.quem?" · por "+r.dados.quem:""}`}),
+    el("div",{class:"row"},
+      el("button",{class:"btn",type:"button",text:"🔎 Procurar esses lançamentos",onclick:()=>{ DV.dia=r.dados.dia||""; DV.quem=r.dados.quem||""; DV.de=r.dados.hora?somaHora(r.dados.hora,-90):""; DV.ate=r.dados.hora?somaHora(r.dados.hora,90):""; renderReg2(); }}),
+      el("button",{class:"btn",type:"button",text:"✓ Resolvido",onclick:()=>{ setReg2(r.id,{status:"Resolvido"},"Resolveu aviso de indevido"); logDev("Resolveu aviso de lançamento indevido", r.dados.texto.slice(0,200), {ref:r.id}); renderReg2(); }}))));
+
+  // busca por pessoa e horário
+  const pessoas=[...new Set([...regs2().map(r=>r.criadoPor), ...(DV.hist||[]).map(h=>h.usuario)].filter(Boolean))].sort();
+  const sQ=el("select",{"aria-label":"Quem lançou",onchange:e=>{ DV.quem=e.target.value; renderReg2(); }}, el("option",{value:"",text:"Todas as pessoas"}), ...pessoas.map(p=>el("option",{value:p,text:p,selected:DV.quem===p})));
+  const iD=el("input",{type:"date",value:DV.dia,max:hojeISO(),onchange:e=>{ DV.dia=e.target.value; renderReg2(); }});
+  const iDe=el("input",{type:"time",value:DV.de,onchange:e=>{ DV.de=e.target.value; renderReg2(); }}), iAte=el("input",{type:"time",value:DV.ate,onchange:e=>{ DV.ate=e.target.value; renderReg2(); }});
+  box.append(el("h3",{text:"Procurar lançamentos"}), campoEf("Quem lançou", sQ, true), campoEf("Dia", iD), campoEf("Das", iDe), campoEf("Até", iAte));
+  const noFiltro = (iso, quem) => { if(DV.quem && !String(quem||"").startsWith(DV.quem)) return false; if(!iso) return !DV.dia;
+    const d=new Date(iso), dia=new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,10), hm=d.toTimeString().slice(0,5);
+    return (!DV.dia || dia===DV.dia) && (!DV.de || hm>=DV.de) && (!DV.ate || hm<=DV.ate); };
+  const achados=regs2().filter(r=>r.modulo!=="dev" && noFiltro(r.criadoEm||r.atualizadoEm, r.criadoPor||r.atualizadoPor)).slice(0,60);
+  box.append(linhaInfo(`Registros dos módulos: ${achados.length}${achados.length===60?" (os 60 mais recentes; refine a busca)":""}`));
+  for(const r of achados){
+    const M=MOD2[r.modulo], T=M?.tipos.find(x=>x.id===r.tipo);
+    let titulo=""; try{ titulo=T?tituloReg2(T,r):r.tipo; }catch{ titulo=r.tipo; }
+    const del=el("button",{class:"btn",type:"button",style:"color:var(--bad)",text:"🗑 Apagar",onclick:()=>{
+      if(!del.dataset.ok){ del.dataset.ok=1; del.textContent="Toque de novo para apagar"; return; }
+      logDev("Apagou lançamento", `${M?.nome||r.modulo} › ${T?.nome||r.tipo}: ${titulo} · lançado por ${r.criadoPor||"?"} em ${dataHoraBR(r.criadoEm)}`, {apagado:{id:r.id, modulo:r.modulo, tipo:r.tipo, data:r.data, status:r.status, dados:r.dados, criadoPor:r.criadoPor, criadoEm:r.criadoEm}});
+      delReg2(r.id); toast("Lançamento apagado (cópia guardada em Mudanças)."); renderReg2(); }});
+    box.append(cartaoDev(el("div",{class:"i-top"}, el("b",{text:`${M?.nome||r.modulo} › ${T?.nome||r.tipo}`}), el("span",{class:"info",text:dataHoraBR(r.criadoEm)})),
+      el("p",{class:"i-sub",text:`${titulo} · ${r.criadoPor||"?"}${r.atualizadoPor&&r.atualizadoPor!==r.criadoPor?" · alterado por "+r.atualizadoPor:""}`}), del));
+  }
+  // Histórico da planilha: tudo que foi gravado (aço, ponto, concreto…), com quem e quando
+  box.append(el("h3",{text:"Histórico da planilha"}),
+    linhaInfo("Cada alteração de qualquer celular, com nome, cargo e horário. No aço dá para voltar o lançamento ao valor anterior."),
+    el("button",{class:"btn",type:"button",text:DV.hist?"↻ Atualizar o Histórico":"Carregar o Histórico",onclick:async e=>{
+      e.target.disabled=true; e.target.textContent="Carregando…";
+      try{ const j=await post({acao:"devDados", n:1500}); if(!j.historico) throw new Error("Atualize o script da planilha (versão 33) para ver o Histórico.");
+        DV.hist=j.historico; DV.errosSrv=j.erros||[]; }
+      catch(err){ toast(err.message); }
+      renderReg2(); }}));
+  if(DV.hist){
+    const H=DV.hist.filter(h=>noFiltro(h.em, h.usuario)).slice(0,120);
+    box.append(linhaInfo(`${H.length} linha(s)${H.length===120?" (as 120 mais recentes; refine a busca)":""}`));
+    for(const h of H){
+      const m=/^Semana (\d+) · (.+?) · ([-\d.,]+) barras · (.*)$/.exec(h.det);
+      const volta = h.acao==="Aço: lançamento" && m ? el("button",{class:"btn",type:"button",style:"color:var(--bad)",text:"↩ Voltar ao valor anterior",onclick:e=>{
+        const bt=e.target; if(!bt.dataset.ok){ bt.dataset.ok=1; bt.textContent="Toque de novo para voltar"; return; }
+        const [, n, cod, , eq]=m, ant=DV.hist.find(x=>x!==h && new Date(x.em)<new Date(h.em) && x.acao==="Aço: lançamento" && x.det.startsWith(`Semana ${n} · ${cod} · `) && x.det.endsWith(" · "+eq));
+        const q=ant ? num(/· ([-\d.,]+) barras ·/.exec(ant.det)[1]) : 0;
+        (S.pend[n] ??= {}); (S.pend[n].raw ??= {})[K(cod,eq)]=q; savePend(); recompute(); scheduleSync();
+        logDev("Voltou lançamento de aço", `${h.det} (por ${h.usuario} em ${dataHoraBR(h.em)}) → ${q} barras`, {historico:h, valorNovo:q});
+        toast(`Voltou para ${q} barras.`); renderReg2(); }}) : null;
+      box.append(cartaoDev(el("div",{class:"i-top"}, el("b",{text:h.acao}), el("span",{class:"info",text:dataHoraBR(h.em)})),
+        el("p",{class:"i-sub",text:`${h.usuario}${h.cargo?" ("+h.cargo+")":""} · ${h.det}`}), volta));
+    }
+  }
+}
+const somaHora = (hm, min) => { const [h,m]=hm.split(":").map(Number), t=Math.max(0,Math.min(1439,h*60+m+min)); return String(Math.floor(t/60)).padStart(2,"0")+":"+String(t%60).padStart(2,"0"); };
+
+// --- Diagnóstico: testes internos, correções simples e relatório ---
+function testesDev(){
+  const R=[], ok=(nome, cond, det)=>R.push({nome, st:cond===true?"ok":cond==="and"?"and":"bad", det:det||""});
+  const tenta=(nome, fn)=>{ try{ const d=fn(); ok(nome, true, d||""); }catch(e){ ok(nome, false, e.message); } };
+  ok("Versão do app", true, VERSAO_APP);
+  ok("Script da planilha", S.scriptVelho ? "and" : true, `versão ${S.scriptVer||"?"} (mínima ${SCRIPT_MIN})`);
+  ok("Banco configurado", !!S.cfg?.url, S.cfg?.url ? "ok" : "sem endereço do Apps Script");
+  ok("Sincronização", S.err ? false : (S.lastSync && Date.now()-new Date(S.lastSync)<864e5) ? true : "and", S.err || (S.lastSync ? "última: "+dataHoraBR(S.lastSync) : "nunca sincronizou"));
+  const pend=pendCount(); ok("Envios pendentes", pend>50 ? "and" : true, `${pend} a enviar${LS.get("pendDesde")?" desde "+dataHoraBR(LS.get("pendDesde")):""}`);
+  let bytes=0; try{ for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); bytes+=(localStorage.getItem(k)||"").length*2; } }catch{}
+  ok("Memória do aparelho (dados do app)", bytes>4.5e6 ? "and" : true, (bytes/1048576).toFixed(1).replace(".",",")+" MB de ~5 MB");
+  tenta("Permissões da planilha", ()=>{ const t=cfgv("PERMISSOES",""); if(t) JSON.parse(t); const ids=new Set(FUNCOES.map(f=>f.id)); for(const [c,p] of Object.entries(permMudadas())){ if(!CARGOS_PADRAO[c]) throw new Error("cargo desconhecido: "+c); for(const k of Object.keys(p)) if(!ids.has(k)) throw new Error("função desconhecida: "+k); } return Object.keys(permMudadas()).length+" cargo(s) alterado(s)"; });
+  tenta("Cálculo do aço", ()=>{ const r=resumoAco(); return `${t(r.E)} t de ${t(r.P)} t`; });
+  tenta("Cálculo da forma", ()=>{ const f=fmCalc(); return `${nf0.format(f.avanco)} m² de ${nf0.format(f.totProj)} m²`; });
+  tenta("Cálculo do concreto", ()=>{ const C=ceCalc(""); return `${nf0.format(C.proj)} m³ de ${nf0.format(C.projPrev)} m³`; });
+  tenta("Efetivo de hoje", ()=>{ const h=resumoEfDia(hojeISO()); return h ? `${h.tot} na obra` : "sem dados"; });
+  // registros que quebrariam a lista do módulo (tipo sem cadastro ou título com erro)
+  const ruins=[];
+  for(const r of regs2()){ const M=MOD2[r.modulo], T=M?.tipos.find(x=>x.id===r.tipo); if(!M||!T){ ruins.push(`${r.modulo}/${r.tipo} (${r.id}): sem cadastro no app`); continue; }
+    try{ tituloReg2(T,r); cardReg2(r,T); }catch(e){ ruins.push(`${r.modulo}/${r.tipo} (${r.id}): ${e.message}`); } }
+  ok("Registros dos módulos", ruins.length ? false : true, ruins.length ? ruins.slice(0,10).join(" | ") : `${regs2().length} registros lidos sem erro`);
+  ok("Erros neste celular", ERR.fila.length ? "and" : true, ERR.fila.length ? ERR.fila.slice(-5).map(e=>`${e.msg} (${e.onde})`).join(" | ") : "nenhum na fila");
+  ok("Internet", navigator.onLine ? true : "and", navigator.onLine ? "conectado" : "sem internet agora");
+  return R;
+}
+const CORRECOES=[
+  ["Sincronizar agora", "Manda o que está pendente e baixa o que mudou", async()=>{ await sync(); return S.err ? "falhou: "+S.err : "sincronizado"; }],
+  ["Recalcular tudo", "Limpa a memória de cálculo e redesenha as telas", async()=>{ MEMO_EF.clear(); recompute(); renderData(); return "recalculado"; }],
+  ["Atualizar o app", "Apaga a cópia do app guardada no celular (não os dados) e recarrega", async()=>{ for(const k of await caches.keys()) if(/^armacao-v/.test(k)) await caches.delete(k); setTimeout(()=>location.reload(),600); return "recarregando"; }],
+  ["Limpar a fila de erros", "Depois de resolver, zera os erros guardados neste celular", async()=>{ ERR.fila=[]; LS.set("errosFila",[]); return "fila zerada"; }],
+];
+function relatorioDiag(D){
+  const ic={ok:"✓", and:"⚠", bad:"✗"};
+  return [`# Diagnóstico do WIGO`, `Data: ${new Date().toLocaleString("pt-BR")} · ${quemSou()} · app ${VERSAO_APP} · script ${S.scriptVer||"?"}`,
+    `Aparelho: ${navigator.userAgent}`, "", "## Testes", ...D.testes.map(x=>`- ${ic[x.st]} ${x.nome}: ${x.det}`),
+    "", "## Correções feitas", ...(D.feitas.length ? D.feitas.map(x=>`- ${x}`) : ["- nenhuma"]),
+    "", "## Erros guardados neste celular", ...(ERR.fila.length ? ERR.fila.map(e=>`- ${e.em} · v${e.v} · ${e.msg} · ${e.onde}`) : ["- nenhum"]),
+    "", "## Avisos de usuários em aberto", ...regs2De("dev","falha").filter(r=>r.status!=="Resolvido").map(r=>`- ${nomeFuncao(r.dados.funcao)} · ${r.criadoPor||"?"} · ${r.dados.texto}`),
+    "", "## Erros dos celulares (últimos 3 dias)", ...regs2De("dev","erro").filter(r=>r.data>=somaDias(hojeISO(),-3)).map(r=>`- ${r.criadoPor||"?"} · ${nomeFuncao(r.dados.funcao)} · v${r.dados.versao} · ${r.dados.msg} · ${r.dados.onde}`),
+    "", D.resolvido ? "Situação: resolvido pelo painel." : "Situação: precisa de análise."].join("\n");
+}
+function mostrarTexto(tit, txt, nomeArq){
+  const ta=el("textarea",{rows:14,readonly:true,style:"font:12px/1.4 ui-monospace,Consolas,monospace;width:100%"}); ta.value=txt;
+  efModal(tit, [el("div",{class:"full"}, ta)], [
+    el("button",{class:"btn pri",type:"button",text:"Copiar",onclick:async()=>{ try{ await navigator.clipboard.writeText(txt); toast("Copiado. Cole na conversa com o Claude."); }catch{ ta.select(); toast("Selecionei o texto: copie com Ctrl+C."); } }}),
+    el("button",{class:"btn",type:"button",text:"Baixar .txt",onclick:()=>baixar(nomeArq, new Blob([txt],{type:"text/plain;charset=utf-8"}))})]);
+}
+function devDiag(box){
+  box.append(linhaInfo("Testa o app por dentro (versões, sincronização, memória, permissões, cálculos e registros que quebrariam telas), faz correções simples e gera um relatório para mostrar ao Claude."),
+    el("button",{class:"btn pri",type:"button",text:"▶ Rodar diagnóstico",onclick:()=>{ DV.diag={testes:testesDev(), feitas:[], resolvido:false}; renderReg2(); }}));
+  if(!DV.diag) return;
+  const ic={ok:"🟢", and:"🟡", bad:"🔴"};
+  for(const x of DV.diag.testes) box.append(cartaoDev(el("div",{class:"i-top"}, el("b",{text:`${ic[x.st]} ${x.nome}`})), x.det ? el("p",{class:"i-sub",text:x.det}) : null));
+  box.append(el("h3",{text:"Correções simples"}));
+  for(const [nome, desc, fn] of CORRECOES) box.append(cartaoDev(el("div",{class:"i-top"}, el("b",{text:nome})), el("p",{class:"i-sub",text:desc}),
+    el("button",{class:"btn",type:"button",text:"Fazer",onclick:async e=>{ e.target.disabled=true; let r; try{ r=await fn(); }catch(err){ r="falhou: "+err.message; }
+      DV.diag.feitas.push(`${nome}: ${r}`); logDev("Diagnóstico: "+nome, r); DV.diag.testes=testesDev(); toast(nome+": "+r); renderReg2(); }})));
+  const temProblema=DV.diag.testes.some(x=>x.st==="bad");
+  box.append(el("div",{class:"row"},
+    el("button",{class:"btn",type:"button",text:"📋 Gerar relatório",onclick:()=>{ DV.diag.resolvido=!temProblema; const txt=relatorioDiag(DV.diag);
+      setReg2(novoId(), {modulo:"dev", tipo:"relatorio", data:hojeISO(), status:temProblema?"Precisa de análise":"Resolvido", dados:{texto:txt.slice(0,45000)}}, "Relatório de diagnóstico");
+      mostrarTexto("Relatório de diagnóstico", txt, `wigo-diagnostico-${hojeISO()}.txt`); }})));
+}
+
+// --- Mudanças: tudo que foi alterado pelo painel, para virar relatório e commit ---
+function relatorioMudancas(L){
+  const P=permMudadas();
+  return [`# Mudanças feitas pelo Painel Dev do WIGO`, `Gerado em ${new Date().toLocaleString("pt-BR")} · app ${VERSAO_APP} · ${L.length} mudança(s) ainda não levadas ao código`, "",
+    ...L.slice().reverse().map((r,i)=>`${i+1}. [${dataHoraBR(r.dados.em||r.criadoEm)}] ${r.dados.acao}\n   ${r.dados.detalhe}`), "",
+    "## Permissões atuais fora do padrão do código (chave PERMISSOES da planilha)", "```json", JSON.stringify(P, null, 2), "```", "",
+    "## Para levar ao código", "- Atualizar CARGOS no index.html com as permissões acima (ou manter na planilha).",
+    "- Lançamentos apagados: a cópia de cada um está no item correspondente (campo apagado) dos registros dev/mudanca."].join("\n");
+}
+function devMud(box){
+  const L=regs2De("dev","mudanca"), pend=L.filter(r=>r.status!=="No código");
+  box.append(linhaInfo("Cada mudança feita por este painel fica guardada aqui. Quando formos trabalhar juntos, gere o relatório e anexe na conversa; depois do commit, marque como levadas ao código."),
+    el("div",{class:"row"},
+      el("button",{class:"btn pri",type:"button",text:`📋 Relatório das ${pend.length} pendente(s)`,disabled:!pend.length,onclick:()=>mostrarTexto("Mudanças para levar ao código", relatorioMudancas(pend), `wigo-mudancas-${hojeISO()}.txt`)}),
+      el("button",{class:"btn",type:"button",text:"✓ Marcar todas como levadas ao código",disabled:!pend.length,onclick:e=>{
+        if(!e.target.dataset.ok){ e.target.dataset.ok=1; e.target.textContent="Toque de novo para confirmar"; return; }
+        for(const r of pend) setReg2(r.id,{status:"No código"}); toast("Marcadas como levadas ao código."); renderReg2(); }})));
+  for(const r of L.slice(0,80)) box.append(cartaoDev(el("div",{class:"i-top"}, el("b",{text:r.dados.acao}), el("span",{class:"chip "+(r.status==="No código"?"ok":"and"),text:r.status})),
+    el("p",{class:"i-sub",text:r.dados.detalhe}), el("p",{class:"info",text:dataHoraBR(r.dados.em||r.criadoEm)})));
+}
+
+MOD2.dev={nome:"Painel Dev", desc:"Controle do app (só o Desenvolvedor)", edit:"dev", acesso:"dev", semAbas:true, render:box=>renderDev(box),
+  tipos:[{id:"falha",nome:"Avisos de problema",campos:[],titulo:d=>"Problema: "+(d.texto||"")},{id:"indevido",nome:"Lançamento indevido",campos:[],titulo:d=>"Indevido: "+(d.oque||"")},
+    {id:"erro",nome:"Erros",campos:[],titulo:d=>"Erro: "+(d.msg||"")},{id:"mudanca",nome:"Mudanças",campos:[],titulo:d=>d.acao||"Mudança"},{id:"relatorio",nome:"Relatórios",campos:[],titulo:()=>"Relatório de diagnóstico"}]};
 { const LCAT={conc:["traco","graudo","miudo"], solo:["comp","carac"]};
   for(const c of MOD2.qual.cats){ if(c.id==="conc"||c.id==="solo"||c.id==="geral"){ c.tipos.splice(1,0,"laudo"); if(LCAT[c.id]) (c.filtro ??= {}).laudo=r=>LCAT[c.id].includes(r.dados.tipo); } }
   const topo0=MOD2.qual.topo; MOD2.qual.topo=(T,lista)=>T.id==="laudo" ? topoLaudos(lista) : topo0(T,lista); }

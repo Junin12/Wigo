@@ -243,6 +243,21 @@ function conferirAcesso_(corpo) {
   err.acesso = st;
   throw err;
 }
+// últimas linhas de uma aba (as mais novas primeiro), para o Painel Dev
+function ultimasLinhas_(nome, n) {
+  const sh = abaOuCria_(nome), tot = sh.getLastRow() - 1;
+  if (tot < 1) return [];
+  const q = Math.min(n, tot);
+  return sh.getRange(sh.getLastRow() - q + 1, 1, q, sh.getLastColumn()).getValues().reverse();
+}
+function devDados_(corpo) {
+  const iso = v => v instanceof Date ? v.toISOString() : String(v || '');
+  const n = Math.max(50, Math.min(Number(corpo.n) || 800, 3000));
+  return {
+    historico: ultimasLinhas_('Historico', n).map(r => ({ em: iso(r[0]), usuario: String(r[1] || ''), cargo: String(r[2] || ''), acao: String(r[3] || ''), det: String(r[4] || '') })),
+    erros: ultimasLinhas_('Erros', 300).map(r => ({ em: iso(r[0]), aparelho: String(r[1] || ''), usuario: String(r[2] || ''), versao: String(r[3] || ''), msg: String(r[4] || ''), onde: String(r[5] || '') })),
+  };
+}
 function listaAcessos_() {
   const iso = v => v instanceof Date ? v.toISOString() : String(v || '');
   const est = new Map(abaOuCria_('Aparelhos') && linhas('Aparelhos').map(r => [String(r[0]), r]));
@@ -339,6 +354,11 @@ function doPost(e) {
       if (!dev) throw new Error('Só o desenvolvedor libera acessos.');
       if (corpo.acao === 'acessoDecidir') comLock_(() => decidirAcesso_(corpo, eu));
       return { acessos: listaAcessos_() };
+    }
+    // Painel Dev do app: Histórico (quem gravou o quê e quando) e erros dos celulares, só para o desenvolvedor
+    if (corpo.acao === 'devDados') {
+      if (!dev) throw new Error('Só o desenvolvedor vê o Histórico.');
+      return devDados_(corpo);
     }
     if (corpo.acao === 'projetos') return listarProjetos(String(corpo.pasta || 'Projetos'));
     if (corpo.acao === 'pdf') return lerPdf(String(corpo.id || ''), corpo.parte, corpo.ini, corpo.tam);
@@ -646,7 +666,7 @@ function linhas(nome) {
 // 31: leitura do ticket por foto retirada (sem chave da IA por enquanto).
 // 32: sincronização mais rápida: área pintada nova vai no fim da aba ConcretagemTracos (antes a aba inteira era lida e
 //     regravada a cada envio), leitura dos traços só das linhas da concretagem e observação da concretagem até 2.000 caracteres.
-const VERSAO_SCRIPT = 32;
+const VERSAO_SCRIPT = 33;
 
 // Colunas de código que precisam ficar como TEXTO. Sem isso o Planilhas converte
 // "DEC-0001" em data (dez/2001) e o código se perde.

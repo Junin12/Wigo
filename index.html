@@ -526,6 +526,7 @@ html[data-campo][data-ajuda] .ajuda-btn{background:var(--accent);color:var(--on-
 /* Ponto e efetivo */
 .modal.ef{z-index:30}
 /* Ferramentas (wiapps.com.br/ferramentas): abre por cima de tudo, dentro do app */
+.ver-lanc :is(#lista,#elem,#v-semanas) :is(input:not([type=search]),textarea){pointer-events:none;opacity:.75}
 .ferr-tela{position:fixed;inset:0;z-index:40;background:var(--bg);display:flex;flex-direction:column}
 .ferr-top{display:flex;align-items:center;gap:10px;padding:8px 12px;padding-top:calc(8px + env(safe-area-inset-top,0px));background:var(--surface);border-bottom:1px solid var(--line)}
 .ferr-tela iframe{flex:1;width:100%;border:0;background:var(--bg)}
@@ -868,6 +869,7 @@ html[data-campo][data-ajuda] .ajuda-btn{background:var(--accent);color:var(--on-
     No Apps Script: cole o <code>Code.gs</code> novo → Salvar → rodar <b>configurar</b> → <b>Implantar → Gerenciar implantações → lápis ✏️ → Versão: Nova versão → Implantar</b>.
   </div>
   <section class="view" id="v-coleta">
+    <p class="info aviso-lanc" hidden>👁 Só visualização: quem altera lançamentos, semanas e frentes é o Engenheiro de produção.</p>
     <div class="resumo" id="resumo-sem"></div>
     <label class="campo eqsel" for="f-eq">Lançando como<select id="f-eq"></select></label>
     <div class="eq-info" id="eq-info"></div>
@@ -911,6 +913,7 @@ html[data-campo][data-ajuda] .ajuda-btn{background:var(--accent);color:var(--on-
   </section>
 
   <section class="view" id="v-semanas" hidden>
+    <p class="info aviso-lanc" hidden>👁 Só visualização: quem altera lançamentos, semanas e frentes é o Engenheiro de produção.</p>
     <h2>Semanas e equipe</h2>
     <div class="card">
       <h3>Meta e prazo</h3>
@@ -958,6 +961,7 @@ html[data-campo][data-ajuda] .ajuda-btn{background:var(--accent);color:var(--on-
   </section>
 
   <section class="view" id="v-frentes" hidden>
+    <p class="info aviso-lanc" hidden>👁 Só visualização: quem altera lançamentos, semanas e frentes é o Engenheiro de produção.</p>
     <h2>Frentes de serviço</h2>
     <p class="info">Marque <b>aço entregue</b> (e <b>concreto magro</b>, nos fundos) para liberar a armação. Depois de armado, o <b>checklist</b> libera a concretagem. Errou? Use <b>Voltar</b>.</p>
     <button class="btn" id="fr-voltar" type="button" hidden>↩ Voltar</button>
@@ -1235,22 +1239,23 @@ const TODOS_MODULOS="producao ponto fotos rdo prod obras rel sup qual seg med eq
 // (módulos novos) equip-edit, seg-edit, qual-edit, med-edit, obras-edit, sup-edit: criar e alterar registros naquele módulo
 const TUDO="producao-edit ponto-ger rdo-edit rdo-fechar equip-edit seg-edit qual-edit med-edit obras-edit sup-edit";
 const CARGOS={
-  "Gerente de projeto":       {m:TODOS_MODULOS, x:TUDO},
-  "Gerente de obra":          {m:TODOS_MODULOS, x:TUDO},
-  "Engenheiro de produção":   {m:TODOS_MODULOS, x:TUDO},
-  "Engenheiro de qualidade":  {m:"producao qual fotos rdo obras rel prod", x:"qual-edit"},
-  "Técnico de planejamento":  {m:"producao prod ponto med rel obras fotos rdo sup", x:TUDO},
-  "Engenheiro ambiental":     {m:"fotos rdo rel obras qual seg", x:""},
+  "Gerente de projeto":       {m:TODOS_MODULOS, x:TUDO, dash:true, pdf:true},
+  "Gerente de obra":          {m:TODOS_MODULOS, x:TUDO, dash:true, pdf:true},
+  "Engenheiro de produção":   {m:TODOS_MODULOS, x:TUDO+" lanc-edit", dash:true},
+  "Engenheiro de qualidade":  {m:"producao qual fotos rdo obras rel prod", x:"qual-edit", dash:true},
+  "Técnico de planejamento":  {m:"producao prod ponto med rel obras fotos rdo sup", x:TUDO, dash:true, pdf:true},
+  "Engenheiro ambiental":     {m:"fotos rdo rel obras qual seg", x:"", dash:true},
   "Técnico de segurança":     {m:"seg ponto producao fotos rdo rel", x:"seg-edit"},
   "Assistente técnico":       {m:"producao prod ponto med rel obras fotos rdo sup", x:TUDO},
-  "Mestre de obras":          {m:"producao ponto fotos rdo prod", x:"producao-edit rdo-edit"},
+  // restrito: só os módulos da lista (nem os que aparecem para todos, como Arquivo da obra)
+  "Mestre de obras":          {m:"producao ponto fotos ferr", x:"producao-edit", restrito:true},
   "Apontador":                {m:"ponto producao fotos rdo prod", x:"producao-edit rdo-edit"},
   "Almoxarife":               {m:"sup equip fotos", x:"sup-edit equip-edit"},
   "Suprimentos":              {m:"sup equip med rel fotos", x:"sup-edit equip-edit"},
   "Recursos humanos":         {m:"ponto rel fotos", x:"ponto-ger"},
   "Assistente social":        {m:"ponto rel fotos rdo", x:""},
   // perfil do desenvolvedor do app: acesso a tudo. Só aparece no login quando o nome digitado é a palavra combinada.
-  "Desenvolvedor":            {m:TODOS_MODULOS, x:TUDO, dev:true},
+  "Desenvolvedor":            {m:TODOS_MODULOS, x:TUDO+" lanc-edit", dev:true, dash:true, pdf:true},
 };
 // A palavra não fica escrita no código (que é público no GitHub): guarda só o resumo dela (cyrb53, maiúsculas, sem espaços).
 // Não é senha de verdade, só tira a palavra da vista. Para trocar, calcule cyrb53("NOVAPALAVRA") e cole em DEV_RESUMO.
@@ -1266,6 +1271,10 @@ const ehDev = nome => cyrb53(String(nome||"").toUpperCase().replace(/\s+/g,""))=
 let U=LS.get("usuario"); if(U && (!CARGOS[U.cargo] || (CARGOS[U.cargo].dev && !ehDev(U.nome)))) U=null;
 const quemSou = () => U ? `${U.nome} (${U.cargo})` : "sem login";
 const pode = k => { const c=CARGOS[U?.cargo]; return !!c && (c.m.split(" ").includes(k) || c.x.split(" ").includes(k)); };
+// lançamentos de produção (aço, forma, concreto), frentes e relatório: só o Engenheiro de produção e o Desenvolvedor alteram; os outros só veem
+const podePdf = () => !!CARGOS[U?.cargo]?.pdf; // Relatório PDF do aço
+const veDash = () => !!CARGOS[U?.cargo]?.dash; // números da produção no início, embaixo do bom dia
+const podeLanc = () => { if(pode("lanc-edit")) return true; toast("Só visualização: quem altera é o Engenheiro de produção."); return false; };
 // ---------- liberação de acesso: o desenvolvedor libera cada celular (nome + cargo) ----------
 // APARELHO = código aleatório deste celular; AC = última resposta do Google {status: pendente|liberado|recusado|novo, nome, cargo, motivo}
 const APARELHO = (()=>{ let a=LS.get("aparelho");
@@ -1642,15 +1651,17 @@ function pintarSync(){
 
 // ---------- edição ----------
 function setQty(code, q){
+  if(!podeLanc()){ updateRow(code); return; }
   const n=S.cur; (S.pend[n] ??= {}); (S.pend[n].raw ??= {})[K(code,eqAtual())]=q;
   savePend(); recompute(); updateRow(code); renderResumo(); renderInfo(); renderElem(); scheduleSync();
 }
 function setMany(lista){ // [[código, qtd]] na semana e equipe atuais
+  if(!podeLanc()){ refreshRows(); return; }
   const n=S.cur, eq=eqAtual(); (S.pend[n] ??= {}); const raw=(S.pend[n].raw ??= {});
   for(const [c,q] of lista) raw[K(c,eq)]=q;
   savePend(); recompute(); refreshRows(); renderResumo(); renderInfo(); scheduleSync();
 }
-function setWeekField(n, field, v){ (S.pend[n] ??= {})[field]=v; savePend(); recompute(); renderResumo(); scheduleSync(); }
+function setWeekField(n, field, v){ if(!podeLanc()) return renderSemanas(); (S.pend[n] ??= {})[field]=v; savePend(); recompute(); renderResumo(); scheduleSync(); }
 
 // ---------- semana ----------
 // só semanas que já começaram podem ser escolhidas
@@ -1967,6 +1978,7 @@ function proximaSemana(){
   return {last, ini:iso(ini), fim:iso(fim)};
 }
 $("#add-sem").addEventListener("click",()=>{
+  if(!podeLanc()) return;
   const {last, ini:i0, fim:f0}=proximaSemana();
   if(i0>hojeISO()){ toast("Essa semana ainda não começou."); return; }
   const ini=new Date(i0+"T12:00:00Z"), fim=new Date(f0+"T12:00:00Z"), iso=d=>d.toISOString().slice(0,10);
@@ -2138,7 +2150,7 @@ function setCampo(on){ LS.set("campo",!!on); if(on) document.documentElement.dat
 $("#campo-modo").addEventListener("click", e=>{ const b=e.target.closest("button[data-c]"); if(b) setCampo(b.dataset.c==="1"); });
 setCampo(!!LS.get("campo"));
 
-const VERSAO_APP = "v141"; // igual ao número em sw.js (armacao-v141)
+const VERSAO_APP = "v142"; // igual ao número em sw.js (armacao-v142)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -2674,7 +2686,7 @@ async function delReg(id){
 function regItem(r, comCod){
   const i=S.byCode.get(r.cod), pend=S.pendReg.some(x=>x.id===r.id);
   const del=el("button",{class:"linkbtn del x",type:"button",text:"Excluir"});
-  del.onclick=()=>{ if(del.dataset.ok){ delReg(r.id); } else { del.dataset.ok=1; del.textContent="Toque de novo para excluir"; } };
+  del.onclick=()=>{ if(!podeLanc()) return; if(del.dataset.ok){ delReg(r.id); } else { del.dataset.ok=1; del.textContent="Toque de novo para excluir"; } };
   const box=el("div",{class:"reg"},
     el("div",{class:"meta"},
       r.tipo==="ocorrencia" ? el("span",{class:"cat",text:r.cat||"Ocorrência"}) : null,
@@ -2713,7 +2725,7 @@ function renderRegLista(){
   $("#reg-lista").replaceChildren(...(rs.length ? rs.map(r=>regItem(r,false)) : [el("p",{class:"info",text:"Nenhuma foto ou observação nesta posição ainda."})]));
 }
 const baseReg = () => ({id:uid(), data:hojeISO(), sem:S.cur, equipe:eqAtual(), cod:REG.cod});
-$("#reg-salvar").addEventListener("click", ()=>{
+$("#reg-salvar").addEventListener("click", ()=>{ if(!podeLanc()) return;
   const txt=$("#reg-txt").value.trim(); if(!txt){ toast("Escreva a observação primeiro."); return; }
   addReg({...baseReg(), tipo:"obs", texto:txt}); $("#reg-txt").value=""; renderRegLista(); toast("Observação salva");
 });
@@ -2873,7 +2885,7 @@ $("#cb-opac").onchange=()=>salvarCfgCarimbo();
 for(const k of ["data","local","coord","obra","logo"]) $("#cb-"+k).onchange=e=>{ CB.cfg[k]=e.target.checked; salvarCfgCarimbo(); if(k==="logo"&&e.target.checked&&!CB.logo) carregarLogoCarimbo(); desenharPrevia(); };
 document.querySelectorAll("#cb-cantos button").forEach(b=>b.onclick=()=>{ CB.cfg.canto=b.dataset.c; salvarCfgCarimbo(); sincronizarControles(); desenharPrevia(); });
 
-$("#reg-foto").addEventListener("change", async e=>{
+$("#reg-foto").addEventListener("change", async e=>{ if(!podeLanc()){ e.target.value=""; return; }
   const f=e.target.files[0]; e.target.value=""; if(!f) return;
   try{
     const r={...baseReg(), tipo:"foto", texto:$("#reg-txt").value.trim()}, i=S.byCode.get(REG.cod);
@@ -2967,7 +2979,7 @@ function renderOcorrencias(){
   const oc=regsAll().filter(r=>r.tipo==="ocorrencia" && r.sem===S.cur).sort((a,b)=>String(b.data).localeCompare(String(a.data)));
   $("#oc-lista").replaceChildren(...(oc.length ? oc.map(r=>regItem(r,false)) : [el("p",{class:"info",text:"Nenhuma ocorrência nesta semana."})]));
 }
-$("#oc-add").addEventListener("click", ()=>{
+$("#oc-add").addEventListener("click", ()=>{ if(!podeLanc()) return;
   const data=$("#oc-data").value, horas=Math.max(0,num($("#oc-horas").value));
   if(!data){ toast("Informe a data."); return; }
   if(data>hojeISO()){ toast("A data não pode ser no futuro."); return; }
@@ -3065,9 +3077,9 @@ const metaSemana = w => META()*(+w.arm||0)*(+w.dias||0);
 const addDias = (d,n) => { const x=new Date(d); x.setDate(x.getDate()+n); return x; };
 const fmtData = d => d ? d.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit",year:"numeric"}) : "–";
 function setCfg(k,v){ S.pendCfg[k]=String(v); savePendExtra(); scheduleSync(); renderResumo(); renderPainel(); if(!document.activeElement?.closest?.("#v-semanas")) renderSemanas(); }
-$("#cf-meta").addEventListener("change", e=>{ const v=Math.round(num(e.target.value)); if(v>0) setCfg("META_KG_ARM_DIA",v); else toast("A meta precisa ser maior que zero."); });
-$("#cf-dias").addEventListener("change", e=>{ const v=Math.round(num(e.target.value)); if(v>=1&&v<=7) setCfg("DIAS_SEMANA",v); else toast("Informe de 1 a 7 dias."); });
-$("#cf-prazo").addEventListener("change", e=>setCfg("PRAZO", e.target.value||""));
+$("#cf-meta").addEventListener("change", e=>{ if(!podeLanc()) return renderSemanas(); const v=Math.round(num(e.target.value)); if(v>0) setCfg("META_KG_ARM_DIA",v); else toast("A meta precisa ser maior que zero."); });
+$("#cf-dias").addEventListener("change", e=>{ if(!podeLanc()) return renderSemanas(); const v=Math.round(num(e.target.value)); if(v>=1&&v<=7) setCfg("DIAS_SEMANA",v); else toast("Informe de 1 a 7 dias."); });
+$("#cf-prazo").addEventListener("change", e=>podeLanc() ? setCfg("PRAZO", e.target.value||"") : renderSemanas());
 function renderCfg(){
   if(document.activeElement?.id?.startsWith("cf-")) return;
   $("#cf-meta").value=META(); $("#cf-dias").value=DIAS(); $("#cf-prazo").value=cfgv("PRAZO","")||"";
@@ -3399,6 +3411,7 @@ const rotSit = e => { if(e.sit!=="parc") return SIT[e.sit][0];
 // "Voltar": desfaz as últimas alterações feitas nas frentes (marcações e liberações)
 const DESF=[];
 function setEl(e, campos, rot){
+  if(!podeLanc()){ renderFrentes(); return; }
   if(rot){
     const antes={}; for(const k of Object.keys(campos)) antes[k]= k==="lances" ? JSON.parse(JSON.stringify(e.st.lances||{})) : (e.st[k] ?? "");
     DESF.push({e:{chave:e.chave,emp:e.emp,est:e.est,loc:e.loc}, antes, rot}); if(DESF.length>15) DESF.shift();
@@ -3504,7 +3517,7 @@ $("#ck-salvar").addEventListener("click", ()=>{
   const e=atualEl(), L=CK.L, lances={...e.lances, [L]:{...(e.lances[L]||{}), check:lerCk(), resp:$("#ck-resp").value.trim(), obs:$("#ck-obs").value.trim()}};
   setEl(e,{lances},`checklist do ${nomeLance(L)} — ${e.loc}`); toast("Checklist salvo"); abrirChecklist(atualEl(),L);
 });
-$("#ck-liberar").addEventListener("click", ()=>{
+$("#ck-liberar").addEventListener("click", ()=>{ if(!podeLanc()) return;
   const e=atualEl(), L=CK.L, nome=nomeLance(L), msg=$("#ck-msg"), resp=$("#ck-resp").value.trim(), obs=$("#ck-obs").value.trim(), check=lerCk();
   const hoje=hojeISO();
   if(e.lances[L]?.data){
@@ -3528,7 +3541,7 @@ $("#ck-liberar").addEventListener("click", ()=>{
   toast(`${rotLance(L)} liberado`); abrirChecklist(atualEl(),L);
 });
 // depois de concretar: marca a etapa como concretada (libera a próxima)
-$("#ck-concretado").addEventListener("click", ()=>{
+$("#ck-concretado").addEventListener("click", ()=>{ if(!podeLanc()) return;
   const e=atualEl(), L=CK.L, d=e.lances[L]||{}, nome=nomeLance(L), hoje=hojeISO();
   if(!d.data) return;
   const idx=e.tipo.lances.indexOf(L), prox=e.tipo.lances[idx+1];
@@ -3541,7 +3554,7 @@ $("#ck-concretado").addEventListener("click", ()=>{
   toast(`${rotLance(L)} concretado`);
   if(prox) abrirChecklist(atualEl(),prox); else fecharChecklist();
 });
-$("#ck-foto").addEventListener("change", async ev=>{
+$("#ck-foto").addEventListener("change", async ev=>{ if(!podeLanc()){ ev.target.value=""; return; }
   const f=ev.target.files[0]; ev.target.value=""; if(!f||!CK.e) return;
   try{
     const r={id:uid(),data:hojeISO(),sem:S.cur,equipe:eqAtual(),tipo:"foto",cod:"EL:"+CK.e.chave,texto:`Checklist do ${nomeLance(CK.L)} · ${CK.e.loc}`};
@@ -3988,7 +4001,7 @@ function desenharMarcas(ctx, vp, ox, oy, dpr){
 }
 // no modo "Marcar": toque numa marca manual apaga; numa automática desmarca (fica cinza);
 // numa desmarcada restaura; no vazio cria uma marca manual
-function tocarMarca(p){
+function tocarMarca(p){ if(!podeLanc()) return;
   const [x,y]=V.page.getViewport({scale:V.z}).convertToPdfPoint(p.x-V.tx, p.y-V.ty);
   const tol=10/V.z, dentro=m=>x>=m.r[0]-tol && x<=m.r[0]+m.r[2]+tol && y>=m.r[1]-tol && y<=m.r[1]+m.r[3]+tol;
   const manual=MK.lista.find(m=>m.id && dentro(m)), auto=MK.lista.find(m=>m.auto && dentro(m)), oculta=MK.ocultas.find(dentro);
@@ -4010,6 +4023,9 @@ function tocarMarca(p){
 function show(v){
   document.querySelectorAll(".tabs button").forEach(b=>b.setAttribute("aria-selected", b.dataset.v===v));
   for(const s of ["coleta","painel","frentes","projetos","semanas","dados"]) $("#v-"+s).hidden = s!==v;
+  // quem só visualiza: aviso no topo e campos dos lançamentos travados; o Relatório PDF só para quem pode gerar
+  document.querySelectorAll(".aviso-lanc").forEach(p=>p.hidden=pode("lanc-edit")); document.body.classList.toggle("ver-lanc", !pode("lanc-edit"));
+  $("#rel-pdf").hidden=!podePdf();
   LS.set("aba",v); if(v==="painel") renderPainel(); if(v==="projetos") renderProjetos(); if(v==="frentes") renderFrentes(); scrollTo(0,0);
 }
 document.querySelector(".tabs").addEventListener("click", e=>{ const b=e.target.closest("button"); if(b) show(b.dataset.v); });
@@ -4086,7 +4102,7 @@ const MODULOS=[
   {id:"ferr",  nome:"Ferramentas",      desc:"Editor PDF, converter para Word e mais", c:["#E2544A","#B3261E"], ativo:true, todos:true},
   {id:"arquivo", nome:"Arquivo da obra", desc:"Recebimentos e cálculos da Calculadora de obra", c:["#D98A3D","#9C5A1C"], ativo:true, todos:true},
 ];
-const podeMod = m => m.todos || pode(m.id);
+const podeMod = m => (m.todos && !CARGOS[U?.cargo]?.restrito) || pode(m.id);
 const SERVICOS=[
   {id:"aco",   nome:"Aço",       desc:"Armação: coleta, frentes e produtividade", c:["#1A9BDC","#0067A6"], ativo:true},
   {id:"forma", nome:"Forma",     desc:"Montagem e desforma",                       c:["#D49A5A","#9C6430"], ativo:true},
@@ -4153,7 +4169,7 @@ function fecharFerramentas(peloVoltar){
 $("#ferr-fechar").addEventListener("click", ()=>fecharFerramentas(false));
 function menuMais(){
   const ops=MODULOS.filter(m=>podeMod(m) && acaoModulo(m)).map(m=>[m.nome, m.desc, acaoModulo(m)]);
-  if(pode("prod")) ops.splice(1,0,["Frentes","Liberações e concretagem",()=>irAco("frentes")],["Relatório PDF","Aço · semana atual",()=>{ irAco("painel"); setTimeout(()=>$("#rel-pdf")?.click(),300); }]);
+  if(pode("prod")) ops.splice(1,0,["Frentes","Liberações e concretagem",()=>irAco("frentes")], ...(podePdf() ? [["Relatório PDF","Aço · semana atual",()=>{ irAco("painel"); setTimeout(()=>$("#rel-pdf")?.click(),300); }]] : []));
   ops.push(["Normas em cards","NBR 6118, concreto, ensaios, rede, NRs e acessibilidade em desenhos",()=>abrirFerramentas("/ferramentas/?g=normas&de=wigo")]);
   ops.push(["Ajustes","Tema, modo em campo, banco e versão do app",()=>irAco("dados")]);
   escolher("Mais", ops);
@@ -4188,16 +4204,17 @@ function renderIndicadores(){
   const box=$("#ind-ini"); if(!box) return; numProd();
   if(!S.items.length){ box.replaceChildren(el("div",{class:"ind"}, el("span",{text:"Primeiro acesso"}), el("b",{text:"Conecte o banco"}), el("small",{text:"Toque em ⚙ Configurar o banco, abaixo dos módulos"}))); return; }
   // os quatro números da obra (cada um abre o painel do material) e, embaixo, a situação da sincronização
+  // (os números só para gerência, planejamento e engenharia; os outros cargos veem só a sincronização)
   const r=resumoAco(), w=r.w, meta=w?metaSemana(w):0, f=fmCalc(), C=ceCalc("");
   const i1=el("b"), i2=el("b"), iF=el("b"), iC=el("b"), fC=C.projPrev?C.proj/C.projPrev:0;
   const card=(k, rot, val, sub, frac, acao)=>el("button",{class:"ind",type:"button",style:`animation-delay:${.05+k*.05}s`,onclick:acao,"aria-label":`${rot}: abrir`},
     el("span",{text:rot}), val, el("small",{text:sub}), frac!=null ? el("i",{class:"ind-bar"}, el("i",{style:`width:${Math.min(100,frac*100).toFixed(1)}%`})) : null);
   const vaiProd=m=>()=>{ PV.mat=m; PV.vista="painel"; LS.set("prodMat",m); LS.set("prodVista","painel"); abrirTela("prod"); };
-  box.replaceChildren(
+  box.replaceChildren(...(veDash() ? [
     card(0, "Aço armado", i1, `de ${t(r.P)} t previstas`, r.pct, vaiProd("aco")),
     card(1, "Forma montada", iF, `de ${nf0.format(f.totProj)} m²`+(f.prod?` · ${nf1.format(f.prod)} m²/pessoa·dia`:""), f.totProj?f.avanco/f.totProj:0, vaiProd("forma")),
     card(2, "Concreto", iC, `de ${nf0.format(C.projPrev)} m³ · ${C.feitas} etapas executadas`, fC, vaiProd("conc")),
-    card(3, w?`Semana ${w.n} · ${ddmm(w.ini)} a ${ddmm(w.fim)}`:"Semana", i2, meta?`meta ${t(meta)} t · ${pct(w.kg/meta)} atingido`:"informe armadores e dias em Semanas", meta?Math.min(1,w.kg/meta):null, ()=>irAco("coleta")),
+    card(3, w?`Semana ${w.n} · ${ddmm(w.ini)} a ${ddmm(w.fim)}`:"Semana", i2, meta?`meta ${t(meta)} t · ${pct(w.kg/meta)} atingido`:"informe armadores e dias em Semanas", meta?Math.min(1,w.kg/meta):null, ()=>irAco("coleta"))] : []),
     el("div",{class:"ind-sync","data-st":($("#sync").className.match(/(ok|warn|bad)/)||[])[1]||""}, el("span",{class:"pt"}), el("b",{id:"ind-sync",text:$("#sync").textContent}),
       el("small",{text:S.lastSync?` · última: ${new Date(S.lastSync).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}`:" · ainda não sincronizado"})));
   contar(i1, r.E/1000, v=>`${nf1.format(v)} t · ${pct(r.P?v*1000/r.P:0)}`);
@@ -4278,7 +4295,7 @@ function renderInicio(){
   ];
   let box=$("#atalhos");
   if(!box){ box=el("div",{class:"mods",id:"atalhos"}); $("#tit-mods").before(el("h2",{class:"tela-tit",id:"tit-atalhos",text:"Atalhos"}), box); }
-  box.replaceChildren(...(pode("prod") ? at.map((m,k)=>moduloBtn(m,k)) : []));
+  box.replaceChildren(...(pode("prod") ? at.filter(m=>m.id!=="pdf" || podePdf()).map((m,k)=>moduloBtn(m,k)) : []));
   box.hidden=$("#tit-atalhos").hidden=!pode("prod");
   // banco ainda não configurado neste celular: atalho para os Ajustes, para qualquer cargo
   let cfgIni=$("#cfg-ini");
@@ -7173,7 +7190,7 @@ function apagarTracoEm(p){
 function renderCcBar(){
   const bar=$("#v-cc"), c=CC.conc && concDe(CC.conc);
   bar.hidden=!c; stage.classList.toggle("pintando", !!c && CC.modo!=="mover"); if(!c) return;
-  const ed=pode("producao-edit") && c.status!=="Concluída"; if(!ed) CC.modo="mover";
+  const ed=pode("lanc-edit") && c.status!=="Concluída"; if(!ed) CC.modo="mover";
   const modo=(k,rot)=>el("button",{class:CC.modo===k?"on":"",type:"button",text:rot,"aria-pressed":String(CC.modo===k),onclick:()=>{ CC.modo=k; renderCcBar(); }});
   const desf=CC.desfazer.filter(id=>tracosDe(CC.conc).some(t=>t.id===id));
   repor(bar,
@@ -7255,7 +7272,7 @@ function editarCaminhao(c, k){
        setConc(c.id, {cams:c.cams.filter(x=>x.n!==k.n)}, `Caminhão C${k.n} excluído`); if(CC.cam===k.n) CC.cam=null; fecharEf(); }})]);
 }
 function listaCaminhoes(c){
-  const ed=pode("producao-edit") && c.status!=="Concluída";
+  const ed=pode("lanc-edit") && c.status!=="Concluída";
   efModal(`Caminhões · ${c.estrutura}${c.local?" · "+c.local:""}`,
     [el("p",{class:"info full",text:`${nf1.format(volLancado(c))}${c.volPrev?` de ${nf1.format(c.volPrev)}`:""} m³ lançados em ${c.cams.length} caminhão(ões).`}),
      el("div",{class:"full cc-lista"}, ...(c.cams.length ? c.cams.map(k=>{ const b=el("button",{class:"btn cc-linha",type:"button",disabled:!ed,onclick:()=>editarCaminhao(c,k)},
@@ -7274,12 +7291,12 @@ async function abrirConcretagem(c){
       gerar:()=>mapaPdf(c)}
     : PJ.lista.find(x=>x.id===c.pdfId) || {id:c.pdfId, nome:c.pdfNome||"Forma", atualizado:""};
   CC.cam=c.cams.at(-1)?.n ?? null; CC.desfazer=[];
-  CC.modo = pode("producao-edit") && c.status!=="Concluída" && CC.cam!=null ? "pintar" : "mover";
+  CC.modo = pode("lanc-edit") && c.status!=="Concluída" && CC.cam!=null ? "pintar" : "mover";
   const pag=(tracosDe(c.id).at(-1)?.pag) || LS.get("ccPag:"+c.id) || (m ? 2 : 1); // mapa: abre na 1ª elevação
   await abrirPdf(f, pag, null, c.id);
   $("#v-tit").textContent=`Concretagem · ${c.estrutura}${c.local?" · "+c.local:""}`;
   await buscarTracos(c.id); if(CC.conc===c.id){ mudou(0); renderCcBar(); }
-  if(pode("producao-edit") && !c.cams.length && c.status!=="Concluída") toast("Toque em + Caminhão quando o primeiro chegar e pinte a área que ele concretou.");
+  if(pode("lanc-edit") && !c.cams.length && c.status!=="Concluída") toast("Toque em + Caminhão quando o primeiro chegar e pinte a área que ele concretou.");
 }
 // lembra a folha usada em cada concretagem
 $("#v-pag").addEventListener("change", ()=>{ if(CC.conc) LS.set("ccPag:"+CC.conc, V.n); });
@@ -7400,7 +7417,7 @@ function editarConc(c, pre){
     const [a,b]=CE_FAIXA[pre.etapa]; iDe.value=a?String(a).replace(".",","):""; iAte.value=b!=null?String(b).replace(".",","):""; montarLista(); }
 }
 function cardConc(c, ed){
-  const lanc=volLancado(c), frac=c.volPrev?lanc/c.volPrev:0, edSt=ed && pode("producao-edit"), m=mapaDe(c);
+  const lanc=volLancado(c), frac=c.volPrev?lanc/c.volPrev:0, edSt=ed && pode("lanc-edit"), m=mapaDe(c);
   const onde = m ? `${m.forma?"📄 laje (forma) + ":""}🧱 ${m.nome} · ${m.p.length} parede${m.p.length>1?"s":""}${m.de!=null||m.ate!=null?` · lance ${nf2(m.de||0)} a ${m.ate!=null?nf2(m.ate)+" m":"topo"}`:""}`
     : `📄 ${c.pdfNome?pjTitulo(c.pdfNome):"sem PDF da forma"}`;
   const dots=el("div",{class:"cc-dots"}, ...c.cams.map(k=>{ const s=el("span",{class:"cc-dot",text:`C${k.n}`}); s.style.setProperty("--cor",k.cor); return s; }));
@@ -7488,7 +7505,7 @@ function ceCalc(setor){
 }
 // volume gravado na etapa = soma dos caminhões (o painel dos gestores lê só a planilha)
 function ceSincVol(){
-  if(!pode("producao-edit")) return;
+  if(!pode("lanc-edit")) return;
   for(const r of ceRegs()){ const ids=r.dados.conc||[], cs=ids.map(concDe); if(!ids.length || cs.some(c=>!c)) continue;
     const v=Math.round(cs.reduce((s,c)=>s+volLancado(c),0)*100)/100;
     if(v>0 && Math.abs(v-(+r.dados.vol||0))>0.004) setEtapa(r.dados.obra, r.dados.etapa-1, {dados:{vol:v, estimado:false}}, `${r.dados.obra} · ${CE_CURTO[r.dados.etapa-1]} · ${nf1.format(v)} m³ dos caminhões`); }
@@ -7534,7 +7551,7 @@ function resumoConcTopo(){
 // etapas de uma estrutura: situação, data, volume e concretagens de cada uma
 function abrirEtapas(nome){
   const o=concObra(nome); if(!o) return;
-  const ed=pode("producao-edit"), prev=cePrev(o);
+  const ed=pode("lanc-edit"), prev=cePrev(o);
   const blocos=CE_ETAPAS.map((t,e)=>{ const r=ceDe(nome,e), st=r?.status||"", ex=ceVol(r,prev[e]), cs=(r?.dados.conc||[]).map(concDe).filter(Boolean);
     const iData=el("input",{type:"date",value:r?.data||"","aria-label":`${t}: data`,disabled:!ed});
     const iVol=el("input",{type:"text",inputMode:"decimal",value:r?.dados.vol>0&&!r.dados.estimado?String(r.dados.vol).replace(".",","):"",placeholder:cs.length?"dos caminhões":nf1.format(prev[e]),"aria-label":`${t}: volume executado (m³)`,disabled:!ed||cs.length>0});
@@ -7560,7 +7577,7 @@ function abrirEtapas(nome){
 function renderConc(){
   const box=$("#conc"); if(!box) return;
   ceSincVol();
-  const ed=pode("producao-edit"), L=concs(), ord=c=>CC_STATUS.indexOf(c.status);
+  const ed=pode("lanc-edit"), L=concs(), ord=c=>CC_STATUS.indexOf(c.status);
   const abertas=L.filter(c=>c.status!=="Concluída").sort((a,b)=>ord(b)-ord(a) || a.data.localeCompare(b.data)), feitas=L.filter(c=>c.status==="Concluída").sort((a,b)=>b.data.localeCompare(a.data));
   repor(box,
     el("p",{class:"saud"}, "Concreto", el("small",{text:"Etapas por estrutura e concretagens (mapa, caminhões e área de cada um)"})),
@@ -8790,7 +8807,7 @@ const docForma = f => el("button",{class:"card r2-card",type:"button",onclick:()
   el("div",{class:"i-top"}, el("b",{text:"📄 "+pjTitulo(f.nome)}), PJ.off[f.id]===f.atualizado ? el("span",{class:"chip ok",text:"no celular"}) : null),
   el("div",{class:"i-sub",text:`PDF · ${mb(f.tamanho||0)}`}));
 function painelForma(){
-  const c=fmCalc(), p=c.par, ed=pode("producao-edit");
+  const c=fmCalc(), p=c.par, ed=pode("lanc-edit");
   const tab=(cab, ls, cls)=>el("div",{class:"tbl"}, el("table",{class:cls||""}, el("thead",{}, el("tr",{}, ...cab.map(h=>el("th",{text:h})))),
     el("tbody",{}, ...ls.map(l=>el("tr",{}, ...l.map(v=>v instanceof Node ? el("td",{},v) : el("td",{text:String(v)})))))));
   // quadros de análise recolhidos, com o resumo no título; continuam abertos quando a tela redesenha
@@ -9651,7 +9668,7 @@ const MOD2={
       const cams=concs().flatMap(c=>(c.cams||[]).map(k=>[c.data, c.estrutura, `C${k.n}`, k.usina||"", k.nf||"", nf1.format(+k.vol||0)])).sort((a,b)=>b[0].localeCompare(a[0]));
       return [el("details",{class:"card"}, el("summary",{class:"pr-sum",text:`Caminhões lançados nas concretagens · ${cams.length}`}),
         cams.length ? tabelaSimples(["Data","Estrutura","Caminhão","Concreteira","NF","m³"], cams.slice(0,80).map(l=>[ddmm(l[0]),...l.slice(1)])) : el("p",{class:"info",text:"Nenhum caminhão lançado ainda (Produtividade › Concreto)."}))]; }},
-  forma:{nome:"Forma", desc:"Acompanhamento das formas por obra · montagem: Águia · meta = comparativo maior (CODAU = contrato do cliente)", edit:"producao-edit", acesso:"prod", tipos:[
+  forma:{nome:"Forma", desc:"Acompanhamento das formas por obra · montagem: Águia · meta = comparativo maior (CODAU = contrato do cliente)", edit:"lanc-edit", acesso:"prod", tipos:[
     {id:"apont", nome:"Lançamentos", nomeForm:"lançamento da forma", novo:"Lançar", semNovo:true, vazio:"Nada lançado no período. Toque em + Lançar.",
       // o operador escolhe: semanal (a data vira a segunda-feira da semana, com os dias trabalhados) ou diário (vale o dia)
       rotData:"Data (no semanal, qualquer dia da semana)", dataNorm:(data,d)=>fmSemanal(d) ? segSemana(data) : data,

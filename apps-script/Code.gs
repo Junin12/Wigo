@@ -489,73 +489,9 @@ const RDO_VOZ_SCHEMA = {
     visitas: { type: 'array', items: { type: 'string' } },
   },
 };
-// ---------- Gemini (Google AI Studio, plano gratuito) para o RDO por voz ----------
-// Chave nas Propriedades do script: GEMINI_API_KEY. O modelo é escolhido sozinho (o "Flash" mais novo que a chave
-// enxerga, guardado por 6 horas); para fixar um, crie a propriedade GEMINI_MODELO (ex.: gemini-2.5-flash).
-// lista de modelos Flash para tentar em ordem (o mais novo primeiro; lançamento recente costuma dar "muita demanda" (503))
-function geminiModelos_(chave) {
-  const fixo = PropertiesService.getScriptProperties().getProperty('GEMINI_MODELO');
-  if (fixo) return [fixo];
-  const cache = CacheService.getScriptCache(), guardado = cache.get('GEMINI_MODELOS');
-  if (guardado) return JSON.parse(guardado);
-  const r = UrlFetchApp.fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200', { headers: { 'x-goog-api-key': chave }, muteHttpExceptions: true });
-  if (r.getResponseCode() !== 200) throw new Error('A chave do Gemini foi recusada (HTTP ' + r.getResponseCode() + '). Confira GEMINI_API_KEY.');
-  const todos = (JSON.parse(r.getContentText()).models || []).filter(m => (m.supportedGenerationMethods || []).indexOf('generateContent') >= 0 && /flash/.test(m.name)
-    && !/image|tts|audio|live|embedding|thinking/.test(m.name));
-  if (!todos.length) throw new Error('Nenhum modelo Flash disponível para esta chave do Gemini.');
-  // estáveis primeiro (do mais novo ao mais antigo), depois lite/preview como reserva
-  const versao = n => Number((String(n).match(/(\d+(?:\.\d+)?)/) || [0, 0])[1]);
-  const reserva = m => /lite|exp|preview/.test(m.name) ? 1 : 0;
-  todos.sort((a, b) => reserva(a) - reserva(b) || versao(b.name) - versao(a.name) || a.name.length - b.name.length);
-  const nomes = todos.map(m => m.name.replace(/^models\//, '')).slice(0, 6);
-  cache.put('GEMINI_MODELOS', JSON.stringify(nomes), 21600);
-  return nomes;
-}
-// JSON Schema (como o do Claude) → formato de esquema do Gemini (tipos em maiúsculas, sem additionalProperties)
-function paraGemini_(s) {
-  const o = {};
-  if (s.type) o.type = String(s.type).toUpperCase();
-  if (s.description) o.description = s.description;
-  if (s.enum) o.enum = s.enum;
-  if (s.required) o.required = s.required;
-  if (s.properties) { o.properties = {}; Object.keys(s.properties).forEach(k => { o.properties[k] = paraGemini_(s.properties[k]); }); o.propertyOrdering = Object.keys(s.properties); }
-  if (s.items) o.items = paraGemini_(s.items);
-  return o;
-}
-// pede ao Gemini um JSON no formato do esquema; se o esquema for recusado (HTTP 400), tenta de novo com o esquema no texto
-function geminiJson_(chave, sistema, usuario, esquema) {
-  const modelos = geminiModelos_(chave);
-  let ultimo = '';
-  for (const modelo of modelos) {
-    try { return geminiJsonModelo_(chave, modelo, sistema, usuario, esquema); }
-    catch (e) { if (!e.ocupado) throw e; ultimo = e.message; } // sobrecarregado: tenta o próximo modelo
-  }
-  throw new Error(ultimo || 'Gemini indisponível agora: tente de novo em alguns minutos.');
-}
-function geminiJsonModelo_(chave, modelo, sistema, usuario, esquema) {
-  const pedir = comEsquema => UrlFetchApp.fetch('https://generativelanguage.googleapis.com/v1beta/models/' + modelo + ':generateContent', {
-    method: 'post', contentType: 'application/json', muteHttpExceptions: true, headers: { 'x-goog-api-key': chave },
-    payload: JSON.stringify({
-      systemInstruction: { parts: [{ text: sistema }] },
-      contents: [{ role: 'user', parts: [{ text: usuario + (comEsquema ? '' : '\n\nResponda só com um JSON neste formato (JSON Schema):\n' + JSON.stringify(esquema)) }] }],
-      generationConfig: Object.assign({ responseMimeType: 'application/json', temperature: 0.2 }, comEsquema ? { responseSchema: paraGemini_(esquema) } : {}),
-    }),
-  });
-  let resp = pedir(true);
-  if (resp.getResponseCode() === 400) resp = pedir(false);
-  const cod = resp.getResponseCode();
-  let j; try { j = JSON.parse(resp.getContentText()); } catch (e) { throw new Error('Resposta inválida do Gemini (HTTP ' + cod + ').'); }
-  if (cod === 429 || cod >= 500) { const e = new Error(cod === 429 ? 'Limite gratuito do Gemini atingido por agora: tente de novo em alguns minutos.' : 'Gemini sobrecarregado agora: tente de novo em alguns minutos.'); e.ocupado = true; throw e; }
-  if (cod !== 200) throw new Error('Gemini indisponível (HTTP ' + cod + '): ' + ((j.error && j.error.message) || '').slice(0, 200));
-  const c = (j.candidates || [])[0];
-  if (!c || !c.content) throw new Error('O Gemini não organizou este relato (' + ((c && c.finishReason) || (j.promptFeedback && j.promptFeedback.blockReason) || 'sem resposta') + '). Preencha manualmente.');
-  const txt = (c.content.parts || []).map(p => p.text || '').join('').trim().replace(/^```(?:json)?\s*|\s*```$/g, '');
-  try { return { json: JSON.parse(txt), modelo: modelo }; } catch (e) { throw new Error('O Gemini devolveu um texto que não é JSON. Tente de novo.'); }
-}
 function organizarRdo(corpo) {
-  const props = PropertiesService.getScriptProperties();
-  const chave = props.getProperty('ANTHROPIC_API_KEY'), gemini = props.getProperty('GEMINI_API_KEY');
-  if (!chave && !gemini) return { semChave: true };
+  const chave = PropertiesService.getScriptProperties().getProperty('ANTHROPIC_API_KEY');
+  if (!chave) return { semChave: true };
   const texto = String(corpo.texto || '').trim().slice(0, 12000);
   if (!texto) throw new Error('Nada foi ditado.');
   const ctx = corpo.contexto || {};
@@ -572,8 +508,6 @@ function organizarRdo(corpo) {
     + 'Visitas: fiscalização, cliente, fornecedores, segurança do trabalho.';
   const usuario = 'Data do RDO: ' + String(corpo.data || '') + '\nEstruturas da obra: ' + (ctx.estruturas || []).join(', ')
     + '\nAtividades do dia na Produção:\n' + lista + '\n\nRelato ditado:\n"""\n' + texto + '\n"""';
-  // com a chave do Gemini (gratuito), usa o Gemini; sem ela, o Claude
-  if (gemini) { const g = geminiJson_(gemini, sistema, usuario, RDO_VOZ_SCHEMA); return { rdo: g.json, modelo: g.modelo }; }
   const resp = UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', {
     method: 'post', contentType: 'application/json', muteHttpExceptions: true,
     headers: { 'x-api-key': chave, 'anthropic-version': '2023-06-01', 'anthropic-beta': 'server-side-fallback-2026-07-01' },
@@ -792,7 +726,7 @@ function linhas(nome) {
 // 31: leitura do ticket por foto retirada (sem chave da IA por enquanto).
 // 32: sincronização mais rápida: área pintada nova vai no fim da aba ConcretagemTracos (antes a aba inteira era lida e
 //     regravada a cada envio), leitura dos traços só das linhas da concretagem e observação da concretagem até 2.000 caracteres.
-const VERSAO_SCRIPT = 35;
+const VERSAO_SCRIPT = 34;
 
 // Colunas de código que precisam ficar como TEXTO. Sem isso o Planilhas converte
 // "DEC-0001" em data (dez/2001) e o código se perde.

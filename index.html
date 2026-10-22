@@ -2129,7 +2129,7 @@ function setCampo(on){ LS.set("campo",!!on); if(on) document.documentElement.dat
 $("#campo-modo").addEventListener("click", e=>{ const b=e.target.closest("button[data-c]"); if(b) setCampo(b.dataset.c==="1"); });
 setCampo(!!LS.get("campo"));
 
-const VERSAO_APP = "v136"; // igual ao número em sw.js (armacao-v136)
+const VERSAO_APP = "v137"; // igual ao número em sw.js (armacao-v137)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -6422,10 +6422,10 @@ function definirEquipe(a, ids){
 function listaEscolha(pres, marcados, atual){
   const h=hojeISO(), ocup=new Map(); for(const o of ativs()) for(const id of o.equipes?.[h]||[]) ocup.set(id,o);
   const fm=new Map(funcoes().map(f=>[f.id,f])), emp=p=>fm.get(p.fid)?.empresa||"";
-  // a empresa filtrada na Produção vem primeiro
-  const ordem=p=>marcados.has(p.id)?0:!ocup.has(p.id)?1:2, daEmp=p=>PRD.emp && normTxt(emp(p))!==PRD.emp ? 1 : 0;
+  // dentro de cada grupo, por empresa e nome (o antigo filtro de empresa da Produção não existe mais: usar PRD.emp quebrava a lista)
+  const ordem=p=>marcados.has(p.id)?0:!ocup.has(p.id)?1:2;
   const caixas=[];
-  const box=el("div",{class:"pr-escolha full"}, ...pres.slice().sort((a,b)=>ordem(a)-ordem(b)||daEmp(a)-daEmp(b)||emp(a).localeCompare(emp(b),"pt-BR")||a.nome.localeCompare(b.nome,"pt-BR")).map(p=>{
+  const box=el("div",{class:"pr-escolha full"}, ...pres.slice().sort((a,b)=>ordem(a)-ordem(b)||emp(a).localeCompare(emp(b),"pt-BR")||a.nome.localeCompare(b.nome,"pt-BR")).map(p=>{
     const c=el("input",{type:"checkbox",checked:marcados.has(p.id),value:p.id,"aria-label":p.nome}); caixas.push(c);
     const o=ocup.get(p.id);
     return el("label",{class:"chk pr-pessoa"}, c, el("span",{}, p.nome, el("small",{class:"pr-emp",text:` · ${[fm.get(p.fid)?.funcao, emp(p)].filter(Boolean).join(" · ")}`}),

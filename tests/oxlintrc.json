@@ -21,7 +21,6 @@
     "for-direction": "error",
     "getter-return": "error",
     "no-setter-return": "error",
-    "no-unused-vars": "warn",
     "no-unreachable": "warn"
   }
 }

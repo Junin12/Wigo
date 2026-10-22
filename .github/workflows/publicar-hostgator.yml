@@ -37,7 +37,6 @@ jobs:
           npx playwright install --with-deps chromium
       # erros que o teste no navegador só pega se a tela for aberta: nome não declarado, constante reatribuída, chave repetida…
       - name: Verificar o código (oxlint)
-        continue-on-error: true
         run: |
           node tests/lint.cjs
           npx --yes oxlint@1.86.0 -c tests/oxlintrc.json -f github tests/lint-saida

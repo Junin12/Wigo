@@ -350,6 +350,9 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
 .ass-pad{width:100%;max-width:520px;aspect-ratio:3/1;background:#fff;border:1px dashed var(--line);border-radius:10px;touch-action:none}
 .ass-img{max-height:70px;max-width:240px;background:#fff;border-radius:6px;padding:4px}
 #v-pend.on{background:#B42318;border-color:#B42318}
+.pend-ini{gap:2px}
+.pend-l{display:block;width:100%;text-align:left;background:none;border:0;border-top:1px solid var(--line);padding:10px 2px;font:inherit;font-weight:600;color:var(--ink);cursor:pointer;min-height:44px}
+.pend-l::after{content:" ›";color:var(--muted)}
 .r2-item{flex-wrap:nowrap}
 .r2-item input:first-child{flex:1;min-width:0}
 .cfg-link summary{cursor:pointer;min-height:44px;display:flex;align-items:center;font-weight:600}
@@ -2129,7 +2132,7 @@ function setCampo(on){ LS.set("campo",!!on); if(on) document.documentElement.dat
 $("#campo-modo").addEventListener("click", e=>{ const b=e.target.closest("button[data-c]"); if(b) setCampo(b.dataset.c==="1"); });
 setCampo(!!LS.get("campo"));
 
-const VERSAO_APP = "v138"; // igual ao número em sw.js (armacao-v138)
+const VERSAO_APP = "v139"; // igual ao número em sw.js (armacao-v139)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -10334,6 +10337,9 @@ function topoOcor(lista){
     kpi("Taxa de gravidade", hht ? nf0.format(dias*1e6/hht) : "–", `${nf0.format(dias)} dias perdidos`)),
     el("p",{class:"info",text:"NBR 14280: frequência = acidentes com afastamento × 1.000.000 ÷ horas trabalhadas; gravidade = dias perdidos × 1.000.000 ÷ horas. As horas vêm do efetivo do Ponto (8,8 h por pessoa por dia)."})];
 }
+// as abas da Segurança em 4 grupos (antes eram 9 abas soltas, em 4 linhas no celular)
+MOD2.seg.cats=[["dia","Dia a dia",["dds","insp","maq"]],["risco","Trabalhos de risco",["pt","vala"]],["pessoas","Pessoas",["trein","epi"]],["ocor","Ocorrências",["ocor","nc"]]]
+  .map(([id,nome,tipos])=>({id, nome, tipos}));
 { const topo0=MOD2.seg.topo; MOD2.seg.topo=(T,lista)=>T.id==="trein" ? matrizTrein() : T.id==="epi" ? topoEpi() : T.id==="ocor" ? topoOcor(lista)
   : T.id==="pt" ? [el("p",{class:"info",text:"A permissão só libera com os gases dentro do limite, os executantes com treinamento e ASO válidos e o checklist sem não conformidade. Encerre no fim do serviço."})] : topo0(T,lista); }
 // no Ponto: quem chega com treinamento ou ASO vencido recebe o aviso na hora
@@ -10620,10 +10626,12 @@ async function pdfChecagem(R, btn){
 }
 // em Relatórios: a checagem fica no topo, com o semáforo
 { const rel0=renderRelatorios; renderRelatorios=function(box){ rel0(box); box.querySelector(".saud")?.after(el("button",{class:"btn pr-opcao",type:"button",onclick:verChecagem}, el("b",{text:"🚦 Checagem da obra"}), el("small",{text:"Semáforo do que está pendente: testes, valas, permissões, treinamentos, NCs, CPs, RDO, almoxarifado e cronograma"}))); }; }
-// no início: aviso quando há item vermelho
+// no início: os avisos (checagem, não conformidades, corpos de prova, envio parado) num cartão só, uma linha cada
 { const p0=pendInicio; pendInicio=function(){ const o=p0(); let n=0; try{ n=checagemObra().filter(x=>x.cor==="bad").length; }catch{}
-  if(!n) return o; const b=el("button",{class:"btn",type:"button",style:"color:var(--bad)",text:`🚦 Checagem da obra: ${n} ${n>1?"itens vermelhos":"item vermelho"}`,onclick:verChecagem});
-  if(o){ o.prepend(b); return o; } return el("div",{class:"row"}, b); }; }
+  const bts=[...(n ? [el("button",{class:"btn",type:"button",style:"color:var(--bad)",text:`🚦 Checagem da obra: ${n} ${n>1?"itens vermelhos":"item vermelho"}`,onclick:verChecagem})] : []), ...(o ? [...o.children] : [])];
+  if(!bts.length) return null;
+  bts.forEach(b=>{ b.classList.remove("btn"); b.classList.add("pend-l"); b.textContent=b.textContent.replace(/^[⚠🚦🧪]\s*/u,""); });
+  return el("div",{class:"card pend-ini"}, el("b",{text:"Pendências"}), ...bts); }; }
 
 // produtividade do período: total, pessoas-dia e média por pessoa por dia
 function resumoProd(lista, qtd, un){

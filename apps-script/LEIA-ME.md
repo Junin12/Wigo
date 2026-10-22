@@ -7,6 +7,10 @@ Cópia do script publicado no Apps Script (sem senhas: a senha do app, TOKEN, e 
 ficam nas Propriedades do script). Quando mudar o script aqui, cole no Apps Script e publique:
 **Implantar → Gerenciar implantações → lápis ✏️ → Versão: Nova versão → Implantar** (o endereço /exec não muda).
 
+Versão 34: chat do Claude no Painel Dev (ação `devChat`, só o desenvolvedor, usa a mesma ANTHROPIC_API_KEY do RDO por voz)
+e o tamanho de cada aba em `devDados`. No Extras.gs: vigia diário (rode `instalarVigia` uma vez e autorize o e-mail), que avisa
+o desenvolvedor às 7h quando há erros, avisos em aberto, celulares com envios parados ou abas grandes.
+
 Versão 33: Painel Dev do app. A ação `devDados` (só o desenvolvedor) devolve as últimas linhas das abas **Historico**
 (quem gravou o quê e quando, para achar e desfazer lançamentos indevidos) e **Erros** (erros dos celulares).
 

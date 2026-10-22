@@ -351,6 +351,12 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
 .ass-img{max-height:70px;max-width:240px;background:#fff;border-radius:6px;padding:4px}
 #v-pend.on{background:#B42318;border-color:#B42318}
 .pend-ini{gap:2px}
+.laudo-al{margin:6px 0 0;padding-left:18px;display:grid;gap:4px}
+.laudo-al li.bad{color:var(--bad)}
+.laudo-al li.and{color:#B26A00}
+.laudo-al li.ok{color:var(--muted)}
+.laudo-pags{display:flex;gap:8px;overflow-x:auto;margin-top:6px}
+.laudo-pags img{height:160px;border:1px solid var(--line);border-radius:6px;cursor:pointer;background:#fff}
 .pend-l{display:block;width:100%;text-align:left;background:none;border:0;border-top:1px solid var(--line);padding:10px 2px;font:inherit;font-weight:600;color:var(--ink);cursor:pointer;min-height:44px}
 .pend-l::after{content:" ›";color:var(--muted)}
 .r2-item{flex-wrap:nowrap}
@@ -2132,7 +2138,7 @@ function setCampo(on){ LS.set("campo",!!on); if(on) document.documentElement.dat
 $("#campo-modo").addEventListener("click", e=>{ const b=e.target.closest("button[data-c]"); if(b) setCampo(b.dataset.c==="1"); });
 setCampo(!!LS.get("campo"));
 
-const VERSAO_APP = "v139"; // igual ao número em sw.js (armacao-v139)
+const VERSAO_APP = "v140"; // igual ao número em sw.js (armacao-v140)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -4072,7 +4078,7 @@ const MODULOS=[
   {id:"obras", nome:"Obras e projetos", desc:"Estruturas, pranchas, pontos no mapa e hidráulica",  c:["#4F7CE8","#2747B0"], ativo:true},
   {id:"rel",   nome:"Relatórios",       desc:"PDF semanal e painéis",          c:["#8A6BE0","#5A3FB0"], ativo:true},
   {id:"sup",   nome:"Suprimentos",      desc:"Pedidos, recebimento e almoxarifado",          c:["#F2AE3D","#D27D1F"], ativo:true},
-  {id:"qual",  nome:"Qualidade",        desc:"FVS, concreto e teste de pressão da rede",    c:["#36B37E","#1D7A48"], ativo:true},
+  {id:"qual",  nome:"Qualidade",        desc:"FVS, laudos do laboratório, concreto e testes",    c:["#36B37E","#1D7A48"], ativo:true},
   {id:"seg",   nome:"Segurança",        desc:"DDS, permissão de trabalho, treinamentos, EPI e escavações",           c:["#F2783A","#C9461A"], ativo:true},
   {id:"med",   nome:"Medições",         desc:"Boletins, rede assentada e curva S",       c:["#45A1D6","#22709F"], ativo:true},
   {id:"equip", nome:"Equipamentos",     desc:"Máquinas, horímetros e diesel",          c:["#7D8B99","#4A5866"], ativo:true},
@@ -10633,6 +10639,243 @@ async function pdfChecagem(R, btn){
   bts.forEach(b=>{ b.classList.remove("btn"); b.classList.add("pend-l"); b.textContent=b.textContent.replace(/^[⚠🚦🧪]\s*/u,""); });
   return el("div",{class:"card pend-ini"}, el("b",{text:"Pendências"}), ...bts); }; }
 
+// ================= Qualidade › Laudos do laboratório: o PDF do laboratório vira dados e alertas =================
+// Lê o texto dos laudos (ARC Engenharia: F07-15 compactação, F07-01/06/03 caracterização do solo, F01-07/08 agregados,
+// F05-09 dosagem): as linhas são montadas pela posição na folha, já com a rotação da página corrigida.
+// Cada laudo vira um registro qual/laudo (dados.v = valores lidos, dados.alertas = [[cor, texto]]); a compactação também vira
+// "Ensaios de solo" (um por linha do quadro), que alimenta o painel do Solo e o plano de ação. As páginas vão como imagem.
+const numBR = s => { const v=parseFloat(String(s).replace(/\./g,"").replace(",",".")); return isFinite(v) ? v : null; };
+const dataLaudo = s => { const m=String(s||"").match(/(\d{2})\/(\d{2})\/(\d{2,4})/); return m ? `${m[3].length===2?"20"+m[3]:m[3]}-${m[2]}-${m[1]}` : ""; };
+async function linhasPdfPag(page){
+  const vp=page.getViewport({scale:1}), tc=await page.getTextContent(), its=[];
+  for(const i of tc.items){ const s=i.str.trim(); if(!s) continue; const [x,y]=vp.convertToViewportPoint(i.transform[4], i.transform[5]); its.push({s,x,y}); }
+  its.sort((a,b)=>a.y-b.y||a.x-b.x); const L=[];
+  for(const it of its){ let l=L.find(l=>Math.abs(l.y-it.y)<2.5); if(!l) L.push(l={y:it.y,its:[]}); l.its.push(it); }
+  for(const l of L){ l.its.sort((a,b)=>a.x-b.x); l.t=l.its.map(i=>i.s).join(" "); }
+  return L.sort((a,b)=>a.y-b.y);
+}
+const achar = (T, re, f=numBR) => { const m=T.match(re); return m ? f(m[1]) : null; };
+const txt1 = s => String(s).trim();
+// quadro resumo de compactação (F07-15): colunas achadas pelo cabeçalho; cada data na coluna "Data" é uma linha do quadro
+function lerCompactacao(L){
+  const all=L.flatMap(l=>l.its), cab=(re,ord=0)=>all.filter(i=>re.test(i.s)).sort((a,b)=>a.x-b.x)[ord];
+  const col={data:cab(/^Data$/), local:cab(/^Local$/), lotes:cab(/^Lotes$/), camada:cab(/^Camada$/), dmax:cab(/^Dens\.$/,0), hot:cab(/^Umid\.$/), isc:cab(/^ISC$/),
+    exp:cab(/^Expans/), dcampo:cab(/^Dens\.$/,1), hcampo:cab(/^Umidad/), gc:cab(/^Grau$/), ll:cab(/^LL$/), lp:cab(/^LP$/), ip:cab(/^IP$/)};
+  if(!col.data || !col.gc || !col.dcampo || !col.local) return [];
+  const nums=["dmax","hot","isc","exp","dcampo","hcampo","gc","ll","lp","ip"].filter(k=>col[k]), xLocFim=(col.lotes||col.camada).x-8;
+  const datas=all.filter(i=>/^\d{2}\/\d{2}\/\d{2,4}$/.test(i.s) && Math.abs(i.x-col.data.x)<25 && i.y>col.data.y).sort((a,b)=>a.y-b.y);
+  return datas.map((d,k)=>{
+    const prox=datas[k+1]?.y ?? Infinity, lin=all.filter(i=>Math.abs(i.y-d.y)<3), r={data:dataLaudo(d.s)};
+    for(const i of lin){ if(!/^\d+,\d+$/.test(i.s)) continue; const c=nums.reduce((m,c)=>Math.abs(col[c].x-i.x)<Math.abs(col[m].x-i.x)?c:m, nums[0]); if(Math.abs(col[c].x-i.x)<24) r[c]=numBR(i.s); }
+    // o nome do local termina antes de "Cotas Top.", das coordenadas (números longos) ou do rodapé
+    const fim=all.filter(i=>i.y>d.y+1 && i.y<prox && i.x>=col.local.x-32 && i.x<xLocFim && (/^Cotas/.test(i.s) || /^[d.,]{5,}$/.test(i.s) || /^(Observa|Nº.|Este|ENSAIOS)/.test(i.s))).map(i=>i.y), cotas=Math.min(prox, ...fim, all.find(i=>/^Observa/.test(i.s))?.y ?? Infinity);
+    r.local=all.filter(i=>i.y>=d.y-3 && i.y<cotas-1 && i.x>=col.local.x-32 && i.x<xLocFim && i.s!=="-" && !/^[\d.,]+$/.test(i.s))
+      .sort((a,b)=>a.y-b.y||a.x-b.x).map(i=>i.s).join(" ").replace(/\b([A-ZÁ-Ú]) ([a-zá-ú])/g,"$1$2").replace(/\s+/g," ").trim();
+    r.camada=lin.find(i=>Math.abs(i.x-col.camada.x)<26 && i.s!=="-")?.s || "";
+    return r; }).filter(r=>r.gc!=null || r.dcampo!=null);
+}
+// uma página → {forma, ...valores}; as páginas da caracterização (granulometria, CBR e limites) se juntam pelo certificado
+async function lerPaginaLaudo(page){
+  const L=await linhasPdfPag(page), T=L.map(l=>l.t).join("\n"), F=(T.match(/\bF0\d-\d{2}\b/)||[])[0]||"";
+  const cab={forma:F, cert:(T.match(/Certificado\s*n[º°o]?\.?:?\s*(?:\n)?\s*0*(\d+)\s*\/?\s*(\d{2})\b/i)||[]).slice(1,3).join("/") || (T.match(/\b0*(\d{2,4})\/(2\d)\b/)||[]).slice(1,3).join("/"),
+    emissao:dataLaudo((T.match(/Emiss[ãa]o:?\s*(?:\n)?\s*(\d{2}\/\d{2}\/\d{2,4})/i)||[])[1]), lab:/arcengenharia/i.test(T) ? "ARC Engenharia" : ""};
+  const amostra={amostra:(T.match(/Amostra\s*(?:\/\s*)?n[º°o]\.?:?\s*(\d+)/i)||[])[1]||"", material:txt1((T.match(/(?:Tipo de material|Material):\s*(.+?)(?:\s+Camada:|\s+Procedência:|\n)/i)||[])[1]||""),
+    camada:txt1((T.match(/Camada:\s*(\S+)/i)||[])[1]||""), local:txt1((T.match(/Local de coleta:\s*(.+)/i)||[])[1]||""), coleta:dataLaudo((T.match(/recebimento:\s*(\d{2}\/\d{2}\/\d{2,4})/i)||[])[1])};
+  if(F==="F07-15") return {...cab, tipo:"comp", linhas:lerCompactacao(L)};
+  if(F==="F07-01"){ const m=T.match(/Argila \+ silte Areia fina Areia grossa Pedregulho\n([\d,]+) % ([\d,]+) % ([\d,]+) % ([\d,]+) %/);
+    return {...cab, ...amostra, tipo:"carac", v:m ? {argila:numBR(m[1]), afina:numBR(m[2]), agrossa:numBR(m[3]), pedreg:numBR(m[4])} : {}}; }
+  if(F==="F07-06") return {...cab, ...amostra, tipo:"carac", v:{hot:achar(T,/Umidade ótima:\s*([\d,]+)/), dmax:achar(T,/Densidade máx\.:\s*([\d,]+)/),
+    cbr:achar(T,/I\.S\.C\s*\/\s*CBR\.?:\s*([\d,]+)/), exp:achar(T,/Expansão:\s*([\d,]+)\s*%/), energia:achar(T,/Energia\s+([A-ZÁ-Ú]+)/,txt1)}};
+  if(F==="F07-03") return {...cab, ...amostra, tipo:"carac", v:{ll:achar(T,/LL\s*\(%\)\s*([\d,]+)/), lp:achar(T,/LP\s*\(%\)\s*([\d,]+)/), ip:achar(T,/IP\s*\(%\)\s*([\d,]+)/),
+    hrb:achar(T,/H\.R\.B\.:\s*(A-[\d-]+)/,txt1), ig:achar(T,/\(IG\):\s*([\d,]+)/)}};
+  if(F==="F01-07" || F==="F01-08") return {...cab, ...amostra, tipo:F==="F01-07"?"graudo":"miudo", v:{mf:achar(T,/Módulo de finura - IT 01-07:\s*([\d,]+)/), dmax:achar(T,/Diâmetro máximo - IT 01-07:\s*([\d,]+)/),
+    finos:achar(T,/75\s*μm[^:\n]*:\s*([\d,]+)\s*%/), torroes:achar(T,/torrões \(%\) - IT 01-09:\s*([\d,]+)\s*%/), me:achar(T,/Massa específica[^:\n]*:\s*([\d,]+)/),
+    mu:achar(T,/Massa unitária \(g\/cm³\)- IT 01-06:\s*([\d,]+)/), muc:achar(T,/unitária compacta[^:\n]*:\s*([\d,]+)/), impureza:achar(T,/Impureza orgânica - IT 01-11:\s*([^\n]+?)(?:\s+Massa|\n|$)/,txt1)}};
+  if(F==="F05-09"){ const i=L.findIndex(l=>/Fator A\/C/.test(l.t)), c=(L[i+1]?.t||"").match(/^([\d,]+) ([\d,]+) (\S+) ([\d,]+) ([\d,]+) ([\d,]+) (\d+) ± (\d+) ([\d,]+)/)||[];
+    const u=T.match(/Massa 1 : ([\d,]+) : ([\d,]+) : ([\d,]+)/)||[];
+    return {...cab, tipo:"traco", traco:txt1((T.match(/Traço n[º°o]\.?:\s*(.+)/i)||[])[1]||""), cimento:txt1((T.match(/Cimento:\s*(.+?)\s+Aditivo:/)||[])[1]||""), aditivo:txt1((T.match(/Aditivo:\s*(.+)/)||[])[1]||""),
+      v:{fck:numBR(c[1]), sd:numBR(c[2]), fcj:numBR(c[4]), mf:numBR(c[5]), dmax:numBR(c[6]), slump:numBR(c[7]), tol:numBR(c[8]), ac:numBR(c[9]),
+        a:numBR(u[1]), b:numBR(u[2]), cons:achar(T,/Cimento 1 SACO [\d,]+ [\d,]+ [\d,]+ ([\d,]+)/), agua:achar(T,/Água [\d,]+ litros [\d,]+ [\d,]+ [\d,]+ ([\d,]+)/),
+        r7:achar(T,/7d-\s*([\d,]+)\s*MPa/i), r14:achar(T,/14d-\s*([\d,]+)\s*MPa/i), r28:achar(T,/28d-\s*([\d,]+)\s*MPa/i)}}; }
+  return {...cab, tipo:"outro", texto:T.slice(0,600)};
+}
+async function lerLaudoPdf(file){
+  await loadPdfjs();
+  const doc=await pdfjsLib.getDocument({data:new Uint8Array(await file.arrayBuffer())}).promise, pags=[];
+  for(let p=1;p<=doc.numPages;p++) pags.push({...await lerPaginaLaudo(await doc.getPage(p)), pag:p});
+  // junta as páginas da caracterização do mesmo certificado; folhas sem dado (ex.: só gráficos) não viram laudo
+  const out=[];
+  for(const x of pags){
+    if(x.tipo==="carac"){ const a=out.find(o=>o.tipo==="carac" && o.cert===x.cert); if(a){ Object.assign(a.v, Object.fromEntries(Object.entries(x.v).filter(([,v])=>v!=null))); for(const k of ["material","camada","local","amostra","coleta"]) a[k]=a[k]||x[k]; a.pags.push(x.pag); continue; } }
+    if(x.tipo==="comp" && !x.linhas.length) continue;
+    if(x.tipo!=="comp" && x.v && !Object.values(x.v).some(v=>v!=null)) continue;
+    out.push({...x, v:{...(x.v||{})}, pags:[x.pag]});
+  }
+  return {doc, laudos:out.map(l=>({...l, arq:file.name}))};
+}
+
+// ---------- avaliação: o que o laudo diz para a obra ----------
+// Referências: GC mínimo e tolerância de umidade conforme a especificação (padrão 95% e ±2%); agregados pela NBR 7211;
+// dosagem pela NBR 6118/12655 (tabela 7.1: a/c, classe e consumo mínimo por classe de agressividade).
+const CAA={"I":{ac:0.65,fck:20,cons:260},"II":{ac:0.60,fck:25,cons:280},"III":{ac:0.55,fck:30,cons:320},"IV":{ac:0.45,fck:40,cons:360}};
+const LAUDO_CFG=()=>({gcMin:+LS.get("laudoGcMin")||95, umTol:+LS.get("laudoUmTol")||2, caa:LS.get("laudoCaa")||"IV"});
+const n2 = v => v==null ? "–" : nf2(v), n1b = v => v==null ? "–" : nf1.format(v);
+function avaliarLaudo(l, cfg=LAUDO_CFG()){
+  const A=[], ok=t=>A.push(["ok",t]), at=t=>A.push(["and",t]), mal=t=>A.push(["bad",t]), v=l.v||{};
+  if(l.tipo==="comp") for(const r of l.linhas||[]){
+    const onde=`${r.local||"?"}${r.camada?" ("+r.camada+")":""} em ${ddmm(r.data)}`, dh=r.hcampo!=null && r.hot!=null ? Math.round((r.hcampo-r.hot)*10)/10 : null;
+    if(r.gc==null) continue;
+    if(r.gc<cfg.gcMin) mal(`${onde}: GC ${n1b(r.gc)}%, abaixo do mínimo de ${cfg.gcMin}%. Recompactar antes de liberar a camada.`);
+    else if(r.gc>103) at(`${onde}: GC ${n1b(r.gc)}%, acima de 103%: confira se a densidade máxima de referência (Proctor) é do mesmo material.`);
+    else ok(`${onde}: GC ${n1b(r.gc)}% (mínimo ${cfg.gcMin}%).`);
+    if(dh!=null && Math.abs(dh)>cfg.umTol) at(`${onde}: umidade ${n1b(r.hcampo)}% contra ${n1b(r.hot)}% da ótima (${dh>0?"+":""}${n1b(dh)}%), fora de ±${cfg.umTol}%. ${dh<0?"Compactado no ramo seco: risco de recalque ou expansão quando o solo molhar.":"Ramo úmido: risco de borrachudo e perda de suporte."}`);
+  }
+  if(l.tipo==="carac"){
+    if(v.cbr!=null) (v.cbr<2 ? mal : v.cbr<6 ? at : ok)(`CBR ${n1b(v.cbr)}%${v.cbr<2?": suporte muito baixo, precisa de reforço ou troca de solo.":v.cbr<6?": suporte baixo; confira com o projeto.":"."}`);
+    if(v.exp!=null) (v.exp>2 ? mal : ok)(`Expansão ${n2(v.exp)}%${v.exp>2?": acima de 2%, solo expansivo para subleito.":" (até 2%)."}`);
+    if(v.hrb) (/^A-[67]/.test(v.hrb) ? at : ok)(`Classificação ${v.hrb}${v.ig!=null?` (IG ${n1b(v.ig)})`:""}${/^A-[67]/.test(v.hrb)?": solo argiloso, comportamento regular a ruim como subleito; muito sensível à umidade.":"."}`);
+    if(v.ip!=null && v.ip>10) at(`IP ${n1b(v.ip)}%: plasticidade média; controlar a umidade na compactação.`);
+    if(v.hot!=null && v.dmax!=null) ok(`Referência para o campo: densidade máxima ${n2(v.dmax)} g/cm³ com umidade ótima ${n1b(v.hot)}%${v.energia?" (energia "+v.energia.toLowerCase()+")":""}.`);
+  }
+  if(l.tipo==="miudo"){
+    if(v.mf!=null) (v.mf<1.55||v.mf>3.5 ? mal : v.mf<2.2||v.mf>2.9 ? at : ok)(`Módulo de finura ${n2(v.mf)}${v.mf<1.55||v.mf>3.5?": fora da zona utilizável (1,55 a 3,50).":v.mf<2.2?": areia fina (zona utilizável, abaixo da ótima 2,20 a 2,90): pede mais água e cimento no traço.":v.mf>2.9?": areia grossa (zona utilizável): concreto mais áspero.":", na zona ótima."}`);
+    if(v.finos!=null) (v.finos>5 ? mal : v.finos>3 ? at : ok)(`Material pulverulento ${n1b(v.finos)}% (limite 3% para concreto sujeito a desgaste, 5% para protegido).`);
+    if(v.torroes!=null) (v.torroes>3 ? mal : ok)(`Argila em torrões ${n2(v.torroes)}% (limite 3%).`);
+    if(v.impureza) (/conforme|clara/i.test(v.impureza) ? ok : mal)(`Impureza orgânica: ${v.impureza}.`);
+  }
+  if(l.tipo==="graudo"){
+    if(v.finos!=null) (v.finos>1 ? mal : ok)(`Material pulverulento ${n2(v.finos)}% (limite 1%).`);
+    if(v.torroes!=null) (v.torroes>1 ? mal : ok)(`Argila em torrões ${n2(v.torroes)}% (limite 1% para concreto aparente).`);
+    if(v.dmax!=null) ok(`Dimensão máxima ${String(v.dmax).replace(".",",")} mm${v.dmax<=19?" (brita 1)":v.dmax<=25?" (brita 2)":""}.`);
+  }
+  if(l.tipo==="traco"){
+    const c=CAA[cfg.caa], atende=Object.entries(CAA).filter(([,x])=>v.ac!=null && v.fck!=null && v.ac<=x.ac+1e-9 && v.fck>=x.fck && (v.cons==null || v.cons>=x.cons)).map(([k])=>k);
+    if(c && v.ac!=null && v.fck!=null){
+      const falhas=[v.ac>c.ac+1e-9 ? `a/c ${n2(v.ac)} > ${n2(c.ac)}` : "", v.fck<c.fck ? `fck ${v.fck} < ${c.fck} MPa` : "", v.cons!=null && v.cons<c.cons ? `consumo ${nf0.format(v.cons)} < ${c.cons} kg/m³` : ""].filter(Boolean);
+      (falhas.length ? at : ok)(`Classe de agressividade ${cfg.caa}: ${falhas.length ? "não atende ("+falhas.join(", ")+"): use só em peças de classe "+(atende.at(-1)||"–")+" ou mais branda" : `atende (a/c ≤ ${n2(c.ac)}, fck ≥ ${c.fck} MPa, consumo ≥ ${c.cons} kg/m³)`}.`);
+    }
+    if(v.fck!=null && v.sd!=null && v.fcj!=null){ const fcj=v.fck+1.65*v.sd; (Math.abs(fcj-v.fcj)>0.6 ? at : ok)(`fcj de dosagem ${n1b(v.fcj)} MPa (fck + 1,65 × Sd = ${n1b(fcj)} MPa).`); }
+    for(const [d,f,esp] of [["7",v.r7,0.70],["14",v.r14,0.85],["28",v.r28,1]]) if(f!=null && v.fcj) (f<esp*v.fcj ? at : ok)(`Laboratório ${d} dias: ${n1b(f)} MPa = ${nf0.format(f/v.fcj*100)}% do fcj${f<esp*v.fcj?` (esperado ~${nf0.format(esp*100)}%).`:"."}`);
+    // obra: corpos de prova já rompidos com o mesmo fck
+    const cps=regs2De("qual","cp").filter(r=>+r.dados.fck===v.fck && r.dados.res28!=null);
+    if(cps.length){ const m=cps.reduce((s,r)=>s+ +r.dados.res28,0)/cps.length; (m<v.fck ? mal : m<v.fcj ? at : ok)(`Na obra, ${cps.length} moldagem(ns) de fck ${v.fck}: média aos 28 dias ${n1b(m)} MPa (fcj ${n1b(v.fcj)}).`); }
+  }
+  const st = A.some(a=>a[0]==="bad") ? "Não conforme" : A.some(a=>a[0]==="and") ? "Atenção" : "Conforme";
+  return {alertas:A, status:st};
+}
+const TIPOS_LAUDO={comp:"Compactação em campo", carac:"Caracterização do solo", graudo:"Agregado graúdo", miudo:"Agregado miúdo", traco:"Dosagem do concreto", outro:"Outro laudo"};
+function tituloLaudo(l){
+  if(l.tipo==="comp") return `Compactação · ${[...new Set((l.linhas||[]).map(r=>r.local).filter(Boolean))].join(" · ")||"?"}`;
+  if(l.tipo==="carac") return `Caracterização · ${l.local||l.material||"amostra "+l.amostra}`;
+  if(l.tipo==="traco") return `Traço ${l.traco||"?"}`;
+  if(l.tipo==="graudo"||l.tipo==="miudo") return `${TIPOS_LAUDO[l.tipo]} · ${l.material||"?"}`;
+  return `${TIPOS_LAUDO[l.tipo]||"Laudo"} · cert. ${l.cert||"?"}`;
+}
+// valores principais de cada tipo, em texto (cartão, PDF e ficha)
+function resumoLaudo(l){
+  const v=l.v||{};
+  if(l.tipo==="comp") return (l.linhas||[]).map(r=>`${ddmm(r.data)} ${r.local||""}: GC ${n1b(r.gc)}% · h ${n1b(r.hcampo)}% (ótima ${n1b(r.hot)}%)`).join(" | ");
+  if(l.tipo==="carac") return [v.cbr!=null&&`CBR ${n1b(v.cbr)}%`, v.exp!=null&&`exp. ${n2(v.exp)}%`, v.hrb, v.ll!=null&&`LL ${n1b(v.ll)}`, v.ip!=null&&`IP ${n1b(v.ip)}`, v.argila!=null&&`silte+argila ${n1b(v.argila)}%`, v.dmax!=null&&`γmáx ${String(v.dmax).replace(".",",")}`, v.hot!=null&&`hót ${n1b(v.hot)}%`].filter(Boolean).join(" · ");
+  if(l.tipo==="traco") return [v.fck!=null&&`fck ${v.fck} MPa`, v.ac!=null&&`a/c ${n2(v.ac)}`, v.cons!=null&&`${nf0.format(v.cons)} kg/m³`, v.slump!=null&&`slump ${v.slump}±${v.tol} mm`, v.a!=null&&`1 : ${n2(v.a)} : ${n2(v.b)}`, l.cimento].filter(Boolean).join(" · ");
+  if(l.tipo==="graudo"||l.tipo==="miudo") return [v.mf!=null&&`MF ${n2(v.mf)}`, v.dmax!=null&&`Dmáx ${String(v.dmax).replace(".",",")} mm`, v.finos!=null&&`finos ${n2(v.finos)}%`, v.torroes!=null&&`torrões ${n2(v.torroes)}%`, v.me!=null&&`ρ ${String(v.me).replace(".",",")}`].filter(Boolean).join(" · ");
+  return String(l.texto||"").slice(0,120);
+}
+const idLaudo = l => "lab"+cyrb53([l.tipo, l.cert, l.emissao, l.traco||"", l.material||"", l.amostra||"", l.local||"", (l.linhas||[]).map(r=>r.local).join(",")].join("|")).slice(0,12);
+
+// ---------- importar: lê os PDFs, mostra o que foi lido e grava ----------
+async function importarLaudos(files){
+  const lidos=[];
+  for(const f of files){ try{ const r=await lerLaudoPdf(f); lidos.push(...r.laudos.map(l=>({...l, _doc:r.doc}))); }catch(e){ toast(`Não consegui ler “${f.name}”: ${e.message||e}`); } }
+  if(!lidos.length) return toast("Nenhum resultado encontrado nesses PDFs.");
+  const cfg=LAUDO_CFG(), iGc=el("input",{type:"text",inputMode:"decimal",value:String(cfg.gcMin)}), iUm=el("input",{type:"text",inputMode:"decimal",value:String(cfg.umTol)});
+  const iCaa=el("select",{}, ...Object.keys(CAA).map(k=>el("option",{value:k,text:`Classe ${k}${k==="IV"?" (estação de tratamento)":""}`,selected:k===cfg.caa})));
+  const lista=el("div",{class:"full"});
+  const desenhar=()=>{ const c={gcMin:num(iGc.value)||95, umTol:num(iUm.value)||2, caa:iCaa.value};
+    repor(lista, ...lidos.map(l=>{ const a=avaliarLaudo(l,c), ja=regs2().some(r=>r.id===idLaudo(l));
+      return el("div",{class:"card"}, el("div",{class:"i-top"}, el("b",{text:tituloLaudo(l)}), el("span",{class:"chip "+(a.status==="Conforme"?"ok":a.status==="Atenção"?"and":"bad"),text:a.status})),
+        el("small",{class:"info",text:`${TIPOS_LAUDO[l.tipo]} · cert. ${l.cert||"?"} · ${l.emissao?dataBR(l.emissao):"sem data"} · ${l.arq}${ja?" · JÁ IMPORTADO (vai atualizar)":""}`}),
+        el("p",{text:resumoLaudo(l)}), el("ul",{class:"laudo-al"}, ...a.alertas.map(([cor,t])=>el("li",{class:cor,text:t})))); })); };
+  [iGc,iUm].forEach(i=>i.oninput=desenhar); iCaa.onchange=desenhar; desenhar();
+  efModal(`Laudos lidos · ${lidos.length}`, [
+    el("div",{class:"filtros full"}, campoEf("GC mínimo exigido (%)",iGc), campoEf("Tolerância de umidade (±%)",iUm), campoEf("Concreto: classe de agressividade",iCaa)),
+    el("p",{class:"info full",text:"Confira os valores lidos. Ao guardar, cada laudo vira um registro com os alertas, as páginas do PDF vão como imagem junto e a compactação entra também em Solo › Ensaios de solo."}), lista],
+    [el("button",{class:"btn pri",type:"button",text:"Guardar no banco",onclick:async e=>{ e.target.disabled=true; e.target.textContent="Guardando…";
+      LS.set("laudoGcMin", num(iGc.value)||95); LS.set("laudoUmTol", num(iUm.value)||2); LS.set("laudoCaa", iCaa.value);
+      try{ const n=await guardarLaudos(lidos, LAUDO_CFG()); fecharEf(); toast(`${n.laudos} laudo(s) guardado(s)${n.solo?` · ${n.solo} ensaio(s) de solo`:""}${n.nc?` · ${n.nc.replace(/.$/,"")}`:""}.`); renderReg2(); anexarPaginasLaudos(lidos); }
+      catch(x){ toast(x.message||"Não consegui guardar."); e.target.disabled=false; e.target.textContent="Guardar no banco"; } }})]);
+}
+// páginas do PDF como imagem (pasta Fotos do Drive, ligadas ao laudo): depois dos dados, sem segurar a tela.
+// Cada página tem prazo: com o app em segundo plano o desenho do PDF pode parar, e aí a página fica de fora.
+async function anexarPaginasLaudos(lidos){
+  const feitas=new Set(); let n=0;
+  for(const l of lidos){ const id=idLaudo(l), doc=l._doc; if(!doc || fotosReg2(id).length) continue;
+    for(const p of l.pags){ const k=(doc.fingerprints?.[0]||"")+"|"+p; if(feitas.has(k)) continue; feitas.add(k);
+      try{ const pg=await doc.getPage(p), vp=pg.getViewport({scale:1.7}), c=el("canvas",{width:Math.round(vp.width),height:Math.round(vp.height)}), g=c.getContext("2d");
+        g.fillStyle="#fff"; g.fillRect(0,0,c.width,c.height);
+        await Promise.race([pg.render({canvasContext:g, viewport:vp, intent:"print"}).promise, new Promise((_,erro)=>setTimeout(()=>erro(new Error("prazo")),20000))]);
+        const b=await new Promise(ok=>c.toBlob(ok,"image/jpeg",0.72)), r={id:uid(), data:hojeISO(), sem:semanaDaData(hojeISO()), equipe:"", tipo:"foto", cod:"R2:"+id, texto:`${tituloLaudo(l)} · pág. ${p}`};
+        await (await caches.open(FOTOS)).put("foto/"+r.id, new Response(b,{headers:{"Content-Type":"image/jpeg"}})); addReg(r); n++; }catch{} } }
+  if(n && !$("#tela-reg").hidden && RG.mod==="qual") renderReg2();
+  return n;
+}
+async function guardarLaudos(lidos, cfg){
+  let nl=0, ns=0, nc="";
+  for(const l of lidos){
+    const id=idLaudo(l), a=avaliarLaudo(l,cfg), {_doc, ...dados}=l;
+    setReg2(id, {modulo:"qual", tipo:"laudo", data:l.emissao||hojeISO(), status:a.status, dados:{...dados, titulo:tituloLaudo(l), resumo:resumoLaudo(l), alertas:a.alertas, cfg}}, `Laudo: ${tituloLaudo(l)}`); nl++;
+    // compactação: cada linha também vira um ensaio de solo (painel do Solo, reprovação e plano de ação)
+    if(l.tipo==="comp") (l.linhas||[]).forEach((r,i)=>{ if(r.gc==null) return;
+      const sid="sl"+cyrb53(id+"|"+i).slice(0,11), d={ensaio:"Grau de compactação (campo)", local:r.local||"", det:r.camada||"", gc:r.gc, gcMin:cfg.gcMin,
+        ...(r.hcampo!=null&&r.hot!=null?{umid:Math.round((r.hcampo-r.hot)*10)/10}:{}), umTol:cfg.umTol,
+        res:`Dens. campo ${n2(r.dcampo)} / máx. ${n2(r.dmax)} g/cm³ · h ${n1b(r.hcampo)}% (ótima ${n1b(r.hot)}%)`, lab:`${l.lab||"Laboratório"} · cert. ${l.cert}`, laudo:id};
+      const st=tipoSolo.statusAuto(d); setReg2(sid, {modulo:"qual", tipo:"solo", data:r.data||l.emissao||hojeISO(), status:st, dados:d}, `Ensaio de solo (laudo ${l.cert})`); ns++;
+      nc+=tipoSolo.aoSalvar(sid, d, st) || ""; });
+    // reprovado em laudo de agregado ou traço: plano de ação
+    if(l.tipo!=="comp" && a.status==="Não conforme") nc+=criarNCs("qual", id, [{chave:"laudo", data:hojeISO(), dados:{desc:`Laudo ${l.cert}: ${a.alertas.filter(x=>x[0]==="bad").map(x=>x[1]).join(" ")}`.slice(0,300),
+      origem:`Laudo do laboratório (${TIPOS_LAUDO[l.tipo]})`, local:l.local||"", resp:"", prazo:somaDias(hojeISO(),7)}}]);
+  }
+  return {laudos:nl, solo:ns, nc:nc.trim()};
+}
+function verLaudo(r){
+  const d=r.dados||{}, v=d.v||{}, linhasV=Object.entries(v).filter(([,x])=>x!=null && x!=="");
+  const NOMES={argila:"Silte + argila (%)",afina:"Areia fina (%)",agrossa:"Areia grossa (%)",pedreg:"Pedregulho (%)",hot:"Umidade ótima (%)",dmax:d.tipo==="carac"?"Densidade máx. (g/cm³)":"Dimensão máx. (mm)",cbr:"CBR / ISC (%)",exp:"Expansão (%)",energia:"Energia",
+    ll:"LL (%)",lp:"LP (%)",ip:"IP (%)",hrb:"Classificação HRB",ig:"Índice de grupo",mf:"Módulo de finura",finos:"Material pulverulento (%)",torroes:"Argila em torrões (%)",me:"Massa específica (g/cm³)",mu:"Massa unitária (g/cm³)",
+    muc:"Massa unitária compacta (g/cm³)",impureza:"Impureza orgânica",fck:"fck (MPa)",sd:"Sd (MPa)",fcj:"fcj (MPa)",slump:"Slump (mm)",tol:"Tolerância do slump (± mm)",ac:"Fator a/c",a:"Traço: areia",b:"Traço: brita",cons:"Cimento (kg/m³)",agua:"Água (L/m³)",r7:"Resist. 7 dias (MPa)",r14:"Resist. 14 dias (MPa)",r28:"Resist. 28 dias (MPa)"};
+  const fs=fotosReg2(r.id), imgs=el("div",{class:"full laudo-pags"});
+  fs.forEach(f=>{ const im=el("img",{alt:f.texto||"Página do laudo",loading:"lazy"}); blobDaFoto(f).then(b=>{ if(b) im.src=URL.createObjectURL(b); }); im.onclick=()=>verFoto(f); imgs.append(im); });
+  efModal(`${d.titulo||"Laudo"}`, [
+    el("p",{class:"info full",text:`${TIPOS_LAUDO[d.tipo]||"Laudo"} · ${d.lab||""} · certificado ${d.cert||"?"} · emissão ${r.data?dataBR(r.data):"?"} · ${d.arq||""}`}),
+    el("div",{class:"full"}, el("span",{class:"chip "+(r.status==="Conforme"?"ok":r.status==="Atenção"?"and":"bad"),text:r.status})),
+    d.alertas?.length ? el("ul",{class:"laudo-al full"}, ...d.alertas.map(([c,t])=>el("li",{class:c,text:t}))) : null,
+    d.linhas?.length ? el("div",{class:"full"}, tabelaSimples(["Data","Local","Camada","γmáx","h ótima","γ campo","h campo","GC (%)"], d.linhas.map(x=>[ddmm(x.data), x.local, x.camada, n2(x.dmax), n1b(x.hot), n2(x.dcampo), n1b(x.hcampo), n1b(x.gc)]))) : null,
+    linhasV.length ? el("dl",{class:"ct-ficha full"}, ...linhasV.flatMap(([k,x])=>[el("dt",{text:NOMES[k]||k}), el("dd",{text:typeof x==="number"?String(x).replace(".",","):String(x)})])) : null,
+    d.tipo==="traco" ? el("p",{class:"info full",text:[d.cimento&&`Cimento ${d.cimento}`, d.aditivo&&`aditivo ${d.aditivo}`].filter(Boolean).join(" · ")}) : null,
+    fs.length ? el("div",{class:"full"}, el("b",{text:`Páginas do laudo · ${fs.length}`}), imgs) : null],
+    [pode("qual-edit") ? el("button",{class:"btn",type:"button",text:"Excluir",style:"color:var(--bad)",onclick:()=>{ if(!confirm("Excluir este laudo? Os ensaios de solo gerados por ele também saem.")) return;
+      for(const s of regs2De("qual","solo").filter(x=>x.dados.laudo===r.id)) delReg2(s.id); delReg2(r.id); fecharEf(); toast("Laudo excluído."); renderReg2(); }}) : null].filter(Boolean));
+}
+// painel dos laudos: totais, o que pede atenção e a evolução do grau de compactação
+function topoLaudos(lista){
+  const inp=el("input",{type:"file",accept:"application/pdf,.pdf",multiple:true,hidden:true}); inp.onchange=()=>{ const fs=[...inp.files]; inp.value=""; if(fs.length) importarLaudos(fs); };
+  const bt=pode("qual-edit") ? el("div",{class:"row"}, el("button",{class:"btn pri",type:"button",text:"📥 Ler laudos do laboratório (PDF)",onclick:()=>inp.click()}), inp) : null;
+  if(!lista.length) return [bt, el("p",{class:"info",text:"Escolha os PDFs do laboratório (compactação, caracterização do solo, agregados, dosagem do concreto): o app lê os resultados, compara com as normas e com a especificação e guarda tudo aqui."})];
+  const al=lista.flatMap(r=>(r.dados.alertas||[]).filter(a=>a[0]!=="ok").map(a=>[r,a])), sol=regs2De("qual","solo").filter(r=>r.dados.laudo && r.dados.gc!=null).sort((a,b)=>a.data.localeCompare(b.data));
+  const gcs=sol.map(r=>+r.dados.gc), bad=lista.filter(r=>r.status==="Não conforme").length;
+  return [bt, el("div",{class:"kpis"}, kpi("Laudos", nf0.format(lista.length), `${lista.filter(r=>r.status==="Conforme").length} conformes`),
+      kpiCor("Não conformes", nf0.format(bad), bad?"viraram plano de ação":"nenhum", bad?"bad":"ok"),
+      kpi("GC médio (laudos)", gcs.length ? nf1.format(gcs.reduce((s,x)=>s+x,0)/gcs.length)+"%" : "–", gcs.length ? `${gcs.length} pontos · menor ${nf1.format(Math.min(...gcs))}%` : "sem compactação")),
+    al.length ? el("div",{class:"card dq-atencao"}, el("h3",{text:`Pedem atenção · ${al.length}`}), el("ul",{class:"laudo-al"}, ...al.slice(0,12).map(([r,[c,t]])=>el("li",{class:c}, el("b",{text:tituloLaudo(r.dados)+": "}), t)))) : el("p",{class:"okmsg",text:"Nenhum laudo com alerta."}),
+    gcs.length>1 ? el("div",{class:"card"}, grafBarras({titulo:"Grau de compactação por ponto (%)", rot:sol.map(r=>ddmm(r.data)), series:[{nome:"GC",cor:"#2E7D32",vals:gcs}], un:"%"})) : null].filter(Boolean);
+}
+const tipoLaudo={id:"laudo", nome:"Laudos do laboratório", semNovo:true, status:["Conforme","Atenção","Não conforme"],
+  vazio:"Nenhum laudo no período. Toque em 📥 Ler laudos do laboratório.",
+  campos:[{k:"titulo",rot:"Laudo",t:"txt"},{k:"tipo",rot:"Ensaio",t:"txt",fmt:v=>TIPOS_LAUDO[v]||v},{k:"cert",rot:"Certificado",t:"txt"},{k:"resumo",rot:"Resultado",t:"txt"},{k:"arq",rot:"Arquivo",t:"txt",semCard:true}],
+  aberto:()=>true, // poucos laudos, emitidos semanas antes: aparecem sempre, sem depender do período
+  titulo:d=>d.titulo||"Laudo", chip:r=>[r.status, r.status==="Conforme"?"ok":r.status==="Atenção"?"and":"bad"], abrir:r=>verLaudo(r)};
+MOD2.qual.tipos.splice(MOD2.qual.tipos.findIndex(t=>t.id==="modelo"), 0, tipoLaudo);
+{ const LCAT={conc:["traco","graudo","miudo"], solo:["comp","carac"]};
+  for(const c of MOD2.qual.cats){ if(c.id==="conc"||c.id==="solo"||c.id==="geral"){ c.tipos.splice(1,0,"laudo"); if(LCAT[c.id]) (c.filtro ??= {}).laudo=r=>LCAT[c.id].includes(r.dados.tipo); } }
+  const topo0=MOD2.qual.topo; MOD2.qual.topo=(T,lista)=>T.id==="laudo" ? topoLaudos(lista) : topo0(T,lista); }
 // produtividade do período: total, pessoas-dia e média por pessoa por dia
 function resumoProd(lista, qtd, un){
   if(!lista.length) return [];

@@ -58,6 +58,15 @@ const confere = (ok, msg) => { console.log(`${ok ? "ok  " : "FALHA"} ${msg}`); i
       && MOD2.qual.tipos.find(t => t.id === "nc").campos.some(c => c.k === "pr") && !!document.querySelector("#v-pend")
       && pt.length === 1 && /O₂/.test(pt[0]) && addMeses("2026-01-31", 1) === "2026-03-03" && Array.isArray(checagemObra());
   }), "treinamentos, permissão de trabalho, EPI, curva S, almoxarifado, pendência na prancha e checagem");
+  // laudos do laboratório: avaliação de compactação, agregado e traço (a leitura do PDF é testada com os laudos reais, fora daqui)
+  confere(await p.evaluate(() => {
+    const cfg = { gcMin: 95, umTol: 2, caa: "IV" };
+    const comp = avaliarLaudo({ tipo: "comp", linhas: [{ data: "2026-08-31", local: "Canaleta", gc: 100.6, hot: 12.2, hcampo: 10 }, { data: "2026-09-01", local: "Canaleta", gc: 94, hot: 12, hcampo: 12 }] }, cfg);
+    const traco = avaliarLaudo({ tipo: "traco", v: { fck: 30, sd: 5.5, fcj: 39.1, ac: 0.525, cons: 390 } }, cfg);
+    const areia = avaliarLaudo({ tipo: "miudo", v: { mf: 1.97, finos: 1.5, torroes: 0.3 } }, cfg);
+    return MOD2.qual.tipos.some(t => t.id === "laudo") && comp.status === "Não conforme" && comp.alertas.some(a => /ramo seco/.test(a[1]))
+      && traco.status === "Atenção" && areia.status === "Atenção" && numBR("1.000,5") === 1000.5 && dataLaudo("31/08/26") === "2026-08-31";
+  }), "laudos do laboratório: compactação, traço e agregados avaliados");
 
   // mapa das paredes dos floculadores A e C (gera o PDF inteiro, sem baixar)
   for (const k of ["FLOC-A", "FLOC-C"]) {

@@ -2155,7 +2155,7 @@ function setCampo(on){ LS.set("campo",!!on); if(on) document.documentElement.dat
 $("#campo-modo").addEventListener("click", e=>{ const b=e.target.closest("button[data-c]"); if(b) setCampo(b.dataset.c==="1"); });
 setCampo(!!LS.get("campo"));
 
-const VERSAO_APP = "v144"; // igual ao número em sw.js (armacao-v144)
+const VERSAO_APP = "v145"; // igual ao número em sw.js (armacao-v145)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -3774,7 +3774,7 @@ async function abrirPdf(f, pag, alvo, conc){
       V.buf=buf.slice(0); V.nome=f.nome; $("#v-fora").hidden=false; // cópia: o leitor do app consome o original
       vmsg("Abrindo projeto…");
       await leitor;
-      V.doc?.destroy(); V.doc=await pdfjsLib.getDocument({data:new Uint8Array(buf), isOffscreenCanvasSupported:false}).promise; V.fid=f.id;
+      V.doc?.destroy(); V.doc=await pdfjsLib.getDocument({isEvalSupported:false, data:new Uint8Array(buf), isOffscreenCanvasSupported:false}).promise; V.fid=f.id;
       $("#v-pag").replaceChildren(...Array.from({length:V.doc.numPages},(_,k)=>el("option",{value:k+1,text:`Folha ${k+1}/${V.doc.numPages}`})));
       renderProjetos();
     }
@@ -7630,7 +7630,7 @@ function recortePintado(cv, vp, ts){
 // prévia na tela: as páginas do PDF desenhadas uma abaixo da outra, com o botão para baixar/compartilhar se quiser
 async function verPdf(doc, nome, titulo, btn){
   await loadPdfjs();
-  const pdf=await pdfjsLib.getDocument({data:new Uint8Array(doc.output("arraybuffer"))}).promise;
+  const pdf=await pdfjsLib.getDocument({isEvalSupported:false, data:new Uint8Array(doc.output("arraybuffer"))}).promise;
   const box=el("div",{class:"full ver-pdf"});
   efModal(`Prévia · ${titulo}`, [box], [el("button",{class:"btn pri",type:"button",text:"📄 Baixar / compartilhar PDF",onclick:()=>entregarPdf(doc, nome, titulo)})]);
   const larg=Math.min(1600, Math.round((box.clientWidth||360)*(devicePixelRatio||1)*1.5));
@@ -7679,7 +7679,7 @@ async function relatorioConc(c, btn, ver=false){
     if(c.pdfId && pags.length){
       await loadPdfjs();
       const f=PJ.lista.find(x=>x.id===c.pdfId) || {id:c.pdfId, nome:c.pdfNome, atualizado:""};
-      const pdf=await pdfjsLib.getDocument({data:new Uint8Array(await obterPdf(f))}).promise;
+      const pdf=await pdfjsLib.getDocument({isEvalSupported:false, data:new Uint8Array(await obterPdf(f))}).promise;
       for(const n of pags){
         btn.textContent=`Desenhando folha ${n}…`;
         // resolução alta: o recorte da área pintada é ampliado na página do relatório e precisa continuar nítido
@@ -8124,7 +8124,7 @@ async function docMapa(c, {pintura=false}={}){
 async function folhaForma(doc, c, m){
   cabecalhoMapa(doc, c, `${m.nome} — Laje de fundo`, `área concretada por caminhão · ${pjTitulo(m.forma.nome||"forma")}`);
   await loadPdfjs();
-  const pdf=await pdfjsLib.getDocument({data:new Uint8Array(await obterPdf(formaArq(m)))}).promise;
+  const pdf=await pdfjsLib.getDocument({isEvalSupported:false, data:new Uint8Array(await obterPdf(formaArq(m)))}).promise;
   try{
     const pg=await pdf.getPage(m.forma.pag||1), v1=pg.getViewport({scale:1}), vp=pg.getViewport({scale:Math.min(3600/Math.max(v1.width,v1.height), 5)});
     const cv=document.createElement("canvas"); cv.width=Math.round(vp.width); cv.height=Math.round(vp.height);
@@ -10730,7 +10730,7 @@ async function lerPaginaLaudo(page){
 }
 async function lerLaudoPdf(file){
   await loadPdfjs();
-  const doc=await pdfjsLib.getDocument({data:new Uint8Array(await file.arrayBuffer())}).promise, pags=[];
+  const doc=await pdfjsLib.getDocument({isEvalSupported:false, data:new Uint8Array(await file.arrayBuffer())}).promise, pags=[];
   for(let p=1;p<=doc.numPages;p++) pags.push({...await lerPaginaLaudo(await doc.getPage(p)), pag:p});
   // junta as páginas da caracterização do mesmo certificado; folhas sem dado (ex.: só gráficos) não viram laudo
   const out=[];

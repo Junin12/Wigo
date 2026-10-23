@@ -2177,7 +2177,7 @@ function setCampo(on){ LS.set("campo",!!on); if(on) document.documentElement.dat
 $("#campo-modo").addEventListener("click", e=>{ const b=e.target.closest("button[data-c]"); if(b) setCampo(b.dataset.c==="1"); });
 setCampo(!!LS.get("campo"));
 
-const VERSAO_APP = "v146"; // igual ao número em sw.js (armacao-v146)
+const VERSAO_APP = "v147"; // igual ao número em sw.js (armacao-v147)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -6216,7 +6216,7 @@ function efHist(){
 
 // ================= Login por cargo (com liberação do desenvolvedor) =================
 // LG.escolher = mostrar o formulário mesmo com pedido em espera; LG.criar = criar a senha do desenvolvedor; LG.erro = última falha
-const LG={escolher:false, criar:false, erro:"", enviando:false};
+const LG={escolher:false, criar:false, erro:"", enviando:false, recup:false, nome:""};
 const bemVindo = () => toast(`Bem-vindo, ${U.nome.split(" ")[0]}!`);
 // o pedido precisa do banco: link/QR do desenvolvedor ou endereço + senha do app
 function blocoBanco(depois){
@@ -6245,6 +6245,40 @@ async function pedirAcesso(deNovo){
   LG.enviando=false;
   if(liberado()){ LG.escolher=false; abrirTela("inicio"); toast("Acesso liberado!"); scheduleSync(100); } else renderLogin();
 }
+// troca de senha com código no WhatsApp do Dev (script 37): "dev" = senha do Desenvolvedor, "app" = senha do app (convite)
+// depois(nova) roda quando o script confirma; extra() acrescenta ao pedido (na tela de entrada, o nome do Dev)
+const SENHA_ALVO={dev:{nome:"senha do Desenvolvedor", min:6}, app:{nome:"senha do app", min:8}};
+function trocaSenha(alvo, depois, extra=()=>({})){
+  const A=SENHA_ALVO[alvo];
+  const iCod=el("input",{type:"text",inputMode:"numeric",maxLength:6,autocomplete:"one-time-code","aria-label":"Código recebido no WhatsApp"});
+  const iNova=el("input",{type:"password",maxLength:64,autocomplete:"new-password","aria-label":"Senha nova"});
+  const iNova2=el("input",{type:"password",maxLength:64,autocomplete:"new-password","aria-label":"Repita a senha nova"});
+  const pedir=el("button",{class:"btn",type:"button",text:"📲 Mandar código para o WhatsApp do Dev"});
+  const trocar=el("button",{class:"btn",type:"button",text:`Trocar a ${A.nome}`});
+  const passo2=el("div",{hidden:true}, el("label",{class:"campo"}, "Código do WhatsApp (6 números)", iCod),
+    el("label",{class:"campo"}, `Senha nova (mínimo ${A.min})`, iNova), el("label",{class:"campo"}, "Repita a senha nova", iNova2), el("div",{class:"row"}, trocar));
+  pedir.onclick=async()=>{
+    pedir.disabled=true;
+    try{ const j=await post({acao:"senhaCodigo", alvo, ...extra()});
+      if(j.codigo!=="enviado") throw new Error("O script da planilha ainda não tem esta função: publique a versão 37.");
+      passo2.hidden=false; pedir.textContent="📲 Mandar outro código"; iCod.focus(); toast("Código enviado para o WhatsApp do Dev. Vale 10 minutos."); }
+    catch(e){ toast(e.message); }
+    pedir.disabled=false;
+  };
+  trocar.onclick=async()=>{
+    const codigo=iCod.value.trim(), nova=iNova.value;
+    if(!/^\d{6}$/.test(codigo)) return toast("Digite os 6 números do código.");
+    if(nova.length<A.min) return toast(`A senha nova precisa ter pelo menos ${A.min} caracteres.`);
+    if(nova!==iNova2.value) return toast("As duas senhas não são iguais.");
+    if(alvo==="app" && !confirm("Trocar a senha do app?\n\nOs outros celulares param de sincronizar até receberem o convite novo (link ou QR).")) return;
+    trocar.disabled=true;
+    try{ const j=await post({acao:"senhaTrocar", alvo, codigo, nova, ...extra()});
+      if(j.trocada!==alvo) throw new Error("O script da planilha ainda não tem esta função: publique a versão 37.");
+      depois(nova); }
+    catch(e){ toast(e.message); trocar.disabled=false; }
+  };
+  return el("div",{}, el("div",{class:"row"}, pedir), passo2);
+}
 // desenvolvedor: entra com a senha; na primeira vez, cria a senha (depois ninguém mais cria)
 async function entrarDev(nome, senha, criar){
   if(!S.cfg?.url) return toast("Conecte o banco primeiro.");
@@ -6267,13 +6301,23 @@ async function entrarDev(nome, senha, criar){
 function renderLogin(){
   const box=$("#login"); if(!box) return;
   if(U && !liberado() && !LG.escolher && !CARGOS[U.cargo]?.dev) return renderEspera(box);
-  const iNome=el("input",{type:"text",maxLength:80,autocomplete:"name",placeholder:"Seu nome",value:U?.nome||""}); iNome.setAttribute("list","dl-login");
-  let cargo=U?.cargo||"";
+  const iNome=el("input",{type:"text",maxLength:80,autocomplete:"name",placeholder:"Seu nome",value:U?.nome||(LG.recup?LG.nome:"")||""}); iNome.setAttribute("list","dl-login");
+  let cargo=U?.cargo||(LG.recup?"Desenvolvedor":"");
   const iSenha=el("input",{type:"password",maxLength:64,autocomplete:LG.criar?"new-password":"current-password","aria-label":"Senha do desenvolvedor"});
   const iSenha2=el("input",{type:"password",maxLength:64,autocomplete:"new-password","aria-label":"Repita a senha"});
   const campoSenha=el("div",{}, el("label",{class:"campo"}, LG.criar?"Crie a senha do desenvolvedor (mínimo 6)":"Senha do desenvolvedor", iSenha),
     LG.criar ? el("label",{class:"campo"}, "Repita a senha", iSenha2) : null,
-    LG.criar ? el("p",{class:"aviso",text:"Esta senha é criada uma única vez. Depois dela, ninguém mais entra como Desenvolvedor sem ela."}) : null);
+    LG.criar ? el("p",{class:"aviso",text:"Esta senha é criada uma única vez. Depois dela, ninguém mais entra como Desenvolvedor sem ela."}) : null,
+    // esqueceu a senha: código no WhatsApp do Dev e senha nova; depois entra com ela
+    LG.criar ? null : LG.recup
+      ? el("div",{class:"card"}, el("h3",{text:"Nova senha do desenvolvedor"}),
+          trocaSenha("dev", nova=>{ LG.recup=false; entrarDev(iNome.value.trim().replace(/\s+/g," "), nova); },
+            ()=>({usuario:{nome:iNome.value.trim().replace(/\s+/g," "), cargo:"Desenvolvedor"}})),
+          el("button",{class:"btn sec",type:"button",text:"Voltar",onclick:()=>{ LG.recup=false; renderLogin(); }}))
+      : el("button",{class:"btn sec",type:"button",text:"Esqueci a senha",onclick:()=>{
+          if(!S.cfg?.url) return toast("Conecte o banco primeiro.");
+          if(!ehDev(iNome.value)) return toast("Escreva o nome do desenvolvedor.");
+          LG.recup=true; LG.nome=iNome.value.trim(); renderLogin(); }}));
   const bts=el("div",{class:"lg-cargos",role:"group","aria-label":"Cargo"}, ...Object.keys(CARGOS).map(c=>el("button",{type:"button",class:"lg-cargo"+(c===cargo?" on":"")+(CARGOS[c].dev?" dev":""),text:c,"aria-pressed":String(c===cargo),
     onclick:e=>{ cargo=c; bts.querySelectorAll("button").forEach(x=>{ const on=x===e.currentTarget; x.classList.toggle("on",on); x.setAttribute("aria-pressed",String(on)); }); campoSenha.hidden=!CARGOS[c].dev; }})));
   // o cargo Desenvolvedor só aparece quando o nome digitado é o do desenvolvedor
@@ -11058,7 +11102,7 @@ function avisarIndevido(){
 
 // ---------- o módulo Painel Dev ----------
 const DV={aba:LS.get("devAba")||"saude", cargo:"", rascunho:null, abertos:new Set(), quem:"", dia:"", de:"", ate:"", hist:null, diag:null};
-const ABAS_DEV=[["saude","Saúde"],["perm","Permissões"],["lanc","Lançamentos"],["aparelhos","Aparelhos"],["avisos","Avisos"],["diag","Diagnóstico"],["mud","Mudanças"],["claude","Claude"]];
+const ABAS_DEV=[["saude","Saúde"],["perm","Permissões"],["lanc","Lançamentos"],["aparelhos","Aparelhos"],["avisos","Avisos"],["senhas","Senhas"],["diag","Diagnóstico"],["mud","Mudanças"],["claude","Claude"]];
 const dataHoraBR = iso => { if(!iso) return ""; const d=new Date(iso); return isNaN(d) ? String(iso) : d.toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",year:"2-digit",hour:"2-digit",minute:"2-digit"}); };
 function renderDev(box){
   if(!souDev()) return repor(box, el("p",{class:"info",text:"Só o Desenvolvedor acessa o Painel Dev."}));
@@ -11066,10 +11110,23 @@ function renderDev(box){
     onclick:()=>{ DV.aba=id; LS.set("devAba",id); renderReg2(); }})));
   const corpo=el("div",{class:"lista full"});
   repor(box, el("p",{class:"saud"}, "Painel Dev", el("small",{text:"Controle do app: permissões, saúde das funções, lançamentos, diagnóstico e o que foi mudado por aqui."})), abas, corpo);
-  ({saude:devSaude, perm:devPerm, lanc:devLanc, aparelhos:devAparelhos, avisos:devAvisos, diag:devDiag, mud:devMud, claude:devClaude}[DV.aba]||devSaude)(corpo);
+  ({saude:devSaude, perm:devPerm, lanc:devLanc, aparelhos:devAparelhos, avisos:devAvisos, senhas:devSenhas, diag:devDiag, mud:devMud, claude:devClaude}[DV.aba]||devSaude)(corpo);
 }
 const linhaInfo = t => el("p",{class:"info",text:t});
 const cartaoDev = (...k) => el("div",{class:"card"}, ...k);
+
+// --- Senhas: a do Desenvolvedor e a do app, com código no WhatsApp do Dev (os usuários não têm senha: o celular é liberado em Aparelhos) ---
+function devSenhas(box){
+  repor(box,
+    cartaoDev(el("h3",{text:"Senha do Desenvolvedor"}),
+      linhaInfo("A senha de entrada como Desenvolvedor. Esqueceu? Na tela de entrada há o botão “Esqueci a senha”, com o mesmo código."),
+      trocaSenha("dev", ()=>{ logDev("Trocou a senha do Desenvolvedor", ""); toast("Senha do Desenvolvedor trocada."); renderReg2(); })),
+    cartaoDev(el("h3",{text:"Senha do app"}),
+      linhaInfo("A senha que vai no link e no QR de convite. Depois de trocar, mande o convite novo para os outros celulares (Ajustes › Configurar outro celular): até lá eles não sincronizam."),
+      trocaSenha("app", nova=>{ S.cfg={...S.cfg, token:nova}; LS.set("cfg",S.cfg); $("#cfg-tok").value=nova; logDev("Trocou a senha do app", "");
+        toast("Senha do app trocada neste celular. Mande o convite novo para os outros."); renderReg2(); })),
+    linhaInfo("Os usuários não têm senha própria: cada celular é liberado (ou bloqueado) na aba Aparelhos."));
+}
 
 // --- Saúde: verde (ok), amarelo (1 aviso ou algo fora do esperado), vermelho (2+ pessoas, erro em 2+ celulares ou falha automática) ---
 function saudeDe(f){

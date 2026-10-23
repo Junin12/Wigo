@@ -235,6 +235,56 @@ function entrarDev_(corpo) {
   logAcesso_(q.nome, 'Desenvolvedor', 'Entrada do desenvolvedor', '');
   return { acesso: statusAcesso_(linha), acessos: listaAcessos_() };
 }
+// ---------- troca de senha com código no WhatsApp do desenvolvedor (CallMeBot) ----------
+// Propriedades do script: WHATS_DEV (número com DDI, ex.: 5534...) e WHATS_CHAVE (apikey do CallMeBot; veja o LEIA-ME).
+// 'dev' = senha do Desenvolvedor (também na tela de entrada, para quem esqueceu); 'app' = senha do app (TOKEN), só o Dev liberado.
+const ALVOS_SENHA_ = { dev: 'a senha do Desenvolvedor', app: 'a senha do app' };
+const MIN_SENHA_ = { dev: 6, app: 8 };
+function mandarWhats_(texto) {
+  const p = PropertiesService.getScriptProperties(), num = String(p.getProperty('WHATS_DEV') || '').replace(/\D/g, ''), chave = p.getProperty('WHATS_CHAVE');
+  if (!num || !chave) throw new Error('WhatsApp do desenvolvedor não configurado (WHATS_DEV e WHATS_CHAVE nas Propriedades do script).');
+  const r = UrlFetchApp.fetch('https://api.callmebot.com/whatsapp.php?phone=%2B' + num + '&text=' + encodeURIComponent(texto) + '&apikey=' + encodeURIComponent(chave),
+    { muteHttpExceptions: true });
+  if (r.getResponseCode() !== 200) throw new Error('O WhatsApp não aceitou a mensagem (CallMeBot respondeu ' + r.getResponseCode() + ').');
+}
+function alvoSenha_(corpo, eu) {
+  const alvo = String(corpo.alvo || '');
+  if (!ALVOS_SENHA_[alvo]) throw new Error('Senha desconhecida.');
+  if (alvo === 'app' && !ehDevLiberado_(eu)) throw new Error('Só o desenvolvedor troca a senha do app.');
+  return alvo;
+}
+function pedirCodigoSenha_(corpo, eu) {
+  const alvo = alvoSenha_(corpo, eu), q = quemPede_(corpo), cache = CacheService.getScriptCache();
+  if (!q.ap) throw new Error('Pedido incompleto.');
+  const n = Number(cache.get('SENHA_PEDIDOS') || 0);
+  if (n >= 3) throw new Error('Já foram mandados 3 códigos na última hora. Espere um pouco.');
+  cache.put('SENHA_PEDIDOS', String(n + 1), 3600);
+  const cod = String(parseInt(Utilities.getUuid().replace(/-/g, '').slice(0, 12), 16) % 1000000).padStart(6, '0');
+  mandarWhats_('WIGO: código ' + cod + ' para trocar ' + ALVOS_SENHA_[alvo] + '. Vale 10 minutos. Pedido por ' + (q.nome || 'sem nome')
+    + ' (celular …' + q.ap.slice(-4) + '). Se não foi você, não passe o código para ninguém.');
+  cache.put('SENHA_COD', JSON.stringify({ alvo: alvo, ap: q.ap, h: resumoSenha_('codigo|' + cod), erros: 0 }), 600);
+  logAcesso_(q.nome, q.cargo, 'Código de troca de senha pedido', ALVOS_SENHA_[alvo]);
+  return { codigo: 'enviado' };
+}
+function trocarSenha_(corpo, eu) {
+  const alvo = alvoSenha_(corpo, eu), q = quemPede_(corpo), cache = CacheService.getScriptCache(), props = PropertiesService.getScriptProperties();
+  const s = JSON.parse(cache.get('SENHA_COD') || 'null');
+  if (!s) throw new Error('Código vencido ou não pedido. Peça outro.');
+  if (s.alvo !== alvo || s.ap !== q.ap) throw new Error('Este código foi pedido para outra troca ou em outro celular.');
+  if (resumoSenha_('codigo|' + String(corpo.codigo || '').trim()) !== s.h) {
+    s.erros++;
+    if (s.erros >= 5) cache.remove('SENHA_COD'); else cache.put('SENHA_COD', JSON.stringify(s), 600);
+    throw new Error(s.erros >= 5 ? 'Código errado 5 vezes. Peça outro.' : 'Código errado.');
+  }
+  const nova = String(corpo.nova || '');
+  if (nova.length < MIN_SENHA_[alvo]) throw new Error('A senha nova precisa ter pelo menos ' + MIN_SENHA_[alvo] + ' caracteres.');
+  cache.remove('SENHA_COD');
+  if (alvo === 'dev') { props.setProperty('DEV_SENHA', resumoSenha_(nova)); cache.remove('DEV_ERROS'); }
+  else props.setProperty('TOKEN', nova);
+  logAcesso_(q.nome, q.cargo, 'Senha trocada', ALVOS_SENHA_[alvo]);
+  try { mandarWhats_('WIGO: ' + ALVOS_SENHA_[alvo] + ' foi trocada agora por ' + (q.nome || 'sem nome') + '.'); } catch (e) { /* a troca já valeu */ }
+  return { trocada: alvo };
+}
 // celular liberado? Se não, o erro leva a situação (o app mostra a tela de espera ou de recusa)
 function conferirAcesso_(corpo) {
   const r = acessoDe_(corpo.aparelho);
@@ -400,6 +450,12 @@ function doPost(e) {
     autenticar(corpo.token);
     if (corpo.acao === 'acesso') return comLock_(() => pedirAcesso_(corpo));
     if (corpo.acao === 'dev') return comLock_(() => entrarDev_(corpo));
+    // troca de senha com código no WhatsApp do Dev; a do Dev vale também sem celular liberado (esqueceu a senha)
+    if (corpo.acao === 'senhaCodigo' || corpo.acao === 'senhaTrocar') {
+      let eu = null;
+      try { eu = conferirAcesso_(corpo); } catch (e) { if (corpo.alvo !== 'dev') throw e; }
+      return comLock_(() => corpo.acao === 'senhaCodigo' ? pedirCodigoSenha_(corpo, eu) : trocarSenha_(corpo, eu));
+    }
     // daqui para baixo, só celular liberado; o nome e o cargo gravados no histórico são os liberados
     const eu = conferirAcesso_(corpo), dev = ehDevLiberado_(eu);
     const usuario = { nome: String(eu[1]), cargo: String(eu[2]) };
@@ -727,7 +783,7 @@ function linhas(nome) {
 // 31: leitura do ticket por foto retirada (sem chave da IA por enquanto).
 // 32: sincronização mais rápida: área pintada nova vai no fim da aba ConcretagemTracos (antes a aba inteira era lida e
 //     regravada a cada envio), leitura dos traços só das linhas da concretagem e observação da concretagem até 2.000 caracteres.
-const VERSAO_SCRIPT = 36;
+const VERSAO_SCRIPT = 37;
 
 // Colunas de código que precisam ficar como TEXTO. Sem isso o Planilhas converte
 // "DEC-0001" em data (dez/2001) e o código se perde.

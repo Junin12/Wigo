@@ -7,6 +7,13 @@ Cópia do script publicado no Apps Script (sem senhas: a senha do app, TOKEN, e 
 ficam nas Propriedades do script). Quando mudar o script aqui, cole no Apps Script e publique:
 **Implantar → Gerenciar implantações → lápis ✏️ → Versão: Nova versão → Implantar** (o endereço /exec não muda).
 
+Versão 37: troca de senha com código no WhatsApp do desenvolvedor (ações `senhaCodigo` e `senhaTrocar`): a senha do
+Desenvolvedor (Painel Dev › Senhas, ou "Esqueci a senha" na tela de entrada) e a senha do app (TOKEN, só o Dev; os outros
+celulares precisam do convite novo). Código de 6 números, vale 10 minutos, 5 tentativas, no máximo 3 códigos por hora.
+O envio é pelo CallMeBot (grátis, só para o próprio número): mande "I allow callmebot to send me messages" para o robô deles
+(callmebot.com › WhatsApp), receba a apikey e crie nas Propriedades do script (Configurações do projeto ⚙ › Propriedades
+do script) `WHATS_DEV` = número com DDI, como o CallMeBot mostrou (ex.: 5534…), e `WHATS_CHAVE` = a apikey. Nunca no código.
+
 Versão 36: o script confere o cargo antes de gravar cada alteração (cargo da liberação na aba Acessos + PERMISSOES do
 Painel Dev). O que o cargo não pode fazer não é gravado: volta ao app em `recusadas` (o app v146 tira da fila e avisa) e fica
 uma linha "Recusado: sem permissão" no Historico. `CARGOS_`/`FUNCOES_` são cópia do app: `tests/permissoes.cjs` confere no CI.

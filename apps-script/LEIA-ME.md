@@ -7,6 +7,9 @@ Cópia do script publicado no Apps Script (sem senhas: a senha do app, TOKEN, e 
 ficam nas Propriedades do script). Quando mudar o script aqui, cole no Apps Script e publique:
 **Implantar → Gerenciar implantações → lápis ✏️ → Versão: Nova versão → Implantar** (o endereço /exec não muda).
 
+Versão 38: a aba Aparelhos ganha a coluna TEMPOS (tempo para abrir o app e para sincronizar, de cada celular), mostrada
+no Painel Dev › Aparelhos. Com o script 37 o app funciona igual, só sem esses tempos.
+
 Versão 37: troca de senha com código no WhatsApp do desenvolvedor (ações `senhaCodigo` e `senhaTrocar`): a senha do
 Desenvolvedor (Painel Dev › Senhas, ou "Esqueci a senha" na tela de entrada) e a senha do app (TOKEN, só o Dev; os outros
 celulares precisam do convite novo). Código de 6 números, vale 10 minutos, 5 tentativas, no máximo 3 códigos por hora.

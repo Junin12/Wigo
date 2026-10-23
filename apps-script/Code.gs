@@ -65,7 +65,8 @@ const ABAS = {
   // erros de JavaScript dos celulares (o app manda junto com a sincronização): para o desenvolvedor achar problemas
   Erros: ['DATA_HORA', 'APARELHO', 'USUARIO', 'VERSAO_APP', 'MENSAGEM', 'ONDE', 'NAVEGADOR'],
   // estado de cada celular na última sincronização: versão do app e lançamentos ainda não enviados
-  Aparelhos: ['APARELHO', 'NOME', 'CARGO', 'VERSAO_APP', 'PENDENTES', 'PENDENTE_DESDE', 'ULTIMA_SINC'],
+  // TEMPOS (38): mediana do tempo para abrir o app e duração da última sincronização, em ms ({"abre":1800,"sinc":4200})
+  Aparelhos: ['APARELHO', 'NOME', 'CARGO', 'VERSAO_APP', 'PENDENTES', 'PENDENTE_DESDE', 'ULTIMA_SINC', 'TEMPOS'],
 };
 const DIAS_REG2 = 120; // registros dos módulos novos enviados ao app: os dos últimos dias e todos os ainda em aberto
 const NOMES_REG2 = { equip: 'Equipamentos', seg: 'Segurança', qual: 'Qualidade', med: 'Medições', obras: 'Obras', sup: 'Suprimentos', forma: 'Forma', esc: 'Escavação', concreto: 'Concreto' };
@@ -370,7 +371,8 @@ function listaAcessos_() {
   return linhas('Acessos').map(r => { const e = est.get(String(r[0])) || [];
     return { aparelho: String(r[0]), nome: String(r[1]), cargo: String(r[2]), status: String(r[3]),
       pedidoEm: iso(r[4]), decididoPor: String(r[5] || ''), decididoEm: iso(r[6]), motivo: String(r[7] || ''),
-      versaoApp: String(e[3] || ''), pendentes: Number(e[4]) || 0, pendenteDesde: String(e[5] || ''), ultimaSinc: iso(e[6]) }; });
+      versaoApp: String(e[3] || ''), pendentes: Number(e[4]) || 0, pendenteDesde: String(e[5] || ''), ultimaSinc: iso(e[6]),
+      tempos: (() => { try { return e[7] ? JSON.parse(e[7]) : null; } catch (x) { return null; } })() }; });
 }
 // abas criadas depois da instalação (Erros, Aparelhos): aparecem sozinhas na primeira vez, sem rodar configurar()
 function abaOuCria_(nome) {
@@ -393,8 +395,11 @@ function gravarEstado_(eu, est) {
   const sh = abaOuCria_('Aparelhos'), ap = String(eu[0]), n = sh.getLastRow() - 1;
   const ids = n > 0 ? sh.getRange(2, 1, n, 1).getValues().map(r => String(r[0])) : [];
   const k = ids.indexOf(ap), lin = k >= 0 ? k + 2 : sh.getLastRow() + 1;
-  sh.getRange(lin, 1, 1, 7).setNumberFormat('@').setValues([[ap, String(eu[1]), String(eu[2]), String(est.versao || '').slice(0, 20),
-    String(Math.max(0, Number(est.pend) || 0)), String(est.desde || '').slice(0, 30), new Date().toISOString()]]);
+  const ms = v => Number.isFinite(Number(v)) && Number(v) > 0 ? Math.min(600000, Math.round(Number(v))) : null;
+  if (sh.getLastColumn() < 8) sh.getRange(1, 8).setValue('TEMPOS'); // aba criada antes do script 38
+  const tp = est.tempos ? JSON.stringify({ abre: ms(est.tempos.abre), sinc: ms(est.tempos.sinc) }) : '';
+  sh.getRange(lin, 1, 1, 8).setNumberFormat('@').setValues([[ap, String(eu[1]), String(eu[2]), String(est.versao || '').slice(0, 20),
+    String(Math.max(0, Number(est.pend) || 0)), String(est.desde || '').slice(0, 30), new Date().toISOString(), tp]]);
 }
 // liberar, recusar ou apagar um pedido (só o desenvolvedor)
 function decidirAcesso_(corpo, dev) {
@@ -783,7 +788,8 @@ function linhas(nome) {
 // 31: leitura do ticket por foto retirada (sem chave da IA por enquanto).
 // 32: sincronização mais rápida: área pintada nova vai no fim da aba ConcretagemTracos (antes a aba inteira era lida e
 //     regravada a cada envio), leitura dos traços só das linhas da concretagem e observação da concretagem até 2.000 caracteres.
-const VERSAO_SCRIPT = 37;
+// 38: tempo para abrir o app e para sincronizar, por celular (coluna TEMPOS da aba Aparelhos; Painel Dev › Aparelhos).
+const VERSAO_SCRIPT = 38;
 
 // Colunas de código que precisam ficar como TEXTO. Sem isso o Planilhas converte
 // "DEC-0001" em data (dez/2001) e o código se perde.
@@ -791,7 +797,7 @@ const COLS_TEXTO = { Itens: [0, 3, 6, 12], Lancamentos: [1], Registros: [0, 5], 
   Efetivo: [0, 1, 2], EfetivoDia: [0, 1, 2, 3], Pessoas: [0, 1, 2, 3], Presencas: [0, 1, 2, 3, 4, 6],
   Atividades: [0, 1, 2, 3, 4, 6, 7, 9, 11, 12], Historico: [1, 2, 3, 4], RDO: [0, 1, 2, 3, 5, 7],
   Concretagens: [0, 1, 2, 3, 4, 5, 6, 8, 9, 10, 12], ConcretagemTracos: [0, 1, 5, 6], Registros2: [0, 1, 2, 3, 4, 5, 6, 8],
-  Erros: [1, 2, 3, 4, 5, 6], Aparelhos: [0, 1, 2, 3, 5] };
+  Erros: [1, 2, 3, 4, 5, 6], Aparelhos: [0, 1, 2, 3, 5, 7] };
 const COLS_CODIGO = { Itens: [0], Lancamentos: [1], Registros: [5], Equipes: [], Elementos: [], Config: [] };
 
 // Desfaz a conversão automática: data dez/2001 -> "DEC-0001", dez/1935 -> "DEC-0035"

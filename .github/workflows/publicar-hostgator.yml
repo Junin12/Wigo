@@ -33,7 +33,7 @@ jobs:
           node-version: 20
       - name: Instalar o navegador de teste
         run: |
-          npm i --no-save --no-package-lock playwright@1.56.1
+          npm i --no-save --no-package-lock playwright@1.56.1 axe-core@4.11.4
           npx playwright install --with-deps chromium
       # erros que o teste no navegador só pega se a tela for aberta: nome não declarado, constante reatribuída, chave repetida…
       - name: Verificar o código (oxlint)
@@ -44,6 +44,10 @@ jobs:
         run: node tests/permissoes.cjs
       - name: Testar o app
         run: node tests/smoke.cjs
+      # acessibilidade (contraste, botões sem nome, campos sem rótulo) no tema claro e no escuro: por enquanto só avisa
+      - name: Acessibilidade (axe, só avisa)
+        continue-on-error: true
+        run: node tests/acessibilidade.cjs
 
   publicar:
     needs: testar

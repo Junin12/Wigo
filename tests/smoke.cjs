@@ -129,6 +129,28 @@ const confere = (ok, msg) => { console.log(`${ok ? "ok  " : "FALHA"} ${msg}`); i
     } catch (e) { return "erro: " + e.message; }
   });
   confere(supAco === "ok", `Suprimentos › Aço filtrado por estrutura: ${supAco}`);
+  // v149: busca geral (sem acento e com erro de digitação), dica nos gráficos, ordem dos atalhos, tour e tempos
+  const v149 = await p.evaluate(() => {
+    try {
+      const U0 = U; U = { nome: "Teste", cargo: "Gerente de obra" }; MEMO_EF.clear();
+      const r = [];
+      if (!(notaBusca("floculadr", "Floculadores A") > 0 && notaBusca("decantador", "Decantadores") > 0 && notaBusca("acai", "Romaneio 004336") === 0)) r.push("nota");
+      const fs = fontesBusca(); if (!fs.some(f => f.tit === "Romaneio 004336") || !fs.some(f => f.grupo === "Telas")) r.push("fontes");
+      const svg = svgChart([{ label: "S1", v: 2 }, { label: "S2", v: 3 }]); if (svg.querySelectorAll(".alvo[data-tip]").length !== 2) r.push("dica");
+      const cv = svgCurva([{ pts: [[0, 1], [1, 2]], cls: "ln", nome: "Realizado" }], ["S1", "S2"], 3, { un: " t" });
+      if (!/S2\nRealizado: 2,0 t/.test(cv.querySelectorAll(".alvo")[1]?.dataset.tip || "")) r.push("curva");
+      const box = el("div", { id: "teste-ordem" }, ...["a", "b", "c"].map(id => el("button", { class: "mod", "data-id": id })));
+      LS.set("ordem:teste-ordem", ["c", "a"]); aplicarOrdem(box); if ([...box.children].map(b => b.dataset.id).join("") !== "cab") r.push("ordem");
+      localStorage.removeItem("arm:ordem:teste-ordem");
+      if (typeof iniciarTour !== "function" || typeof verFoto !== "function" || typeof receberCompartilhado !== "function") r.push("funções");
+      if (mediana([3, 1, 2]) !== 2 || !("abre" in temposDoCelular())) r.push("tempos");
+      U = U0; return r.length ? r.join(", ") : "ok";
+    } catch (e) { return "erro: " + e.message; }
+  });
+  confere(v149 === "ok", `busca geral, dica nos gráficos, ordem dos atalhos e tempos: ${v149}`);
+  const man = JSON.parse(fs.readFileSync(path.join(RAIZ, "manifest.webmanifest"), "utf8"));
+  confere(man.share_target?.method === "POST" && /compartilhar/.test(man.share_target.action) && /compartilhar/.test(fs.readFileSync(path.join(RAIZ, "sw.js"), "utf8")),
+    "compartilhar para o WIGO: manifest e sw.js");
   // fila offline: com o localStorage cheio a fila vai só para o IndexedDB, e volta quando o app abre de novo
   const semLS = await p.evaluate(async () => {
     const orig = Storage.prototype.setItem;

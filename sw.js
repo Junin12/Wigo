@@ -1,7 +1,7 @@
 // Guarda o app no aparelho para abrir sem internet.
 // Ao alterar index.html, suba o número da versão para os celulares receberem a atualização.
 // Os PDFs dos projetos ficam num cache à parte ("armacao-pdfs"), que não é apagado nas atualizações.
-const VERSAO = "armacao-v148";
+const VERSAO = "armacao-v149";
 // bibliotecas de outros sites (versão fixa no endereço): cache próprio, que sobrevive às atualizações do app.
 // Antes ficavam no cache da versão e cada atualização baixava de novo ~4 MB no celular.
 const LIBS_CACHE = "armacao-libs-1";
@@ -42,8 +42,22 @@ self.addEventListener("message", e => { if (e.data === "pular-espera") self.skip
 // tenta a rede por até `ms`; se não vier, usa o que está guardado
 const comPrazo = (p, ms) => Promise.race([p, new Promise(r => setTimeout(() => r(null), ms))]);
 
+// "Compartilhar" do celular → WIGO (manifest share_target): guarda os arquivos e abre o app, que pergunta onde guardar
+async function receberCompartilhado(req) {
+  try {
+    const f = await req.formData(), c = await caches.open("wigo-compartilhado");
+    for (const k of await c.keys()) await c.delete(k);
+    let i = 0;
+    for (const a of f.getAll("arquivos")) if (a && a.size) await c.put("c/" + (i++), new Response(a, { headers: { "Content-Type": a.type || "application/octet-stream", "X-Nome": encodeURIComponent(a.name || "arquivo") } }));
+    const txt = [f.get("title"), f.get("text"), f.get("url")].filter(Boolean).join(" ").trim();
+    if (txt) await c.put("c/texto", new Response(txt));
+  } catch {}
+  return Response.redirect("./?compartilhado=1", 303);
+}
+
 self.addEventListener("fetch", e => {
   const req = e.request, url = new URL(req.url);
+  if (req.method === "POST" && url.origin === location.origin && url.searchParams.has("compartilhar")) return e.respondWith(receberCompartilhado(req));
   if (req.method !== "GET" || !url.protocol.startsWith("http")) return;
   if (url.hostname.endsWith("script.google.com") || url.hostname.endsWith("googleusercontent.com")) return; // banco: sempre rede
   if (url.hostname.endsWith("open-meteo.com")) return; // previsão do tempo: sempre a mais nova (o app guarda a última)

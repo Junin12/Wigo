@@ -688,6 +688,50 @@ html[data-campo][data-ajuda] .ajuda-btn{background:var(--accent);color:var(--on-
 .ef-lin .nm{margin-right:auto;font-weight:600}
 .ef-lin.inativa .nm{color:var(--muted);text-decoration:line-through}
 .ef-hist tr{cursor:pointer}
+/* v149: busca geral, tour, arrastar atalhos, puxar para sincronizar, galeria de fotos, dica nos gráficos, instalar */
+.busca-ini{display:flex;align-items:center;gap:10px;width:100%;min-height:48px;padding:0 16px;margin:0 0 12px;border:1px solid var(--line);border-radius:999px;background:var(--surface);color:var(--muted);font:inherit;font-size:.95rem;text-align:left;cursor:pointer}
+.busca-ini svg{width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round}
+.bg-res{display:flex;flex-direction:column;gap:6px}
+.bg-grupo{font-size:.74rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:10px 2px 0}
+.bg-item{display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:100%;min-height:48px;padding:8px 12px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);color:var(--ink);font:inherit;text-align:left;cursor:pointer}
+.bg-item small{color:var(--muted)}
+.bg-item mark{background:var(--fill);color:var(--fill-ink);border-radius:3px;padding:0 1px}
+.tour-bloq{position:fixed;inset:0;z-index:41}
+.tour-foco{position:fixed;z-index:42;border-radius:14px;box-shadow:0 0 0 3px var(--fill),0 0 0 9999px rgba(6,12,20,.7);pointer-events:none;transition:left .25s,top .25s,width .25s,height .25s}
+.tour-balao{position:fixed;z-index:43;left:16px;right:16px;max-width:440px;margin:0 auto;background:var(--surface);color:var(--ink);border-radius:14px;padding:14px 16px;box-shadow:0 12px 32px rgba(0,0,0,.35)}
+.tour-balao b{font-size:1.05rem}
+.tour-balao p{margin:6px 0 12px;line-height:1.45}
+.tour-balao .row{justify-content:space-between;align-items:center}
+.mod.arrastando{z-index:6;transform:scale(1.05);box-shadow:0 12px 28px rgba(0,0,0,.3);opacity:.92;transition:none}
+.mods.organizando .mod:not(.arrastando){transition:transform .15s}
+.ptr{position:fixed;top:0;left:50%;z-index:27;width:42px;height:42px;margin-left:-21px;border-radius:50%;background:var(--surface);color:var(--accent);box-shadow:0 2px 12px rgba(0,0,0,.25);display:grid;place-items:center;transform:translateY(-60px);pointer-events:none}
+.ptr svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;transition:transform .2s}
+.ptr.pronto svg{transform:rotate(180deg)}
+.ptr.girando svg{animation:ptr-gira .8s linear infinite}
+@keyframes ptr-gira{to{transform:rotate(360deg)}}
+#galeria{position:fixed;inset:0;z-index:38;background:#000;color:#fff;touch-action:none;overscroll-behavior:contain}
+#galeria[hidden]{display:none}
+.gl-palco{position:absolute;inset:0;overflow:hidden}
+.gl-palco img{position:absolute;left:50%;top:50%;max-width:100%;max-height:100%;transform:translate(-50%,-50%);user-select:none;-webkit-user-drag:none;will-change:transform}
+.gl-msg{position:absolute;left:0;right:0;top:50%;text-align:center;opacity:.8}
+.gl-topo,.gl-base{position:absolute;left:0;right:0;z-index:2;display:flex;align-items:center;gap:8px;padding:10px 12px;background:linear-gradient(rgba(0,0,0,.65),rgba(0,0,0,.35))}
+.gl-topo{top:0;padding-top:max(10px,env(safe-area-inset-top))}
+.gl-base{bottom:0;flex-wrap:wrap;padding-bottom:max(12px,env(safe-area-inset-bottom));background:linear-gradient(rgba(0,0,0,.35),rgba(0,0,0,.7))}
+.gl-cont{font-weight:700;margin-right:auto}
+.gl-leg{flex:1 1 100%;font-size:.92rem;line-height:1.35}
+.gl-leg small{display:block;opacity:.75}
+.gl-bt{min-width:44px;min-height:44px;border:0;border-radius:999px;background:rgba(255,255,255,.16);color:#fff;font:inherit;font-size:.92rem;padding:0 14px;cursor:pointer;text-decoration:none;display:inline-grid;place-items:center}
+.gl-seta{position:absolute;top:50%;z-index:2;width:48px;height:48px;margin-top:-24px;font-size:1.6rem;display:none}
+.gl-seta.esq{left:10px} .gl-seta.dir{right:10px}
+@media (pointer:fine){ .gl-seta{display:inline-grid} }
+svg .alvo{fill:transparent;cursor:pointer}
+svg .alvo.on{fill:var(--accent);fill-opacity:.13}
+.gr-dica{position:fixed;z-index:44;max-width:260px;background:var(--ink);color:var(--surface);padding:7px 11px;border-radius:9px;font-size:.86rem;line-height:1.35;white-space:pre-line;pointer-events:none;box-shadow:0 4px 16px rgba(0,0,0,.28);transform:translate(-50%,calc(-100% - 12px))}
+.inst-ini{display:flex;align-items:center;gap:12px;margin:0 0 12px}
+.inst-ini img{width:44px;height:44px;border-radius:10px;flex:none}
+.inst-ini div{flex:1}
+.inst-ini small{display:block;color:var(--muted)}
+@media (prefers-reduced-motion:reduce){ .tour-foco,.ptr svg,.mods.organizando .mod{transition:none} .ptr.girando svg{animation:none} }
 </style>
 </head>
 <body>
@@ -1374,7 +1418,7 @@ const PRAZO_SYNC = 180000;
 // o script da planilha (29+) grava nas abas Erros e Aparelhos. Os erros só saem da fila quando o script novo recebe.
 const api = async (ops, ctl) => {
   const erros=ERR.fila.slice(0,20);
-  const j=await post({v:S.meta?.v||"", ops, erros, estado:{versao:VERSAO_APP, pend:pendCount(), desde:LS.get("pendDesde")||""}}, PRAZO_SYNC, ctl);
+  const j=await post({v:S.meta?.v||"", ops, erros, estado:{versao:VERSAO_APP, pend:pendCount(), desde:LS.get("pendDesde")||"", tempos:temposDoCelular()}}, PRAZO_SYNC, ctl);
   if(erros.length && j.script>=29){ ERR.fila=ERR.fila.slice(erros.length); LS.set("errosFila",ERR.fila); }
   return j;
 };
@@ -1945,6 +1989,7 @@ function svgChart(data, {line=false, fmt=v=>nf1.format(v)}={}){
     if(mostra || d.hl) mk("text",{x:cx,y:H-8,"text-anchor":"middle"},d.label);
   });
   if(line && pts.length){ mk("polyline",{points:pts.map(p=>p.join(",")).join(" "),class:"ln"}); pts.forEach(([x,yy],k)=>mk("circle",{cx:x,cy:yy,r:data[k].hl?5:3.5,class:"pt"})); }
+  data.forEach((d,k)=>mk("rect",{x:pl+bw*k,y:pt,width:bw,height:ih,class:"alvo","data-tip":`${d.label}: ${fmt(d.v)}`}));
   return s;
 }
 function progTable(rows, first){
@@ -2201,7 +2246,7 @@ function setCampo(on){ LS.set("campo",!!on); if(on) document.documentElement.dat
 $("#campo-modo").addEventListener("click", e=>{ const b=e.target.closest("button[data-c]"); if(b) setCampo(b.dataset.c==="1"); });
 setCampo(!!LS.get("campo"));
 
-const VERSAO_APP = "v148"; // igual ao número em sw.js (armacao-v148)
+const VERSAO_APP = "v149"; // igual ao número em sw.js (armacao-v149)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -2981,19 +3026,6 @@ async function compartilharFoto(r){
   if(navigator.canShare?.({files:[file]})){ try{ await navigator.share({files:[file], title:"Foto da obra", text:r.texto||""}); }catch{} }
   else baixar(file.name, b);
 }
-function verFoto(r){
-  const img=el("img",{class:"ft-grande",alt:r.texto||"Foto da obra"}), msg=el("p",{class:"info",text:"Carregando foto…"});
-  blobDaFoto(r).then(b=>{ if(b){ img.src=URL.createObjectURL(b); msg.remove(); } else msg.textContent=navigator.onLine?"Foto indisponível.":"Sem internet: a foto está só no Google Drive."; });
-  const pend=S.pendReg.some(x=>x.id===r.id);
-  efModal(`Foto de ${dataBR(r.data)}`,
-    [el("div",{class:"full"}, img, msg), r.texto ? el("p",{class:"full",text:r.texto}) : null,
-     el("p",{class:"info full",text: pend ? "Ainda não foi para o Google Drive: vai sozinha quando houver internet." : "Guardada na pasta Fotos do Google Drive."})],
-    [el("button",{class:"btn pri",type:"button",text:"Enviar / compartilhar",onclick:()=>compartilharFoto(r)}),
-     r.url ? el("a",{class:"btn",href:r.url,target:"_blank",rel:"noopener",text:"Abrir no Drive"}) : null,
-     el("button",{class:"btn",type:"button",text:"Apagar",style:"color:var(--bad);margin-left:auto",onclick:async()=>{
-       if(!confirm("Apagar esta foto? Ela sai também do Google Drive.")) return;
-       if(!pode("fotos-edit")) return toast("Só visualização: seu cargo não apaga fotos."); await delReg(r.id); $("#ef-modal").hidden=true; toast("Foto apagada"); renderFotos(); }})]);
-}
 function renderFotos(){
   const box=$("#fotos"); if(!box) return;
   FT.urls.forEach(u=>URL.revokeObjectURL(u)); FT.urls=[];
@@ -3171,6 +3203,8 @@ function svgMeta(data){
     if(mostra && (d.meta>0 || d.real>0)) mk("text",{x:cx,y:Math.min(y(d.real),d.meta>0?y(d.meta):H)-6,"text-anchor":"middle",class:"val"}, d.meta>0 ? Math.round(d.real/d.meta*100)+"%" : nf1.format(d.real));
     if(mostra) mk("text",{x:cx,y:H-8,"text-anchor":"middle"},d.label);
   });
+  data.forEach((d,k)=>mk("rect",{x:pl+bw*k,y:pt,width:bw,height:ih,class:"alvo",
+    "data-tip":`${d.label}: ${nf1.format(d.real)} t`+(d.meta>0?`\nmeta ${nf1.format(d.meta)} t · ${Math.round(d.real/d.meta*100)}%`:"")}));
   return s;
 }
 // legenda em HTML (quebra linha sozinha no celular): amostra do traço de cada série + nome
@@ -3193,6 +3227,9 @@ function svgCurva(series, labels, maxY, extras){
   for(const se of series){ if(se.pts.length<1) continue;
     mk("polyline",{points:se.pts.map(([i,v])=>x(i)+","+y(v)).join(" "),class:se.cls});
     const [li,lv]=se.pts[se.pts.length-1]; mk("circle",{cx:x(li),cy:y(lv),r:3.5,class:se.cls+" pt"}); }
+  const larg=n>1?iw/(n-1):iw;
+  labels.forEach((l,i)=>{ const vs=series.map(se=>{ const p=se.pts.find(q=>q[0]===i); return p ? `${se.nome||""}${se.nome?": ":""}${nf1.format(p[1])}${extras?.un||""}` : null; }).filter(Boolean);
+    if(vs.length) mk("rect",{x:Math.max(pl,x(i)-larg/2),y:pt,width:Math.min(larg,W-pr-Math.max(pl,x(i)-larg/2)),height:ih,class:"alvo","data-tip":`${l}\n${vs.join("\n")}`}); });
   return s;
 }
 function renderMetaCurva(){
@@ -3224,7 +3261,7 @@ function renderMetaCurva(){
   for(let i=1;i<=horiz;i++){ acM+=p.metaFut; plan.push([base+i,Math.min(acM,p.P)/1000]); if(p.ritmo>0) proj.push([base+i,Math.min(p.E+p.ritmo*i,p.P)/1000]); }
   const prazoIdx = p.prazo ? base+p.semPrazo : null;
   $("#ch-s").replaceChildren(legendaLinhas([["ln","Realizado"],["ln2","Planejado pela meta"],["ln3","Projeção no ritmo real"]]),
-    svgCurva([{pts:plan,cls:"ln2"},{pts:proj,cls:"ln3"},{pts:real,cls:"ln"}], labels, p.P/1000, {prazoIdx}));
+    svgCurva([{pts:plan,cls:"ln2",nome:"Planejado"},{pts:proj,cls:"ln3",nome:"Projeção"},{pts:real,cls:"ln",nome:"Realizado"}], labels, p.P/1000, {prazoIdx, un:" t"}));
   $("#s-nota").textContent=`Toneladas acumuladas. Linha cheia: realizado · tracejada cinza: planejado pela meta (semanas passadas com a equipe real, futuras com ${p.arm} armadores × ${DIAS()} dias) · pontilhada: projeção no ritmo real. Teto do gráfico = ${t(p.P)} t previstas.`;
 }
 
@@ -4168,6 +4205,7 @@ const TELAS={inicio:"#inicio", prod:"#tela-prod", sup:"#tela-sup", supaco:"#tela
 // módulo exigido por cada tela (o cargo precisa ter acesso)
 const TELA_MOD={prod:"prod", aco:"prod", fpainel:"prod", sup:"sup", supaco:"sup", supped:"sup", supconf:"sup", prelev:"prod", ponto:"ponto", fotos:"fotos", producao:"producao", rdo:"rdo", conc:"prod"};
 function abrirTela(t, empilhar=true, forcar=false){
+  document.querySelector(".gr-dica")?.remove();
   if(!liberado() && t!=="login") t="login"; // sem login ou sem liberação: só a tela de entrada/espera
   if(!forcar && TELA_MOD[t] && !pode(TELA_MOD[t])){ toast("Seu cargo não tem acesso a esta parte do app."); t="inicio"; }
   if(t==="acessos" && !souDev()) t="inicio";
@@ -4287,7 +4325,7 @@ function saudacao(){
 }
 // --- botão de módulo: ícone em degradê, nome, legenda; onda ao toque; inclinação 3D no mouse ---
 function moduloBtn(m, k, extra){
-  const b=el("button",{class:"mod"+(m.ativo?" ativo":""),type:"button","aria-label":`${m.nome}: ${m.desc}${m.ativo?"":" (em breve)"}`});
+  const b=el("button",{class:"mod"+(m.ativo?" ativo":""),type:"button","data-id":m.id,"aria-label":`${m.nome}: ${m.desc}${m.ativo?"":" (em breve)"}`});
   b.style.animationDelay=`${0.06*k+0.15}s`; b.style.setProperty("--c1",m.c[0]); b.style.setProperty("--c2",m.c[1]);
   const ic=el("span",{class:"ic"}); ic.innerHTML=svgIco(m.id);
   b.append(ic, el("b",{text:m.nome}), el("small",{text:m.desc}));
@@ -11490,12 +11528,15 @@ function devAparelhos(box){
     el("button",{class:"btn",type:"button",text:"↻ Atualizar aparelhos",onclick:async e=>{ e.target.disabled=true; try{ const j=await post({acao:"acessos"}); S.acessos=j.acessos; LS.set("acessos",j.acessos); }catch(err){ toast(err.message); } renderReg2(); }}),
     el("button",{class:"btn",type:"button",text:"📊 Tamanho da planilha",onclick:async e=>{ e.target.disabled=true; try{ await carregarDevDados(); }catch(err){ toast(err.message); } renderReg2(); }})));
   const velhos=L.filter(a=>a.status==="liberado" && a.versaoApp && a.versaoApp!==VERSAO_APP), presos=L.filter(a=>a.pendentes>0 && a.pendenteDesde && Date.now()-new Date(a.pendenteDesde)>864e5);
-  box.append(linhaInfo(`${L.filter(a=>a.status==="liberado").length} celulares liberados · ${velhos.length} em versão antiga · ${presos.length} com lançamentos parados há mais de 1 dia`));
+  const lentos=L.filter(a=>a.tempos?.abre>5000 || a.tempos?.sinc>30000);
+  box.append(linhaInfo(`${L.filter(a=>a.status==="liberado").length} celulares liberados · ${velhos.length} em versão antiga · ${presos.length} com lançamentos parados há mais de 1 dia · ${lentos.length} lento(s)`));
+  const tm=temposDoCelular(); box.append(linhaInfo(`Este celular: abre em ${seg(tm.abre)} (mediana das 10 últimas aberturas) · última sincronização em ${seg(tm.sinc)}.`));
   for(const a of L){
     const dias=a.ultimaSinc ? Math.floor((Date.now()-new Date(a.ultimaSinc))/864e5) : null;
     const cor = a.status!=="liberado" ? "" : presos.includes(a) ? "bad" : (a.versaoApp && a.versaoApp!==VERSAO_APP) || dias>3 ? "and" : "ok";
     box.append(cartaoDev(el("div",{class:"i-top"}, el("b",{text:`${a.nome} · ${a.cargo}`}), el("span",{class:"chip "+cor,text:a.status==="liberado"?(a.versaoApp||"versão ?"):a.status})),
-      el("p",{class:"i-sub",text:[a.ultimaSinc?`última sincronização: ${dataHoraBR(a.ultimaSinc)}`:"nunca sincronizou", a.pendentes?`${a.pendentes} a enviar desde ${dataHoraBR(a.pendenteDesde)}`:"nada pendente"].join(" · ")})));
+      el("p",{class:"i-sub",text:[a.ultimaSinc?`última sincronização: ${dataHoraBR(a.ultimaSinc)}`:"nunca sincronizou", a.pendentes?`${a.pendentes} a enviar desde ${dataHoraBR(a.pendenteDesde)}`:"nada pendente",
+        a.tempos ? `abre em ${seg(a.tempos.abre)} · sincroniza em ${seg(a.tempos.sinc)}${lentos.includes(a)?" ⚠ lento":""}` : null].filter(Boolean).join(" · ")})));
   }
   if(DV.abas){
     box.append(el("h3",{text:"Tamanho da planilha"}), linhaInfo("O Google aceita até 10 milhões de células por planilha. Acima de 50 mil linhas numa aba o app começa a ficar lento para sincronizar."));
@@ -11752,6 +11793,400 @@ function renderRelatorios(box){
 (()=>{ const b=el("button",{class:"btn-inicio",type:"button","aria-label":"Voltar ao início"}); b.innerHTML=svgIco("casa");
   b.onclick=()=>abrirTela("inicio"); document.querySelector(".top .wrap").prepend(b); })();
 
+// ================= v149: busca geral, tour, ordem dos atalhos, puxar para sincronizar, galeria, dicas nos gráficos, =================
+// instalar o app, compartilhar para o WIGO, console no celular e tempos de abertura. Tudo feito aqui, sem bibliotecas novas
+// (o app abre sem internet): ideias do Fuse.js, driver.js, SortableJS, pulltorefresh.js, PhotoSwipe, Chart.js, eruda e web-vitals.
+
+// ---------- 1. Busca geral: romaneios, concretagens, pessoas, estruturas, atividades, registros dos módulos e telas ----------
+// Tolera acento, maiúscula e um erro de digitação por palavra (4 letras ou mais); cada palavra digitada precisa achar alguma.
+const semAcento = s => String(s??"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase();
+function quaseIgual(a, b){ // distância de edição ≤ 1 (troca, falta ou sobra de uma letra)
+  if(Math.abs(a.length-b.length)>1) return false;
+  let i=0, j=0, dif=0;
+  while(i<a.length && j<b.length){ if(a[i]===b[j]){ i++; j++; continue; } if(++dif>1) return false;
+    if(a.length>b.length) i++; else if(b.length>a.length) j++; else { i++; j++; } }
+  return dif + (a.length-i) + (b.length-j) <= 1;
+}
+// pontuação: 0 = não achou; maior = melhor (palavra inteira > começo da palavra > dentro > quase igual)
+function notaBusca(q, txt){
+  const ps=semAcento(q).split(/\s+/).filter(Boolean); if(!ps.length) return 0;
+  const t=semAcento(txt), ws=t.split(/[^a-z0-9]+/).filter(Boolean); let nota=0;
+  for(const p of ps){
+    if(ws.includes(p)) nota+=4; else if(ws.some(w=>w.startsWith(p))) nota+=3; else if(t.includes(p)) nota+=2;
+    else if(p.length>=4 && ws.some(w=>quaseIgual(p, w.slice(0, p.length+1)) || quaseIgual(p, w))) nota+=1;
+    else return 0;
+  }
+  return nota;
+}
+function fontesBusca(){
+  const L=[], add=(grupo, tit, sub, abrir, extra="")=>L.push({grupo, tit, sub, abrir, txt:`${tit} ${sub} ${extra}`});
+  // telas e módulos
+  for(const m of MODULOS) if(podeMod(m) && acaoModulo(m)) add("Telas", m.nome, m.desc, acaoModulo(m));
+  if(pode("prod")){ add("Telas","Frentes","Liberações e concretagem",()=>irAco("frentes")); add("Telas","Concreto","Etapas, concretagens e mapas",()=>abrirTela("conc")); }
+  add("Telas","Ajustes","Tema, modo em campo, banco e versão do app",()=>irAco("dados"));
+  // romaneios de aço
+  if(pode("sup")) for(const R of ROMANEIOS){ const est=REMESSAS_ACO[R.rem]?.est||"";
+    add("Romaneios de aço", `Romaneio ${R.n}`, `${est} · remessa ${R.rem} · ${R.desc} · ${t(R.kg)} t`, ()=>{ SUPACO.est=est; abrirTela("supaco"); }, R.els); }
+  if(pode("prod")){
+    for(const c of concs()) add("Concretagens", `${c.estrutura}${c.local?" · "+c.local:""}`, `${dataBR(c.data)} · ${c.status}`, ()=>{ abrirTela("conc"); setTimeout(()=>abrirConcretagem(c),150); });
+    for(const e of uniq(S.items.map(i=>i.est)).filter(Boolean)) add("Estruturas (aço)", e, "Lançamentos de aço desta estrutura", ()=>{ Object.assign(F,{est:e}); LS.set("filtros",F); irAco("coleta"); renderFiltros(); renderLista(); });
+  }
+  if(pode("ponto")){ const fs=new Map(funcoes().map(f=>[f.id,f]));
+    for(const p of pessoas()){ const f=fs.get(p.fid); add("Pessoas", p.nome, [f?.funcao, f?.empresa].filter(Boolean).join(" · ") || "Ponto e efetivo", ()=>abrirTela("ponto")); } }
+  if(pode("producao")) for(const a of ativs()) add("Atividades da produção", a.atividade||"Atividade", [a.local, a.status].filter(Boolean).join(" · "), ()=>abrirTela("producao"));
+  // registros dos módulos (FVS, NC, laudos, equipamentos, almoxarifado…)
+  for(const r of regs2()){ const M=MOD2[r.modulo]; if(!M || !(M.todos || pode(M.acesso||r.modulo))) continue;
+    const T=M.tipos.find(x=>x.id===r.tipo); if(!T) continue; let tit="";
+    try{ tit=tituloReg2(T, r); }catch{ tit=T.nome; }
+    add(`${M.nome} › ${T.nome}`, String(tit||T.nome), [r.data?dataBR(r.data):"", r.status].filter(Boolean).join(" · "), ()=>{ RG.tipo[r.modulo]=r.tipo; abrirModulo(r.modulo); },
+      Object.values(r.dados||{}).filter(v=>typeof v==="string"||typeof v==="number").join(" ").slice(0,400)); }
+  return L;
+}
+function marcarBusca(txt, q){ // destaca as palavras achadas
+  const ps=semAcento(q).split(/\s+/).filter(p=>p.length>1), base=semAcento(txt), e=el("span");
+  let i=0; const marcas=[];
+  for(const p of ps){ let k=base.indexOf(p); while(k>=0){ marcas.push([k,k+p.length]); k=base.indexOf(p,k+p.length); } }
+  marcas.sort((a,b)=>a[0]-b[0]);
+  for(const [a,b] of marcas){ if(a<i) continue; e.append(txt.slice(i,a), el("mark",{text:txt.slice(a,b)})); i=b; }
+  e.append(txt.slice(i)); return e;
+}
+function abrirBusca(){
+  const inp=el("input",{type:"search",placeholder:"Romaneio, estrutura, pessoa, NC, equipamento…","aria-label":"Buscar no app",enterKeyHint:"search"}), res=el("div",{class:"bg-res full","aria-live":"polite"});
+  let fontes=null;
+  const busca=()=>{ const q=inp.value.trim();
+    if(q.length<2) return repor(res, el("p",{class:"info",text:"Digite pelo menos 2 letras. Vale sem acento e com um erro de digitação."}));
+    fontes ||= fontesBusca();
+    const achou=fontes.map(f=>({...f, n:notaBusca(q, f.txt) + notaBusca(q, f.tit)})).filter(f=>f.n>0).sort((a,b)=>b.n-a.n).slice(0,40);
+    if(!achou.length) return repor(res, el("div",{class:"vazio",text:`Nada encontrado para “${q}”.`}));
+    const grupos=new Map(); for(const f of achou){ if(!grupos.has(f.grupo)) grupos.set(f.grupo,[]); grupos.get(f.grupo).push(f); }
+    repor(res, ...[...grupos].flatMap(([g,fs])=>[el("div",{class:"bg-grupo",text:g}),
+      ...fs.slice(0,8).map(f=>el("button",{class:"bg-item",type:"button",onclick:()=>{ LS.set("ultimaBusca", q); fecharEf(); f.abrir(); }},
+        el("b",{}, marcarBusca(f.tit, q)), f.sub ? el("small",{}, marcarBusca(f.sub, q)) : null))]));
+  };
+  let tm; inp.oninput=()=>{ clearTimeout(tm); tm=setTimeout(busca,120); };
+  efModal("Buscar", [el("div",{class:"campo full"}, inp), res], []);
+  const ult=LS.get("ultimaBusca"); if(ult){ inp.value=ult; inp.select(); } busca();
+}
+
+// ---------- 2. Tour de primeiro uso, por cargo ----------
+const TOUR_VER=1;
+function passosTour(){
+  const restrito=!!CARGOS[cargoEf()]?.restrito, nav=$("#nav-app"), P=[];
+  const p=(sel, tit, txt)=>{ const e=typeof sel==="string" ? $(sel) : sel; if(e && e.offsetParent!==null && e.getBoundingClientRect().height) P.push({e, tit, txt}); };
+  p(".busca-ini","Buscar","Ache qualquer coisa do app digitando: número de romaneio, estrutura, pessoa, NC, equipamento. Vale sem acento.");
+  if(!restrito) p("#ind-ini","Números da obra","Avanço do aço, da forma e do concreto. Toque num deles para abrir o painel do material.");
+  p(".pend-ini","Pendências","O que precisa de atenção: chuva na concretagem, NCs vencidas, rompimentos de corpo de prova, lançamentos sem enviar.");
+  p("#atalhos","Atalhos","Os caminhos mais usados. Segure um botão por meio segundo e arraste para mudar a ordem.");
+  p("#mods", restrito ? "Suas telas" : "Módulos", restrito ? "Produção, Ponto e Fotos: é por aqui que você lança o dia." : "Todas as partes do app que o seu cargo usa. Segure e arraste para organizar como preferir.");
+  if(nav && !nav.hidden){
+    p(nav.querySelector('[data-n="lancar"]'),"Lançar hoje","O botão + abre direto o lançamento do dia.");
+    p(nav.querySelector('[data-n="mais"]'),"Mais","Todos os módulos, Ajustes, avisar um problema e rever este tour.");
+  }
+  p($("#ind-sync")?.parentElement,"Sincronização","Verde: tudo salvo. Laranja: há lançamentos esperando internet (eles não se perdem). Puxe a tela para baixo para sincronizar na hora.");
+  return P;
+}
+function iniciarTour(forcar){
+  if(!U || $("#inicio").hidden) return;
+  const chave="tour:"+cargoEf();
+  if(!forcar && LS.get(chave)===TOUR_VER) return;
+  const P=passosTour(); if(!P.length) return;
+  LS.set(chave, TOUR_VER);
+  const bloq=el("div",{class:"tour-bloq"}), foco=el("div",{class:"tour-foco"}), bal=el("div",{class:"tour-balao",role:"dialog","aria-live":"polite"});
+  document.body.append(bloq, foco, bal); let k=0;
+  const fim=()=>{ bloq.remove(); foco.remove(); bal.remove(); removeEventListener("resize", mostrar); };
+  function mostrar(){
+    const {e, tit, txt}=P[k]; e.scrollIntoView({block:"center", behavior:"instant"});
+    requestAnimationFrame(()=>{ const r=e.getBoundingClientRect(), m=6;
+      Object.assign(foco.style,{left:r.left-m+"px", top:r.top-m+"px", width:r.width+2*m+"px", height:r.height+2*m+"px"});
+      const embaixo=r.top+r.height/2 < innerHeight/2;
+      bal.style.top = embaixo ? Math.min(innerHeight-200, r.bottom+14)+"px" : "";
+      bal.style.bottom = embaixo ? "" : Math.min(innerHeight-200, innerHeight-r.top+14)+"px";
+      repor(bal, el("b",{text:tit}), el("p",{text:txt}),
+        el("div",{class:"row"}, el("button",{class:"btn",type:"button",text:"Pular",onclick:fim}),
+          el("span",{class:"info",text:`${k+1} de ${P.length}`}),
+          el("button",{class:"btn pri",type:"button",text:k===P.length-1?"Começar a usar":"Próximo",onclick:()=>{ if(++k<P.length) mostrar(); else fim(); }})));
+      bal.querySelector(".pri").focus(); });
+  }
+  addEventListener("resize", mostrar); mostrar();
+}
+
+// ---------- 3. Ordem dos atalhos e módulos do início (segurar e arrastar), guardada neste celular ----------
+function aplicarOrdem(box){
+  const ord=LS.get("ordem:"+box.id); if(!Array.isArray(ord) || !ord.length) return;
+  const bs=[...box.children].filter(b=>b.dataset.id), pos=id=>{ const i=ord.indexOf(id); return i<0 ? 999 : i; };
+  bs.sort((a,b)=>pos(a.dataset.id)-pos(b.dataset.id)).forEach(b=>box.append(b));
+  box.querySelector("#cfg-ini") && box.append(box.querySelector("#cfg-ini"));
+}
+const ARR={on:null};
+function ligarArrastar(box){
+  if(box.dataset.arr) return; box.dataset.arr="1";
+  let tm=null, ini=null;
+  box.addEventListener("pointerdown", e=>{
+    const b=e.target.closest(".mod[data-id]"); if(!b || e.button>0) return;
+    ini={x:e.clientX, y:e.clientY, b, id:e.pointerId};
+    clearTimeout(tm); tm=setTimeout(()=>{ ARR.on={b, box, dx:0, dy:0, x0:ini.x, y0:ini.y, mexeu:false}; b.classList.add("arrastando"); box.classList.add("organizando");
+      try{ b.setPointerCapture(ini.id); }catch{} navigator.vibrate?.(25); }, 450);
+  });
+  box.addEventListener("pointermove", e=>{
+    if(!ARR.on){ if(ini && Math.hypot(e.clientX-ini.x, e.clientY-ini.y)>10) clearTimeout(tm); return; }
+    const A=ARR.on; A.mexeu=true; A.b.style.transform=`translate(${e.clientX-A.x0}px,${e.clientY-A.y0}px) scale(1.05)`;
+    A.b.style.visibility="hidden"; const alvo=document.elementFromPoint(e.clientX, e.clientY)?.closest(".mod[data-id]"); A.b.style.visibility="";
+    if(alvo && alvo!==A.b && alvo.parentElement===box){
+      const antes=A.b.getBoundingClientRect(), lista=[...box.children], depois=lista.indexOf(alvo)>lista.indexOf(A.b);
+      alvo[depois?"after":"before"](A.b);
+      const agora=A.b.getBoundingClientRect(); A.x0+=agora.left-antes.left; A.y0+=agora.top-antes.top;
+      A.b.style.transform=`translate(${e.clientX-A.x0}px,${e.clientY-A.y0}px) scale(1.05)`;
+    }
+  });
+  const soltar=()=>{ clearTimeout(tm); ini=null; const A=ARR.on; if(!A) return;
+    A.b.classList.remove("arrastando"); A.b.style.transform=""; box.classList.remove("organizando");
+    LS.set("ordem:"+box.id, [...box.children].map(b=>b.dataset.id).filter(Boolean));
+    setTimeout(()=>{ ARR.on=null; }, 0); if(A.mexeu) toast("Ordem guardada neste celular."); };
+  box.addEventListener("pointerup", soltar); box.addEventListener("pointercancel", soltar);
+  // o toque longo não abre o módulo
+  box.addEventListener("click", e=>{ if(ARR.on){ e.stopPropagation(); e.preventDefault(); } }, true);
+  box.addEventListener("contextmenu", e=>{ if(e.target.closest(".mod")) e.preventDefault(); });
+}
+// arrastando, a tela não rola
+document.addEventListener("touchmove", e=>{ if(ARR.on) e.preventDefault(); }, {passive:false});
+
+// ---------- 4. Puxar a tela para baixo para sincronizar ----------
+(()=>{
+  const ind=el("div",{class:"ptr","aria-hidden":"true"}); ind.innerHTML='<svg viewBox="0 0 24 24"><path d="M12 5v14M6 13l6 6 6-6"/></svg>';
+  document.body.append(ind);
+  let y0=null, dy=0, rol=null;
+  const aberto=sel=>{ const e=$(sel); return !!e && !e.hidden; };
+  const bloqueado=t=>ARR.on || aberto("#ef-modal") || aberto("#galeria") || aberto("#ferr") || aberto("#viewer")
+    || t.closest("#viewer,.leaflet-container,canvas,input,textarea,select,.tbl,[contenteditable]") || document.querySelector(".tour-bloq");
+  document.addEventListener("touchstart", e=>{
+    if(e.touches.length!==1 || bloqueado(e.target)) return;
+    rol=e.target.closest(".tela") || document.scrollingElement;
+    if(rol.scrollTop>0) return; y0=e.touches[0].clientY; dy=0;
+  }, {passive:true});
+  document.addEventListener("touchmove", e=>{
+    if(y0==null) return; dy=e.touches[0].clientY-y0;
+    if(dy<=0 || rol.scrollTop>0){ ind.style.transform=""; return; }
+    const d=Math.min(dy*0.5, 90); ind.style.transform=`translateY(${d-50}px)`; ind.classList.toggle("pronto", d>=60);
+  }, {passive:true});
+  document.addEventListener("touchend", ()=>{
+    if(y0==null) return; const ok=Math.min(dy*0.5,90)>=60; y0=null;
+    if(!ok){ ind.style.transform=""; ind.classList.remove("pronto"); return; }
+    ind.classList.remove("pronto"); ind.classList.add("girando"); ind.style.transform="translateY(16px)";
+    const pronto=()=>{ ind.classList.remove("girando"); ind.style.transform=""; };
+    if(!S.cfg?.url){ toast("Configure o banco em Ajustes para sincronizar."); return pronto(); }
+    if(!navigator.onLine){ toast("Sem internet: os lançamentos ficam guardados e vão quando o sinal voltar."); return pronto(); }
+    S.err=""; Promise.resolve(S.syncing ? null : sync()).catch(()=>{}).finally(()=>setTimeout(pronto, 300));
+  });
+})();
+
+// ---------- 5. Galeria de fotos: deslizar entre as fotos, pinça para zoom, toque duplo ----------
+const GL={lista:[], i:0, url:null, s:1, x:0, y:0};
+function verFoto(r){
+  GL.lista=fotosGaleria(); GL.i=Math.max(0, GL.lista.findIndex(x=>x.id===r.id)); if(!GL.lista.length) GL.lista=[r];
+  let g=$("#galeria");
+  if(!g){ g=el("div",{id:"galeria",role:"dialog","aria-label":"Fotos da obra",hidden:true}); document.body.append(g); montarGaleria(g); }
+  g.hidden=false; history.pushState({gal:1},""); mostrarFoto();
+}
+function fecharGaleria(peloVoltar){ const g=$("#galeria"); if(!g || g.hidden) return; g.hidden=true; if(GL.url){ URL.revokeObjectURL(GL.url); GL.url=null; } if(!peloVoltar) history.back(); renderFotos(); }
+addEventListener("popstate", ()=>{ if($("#galeria") && !$("#galeria").hidden) fecharGaleria(true); });
+function montarGaleria(g){
+  const img=el("img",{alt:""}), msg=el("p",{class:"gl-msg"}), palco=el("div",{class:"gl-palco"}, img, msg);
+  const cont=el("span",{class:"gl-cont"}), leg=el("div",{class:"gl-leg"});
+  const bt=(txt, rot, fn, cls="")=>el("button",{class:"gl-bt "+cls,type:"button",text:txt,"aria-label":rot,onclick:fn});
+  const drive=el("a",{class:"gl-bt",target:"_blank",rel:"noopener",text:"Drive"});
+  g.append(palco,
+    el("div",{class:"gl-topo"}, cont, bt("Compartilhar","Enviar ou compartilhar a foto",()=>compartilharFoto(GL.lista[GL.i])), bt("✕","Fechar",()=>fecharGaleria(false))),
+    bt("‹","Foto anterior",()=>irFoto(-1),"gl-seta esq"), bt("›","Próxima foto",()=>irFoto(1),"gl-seta dir"),
+    el("div",{class:"gl-base"}, leg, drive, bt("Apagar","Apagar a foto",async()=>{ const r=GL.lista[GL.i];
+      if(!pode("fotos-edit")) return toast("Só visualização: seu cargo não apaga fotos.");
+      if(!confirm("Apagar esta foto? Ela sai também do Google Drive.")) return;
+      await delReg(r.id); toast("Foto apagada"); GL.lista.splice(GL.i,1); if(!GL.lista.length) return fecharGaleria(false); GL.i=Math.min(GL.i, GL.lista.length-1); mostrarFoto(); })));
+  GL.el={img, msg, cont, leg, drive};
+  const aplicar=(anim)=>{ img.style.transition=anim?"transform .2s":"none"; img.style.transform=`translate(calc(-50% + ${GL.x}px),calc(-50% + ${GL.y}px)) scale(${GL.s})`; };
+  GL.aplicar=aplicar;
+  const limitar=()=>{ const r=palco.getBoundingClientRect(), w=img.offsetWidth*GL.s, h=img.offsetHeight*GL.s, mx=Math.max(0,(w-r.width)/2), my=Math.max(0,(h-r.height)/2);
+    GL.x=Math.max(-mx,Math.min(mx,GL.x)); GL.y=Math.max(-my,Math.min(my,GL.y)); };
+  const P=new Map(); let ini=null, toque=0;
+  palco.addEventListener("pointerdown", e=>{ palco.setPointerCapture(e.pointerId); P.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    const ps=[...P.values()];
+    ini = ps.length===2 ? {d:Math.hypot(ps[0].x-ps[1].x, ps[0].y-ps[1].y), s:GL.s, mx:(ps[0].x+ps[1].x)/2, my:(ps[0].y+ps[1].y)/2, x:GL.x, y:GL.y}
+      : {px:e.clientX, py:e.clientY, x:GL.x, y:GL.y, t:Date.now()};
+  });
+  palco.addEventListener("pointermove", e=>{ if(!P.has(e.pointerId) || !ini) return; P.set(e.pointerId,{x:e.clientX,y:e.clientY}); const ps=[...P.values()];
+    if(ps.length===2 && ini.d){ const d=Math.hypot(ps[0].x-ps[1].x, ps[0].y-ps[1].y);
+      GL.s=Math.max(1, Math.min(5, ini.s*d/ini.d)); GL.x=ini.x+((ps[0].x+ps[1].x)/2-ini.mx); GL.y=ini.y+((ps[0].y+ps[1].y)/2-ini.my); limitar(); aplicar(false); }
+    else if(ps.length===1 && ini.px!=null){ const dx=e.clientX-ini.px, dy=e.clientY-ini.py;
+      if(GL.s>1){ GL.x=ini.x+dx; GL.y=ini.y+dy; limitar(); } else { GL.x=dx; GL.y=0; } aplicar(false); }
+  });
+  const fim=e=>{ if(!P.has(e.pointerId)) return; P.delete(e.pointerId);
+    if(P.size){ const [q]=P.values(); ini={px:q.x, py:q.y, x:GL.x, y:GL.y, t:Date.now()}; return; }
+    const era=ini; ini=null; if(!era) return;
+    if(era.px!=null && GL.s===1){ const dx=e.clientX-era.px;
+      if(Math.abs(dx)>60) return irFoto(dx<0?1:-1);
+      if(Math.abs(dx)<8 && Math.abs(e.clientY-era.py)<8){ const ag=Date.now();
+        if(ag-toque<300){ GL.s=2.5; const r=palco.getBoundingClientRect(); GL.x=(r.left+r.width/2-e.clientX)*1.5; GL.y=(r.top+r.height/2-e.clientY)*1.5; limitar(); toque=0; return aplicar(true); }
+        toque=ag; }
+      GL.x=0; GL.y=0; return aplicar(true); }
+    if(era.px!=null && GL.s>1 && Math.abs(e.clientX-era.px)<8 && Math.abs(e.clientY-era.py)<8){ const ag=Date.now();
+      if(ag-toque<300){ GL.s=1; GL.x=GL.y=0; toque=0; return aplicar(true); } toque=ag; }
+  };
+  palco.addEventListener("pointerup", fim); palco.addEventListener("pointercancel", fim);
+  palco.addEventListener("wheel", e=>{ e.preventDefault(); GL.s=Math.max(1,Math.min(5,GL.s*Math.exp(-e.deltaY*0.0015))); if(GL.s===1) GL.x=GL.y=0; limitar(); aplicar(false); }, {passive:false});
+  g.addEventListener("keydown", e=>{ if(e.key==="ArrowRight") irFoto(1); else if(e.key==="ArrowLeft") irFoto(-1); else if(e.key==="Escape") fecharGaleria(false); });
+  g.tabIndex=-1;
+}
+function irFoto(d){ const n=GL.lista.length; if(n<2){ GL.x=0; return GL.aplicar(true); } GL.i=(GL.i+d+n)%n; mostrarFoto(); }
+function mostrarFoto(){
+  const r=GL.lista[GL.i], E=GL.el; GL.s=1; GL.x=GL.y=0; GL.aplicar(false);
+  if(GL.url){ URL.revokeObjectURL(GL.url); GL.url=null; }
+  E.img.removeAttribute("src"); E.img.alt=r.texto||"Foto da obra"; E.msg.textContent="Carregando foto…";
+  E.cont.textContent=`${GL.i+1} de ${GL.lista.length}`;
+  const pend=S.pendReg.some(x=>x.id===r.id);
+  repor(E.leg, r.texto||"Sem legenda", el("small",{text:`${dataBR(r.data)} · ${pend?"ainda não foi para o Google Drive (vai sozinha com internet)":"guardada no Google Drive"}`}));
+  E.drive.hidden=!r.url; if(r.url) E.drive.href=r.url;
+  const id=r.id;
+  blobDaFoto(r).then(b=>{ if(GL.lista[GL.i]?.id!==id) return;
+    if(b){ GL.url=URL.createObjectURL(b); E.img.src=GL.url; E.msg.textContent=""; }
+    else E.msg.textContent=navigator.onLine?"Foto indisponível.":"Sem internet: a foto está só no Google Drive."; }).catch(()=>{ E.msg.textContent="Foto indisponível."; });
+  $("#galeria").focus();
+  // a próxima já vem para o celular
+  const prox=GL.lista[(GL.i+1)%GL.lista.length]; if(prox && prox.id!==id) blobDaFoto(prox).catch(()=>{});
+}
+
+// ---------- 11. Dica ao tocar nos gráficos (valor da semana / do ponto) ----------
+(()=>{
+  let dica=null, alvo=null, tm=null;
+  const tirar=()=>{ clearTimeout(tm); dica?.remove(); dica=null; alvo?.classList.remove("on"); alvo=null; };
+  document.addEventListener("click", e=>{
+    const a=e.target.closest?.("svg .alvo[data-tip]");
+    if(!a){ tirar(); return; }
+    if(a===alvo){ tirar(); return; }
+    tirar(); alvo=a; a.classList.add("on");
+    const r=a.getBoundingClientRect();
+    dica=el("div",{class:"gr-dica",role:"status",text:a.dataset.tip}); document.body.append(dica);
+    const w=dica.offsetWidth, x=Math.max(w/2+8, Math.min(innerWidth-w/2-8, r.left+r.width/2)), y=Math.max(dica.offsetHeight+20, e.clientY||r.top+r.height/2);
+    dica.style.left=x+"px"; dica.style.top=y+"px"; tm=setTimeout(tirar, 5000);
+  });
+  addEventListener("scroll", tirar, true); addEventListener("resize", tirar); addEventListener("popstate", tirar);
+})();
+
+// ---------- 12. Instalar o WIGO (Android: o pedido do navegador; iPhone: como fazer pelo Safari) ----------
+const INST={evt:null};
+addEventListener("beforeinstallprompt", e=>{ e.preventDefault(); INST.evt=e; if(!$("#inicio").hidden) renderInicio(); });
+addEventListener("appinstalled", ()=>{ INST.evt=null; LS.set("instalado", true); toast("WIGO instalado. Abra pelo ícone na tela do celular."); if(!$("#inicio").hidden) renderInicio(); });
+const instalado = () => matchMedia("(display-mode: standalone)").matches || navigator.standalone===true || LS.get("instalado")===true;
+const ehIphone = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform==="MacIntel" && navigator.maxTouchPoints>1);
+function cartaoInstalar(){
+  if(instalado()) return null;
+  const adiado=LS.get("instAdiado"); if(adiado && Date.now()-adiado < 14*864e5) return null;
+  if(!INST.evt && !ehIphone()) return null;
+  const agora=()=>{ LS.set("instAdiado", Date.now()); renderInicio(); };
+  const instalar=async()=>{
+    if(INST.evt){ INST.evt.prompt(); const r=await INST.evt.userChoice.catch(()=>null); INST.evt=null; if(r?.outcome!=="accepted") agora(); return; }
+    efModal("Instalar no iPhone", [el("ol",{class:"full",style:"line-height:1.6;padding-left:20px"},
+      el("li",{text:"Abra este endereço no Safari."}), el("li",{text:"Toque no botão Compartilhar (o quadrado com a seta para cima)."}),
+      el("li",{text:"Escolha “Adicionar à Tela de Início” e confirme."}), el("li",{text:"Abra o WIGO pelo ícone novo: ele abre em tela cheia e funciona sem internet."}))],
+      [el("button",{class:"btn pri",type:"button",text:"Entendi",onclick:fecharEf})]);
+  };
+  return el("div",{class:"card inst-ini"}, el("img",{src:"icon-wigo-192.png",alt:""}),
+    el("div",{}, el("b",{text:"Instalar o WIGO no celular"}), el("small",{text:"Abre pelo ícone, em tela cheia e mais rápido"})),
+    el("button",{class:"btn pri",type:"button",text:"Instalar",onclick:instalar}), el("button",{class:"linkbtn",type:"button",text:"Agora não",onclick:agora}));
+}
+
+// ---------- 13. Compartilhar para o WIGO (WhatsApp, galeria, arquivos → WIGO) ----------
+// O sw.js recebe o arquivo, guarda no cache "wigo-compartilhado" e abre o app com ?compartilhado=1.
+async function receberCompartilhado(){
+  if(!/[?&]compartilhado=1/.test(location.search)) return;
+  history.replaceState(history.state, "", location.pathname + location.hash);
+  if(!("caches" in window)) return;
+  const c=await caches.open("wigo-compartilhado"), ks=await c.keys(), arqs=[];
+  let texto="";
+  for(const k of ks){ const r=await c.match(k);
+    if(/\/texto$/.test(k.url)) texto=await r.text();
+    else { const b=await r.blob(); arqs.push(new File([b], decodeURIComponent(r.headers.get("X-Nome")||"arquivo"), {type:b.type})); }
+    await c.delete(k); }
+  if(!arqs.length){ if(texto) toast("O WIGO recebe fotos e PDFs. Texto não tem onde guardar."); return; }
+  if(!liberado()) return toast("Entre no app antes de compartilhar arquivos para ele.");
+  const fotos=arqs.filter(f=>f.type.startsWith("image/")), pdfs=arqs.filter(f=>f.type==="application/pdf" || /\.pdf$/i.test(f.name));
+  const ops=[];
+  if(fotos.length && pode("fotos")) ops.push([`Guardar ${fotos.length>1?`as ${fotos.length} fotos`:"a foto"} em Fotos da obra`, texto ? `Legenda: ${texto.slice(0,80)}` : "Com a data de hoje", async()=>{
+    FT.legenda = texto.slice(0,120) || FT.legenda; let n=0; for(const f of fotos){ try{ if(await guardarFoto(f)) n++; }catch{ break; } }
+    toast(n ? `${n} foto${n>1?"s guardadas":" guardada"}` : "Não foi possível guardar."); abrirTela("fotos"); }]);
+  if(pdfs.length && pode("qual")) ops.push(["Ler como laudo do laboratório","Qualidade › Laudos: o PDF vira dados e alertas",()=>{ RG.tipo.qual="laudo"; abrirModulo("qual"); setTimeout(()=>importarLaudos(pdfs),200); }]);
+  if(pdfs.length===1 && pode("prod")) ops.push(["Guardar e abrir como projeto","Fica no celular, na aba Projetos",()=>{ irAco("projetos"); setTimeout(()=>abrirPdfDoCelular(pdfs[0]).catch(e=>toast(e.message)),200); }]);
+  if(pdfs.length) ops.push(["Só ver o PDF","Abre no leitor do celular",()=>{ for(const f of pdfs) open(URL.createObjectURL(f),"_blank"); }]);
+  if(!ops.length) return toast("Seu cargo não tem onde guardar este arquivo.");
+  escolher(`Recebido: ${arqs.length>1?arqs.length+" arquivos":arqs[0].name}`, ops);
+}
+
+// ---------- 17. Console no celular (eruda), para achar erro no aparelho de quem usa ----------
+// Liga em Ajustes tocando 7 vezes no número da versão (vale só para este celular); o Painel Dev › Diagnóstico também liga.
+const ERUDA_URL="https://cdn.jsdelivr.net/npm/eruda@3.4.1/eruda.min.js";
+function carregarConsole(){
+  if(window.eruda) return Promise.resolve();
+  return new Promise((ok, falha)=>{ const sc=el("script",{src:ERUDA_URL}); sc.onload=()=>{ try{ window.eruda.init({defaults:{displaySize:45}}); ok(); }catch(e){ falha(e); } };
+    sc.onerror=()=>falha(new Error("Sem internet para baixar o console.")); document.head.append(sc); });
+}
+function alternarConsole(){
+  const on=!LS.get("console");
+  LS.set("console", on);
+  if(on) carregarConsole().then(()=>toast("Console ligado: toque no botão de engrenagem flutuante.")).catch(e=>toast(e.message));
+  else { try{ window.eruda?.destroy(); }catch{} toast("Console desligado."); }
+  return on;
+}
+(()=>{ let n=0, tm; $("#versao-app")?.addEventListener("click", ()=>{ clearTimeout(tm); tm=setTimeout(()=>n=0, 1500); if(++n>=7){ n=0; alternarConsole(); } }); })();
+{ const o=devDiag; devDiag=function(box){ o(box);
+  const on=!!LS.get("console");
+  box.append(el("h3",{text:"🐞 Console no celular"}), linhaInfo("Mostra erros, pedidos de rede e o que está guardado no aparelho, por cima do app. Em outro celular: Ajustes › toque 7 vezes no número da versão."),
+    el("button",{class:"btn",type:"button",text:on?"Desligar o console":"Ligar o console neste celular",onclick:()=>{ alternarConsole(); renderReg2(); }})); }; }
+
+// ---------- 22. Tempos deste celular: abrir o app e sincronizar (vão para o Painel Dev › Aparelhos) ----------
+const TEMPOS={abre:null, sinc:LS.get("tempoSinc")||null};
+function medirAbertura(){
+  const ms=Math.round(performance.now()); TEMPOS.abre=ms;
+  const h=(LS.get("temposAbre")||[]).concat(ms).slice(-10); LS.set("temposAbre", h);
+}
+const mediana = a => { const s=[...a].sort((x,y)=>x-y), m=s.length>>1; return s.length ? (s.length%2 ? s[m] : Math.round((s[m-1]+s[m])/2)) : null; };
+const seg = ms => ms==null ? "–" : nf1.format(ms/1000)+" s";
+{ const o=sync; sync=async function(...a){ const t0=performance.now(), tinha=!!S.cfg?.url && !S.syncing; try{ return await o.apply(this, a); }
+  finally{ if(tinha && !S.err){ TEMPOS.sinc=Math.round(performance.now()-t0); LS.set("tempoSinc", TEMPOS.sinc); } } }; }
+function temposDoCelular(){ return {abre:mediana(LS.get("temposAbre")||[]), sinc:TEMPOS.sinc}; }
+
+// ---------- 23. Novidades montadas a partir dos commits do GitHub (o Dev revisa antes de publicar) ----------
+async function novidadesDosCommits(){
+  const r=await fetch("https://api.github.com/repos/Junin12/Wigo/commits?per_page=60",{headers:{Accept:"application/vnd.github+json"}});
+  if(!r.ok) throw new Error(r.status===403 ? "O GitHub limitou as consultas: tente daqui a uma hora." : "Não consegui ler os commits do GitHub.");
+  const cs=await r.json(), ult=String(cfgJson("NOVIDADES",{}).versao||"").replace(/\D/g,""), linhas=[];
+  for(const c of cs){ const m=String(c.commit?.message||"").split("\n")[0].match(/^v(\d+)\s*[:\-–]\s*(.+)/i); if(!m) continue;
+    if(ult && +m[1]<=+ult) break;
+    // "v148: A, B e C" → "• A, B e C" (sem o número e sem trechos técnicos entre parênteses)
+    linhas.push("• "+m[2].replace(/\s*\((?:[^()]*\b(?:CVE|script|Code\.gs|pdf\.js|oxlint|smoke)\b[^()]*)\)/gi,"").trim().replace(/^./,x=>x.toUpperCase())); }
+  return [...new Set(linhas)].join("\n");
+}
+{ const o=devAvisos; devAvisos=function(box){ o(box);
+  const nt=[...box.querySelectorAll("textarea")].at(-1); if(!nt) return;
+  const b=el("button",{class:"btn",type:"button",text:"↻ Montar a partir dos commits do GitHub",onclick:async()=>{ b.disabled=true;
+    try{ const tx=await novidadesDosCommits(); if(!tx) toast("Nenhum commit de versão novo desde as últimas novidades."); else { nt.value=tx; toast("Revise o texto antes de publicar."); } }
+    catch(e){ toast(e.message); } finally{ b.disabled=false; } }});
+  (nt.closest(".campo")||nt).after(b); }; }
+
+// ---------- início: busca, cartão de instalar, ordem dos botões e tour ----------
+{ const o=renderInicio; renderInicio=function(){ o();
+  try{
+    const corpo=$("#inicio .tela-corpo");
+    if(!$("#busca-ini")){ const b=el("button",{class:"busca-ini",id:"busca-ini",type:"button",onclick:abrirBusca});
+      b.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>'; b.append(el("span",{text:"Buscar romaneio, estrutura, pessoa, NC…"}));
+      corpo.prepend(b); }
+    $("#busca-ini").hidden=!liberado();
+    $("#inst-ini")?.remove(); const ci=cartaoInstalar(); if(ci){ ci.id="inst-ini"; $("#busca-ini").after(ci); }
+    for(const box of [$("#mods"), $("#atalhos")]) if(box){ aplicarOrdem(box); ligarArrastar(box); }
+    setTimeout(()=>{ if($("#ef-modal").hidden) iniciarTour(false); }, 900);
+  }catch(e){ guardarErro(e.message, "inicio v149"); }
+}; }
+{ const o=menuMais; menuMais=function(){ o(); const l=$("#ef-m-corpo .lista");
+  if(l) l.append(el("button",{class:"card r2-card",type:"button",onclick:()=>{ fecharEf(); abrirTela("inicio"); setTimeout(()=>iniciarTour(true),300); }},
+    el("b",{text:"Tour do app"}), el("div",{class:"i-sub",text:"Mostra de novo para que serve cada parte da tela inicial"}))); }; }
+
 // ---------- endereço antigo (junin12.github.io/Wigo) → wiapps.com.br/wigo ----------
 // Só muda depois que a fila do celular estiver vazia (nada a enviar), levando banco, usuário e liberação junto.
 const SITE_NOVO="https://wiapps.com.br/wigo/";
@@ -11799,6 +12234,8 @@ function boot(){
   setInterval(()=>{ if(document.visibilityState==="visible") virouDia(); }, 60000);
   // QR lido com o app já aberto no Safari: o endereço muda só depois do # e a página não recarrega
   addEventListener("hashchange", ()=>{ if(lerLinkCfg()) abrirTela(U?"inicio":"login",false); });
+  medirAbertura(); receberCompartilhado().catch(e=>guardarErro(e.message,"compartilhado"));
+  if(LS.get("console")) carregarConsole().catch(()=>{});
   window.__wigoOk=true; // o app iniciou (sem isto, o aviso do <head> mostra o motivo no lugar da tela branca)
 }
 </script>

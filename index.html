@@ -1401,7 +1401,28 @@ function acessoMudou(a){
   if(antes && !liberado()){ toast(a.status==="recusado" ? "Seu acesso foi bloqueado." : "Este celular precisa de nova liberação."); abrirTela("login");
     if(a.status!=="recusado" && !CARGOS[U.cargo]?.dev) setTimeout(()=>pedirAcesso(), 0); } // já envia o pedido
 }
+// o script recusou (cargo sem permissão): tira da fila, senão o celular reenviaria para sempre
+function tirarRecusadas(L){
+  const P=S.pendEf, fora=(a,v)=>{ const i=a.indexOf(v); if(i>=0) a.splice(i,1); };
+  for(const o of L){
+    if(o.t==="reg2") delete S.pendReg2[o.id]; else if(o.t==="reg2Del") fora(S.pendReg2Del, o.id);
+    else if(o.t==="conc") delete S.pendCc[o.id]; else if(o.t==="concDel") fora(S.pendCcDel, o.id);
+    else if(o.t==="ccTraco" || o.t==="ccTracoDel") delete S.pendTr[o.id];
+    else if(o.t==="rdo") delete S.pendRdo[o.data];
+    else if(o.t==="funcao") delete P.fun[o.id]; else if(o.t==="pessoa") delete P.pes[o.id];
+    else if(o.t==="dia") delete P.dia[o.data+"|"+o.id]; else if(o.t==="pres") delete P.pres[o.data+"|"+o.id];
+    else if(o.t==="funcaoDel") fora(P.funDel, o.id); else if(o.t==="pessoaDel") fora(P.pesDel, o.id);
+    else if(o.t==="ativ") delete S.pendAt[o.id]; else if(o.t==="ativDel") fora(S.pendAtDel, o.id);
+    else if(o.t==="equipe") delete S.pendEq[o.nome];
+    else if(o.t==="lanc" || o.t==="sem") delete S.pend[o.t==="lanc" ? o.sem : o.n];
+    else if(o.t==="reg" || o.t==="foto") S.pendReg=S.pendReg.filter(r=>r.id!==o.id); else if(o.t==="regDel") fora(S.pendDel, o.id);
+    else if(o.t==="elem") delete S.pendEl[o.chave]; else if(o.t==="config") delete S.pendCfg[o.chave];
+  }
+  savePend(); savePendExtra(); savePendEf(); savePendAt(); savePendRdo(); savePendCc(); savePendReg2();
+  setTimeout(()=>toast(`${L.length} alteração(ões) não gravada(s): seu cargo não tem permissão.`), 0);
+}
 function applyServer(j){
+  if(j.recusadas?.length) tirarRecusadas(j.recusadas);
   MEMO_EF.clear();
   if(j.itens) for(const r of j.itens) r[0]=consertaCod(r[0]);
   for(const l of j.lanc||[]) l[1]=consertaCod(l[1]);
@@ -1505,6 +1526,7 @@ const SEMENTES=[
 ];
 function rodarSementes(){
   if(!S.cfg?.url || !S.lastSync || LS.get("semSementes")) return; // semSementes: teste automático (testa à parte)
+  if(!pode("lanc-edit")) return; // o script só aceita os dados de produção de quem pode lançar
   for(const x of SEMENTES){
     if(cfgv("SEMENTE_"+x.id,"") || (x.ate && hojeISO()>x.ate)) continue;
     try{ x.fazer(); S.pendCfg["SEMENTE_"+x.id]=hojeISO(); savePendExtra(); scheduleSync(); }catch(e){ console.warn("semente", x.id, e); }
@@ -2155,7 +2177,7 @@ function setCampo(on){ LS.set("campo",!!on); if(on) document.documentElement.dat
 $("#campo-modo").addEventListener("click", e=>{ const b=e.target.closest("button[data-c]"); if(b) setCampo(b.dataset.c==="1"); });
 setCampo(!!LS.get("campo"));
 
-const VERSAO_APP = "v145"; // igual ao número em sw.js (armacao-v145)
+const VERSAO_APP = "v146"; // igual ao número em sw.js (armacao-v146)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");

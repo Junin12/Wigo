@@ -40,6 +40,8 @@ jobs:
         run: |
           node tests/lint.cjs
           npx --yes oxlint@1.86.0 -c tests/oxlintrc.json -f github tests/lint-saida
+      - name: Conferir as permissões do script (iguais às do app)
+        run: node tests/permissoes.cjs
       - name: Testar o app
         run: node tests/smoke.cjs
 

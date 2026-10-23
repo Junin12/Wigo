@@ -425,8 +425,9 @@ function doPost(e) {
     if (corpo.acao === 'miniatura') return miniatura(String(corpo.url || ''));
     if (corpo.acao === 'rdoVoz') return organizarRdo(corpo);
     if (corpo.acao === 'ccTracos') return { tracos: lerTracos(String(corpo.conc || '')) };
-    comLock_(() => aplicar(corpo.ops || [], usuario));
+    const recusadas = comLock_(() => aplicar(corpo.ops || [], Object.assign({ dev: dev }, usuario)));
     const out = carregar(corpo.v || '');
+    if (recusadas.length) out.recusadas = recusadas;
     out.acesso = statusAcesso_(eu);
     if (dev) out.acessos = listaAcessos_();
     return out;
@@ -726,7 +727,7 @@ function linhas(nome) {
 // 31: leitura do ticket por foto retirada (sem chave da IA por enquanto).
 // 32: sincronização mais rápida: área pintada nova vai no fim da aba ConcretagemTracos (antes a aba inteira era lida e
 //     regravada a cada envio), leitura dos traços só das linhas da concretagem e observação da concretagem até 2.000 caracteres.
-const VERSAO_SCRIPT = 34;
+const VERSAO_SCRIPT = 36;
 
 // Colunas de código que precisam ficar como TEXTO. Sem isso o Planilhas converte
 // "DEC-0001" em data (dez/2001) e o código se perde.
@@ -892,10 +893,83 @@ function acrescentar_(sh, cols, dados) {
   sh.getRange(ini, 1, dados.length, cols).setValues(dados.map(r => r.map((v, c) => texto.has(c) && v !== '' && v != null ? String(v) : v)));
 }
 
+// ---------- permissões na gravação ----------
+// O app esconde o que cada cargo não pode fazer, mas quem tem um celular liberado consegue mandar qualquer operação.
+// Por isso o script confere de novo, pelo cargo da liberação (aba Acessos), antes de gravar cada operação.
+// CARGOS_ e FUNCOES_ são cópia de CARGOS e FUNCOES do index.html: tests/permissoes.cjs falha se ficarem diferentes.
+const TODOS_MODULOS_ = 'producao ponto fotos rdo prod obras rel sup qual seg med equip';
+const TUDO_ = 'producao-edit ponto-ger rdo-edit rdo-fechar equip-edit seg-edit qual-edit med-edit obras-edit sup-edit';
+const CARGOS_ = {
+  'Gerente de projeto':       { m: TODOS_MODULOS_, x: TUDO_ },
+  'Gerente de obra':          { m: TODOS_MODULOS_, x: TUDO_ },
+  'Engenheiro de produção':   { m: TODOS_MODULOS_, x: TUDO_ + ' lanc-edit' },
+  'Engenheiro de qualidade':  { m: 'producao qual fotos rdo obras rel prod', x: 'qual-edit' },
+  'Técnico de planejamento':  { m: 'producao prod ponto med rel obras fotos rdo sup', x: TUDO_ },
+  'Engenheiro ambiental':     { m: 'fotos rdo rel obras qual seg', x: '' },
+  'Técnico de segurança':     { m: 'seg ponto producao fotos rdo rel', x: 'seg-edit' },
+  'Assistente técnico':       { m: 'producao prod ponto med rel obras fotos rdo sup', x: TUDO_ },
+  'Mestre de obras':          { m: 'producao ponto fotos ferr', x: 'producao-edit' },
+  'Apontador':                { m: 'ponto producao fotos rdo prod', x: 'producao-edit rdo-edit' },
+  'Almoxarife':               { m: 'sup equip fotos', x: 'sup-edit equip-edit' },
+  'Suprimentos':              { m: 'sup equip med rel fotos', x: 'sup-edit equip-edit' },
+  'Recursos humanos':         { m: 'ponto rel fotos', x: 'ponto-ger' },
+  'Assistente social':        { m: 'ponto rel fotos rdo', x: '' },
+};
+// só o que muda a edição: id da função, chaves que o nível "Editar" libera, edPadrao (Editar quando o cargo vê o módulo), semModulo
+const FUNCOES_ = [
+  { id: 'producao', ed: ['producao-edit'] }, { id: 'ponto', ed: ['ponto-edit'], edPadrao: true },
+  { id: 'pontoger', ed: ['ponto-ger'], semModulo: true }, { id: 'fotos', ed: ['fotos-edit'], edPadrao: true },
+  { id: 'rdo', ed: ['rdo-edit', 'rdo-fechar'] }, { id: 'prod', ed: ['lanc-edit'] }, { id: 'obras', ed: ['obras-edit'] },
+  { id: 'sup', ed: ['sup-edit'] }, { id: 'qual', ed: ['qual-edit'] }, { id: 'seg', ed: ['seg-edit'] },
+  { id: 'med', ed: ['med-edit'] }, { id: 'equip', ed: ['equip-edit'] },
+];
+// chaves de edição do cargo: padrão do código + o que o Desenvolvedor mudou no Painel Dev (Config PERMISSOES)
+function chavesDoCargo_(cargo, permissoesTxt) {
+  const c = CARGOS_[cargo]; if (!c) return new Set();
+  let P = {}; try { P = JSON.parse(permissoesTxt || '{}') || {}; } catch (e) { P = {}; }
+  const m = c.m.split(' '), x = new Set(c.x.split(' ').filter(Boolean));
+  for (const f of FUNCOES_) {
+    let n = P[cargo] && P[cargo][f.id];
+    if (!n) n = f.semModulo ? (f.ed.some(k => x.has(k)) ? 'edit' : 'nao')
+      : !m.includes(f.id) ? 'nao' : f.edPadrao || f.ed.some(k => x.has(k)) ? 'edit' : 'ver';
+    f.ed.forEach(k => x.delete(k));
+    if (n === 'edit') f.ed.forEach(k => x.add(k));
+  }
+  return x;
+}
+// registros dos módulos novos: chave de edição de cada módulo ('' = todos; 'dev' = só o Desenvolvedor)
+const EDIT_MODULO_ = { equip: 'equip-edit', seg: 'seg-edit', qual: 'qual-edit', med: 'med-edit', obras: 'obras-edit', sup: 'sup-edit',
+  forma: 'lanc-edit', aco: 'lanc-edit', concreto: 'lanc-edit', esc: 'producao-edit', fotos: 'fotos-edit', arquivo: '' };
+const AVISOS_DEV_ = ['falha', 'indevido', 'erro']; // qualquer pessoa avisa o Desenvolvedor (menu Mais e erros do app)
+const exigeReg2_ = (modulo, tipo, novo) => modulo === 'dev' ? (novo && AVISOS_DEV_.includes(tipo) ? [] : ['dev'])
+  : EDIT_MODULO_[modulo] == null ? ['dev'] : EDIT_MODULO_[modulo] ? [EDIT_MODULO_[modulo]] : [];
+// chaves da aba Config: quem pode mudar cada uma
+function exigeConfig_(chave, nomeU) {
+  if (/^(PERMISSOES|AVISO_GERAL|MANUTENCAO|NOVIDADES)$/.test(chave)) return ['dev'];
+  if (/^(META_KG_ARM_DIA|DIAS_SEMANA|PRAZO|FORMA_CONCLUIDAS|FORMA_OBRAS_OK)$/.test(chave)) return ['lanc-edit'];
+  if (/^ACO_/.test(chave)) return ['sup-edit', 'lanc-edit'];
+  if (/^OBRA_/.test(chave)) return ['obras-edit'];
+  if (chave === 'EF_GRUPOS') return ['ponto-ger'];
+  if (/^SEMENTE_/.test(chave) || chave === 'NOME_' + nomeU) return [];
+  return ['dev'];
+}
+// o que cada operação exige: lista de chaves (basta uma); [] = qualquer celular liberado
+const EXIGE_OP_ = {
+  lanc: ['lanc-edit'], sem: ['lanc-edit'], equipe: ['lanc-edit'], elem: ['lanc-edit'], base: ['lanc-edit'], substituir: ['lanc-edit'],
+  conc: ['lanc-edit'], concDel: ['lanc-edit'], ccTraco: ['lanc-edit'], ccTracoDel: ['lanc-edit'],
+  ativ: ['producao-edit'], ativDel: ['producao-edit'],
+  reg: ['producao-edit', 'lanc-edit', 'fotos-edit'], regDel: ['producao-edit', 'lanc-edit', 'fotos-edit'], foto: ['producao-edit', 'lanc-edit', 'fotos-edit'],
+  pres: ['ponto-edit', 'ponto-ger'], dia: ['ponto-edit', 'ponto-ger'], funcao: ['ponto-edit', 'ponto-ger'], pessoa: ['ponto-edit', 'ponto-ger'],
+  funcaoDel: ['ponto-ger'], pessoaDel: ['ponto-ger'],
+};
+// o que volta ao app para tirar da fila uma operação recusada
+const idOp_ = op => { const o = { t: op.t }; ['id', 'chave', 'data', 'sem', 'n', 'nome', 'cod', 'equipe'].forEach(k => { if (op[k] != null) o[k] = op[k]; }); return o; };
+
 // ---------- gravação ----------
+// usuario: {nome, cargo, dev} da liberação. Devolve as operações recusadas por falta de permissão.
 function aplicar(ops, usuario) {
   usuario = usuario || {};
-  if (!ops.length) return;
+  if (!ops.length) return [];
   const itens = new Map(linhas('Itens').map(r => [String(r[0]), r]));
   const agora = new Date();
   const eqPad = equipePadrao();
@@ -939,6 +1013,25 @@ function aplicar(ops, usuario) {
   // rastreabilidade: quem está usando o app (login por cargo)
   const nomeU = String(usuario.nome || '').trim().slice(0, 80), cargoU = String(usuario.cargo || '').trim().slice(0, 60);
   const quem = nomeU ? nomeU + (cargoU ? ' (' + cargoU + ')' : '') : 'sem login';
+  // permissão de cada operação, pelo cargo da liberação (o Desenvolvedor pode tudo)
+  const chaves = usuario.dev ? null : chavesDoCargo_(cargoU, (Cf.find(r => String(r[0]) === 'PERMISSOES') || [])[1]);
+  const tem = lista => !chaves || !lista.length || lista.some(k => chaves.has(k));
+  const permitido = op => {
+    if (op.t === 'config') return tem(exigeConfig_(String(op.chave || ''), nomeU));
+    if (op.t === 'reg2' || op.t === 'reg2Del') {
+      // vale a regra do registro que já existe e a do módulo novo (não dá para mudar um registro de módulo para escapar)
+      const k = iR2.get(String(op.id || '')), atual = k != null ? R2[k] : null;
+      if (!atual) return op.t === 'reg2Del' || tem(exigeReg2_(String(op.modulo || ''), String(op.tipo || ''), true));
+      return tem(exigeReg2_(String(atual[1]), String(atual[3]), false))
+        && (op.t === 'reg2Del' || op.modulo == null || tem(exigeReg2_(String(op.modulo), String(op.tipo || atual[3]), false)));
+    }
+    if (op.t === 'rdo') {
+      const k = iRd.get(String(op.data || '')), fechado = k != null && Rd[k][1] === 'Fechado';
+      return tem(op.status === 'Fechado' || (fechado && op.status === 'Rascunho') ? ['rdo-fechar'] : ['rdo-edit']);
+    }
+    return tem(EXIGE_OP_[op.t] || ['dev']);
+  };
+  const recusadas = [], feitas = [];
 
   const linhaLanc = (sem, cod, qtd, eq) => {
     const it = itens.get(cod);
@@ -949,6 +1042,8 @@ function aplicar(ops, usuario) {
     op.cod || '', op.cat || '', Number(op.horas) || '', String(op.texto || '').slice(0, 2000), url || '', agora];
 
   for (const op of ops) {
+    if (!permitido(op)) { recusadas.push(idOp_(op)); continue; }
+    feitas.push(op);
     if (op.t === 'lanc') {
       const sem = Number(op.sem), cod = String(op.cod), eq = String(op.equipe || eqPad);
       const qtd = Math.max(0, Math.round(Number(op.qtd) || 0));
@@ -1205,14 +1300,17 @@ function aplicar(ops, usuario) {
       default: return [String(op.t), ''];
     }
   };
-  const log = ops.length > 300
-    ? [[agora, nomeU || 'sem login', cargoU, 'Importação', ops.length + ' alterações de uma vez (' + [...new Set(ops.map(o => o.t))].join(', ') + ')']]
-    : ops.map(op => { const [acao, det] = desc(op); return [agora, nomeU || 'sem login', cargoU, acao, String(det).slice(0, 500)]; });
+  const log = feitas.length > 300
+    ? [[agora, nomeU || 'sem login', cargoU, 'Importação', feitas.length + ' alterações de uma vez (' + [...new Set(feitas.map(o => o.t))].join(', ') + ')']]
+    : feitas.map(op => { const [acao, det] = desc(op); return [agora, nomeU || 'sem login', cargoU, acao, String(det).slice(0, 500)]; });
+  if (recusadas.length) log.push([agora, nomeU || 'sem login', cargoU, 'Recusado: sem permissão',
+    (recusadas.length + ' alteração(ões): ' + recusadas.map(o => o.t + (o.chave ? ' ' + o.chave : '')).join(', ')).slice(0, 500)]);
   if (log.length) {
     const sh = aba('Historico'), ini = sh.getLastRow() + 1;
     sh.getRange(ini, 2, log.length, 4).setNumberFormat('@');
     sh.getRange(ini, 1, log.length, 5).setValues(log);
   }
+  return recusadas;
 }
 
 function regravar(sh, cols, dados) {

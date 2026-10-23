@@ -7,6 +7,11 @@ Cópia do script publicado no Apps Script (sem senhas: a senha do app, TOKEN, e 
 ficam nas Propriedades do script). Quando mudar o script aqui, cole no Apps Script e publique:
 **Implantar → Gerenciar implantações → lápis ✏️ → Versão: Nova versão → Implantar** (o endereço /exec não muda).
 
+Versão 36: o script confere o cargo antes de gravar cada alteração (cargo da liberação na aba Acessos + PERMISSOES do
+Painel Dev). O que o cargo não pode fazer não é gravado: volta ao app em `recusadas` (o app v146 tira da fila e avisa) e fica
+uma linha "Recusado: sem permissão" no Historico. `CARGOS_`/`FUNCOES_` são cópia do app: `tests/permissoes.cjs` confere no CI.
+(A 35 foi o RDO por voz com o Gemini, desfeita.)
+
 Versão 34: chat do Claude no Painel Dev (ação `devChat`, só o desenvolvedor, usa a mesma ANTHROPIC_API_KEY do RDO por voz)
 e o tamanho de cada aba em `devDados`. No Extras.gs: vigia diário (rode `instalarVigia` uma vez e autorize o e-mail), que avisa
 o desenvolvedor às 7h quando há erros, avisos em aberto, celulares com envios parados ou abas grandes.

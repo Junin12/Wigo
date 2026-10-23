@@ -92,4 +92,5 @@ jobs:
             .github/**
             tests/**
             apps-script/**
+            .claude/**
             **/node_modules/**

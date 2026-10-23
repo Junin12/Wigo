@@ -4760,9 +4760,18 @@ function remessaBloco(R){
     R.roms?.length>1 && !R.rec && !R.fixo ? el("p",{class:"info",text:"Chegou só uma parte? Abra o romaneio e confirme só ele."}) : null,
     R.roms?.length ? el("div",{class:"lista"}, ...R.roms.map(x=>romaneioItem(x, R))) : null];
 }
+// filtro da tela: "" = nenhuma estrutura escolhida (não lista os romaneios), "*" = todas
+const SUPACO={est:""};
 function renderSupAco(){
-  const L=remessas(), tot=somaKg(L), rec=somaRec(L), pend=L.filter(R=>!R.rec);
+  const T=remessas(), ests=[...new Set(T.map(R=>R.est))];
+  if(SUPACO.est && SUPACO.est!=="*" && !ests.includes(SUPACO.est)) SUPACO.est="";
+  // os números do topo seguem o filtro; sem filtro, valem para a obra toda
+  const L=SUPACO.est && SUPACO.est!=="*" ? T.filter(R=>R.est===SUPACO.est) : T, tot=somaKg(L), rec=somaRec(L), pend=L.filter(R=>!R.rec);
   const prox=pend.filter(R=>R.ini).sort((a,b)=>a.ini<b.ini?-1:1)[0];
+  const selEst=el("select",{"aria-label":"Estrutura dos romaneios"},
+    el("option",{value:"",text:"Escolha a estrutura…"}), el("option",{value:"*",text:"Todas as estruturas"}),
+    ...ests.map(e=>el("option",{value:e,text:e})));
+  selEst.value=SUPACO.est; selEst.onchange=()=>{ SUPACO.est=selEst.value; renderSupAco(); };
 
   // um cartão por estrutura, com as remessas dentro
   const cards=[...new Set(L.map(R=>R.est))].map(est=>{
@@ -4780,6 +4789,7 @@ function renderSupAco(){
   repor($("#sup-aco"),
     el("p",{class:"saud"}, "Aço", el("small",{text:"Romaneios da Aços Campinas · armadura cortada e dobrada"})),
     el("div",{class:"row"}, el("button",{class:"btn pri",type:"button",text:"Gerar pedido de aço",onclick:()=>abrirTela("supped")})),
+    el("label",{class:"campo full"}, "Estrutura", selEst),
     el("div",{class:"kpis"},
       kpi("Pedido", `${t(tot)} t`, `${L.length} remessas`),
       kpi("Recebido", `${t(rec)} t`, `${pct(tot?rec/tot:0)} do pedido`),
@@ -4788,8 +4798,9 @@ function renderSupAco(){
              : kpi("Próxima entrega", janela(prox), `${prox.est} · ${t(prox.kg)} t`))
            : kpi("Próxima entrega", "—", pend.length ? "sem data prevista" : "todo o pedido foi recebido")),
     barra(tot?rec/tot:0),
-    ...cards,
-    el("div",{class:"card"}, el("h3",{text:"Por bitola (t)"}),
+    ...(SUPACO.est ? [] : [el("div",{class:"vazio",text:"Escolha uma estrutura (ou Todas as estruturas) para ver os romaneios e o total por bitola."})]),
+    ...(SUPACO.est ? cards : []),
+    !SUPACO.est ? null : el("div",{class:"card"}, el("h3",{text:`Por bitola (t) · ${SUPACO.est==="*"?"todas as estruturas":SUPACO.est}`}),
       el("div",{class:"tbl"}, el("table",{},
         el("thead",{}, el("tr",{}, el("th",{text:"Bitola (mm)"}), el("th",{text:"Recebido"}), el("th",{text:"A receber"}), el("th",{text:"Total"}))),
         el("tbody",{}, ...linhas)))),

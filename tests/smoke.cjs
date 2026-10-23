@@ -113,6 +113,22 @@ const confere = (ok, msg) => { console.log(`${ok ? "ok  " : "FALHA"} ${msg}`); i
     } catch (e) { return "erro: " + e.message; }
   });
   confere(chuva === "ok", `alerta de chuva na concretagem programada: ${chuva}`);
+  // Suprimentos › Aço: romaneios e total por bitola só da estrutura escolhida (sem escolha, nada listado)
+  const supAco = await p.evaluate(() => {
+    try {
+      const box = document.querySelector("#sup-aco"), tit = () => [...box.querySelectorAll("h3")].map(h => h.textContent);
+      const kgBit = L => L.reduce((s, R) => s + Object.values(R.b).reduce((a, b) => a + b, 0), 0) / 1000;
+      const totBit = () => [...[...box.querySelectorAll("tbody")].at(-1).rows].reduce((s, tr) => s + numBR(tr.lastChild.textContent), 0);
+      SUPACO.est = ""; renderSupAco(); const nada = !tit().some(h => /bitola/.test(h)) && !!box.querySelector(".vazio");
+      const est = remessas()[0].est; SUPACO.est = est; renderSupAco();
+      const so = tit().filter(h => !/bitola/.test(h)).every(h => h === est) && tit().some(h => h.includes("bitola") && h.includes(est));
+      const okKg = Math.abs(totBit() - kgBit(remessas().filter(R => R.est === est))) < 0.2;
+      SUPACO.est = "*"; renderSupAco(); const todas = Math.abs(totBit() - kgBit(remessas())) < 0.5;
+      SUPACO.est = "";
+      return nada && so && okKg && todas ? "ok" : `nada:${nada} só ${est}:${so} kg:${okKg} todas:${todas}`;
+    } catch (e) { return "erro: " + e.message; }
+  });
+  confere(supAco === "ok", `Suprimentos › Aço filtrado por estrutura: ${supAco}`);
   // fila offline: com o localStorage cheio a fila vai só para o IndexedDB, e volta quando o app abre de novo
   const semLS = await p.evaluate(async () => {
     const orig = Storage.prototype.setItem;

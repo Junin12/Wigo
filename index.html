@@ -1177,9 +1177,33 @@ html[data-campo][data-ajuda] .ajuda-btn{background:var(--accent);color:var(--on-
 "use strict";
 // ---------- utilidades ----------
 const $ = s => document.querySelector(s);
+// Filas offline (lançamentos ainda não enviados): além do localStorage (~5 MB), cada fila é gravada no IndexedDB do aparelho.
+// Se o localStorage encher, a fila fica só no IndexedDB (a cópia velha do localStorage é apagada para não voltar no lugar da nova).
+// Ao abrir, a fila que não estiver no localStorage vem do IndexedDB (filaIDB.carregar, antes do boot). Com as duas, vale o localStorage:
+// ele é gravado na hora, o IndexedDB logo depois.
+const FILAS=new Set(["pend","pendEq","pendReg","pendDel","pendEl","pendCfg","pendEf","pendAt","pendAtDel","pendRdo","pendCc","pendCcDel","pendTr","pendReg2","pendReg2Del"]);
+const filaIDB={ ok:false,
+  pronto: new Promise(res=>{ try{ const q=indexedDB.open("wigo-filas",1);
+    q.onupgradeneeded=()=>q.result.createObjectStore("filas");
+    q.onsuccess=()=>{ filaIDB.ok=true; res(q.result); }; q.onerror=q.onblocked=()=>res(null);
+  }catch{ res(null); } }),
+  gravar(k, s){ this.pronto.then(db=>{ if(db) try{ db.transaction("filas","readwrite").objectStore("filas").put(s, k); }catch{} }); },
+  ler(db, k){ return new Promise(res=>{ try{ const q=db.transaction("filas").objectStore("filas").get(k); q.onsuccess=()=>res(q.result??null); q.onerror=()=>res(null); }catch{ res(null); } }); },
+  // devolve as filas recuperadas do IndexedDB; desiste em 1 s (o app abre com o que estiver no localStorage)
+  async carregar(){
+    const db=await Promise.race([this.pronto, new Promise(r=>setTimeout(()=>r(null),1000))]); if(!db) return [];
+    const veio=[];
+    for(const k of FILAS){ if(localStorage.getItem("arm:"+k)!==null) continue;
+      const s=await this.ler(db,k); if(s==null) continue;
+      try{ const v=JSON.parse(s); S[k] = k==="pendEf" ? {fun:{}, funDel:[], dia:{}, pes:{}, pesDel:[], pres:{}, ...v} : v; veio.push(k); }catch{} }
+    for(const k of FILAS) if(!veio.includes(k)) this.gravar(k, JSON.stringify(S[k])); // cópia completa no IndexedDB
+    return veio;
+  } };
 const LS = {
   get(k){ try{ return JSON.parse(localStorage.getItem("arm:"+k)); }catch{ return null; } },
-  set(k,v){ try{ localStorage.setItem("arm:"+k, JSON.stringify(v)); }catch{ toast("Memória do aparelho cheia: exporte um backup."); } }
+  set(k,v){ const s=JSON.stringify(v), fila=FILAS.has(k); if(fila) filaIDB.gravar(k, s);
+    try{ localStorage.setItem("arm:"+k, s); }
+    catch{ if(fila && filaIDB.ok){ try{ localStorage.removeItem("arm:"+k); }catch{} return; } toast("Memória do aparelho cheia: exporte um backup."); } }
 };
 // erros de JavaScript deste celular: guardados (até 30, sem repetir a mesma mensagem na sessão) e enviados na sincronização
 const ERR={fila:LS.get("errosFila")||[], vistos:new Set()};
@@ -2177,7 +2201,7 @@ function setCampo(on){ LS.set("campo",!!on); if(on) document.documentElement.dat
 $("#campo-modo").addEventListener("click", e=>{ const b=e.target.closest("button[data-c]"); if(b) setCampo(b.dataset.c==="1"); });
 setCampo(!!LS.get("campo"));
 
-const VERSAO_APP = "v147"; // igual ao número em sw.js (armacao-v147)
+const VERSAO_APP = "v148"; // igual ao número em sw.js (armacao-v148)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -7306,6 +7330,21 @@ function chuvaNaData(data){
     if(alta){ box.style.color="var(--bad)"; box.style.fontWeight="600"; } });
   return box;
 }
+// concretagens programadas nos próximos 7 dias com chance de chuva de 30% ou mais (pela previsão guardada, se tiver menos de 24 h)
+const prevFresca = () => PREV.dados?.dias && Date.now()-PREV.dados.em < 24*3600e3;
+function concComChuva(){
+  if(!prevFresca()) return [];
+  const h=hojeISO(), ate=somaDias(h,7);
+  return concs().filter(c=>c.status==="Programada" && c.data && c.data>=h && c.data<=ate)
+    .map(c=>({c, x:PREV.dados.dias[c.data]})).filter(o=>o.x?.p>=30).sort((a,b)=>a.c.data.localeCompare(b.c.data));
+}
+const txtChuva = o => `${ddmm(o.c.data)} · ${o.c.estrutura}${o.c.local?" "+o.c.local:""} · ${o.x.p}%${o.x.mm?` (${nf1.format(o.x.mm)} mm)`:""}`;
+// no início: previsão vencida é buscada uma vez por abertura do app e a tela redesenhada quando chega
+function pedirPrevisaoInicio(){
+  if(PREV.tentouIni || (PREV.dados && Date.now()-PREV.dados.em < 3*3600e3)) return; PREV.tentouIni=true;
+  if(!concs().some(c=>c.status==="Programada" && c.data>=hojeISO())) return;
+  const antes=PREV.dados?.em; previsaoTempo().then(d=>{ if(d?.em!==antes && !$("#inicio").hidden) renderInicio(); }).catch(()=>{});
+}
 // --- caminhões ---
 function editarCaminhao(c, k){
   const novo=!k, ult=c.cams[c.cams.length-1];
@@ -7378,7 +7417,8 @@ async function abrirConcretagem(c){
 $("#v-pag").addEventListener("change", ()=>{ if(CC.conc) LS.set("ccPag:"+CC.conc, V.n); });
 function editarConc(c, pre){
   const nova=!c, ests=estruturasObra(), oPre=!c && pre ? concObra(pre.obra) : null;
-  const iData=el("input",{type:"date",value:c?.data||hojeISO()});
+  const iData=el("input",{type:"date",value:c?.data||hojeISO()}), boxCh=el("div",{class:"full"});
+  const pintaCh=()=>repor(boxCh, chuvaNaData(iData.value)); iData.addEventListener("change", pintaCh); pintaCh();
   const iEst=el("select",{}, el("option",{value:"",text:"Escolha a estrutura…"}), ...ests.map(e=>el("option",{value:e,text:e})), el("option",{value:"__outro",text:"✎ Outra…"}));
   const iEstO=el("input",{type:"text",maxLength:120,placeholder:"Nome da estrutura"}), boxEstO=campoEf("Qual estrutura?",iEstO,true);
   if(c){ if(ests.includes(c.estrutura)) iEst.value=c.estrutura; else { iEst.value="__outro"; iEstO.value=c.estrutura; } }
@@ -7477,7 +7517,7 @@ function editarConc(c, pre){
     fecharEf();
   };
   efModal(nova?"Nova concretagem":"Editar concretagem",
-    [campoEf("Data",iData), campoEf("Volume previsto (m³)",iVol), campoEf("Estrutura",iEst,true), boxEstO, campoEf("Elemento / lance",iLoc,true), boxCe,
+    [campoEf("Data",iData), boxCh, campoEf("Volume previsto (m³)",iVol), campoEf("Estrutura",iEst,true), boxEstO, campoEf("Elemento / lance",iLoc,true), boxCe,
      boxTipo, boxPar, boxLaje,
      campoEf("Observação",iObs,true)],
     [el("button",{class:"btn pri",type:"button",text:nova?"Programar concretagem":"Salvar",onclick:salvar}),
@@ -9665,6 +9705,10 @@ function pendInicio(){
   if(ab) bts.push(el("button",{class:"btn",type:"button",style:"color:var(--bad)",text:`⚠ ${ab} moldage${ab>1?"ns":"m"} de concreto abaixo da resistência esperada para a idade`,onclick:()=>{ RG.tipo.qual="cp"; abrirModulo("qual"); }}));
   const n=pode("qual") ? cpPendentes().filter(x=>x.data<=hojeISO()).length : 0;
   if(n) bts.push(el("button",{class:"btn",type:"button",text:`🧪 ${n} rompimento${n>1?"s":""} de corpo de prova para hoje ou atrasado${n>1?"s":""}`,onclick:()=>{ RG.tipo.qual="cp"; abrirModulo("qual"); }}));
+  if(pode("prod")){ pedirPrevisaoInicio(); const cc=concComChuva();
+    if(cc.length) bts.push(el("button",{class:"btn",type:"button",style:cc.some(o=>o.x.p>=60)?"color:var(--bad)":"",
+      text:`🌧 Chuva prevista ${cc.length>1?`em ${cc.length} concretagens programadas`:"na concretagem programada"}: ${cc.slice(0,3).map(txtChuva).join(" · ")}`,
+      onclick:()=>abrirTela("conc")})); }
   return bts.length ? el("div",{class:"row"}, ...bts) : null;
 }
 const MOD2={
@@ -10703,6 +10747,8 @@ function checagemObra(){
   if(pend.length) item("and", `${pend.length} pendência(s) marcada(s) na prancha em aberto`, pend.slice(0,10).map(r=>`${pjTitulo(r.dados.pr.nome)} f.${r.dados.pr.n} · ${String(r.dados.desc).slice(0,60)}`), ()=>{ RG.tipo.qual="nc"; abrirModulo("qual"); });
   const cr=resumoCrono(regs2De("med","crono")), atr=cr?.linhas.filter(l=>l.atraso)||[];
   if(cr) item(atr.length?"and":"ok", atr.length ? `${atr.length} atividade(s) do cronograma atrasada(s)` : "Cronograma sem atividade atrasada", atr.map(l=>`${l.x.d.ativ}: ${pct(l.pr)} de ${pct(l.esp)} esperado`), ()=>{ RG.tipo.med="crono"; abrirModulo("med"); });
+  if(pode("prod") && prevFresca()){ const cc=concComChuva();
+    item(cc.length?"and":"ok", cc.length ? `${cc.length} concretagem(ns) programada(s) com chuva prevista nos próximos 7 dias` : "Sem chuva prevista nas concretagens dos próximos 7 dias", cc.map(txtChuva), ()=>abrirTela("conc")); }
   const ordem={bad:0, and:1, ok:2}; return R.sort((a,b)=>ordem[a.cor]-ordem[b.cor]);
 }
 const COR_SEM={bad:"🔴", and:"🟡", ok:"🟢"};
@@ -11275,6 +11321,7 @@ function testesDev(){
   const pend=pendCount(); ok("Envios pendentes", pend>50 ? "and" : true, `${pend} a enviar${LS.get("pendDesde")?" desde "+dataHoraBR(LS.get("pendDesde")):""}`);
   let bytes=0; try{ for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); bytes+=(localStorage.getItem(k)||"").length*2; } }catch{}
   ok("Memória do aparelho (dados do app)", bytes>4.5e6 ? "and" : true, (bytes/1048576).toFixed(1).replace(".",",")+" MB de ~5 MB");
+  ok("Fila guardada também no IndexedDB", filaIDB.ok ? true : "and", filaIDB.ok ? "sim: com o localStorage cheio, os lançamentos não se perdem" : "não disponível neste navegador: a fila fica só no localStorage");
   tenta("Permissões da planilha", ()=>{ const t=cfgv("PERMISSOES",""); if(t) JSON.parse(t); const ids=new Set(FUNCOES.map(f=>f.id)); for(const [c,p] of Object.entries(permMudadas())){ if(!CARGOS_PADRAO[c]) throw new Error("cargo desconhecido: "+c); for(const k of Object.keys(p)) if(!ids.has(k)) throw new Error("função desconhecida: "+k); } return Object.keys(permMudadas()).length+" cargo(s) alterado(s)"; });
   tenta("Cálculo do aço", ()=>{ const r=resumoAco(); return `${t(r.E)} t de ${t(r.P)} t`; });
   tenta("Cálculo da forma", ()=>{ const f=fmCalc(); return `${nf0.format(f.avanco)} m² de ${nf0.format(f.totProj)} m²`; });
@@ -11706,7 +11753,9 @@ function irParaSiteNovo(){
   return true;
 }
 
-(function boot(){
+// a fila guardada só no IndexedDB (localStorage cheio) entra antes de tudo, para não sincronizar nem mudar de endereço sem ela
+filaIDB.carregar().catch(()=>[]).then(veio=>{ if(veio.length){ MEMO_EF.clear(); console.info("Filas lidas do IndexedDB:", veio.join(", ")); } boot(); });
+function boot(){
   if(irParaSiteNovo()) return;
   if(/\.github\.io$/i.test(location.hostname)){ // há lançamentos esperando envio: sincroniza aqui e muda quando terminar
     setTimeout(()=>toast("O WIGO mudou para wiapps.com.br/wigo. Enviando os lançamentos deste celular antes de mudar…"), 1500);
@@ -11740,7 +11789,7 @@ function irParaSiteNovo(){
   // QR lido com o app já aberto no Safari: o endereço muda só depois do # e a página não recarrega
   addEventListener("hashchange", ()=>{ if(lerLinkCfg()) abrirTela(U?"inicio":"login",false); });
   window.__wigoOk=true; // o app iniciou (sem isto, o aviso do <head> mostra o motivo no lugar da tela branca)
-})();
+}
 </script>
 </body>
 </html>

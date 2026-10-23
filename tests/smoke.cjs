@@ -100,6 +100,34 @@ const confere = (ok, msg) => { console.log(`${ok ? "ok  " : "FALHA"} ${msg}`); i
     } catch (e) { return e.message; }
   });
   confere(rel >= 1, `prévia do relatório de concretagem: ${rel}`);
+  // chuva prevista na concretagem programada: aparece nas Pendências do início e na checagem da obra
+  const chuva = await p.evaluate(() => {
+    try {
+      const am = somaDias(hojeISO(), 1), U0 = U;
+      PREV.dados = { em: Date.now(), dias: { [am]: { p: 80, mm: 12 } } };
+      S.cc = [{ id: "chuva", data: am, estrutura: "FLOCULADORES", local: "Paredes lance 2", status: "Programada", cams: [], volPrev: 20, pdfId: "", pdfNome: "" }];
+      U = { nome: "Teste", cargo: "Engenheiro de produção" }; MEMO_EF.clear();
+      const ini = pendInicio()?.textContent || "", ch = checagemObra().find(x => /chuva/.test(x.tit));
+      U = U0;
+      return concComChuva().length === 1 && /🌧.*80%.*12,0 mm/.test(ini) && ch?.cor === "and" ? "ok" : `início: "${ini.slice(0, 120)}" · checagem: ${ch?.cor}`;
+    } catch (e) { return "erro: " + e.message; }
+  });
+  confere(chuva === "ok", `alerta de chuva na concretagem programada: ${chuva}`);
+  // fila offline: com o localStorage cheio a fila vai só para o IndexedDB, e volta quando o app abre de novo
+  const semLS = await p.evaluate(async () => {
+    const orig = Storage.prototype.setItem;
+    Storage.prototype.setItem = function (k, v) { if (k === "arm:pendRdo") throw new DOMException("cheio", "QuotaExceededError"); return orig.call(this, k, v); };
+    try { S.pendRdo = { "2026-01-05": { teste: "fila-idb" } }; savePendRdo(); } finally { Storage.prototype.setItem = orig; }
+    await new Promise(r => setTimeout(r, 300));
+    return filaIDB.ok && localStorage.getItem("arm:pendRdo") === null;
+  });
+  await p.reload(); await p.waitForTimeout(1500);
+  confere(semLS && await p.evaluate(() => S.pendRdo["2026-01-05"]?.teste === "fila-idb" && pendCount() >= 1),
+    "fila offline guardada no IndexedDB com o localStorage cheio e lida de volta ao abrir o app");
+  await p.evaluate(() => { S.pendRdo = { "2026-01-06": { teste: "ls" } }; savePendRdo(); });
+  await p.reload(); await p.waitForTimeout(1500);
+  confere(await p.evaluate(() => S.pendRdo["2026-01-06"]?.teste === "ls" && !S.pendRdo["2026-01-05"]), "fila com espaço no localStorage: vale a cópia mais nova");
+  await p.evaluate(() => { S.pendRdo = {}; savePendRdo(); });
   confere(!erros.length, "nenhum erro durante os testes" + (erros.length ? `: ${erros[0]}` : ""));
 
   // ---- painel ----

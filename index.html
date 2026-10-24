@@ -2246,7 +2246,7 @@ function setCampo(on){ LS.set("campo",!!on); if(on) document.documentElement.dat
 $("#campo-modo").addEventListener("click", e=>{ const b=e.target.closest("button[data-c]"); if(b) setCampo(b.dataset.c==="1"); });
 setCampo(!!LS.get("campo"));
 
-const VERSAO_APP = "v149"; // igual ao número em sw.js (armacao-v149)
+const VERSAO_APP = "v150"; // igual ao número em sw.js (armacao-v150)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -6882,8 +6882,16 @@ function renderRdo(){
       el("div",{class:"tbl"}, el("table",{}, el("thead",{}, el("tr",{}, el("th",{text:"Empresa"}), el("th",{text:"Turma"}), el("th",{text:"Na obra"}))),
         el("tbody",{}, ...gEf.flatMap(G=>[G.rot ? el("tr",{class:"rd-grupo"}, el("th",{text:G.rot}), el("th",{text:G.turma}), el("th",{text:G.tot})) : null,
           ...G.emp.map(E=>el("tr",{}, el("td",{}, E.nome, el("small",{class:"i-sub",text:` · ${E.vinculo}`})), el("td",{text:E.turma}), el("td",{}, el("b",{text:E.tot}))))].filter(Boolean)))))]
-    : [el("p",{class:"info",text:"A presença deste dia ainda não foi lançada no Ponto e efetivo."}),
+    : dados.maoObra ? [] : [el("p",{class:"info",text:"A presença deste dia ainda não foi lançada no Ponto e efetivo."}),
        pode("ponto") && !fechado ? el("button",{class:"btn",type:"button",text:"Abrir Ponto e efetivo",onclick:()=>{ EF.data=d; abrirTela("ponto"); }}) : null];
+
+  // efetivo informado no RDO importado em PDF (por função); com o Ponto lançado, fica fechado embaixo
+  const mo=dados.maoObra;
+  if(mo?.linhas?.length) efetivo.push(el("details",{class:"rd-mo", open:!rr},
+    el("summary",{text:`📄 Mão de obra do RDO importado${mo.fonte?" #"+mo.fonte:""}: ${mo.total} pessoas`}),
+    el("div",{class:"tbl"}, el("table",{}, el("thead",{}, el("tr",{}, el("th",{text:"Função"}), el("th",{text:"Tipo"}), el("th",{text:"Qtd."}))),
+      el("tbody",{}, ...mo.linhas.map(l=>el("tr",{}, el("td",{}, l.funcao, el("small",{class:"i-sub",text:` · ${l.empresa}`})), el("td",{text:l.tipo}), el("td",{}, el("b",{text:l.qtd}))))),
+      el("tfoot",{}, el("tr",{}, el("th",{text:"Total"}), el("th",{}), el("th",{text:mo.total})))))));
 
   // 3. atividades (Produção)
   const obsAt=a=>{ const i=el("input",{type:"text",maxLength:300,placeholder:"Observação no RDO (opcional)",value:dados.obsAtiv?.[a.id]||"",disabled:!ed,"aria-label":`Observação: ${a.atividade}`});
@@ -6948,6 +6956,7 @@ function renderRdo(){
     el("p",{class:"saud"}, "Diário de obra", el("small",{text:`${nomeObra()} · ${cidadeObra()}`})),
     !pode("rdo-edit") ? el("p",{class:"info",text:`Só leitura para o seu cargo: dá para ver e gerar o PDF.`}) : null,
     topo, estado,
+    dados.importado ? el("p",{class:"info",text:`📄 Importado do ${dados.importado.numero?"RDO #"+dados.importado.numero:"PDF"}${dados.importado.sistema&&dados.importado.sistema!=="PDF"?" ("+dados.importado.sistema+")":""}${dados.importado.status?" · "+dados.importado.status:""} por ${dados.importado.por||"—"}${dados.importado.em?" · "+quandoTxt(dados.importado.em):""}.`}) : null,
     ed ? vozCard(d) : null,
     sec("1. Horário e clima",
       el("div",{class:"row"}, el("span",{class:"info",text:"Expediente:"}), hora("ini","07:00"), el("span",{text:"às"}), hora("fim","17:00")),
@@ -7074,10 +7083,12 @@ function aplicarVoz(d){
       else x.equip.push({nome:q.nome, qtd:Math.max(1,q.quantidade||1), horas:q.horas>0?q.horas:null}); });
     res.ocorrencias.forEach((s,k)=>{ if(ok("oc"+k)) x.ocorr=soma(x.ocorr, "• "+s); });
     res.visitas.forEach((s,k)=>{ if(ok("vi"+k)) x.visitas=soma(x.visitas, "• "+s); });
-    // o relato ditado fica guardado no RDO (os 5 últimos), com quem ditou
-    x.ditados=[...(x.ditados||[]), {em:new Date().toISOString(), por:quemSou(), texto:texto.slice(0,3000)}].slice(-5);
-  }, "Preenchido por voz");
-  RD.voz={texto:"", gravando:false}; toast("RDO preenchido com o relato. Confira os campos."); renderRdo();
+    if(ok("mo") && res.maoObra?.length) x.maoObra={total:res.totalMo, linhas:res.maoObra.slice(0,200), fonte:res.origem?.numero||""};
+    // RDO importado: guarda de onde veio; o relato ditado fica guardado no RDO (os 5 últimos), com quem ditou
+    if(res.origem) x.importado={...res.origem, arquivo:V.prev.pdf||"", em:new Date().toISOString(), por:quemSou()};
+    else x.ditados=[...(x.ditados||[]), {em:new Date().toISOString(), por:quemSou(), texto:texto.slice(0,3000)}].slice(-5);
+  }, res.origem ? `Importado do PDF${res.origem.numero?" #"+res.origem.numero:""}` : "Preenchido por voz");
+  RD.voz={texto:"", gravando:false}; toast(res.origem ? "RDO preenchido com o PDF. Confira os campos." : "RDO preenchido com o relato. Confira os campos."); renderRdo();
 }
 function vozCard(d){
   const V=(RD.voz ??= {texto:"", gravando:false});
@@ -7086,6 +7097,8 @@ function vozCard(d){
     placeholder: SR ? "Toque em Gravar e fale do dia: clima, o que cada equipe fez e onde, equipamentos, ocorrências e visitas."
       : "Toque aqui e use o microfone do teclado para ditar o relato do dia."});
   ta.oninput=()=>{ V.texto=ta.value; }; V.ta=ta;
+  const arq=el("input",{type:"file",accept:"application/pdf,.pdf",hidden:true,"aria-label":"PDF do RDO"});
+  arq.onchange=()=>{ const f=arq.files[0]; arq.value=""; importarRdoPdf(f); };
   return el("div",{class:"card rd-voz"},
     el("h3",{text:"🎤 Ditar o RDO"}),
     el("p",{class:"info",text:"Fale sobre o dia, confira o texto e toque em Organizar."}),
@@ -7095,28 +7108,193 @@ function vozCard(d){
     ta,
     el("div",{class:"row"},
       el("button",{class:"btn pri",type:"button",text:"✨ Organizar no RDO",onclick:e=>organizarVoz(d,e.currentTarget)}),
-      V.texto ? el("button",{class:"btn",type:"button",text:"Limpar",onclick:()=>{ if(V.gravando) pararVoz(); V.texto=""; renderRdo(); }}) : null));
+      V.texto ? el("button",{class:"btn",type:"button",text:"Limpar",onclick:()=>{ if(V.gravando) pararVoz(); V.texto=""; renderRdo(); }}) : null),
+    el("div",{class:"row"},
+      el("button",{class:"btn",type:"button",text:"📄 Importar RDO em PDF",onclick:()=>arq.click()}), arq,
+      el("small",{class:"i-sub",text:"PDF do RDO de outro sistema (ex.: Consulte GEO): clima, atividades, mão de obra e equipamentos."})));
 }
 function previaVoz(d){
   const V=RD.voz, {res, aviso, marcas, ctx}=V.prev, nomeAt=new Map(ctx.atividades.map(a=>[a.id,a.atividade]));
   const item=(k,txt)=>{ const c=el("input",{type:"checkbox",checked:marcas.has(k)}); c.onchange=()=>{ c.checked?marcas.add(k):marcas.delete(k); }; return el("label",{class:"chk rd-item"}, c, el("span",{text:txt})); };
   const grupo=(tit,itens)=>itens.length ? el("div",{class:"rd-grupo"}, el("b",{text:tit}), ...itens) : null;
   const cl=["manha","tarde","noite"].filter(k=>res.clima[k]).map(k=>`${{manha:"Manhã",tarde:"Tarde",noite:"Noite"}[k]}: ${res.clima[k]}`).join(" · ");
-  const vazio=!cl && !res.condicao && !res.inicio && !res.fim && ![res.atividades,res.outrosServicos,res.equipamentos,res.ocorrencias,res.visitas].some(l=>l.length);
+  const vazio=!cl && !res.condicao && !res.inicio && !res.fim && ![res.atividades,res.outrosServicos,res.equipamentos,res.ocorrencias,res.visitas,res.maoObra||[]].some(l=>l.length);
+  const o=res.origem;
   return el("div",{class:"card rd-voz"},
     el("h3",{text:"✨ O que vai entrar no RDO"}),
-    aviso ? el("p",{class:"info"}, el("b",{text:"Organizado no celular (sem IA): "}), `${aviso}. Cada frase foi para o campo que combina (horário, atividade do dia, ocorrência, visita ou outros serviços); desmarque ou corrija o que não estiver certo.`)
+    o ? el("p",{class:"info"}, el("b",{text:`📄 Lido do PDF ${V.prev.pdf||""}: `}),
+        [o.numero&&`RDO #${o.numero}`, o.sistema!=="PDF"&&o.sistema, o.status, o.data&&dataBR(o.data), o.fotos?`${o.fotos} foto${o.fotos===1?"":"s"} no PDF (não importadas)`:""].filter(Boolean).join(" · "),
+        ". Desmarque o que não quiser.")
+    : aviso ? el("p",{class:"info"}, el("b",{text:"Organizado no celular (sem IA): "}), `${aviso}. Cada frase foi para o campo que combina (horário, atividade do dia, ocorrência, visita ou outros serviços); desmarque ou corrija o que não estiver certo.`)
       : el("p",{class:"info",text:"Organizado pela IA. Desmarque o que não estiver certo."}),
     vazio ? el("p",{class:"info",text:"Não deu para tirar nenhuma informação do relato."}) : null,
     grupo("Clima e horário", [cl&&item("clima",cl), res.condicao&&item("cond",`Obra: ${res.condicao}`), (res.inicio||res.fim)&&item("hora",`Expediente: ${res.inicio||"?"} às ${res.fim||"?"}`)].filter(Boolean)),
     grupo("Atividades da Produção", res.atividades.map((a,k)=>item("at"+k,`${nomeAt.get(a.id)||"Atividade"}: ${a.observacao}`))),
     grupo("Outros serviços", res.outrosServicos.map((s,k)=>item("sv"+k,s))),
-    grupo("Equipamentos", res.equipamentos.map((q,k)=>item("eq"+k,`${q.nome} · ${q.quantidade||1} un.${q.horas>0?` · ${nf1.format(q.horas)} h`:""}`))),
-    grupo("Ocorrências", res.ocorrencias.map((s,k)=>item("oc"+k,s))),
+    res.maoObra?.length ? grupo("Mão de obra", [item("mo",`${res.totalMo} pessoas em ${res.maoObra.length} funções (fica no RDO como efetivo informado no documento)`)]) : null,
+    grupo("Equipamentos", res.equipamentos.map((q,k)=>item("eq"+k,`${q.nome} · ${q.quantidade||1} un.${q.horas>0?` · ${nf1.format(q.horas)} h`:""}${q.ids?.length?` (${q.ids.join(", ")})`:""}`))),
+    grupo(o ? "Ocorrências e observações" : "Ocorrências", res.ocorrencias.map((s,k)=>item("oc"+k,s))),
     grupo("Visitas", res.visitas.map((s,k)=>item("vi"+k,s))),
     el("div",{class:"row"},
       el("button",{class:"btn pri",type:"button",text:"Colocar no RDO",disabled:vazio,onclick:()=>aplicarVoz(d)}),
-      el("button",{class:"btn",type:"button",text:"Voltar ao texto",onclick:()=>{ V.prev=null; renderRdo(); }})));
+      el("button",{class:"btn",type:"button",text:o?"Cancelar":"Voltar ao texto",onclick:()=>{ V.prev=null; renderRdo(); }})));
+}
+
+// ---------- RDO em PDF ----------
+// Lê o RDO em PDF gerado por outro sistema (feito a partir do "RDO Consulte GEO", mas aceita parecidos) no próprio celular:
+// o pdf.js tira o texto com a posição de cada pedaço, as linhas são remontadas pela altura na folha e cada seção vai para
+// o campo do RDO do WIGO. Mostra a mesma prévia do RDO por voz: a pessoa confere e escolhe o que entra.
+async function linhasDoPdf(buf){
+  await loadPdfjs();
+  const doc=await pdfjsLib.getDocument({isEvalSupported:false, data:new Uint8Array(buf), isOffscreenCanvasSupported:false}).promise;
+  const linhas=[];
+  try{
+    for(let p=1;p<=doc.numPages;p++){
+      const tc=await (await doc.getPage(p)).getTextContent();
+      const its=tc.items.filter(i=>i.str && i.str.trim()).map(i=>({s:i.str, x:i.transform[4], y:i.transform[5], w:i.width||0}))
+        .sort((a,b)=>b.y-a.y || a.x-b.x);
+      let lin=null;
+      for(const it of its){
+        if(!lin || Math.abs(lin.y-it.y)>3){ lin={y:it.y, c:[]}; linhas.push(lin); }
+        // pedaços colados viram uma célula; um espaço grande separa colunas (tabela de mão de obra e equipamentos)
+        const ult=lin.c.at(-1), gap=ult ? it.x-(ult.x+ult.w) : 99;
+        if(ult && gap<8){ ult.s += (gap>1.2 && !/\s$/.test(ult.s) ? " " : "")+it.s; ult.w=it.x+it.w-ult.x; }
+        else lin.c.push({s:it.s, x:it.x, w:it.w});
+      }
+      for(const l of linhas) if(l.c.length>1) l.c.sort((a,b)=>a.x-b.x);
+    }
+  } finally { doc.destroy(); }
+  return linhas.map(l=>l.c.map(c=>c.s.replace(/\s+/g," ").trim()).filter(Boolean)).filter(l=>l.length);
+}
+
+const RDOPDF_SECOES={IDENTIFICACAO:"id", "JORNADA DE TRABALHO":"jornada", "CONDICOES CLIMATICAS":"clima", "RESUMO · ANOTACOES GERAIS DO DIA":"resumo",
+  "RESUMO":"resumo", "ATIVIDADES EXECUTADAS":"ativ", "MAO DE OBRA":"mo", EQUIPAMENTOS:"eq", "REGISTROS FOTOGRAFICOS":"fotos",
+  OCORRENCIAS:"ocor", "OCORRENCIAS E OBSERVACOES":"ocor", VISITAS:"visitas", "FLUXO DE APROVACAO E ASSINATURAS":"aprov", "VALIDACAO PUBLICA E INTEGRIDADE":"fim"};
+const RDOPDF_STATUS=/^(EM ANDAMENTO|CONCLUID[AO]|FINALIZAD[AO]|NAO INICIAD[AO]|PARALISAD[AO]|PAUSAD[AO]|ATRASAD[AO]|PLANEJAD[AO]|SUSPENS[AO])$/;
+// clima do outro sistema → os 4 do WIGO
+const rdoPdfClima=s=>{ const n=normTxt(s||""); return !n||n==="—" ? "" : /IMPRATIC/.test(n) ? "Impraticável" : /CHUV|GAROA|TEMPEST|TROVOAD/.test(n) ? "Chuva"
+  : /NUBLAD|NUVEM|ENCOBERT|NEBLIN/.test(n) ? "Nublado" : /SOL|ENSOLARAD|CLARO|LIMPO|BOM|FIRME/.test(n) ? "Bom" : ""; };
+
+// linhas (cada uma, uma lista de células) → dados do RDO. Função pura (testada no smoke).
+function lerRdoPdf(linhas){
+  const lixo=c=>/^(Documento gerado pelo|RASCUNHO$|Página \d+ de \d+$|Sistema .* Gerado em)/.test(c) || /· RDO #/.test(c);
+  // a marca d'água "RASCUNHO" às vezes gruda no fim de uma célula
+  const L=linhas.map(l=>l.map(c=>c.replace(/(.)RASCUNHO$/,"$1").trim()).filter(c=>c && !lixo(c))).filter(l=>l.length);
+  const texto=L.map(l=>l.join(" ")).join("\n");
+  const R={sistema:/Consulte GEO/i.test(linhas.flat().join(" ")) ? "Consulte GEO" : "PDF", numero:"", status:"", data:"", obra:"", houveTrabalho:"", turno:"",
+    clima:{manha:"",tarde:"",noite:""}, climaOrig:{}, tempoObs:"", resumo:[], observacoes:[], atividades:[], maoObra:[], totalMo:0,
+    equipamentos:[], fotos:[], ocorrencias:[], visitas:[], aprovacao:[]};
+  let m;
+  if((m=/#([A-Z0-9][A-Z0-9-]*\d)/.exec(texto))) R.numero=m[1];
+  const iNum=L.findIndex(l=>l.some(c=>c.startsWith("#"+R.numero)));
+  // situação do documento: a primeira linha perto do número que fala de aprovação
+  if(iNum>=0) R.status=L.slice(iNum, iNum+5).flat().find(c=>/APROVA|RASCUNHO|ENVIAD|REPROVA|DEVOLVID|FECHAD|FINALIZ|ASSINAD|CANCELAD/.test(normTxt(c)) && !c.startsWith("#")) || "";
+  // campo: rótulo numa linha e o valor na linha de baixo, na mesma coluna (ou o rótulo e o valor juntos)
+  const campo=rot=>{ for(let k=0;k<L.length;k++){ const j=L[k].findIndex(c=>normTxt(c)===normTxt(rot)); if(j<0) continue;
+    const v=L[k+1]||[]; return (L[k].length===v.length ? v[j] : v.length===1 ? v[0] : v[Math.min(j,v.length-1)]) || ""; } return ""; };
+  const dr=/(\d{2})\/(\d{2})\/(\d{4})/.exec(campo("DATA DO RDO"));
+  if(dr) R.data=`${dr[3]}-${dr[2]}-${dr[1]}`;
+  R.obra=campo("NOME DA OBRA"); R.houveTrabalho=campo("HOUVE TRABALHO?"); R.turno=campo("TURNO");
+  for(const [k,rot] of [["manha","MANHÃ"],["tarde","TARDE"],["noite","NOITE"]]){ const v=campo(rot); R.climaOrig[k]=v; R.clima[k]=rdoPdfClima(v); }
+  if((m=/(Temperatura:[^\n]*)/.exec(texto))) R.tempoObs=m[1].replace(/\s*·\s*Fonte:.*$/,"");
+
+  // seções na ordem em que aparecem
+  let sec="", grupo=null, item=null, obs=false, foto=null, sobra=[];
+  const ultimo=lista=>lista[lista.length-1];
+  for(const l of L){
+    const tudo=l.join(" "), n=normTxt(tudo);
+    if(l.length===1 && RDOPDF_SECOES[n]){ sec=RDOPDF_SECOES[n]; item=null; obs=false; continue; }
+    if(sec==="resumo"){
+      if(/^OBSERVAC/.test(n)){ obs=true; const resto=tudo.replace(/^Observa\S*:?\s*/i,""); if(resto) R.observacoes.push(resto); continue; }
+      if(obs){ if(/^\d+\s*[-–.)]/.test(tudo) || !R.observacoes.length) R.observacoes.push(tudo.replace(/^\d+\s*[-–.)]\s*/,"")); else R.observacoes[R.observacoes.length-1]+=" "+tudo; }
+      else if(/^[-•]\s*/.test(tudo) || !R.resumo.length) R.resumo.push(tudo.replace(/^[-•]\s*/,""));
+      else R.resumo[R.resumo.length-1]+=" "+tudo;
+    } else if(sec==="ativ"){
+      const cels=l.filter(c=>!/^\d+ atividades?$/.test(c)); if(!cels.length) continue;
+      if((m=/^\[([\d.]+)\]\s*(.+)$/.exec(cels[0]))){ grupo={codigo:m[1], nome:m[2]}; item=null; continue; }
+      const st=cels.find(c=>RDOPDF_STATUS.test(normTxt(c))), resto=cels.filter(c=>c!==st).join(" ");
+      if(st && resto){ item={codigo:grupo?.codigo||"", grupo:grupo?.nome||"", titulo:resto, status:st, descricao:""}; R.atividades.push(item); }
+      else if(st){ if(item && !item.status && !item.descricao) item.status=st; else { item={codigo:grupo?.codigo||"", grupo:grupo?.nome||"", titulo:grupo?.nome||"Atividade", status:st, descricao:""}; R.atividades.push(item); } }
+      else if(item && (item.status || item.descricao)) item.descricao=(item.descricao+" "+resto).trim();
+      else { item={codigo:grupo?.codigo||"", grupo:grupo?.nome||"", titulo:resto, status:"", descricao:""}; R.atividades.push(item); }
+    } else if(sec==="mo"){
+      if(/^EMPRESA$/.test(normTxt(l[0])) || /^(TIPO|FUNCAO|QTD)$/.test(n)) continue;
+      if(/^TOTAL\b/.test(n)){ R.totalMo=+(/(\d+)\s*$/.exec(tudo)||[0,0])[1]; continue; }
+      // as células podem vir separadas ou numa linha só (cada leitor de PDF agrupa de um jeito)
+      sobra.push(...l); const junto=sobra.join(" ");
+      if((m=/^(.*?)\s+(Própria|Propria|Terceirizada|Terceiros?|Subcontratada)\s+(.*?)\s+(\d+)$/i.exec(junto))){ R.maoObra.push({empresa:m[1], tipo:m[2], funcao:m[3], qtd:+m[4]}); sobra=[]; }
+      else if(sobra.length>6) sobra=[];
+    } else if(sec==="eq"){
+      if(/^TIPO$/.test(normTxt(l[0])) && l.length>2) continue;
+      if(l.length>=4){ const [tipo,ident,operador,prop,status,obsEq]=l; R.equipamentos.push({tipo, ident:ident==="—"?"":ident, operador:operador==="—"?"":operador, propriedade:prop||"", status:status||"", obs:obsEq&&obsEq!=="—"?obsEq:""}); }
+      else if(l.length===1 && R.equipamentos.length===0 && /^(TIPO|IDENTIFICACAO|OPERADOR|PROPRIEDADE|STATUS|OBSERVACAO)$/.test(n)) continue;
+    } else if(sec==="fotos"){
+      // as fotos vêm em grade (2 por linha): números, legendas e datas lado a lado
+      const nums=l.filter(c=>/^#\d+$/.test(c));
+      if(nums.length){ foto=R.fotos.length; nums.forEach(()=>R.fotos.push({legenda:"", em:""})); continue; }
+      if(foto==null) continue;
+      l.forEach((c,k)=>{ const f=R.fotos[foto+k]; if(!f) return; if(/^\d{2}\/\d{2}\/\d{4}/.test(c)) f.em=c; else if(!f.legenda) f.legenda=c.replace(/…$/,""); });
+    } else if(sec==="ocor" || sec==="visitas"){
+      (sec==="ocor" ? R.ocorrencias : R.visitas).push(tudo.replace(/^[-•]\s*/,""));
+    } else if(sec==="aprov"){
+      if(/^Etapa \d+/i.test(tudo)) R.aprovacao.push({etapa:tudo, situacao:""});
+      else if(ultimo(R.aprovacao) && /APROVAD|REPROVAD|AGUARDANDO|NAO ABERTA|ASSINAD|DEVOLVID/.test(n)) ultimo(R.aprovacao).situacao=tudo;
+    }
+  }
+  if(!R.totalMo) R.totalMo=R.maoObra.reduce((s,x)=>s+x.qtd,0);
+  return R;
+}
+
+// dados lidos do PDF → prévia no formato do RDO por voz (+ mão de obra e a origem do documento)
+function previaDoPdf(R, d){
+  const ctx={atividades:atividadesDoDia(d).map(a=>({id:a.id, atividade:a.atividade, onde:ondeTxt(a)}))};
+  const ativs=ctx.atividades.map(a=>({a, w:vozPalavras(a.atividade+" "+(a.onde||""))}));
+  const atividades=[], outrosServicos=[];
+  for(const it of R.atividades){
+    // título igual ao grupo ("6.15 Floculadores" no grupo [6.15] Floculadores) não se repete
+    const titulo=it.titulo.replace(/^[\d.]+\s+/,""), desc=[titulo!==it.grupo ? titulo : "", it.descricao].filter(Boolean).join(": ");
+    const txt=`${it.codigo?`[${it.codigo}] `:""}${it.grupo||it.titulo}${desc?` — ${desc}`:""}${it.status?` (${it.status})`:""}`;
+    // a atividade da Produção do dia com mais palavras em comum recebe a observação; sem par, vai para outros serviços
+    const w=vozPalavras(`${it.grupo} ${it.titulo} ${it.descricao}`); let melhor=null, pts=0;
+    for(const x of ativs){ let p=0; for(const t of x.w) if(w.has(t)) p+=/^\d+$/.test(t)?1.5:1; if(p>pts){ pts=p; melhor=x; } }
+    if(melhor && pts>=2){ const ja=atividades.find(z=>z.id===melhor.a.id), o=(it.descricao||it.titulo)+(it.status?` (${it.status})`:"");
+      if(ja) ja.observacao+=" "+o; else atividades.push({id:melhor.a.id, observacao:o}); }
+    else outrosServicos.push(txt);
+  }
+  if(!R.atividades.length) outrosServicos.push(...R.resumo);
+  // equipamentos iguais viram uma linha com a quantidade (4 veículos leves); a placa/identificação vai junto no nome
+  const eqs=new Map();
+  for(const e of R.equipamentos){ const q=eqs.get(e.tipo)||{nome:e.tipo, quantidade:0, horas:0, ids:[]}; q.quantidade++; if(e.ident) q.ids.push(e.ident); eqs.set(e.tipo,q); }
+  const equipamentos=[...eqs.values()].map(q=>({nome:q.nome, quantidade:q.quantidade, horas:0, ids:q.ids}));
+  const houve=normTxt(R.houveTrabalho);
+  const res={clima:R.clima, condicao: Object.values(R.clima).includes("Impraticável") || houve==="NAO" ? "Impraticável" : houve==="SIM" ? "Praticável" : "",
+    inicio:"", fim:"", atividades, outrosServicos, equipamentos, ocorrencias:[...R.observacoes, ...R.ocorrencias], visitas:R.visitas,
+    maoObra:R.maoObra, totalMo:R.totalMo, resumo:R.resumo,
+    origem:{sistema:R.sistema, numero:R.numero, status:R.status, data:R.data, tempo:R.tempoObs, fotos:R.fotos.length, aprovacao:R.aprovacao}};
+  const marcas=new Set(["clima","cond", ...atividades.map((_,k)=>"at"+k), ...outrosServicos.map((_,k)=>"sv"+k),
+    ...equipamentos.map((_,k)=>"eq"+k), ...res.ocorrencias.map((_,k)=>"oc"+k), ...res.visitas.map((_,k)=>"vi"+k), R.maoObra.length?"mo":""]);
+  return {res, ctx, marcas};
+}
+
+async function importarRdoPdf(file){
+  if(!file) return;
+  if(!/pdf$/i.test(file.type) && !/\.pdf$/i.test(file.name)) return toast("Escolha o arquivo PDF do RDO.");
+  if(file.size>40e6) return toast("PDF grande demais (máx. 40 MB).");
+  toast("Lendo o PDF…");
+  let R;
+  try{ R=lerRdoPdf(await linhasDoPdf(await file.arrayBuffer())); }
+  catch(e){ return toast(e.message || "Não consegui ler este PDF."); }
+  if(!R.data && !R.atividades.length && !R.maoObra.length) return toast("Não encontrei um RDO neste PDF (precisa ter texto, não só imagem).");
+  // o RDO importado entra no dia dele (dentro da janela de edição)
+  const h=hojeISO(), min=somaDias(h,-RDO_DIAS_EDICAO);
+  if(R.data && (R.data<min || R.data>h)) return toast(`Este RDO é de ${dataBR(R.data)}: só dá para preencher os últimos ${RDO_DIAS_EDICAO} dias.`);
+  if(R.data) RD.data=R.data;
+  const d=RD.data;
+  if(rdoDe(d)?.status==="Fechado") return toast(`O RDO de ${dataBR(d)} está fechado. Reabra para importar.`);
+  const {res, ctx, marcas}=previaDoPdf(R, d);
+  RD.voz={texto:"", gravando:false, prev:{res, aviso:"", texto:"", marcas, ctx, pdf:file.name}};
+  renderRdo();
+  $("#rdo")?.scrollIntoView({behavior:"smooth", block:"start"});
 }
 
 // depois de digitar, redesenha só quando o campo perde o foco (para não atrapalhar quem está escrevendo)
@@ -7149,6 +7327,9 @@ async function pdfRdo(d, btn){
       }
       tab(["Empresa / função","1ª turma","Na obra"], body, {styles:{fontSize:7.8,cellPadding:1.1,textColor:20}, columnStyles:{1:dir,2:{halign:"right",fontStyle:"bold"}},
         foot:[[`TOTAL · próprio ${rr.prop} · terceiros ${rr.terc} · faltas ${rr.f} · atest./folga ${rr.at+rr.fo}`, rr.turma, rr.tot]],footStyles:{fillColor:[230,236,242],textColor:20,fontStyle:"bold",halign:"right"}});
+    } else if(dados.maoObra?.linhas?.length){
+      tab(["Função","Empresa","Tipo","Qtd."], dados.maoObra.linhas.map(l=>[l.funcao,l.empresa,l.tipo,l.qtd]), {styles:{fontSize:7.8,cellPadding:1.1,textColor:20}, columnStyles:{3:{halign:"right",fontStyle:"bold"}},
+        foot:[[`TOTAL (do RDO importado${dados.maoObra.fonte?" #"+dados.maoObra.fonte:""})`,"","",dados.maoObra.total]],footStyles:{fillColor:[230,236,242],textColor:20,fontStyle:"bold",halign:"right"}});
     } else paragrafo("Presença do dia não lançada.");
     tit("3. Atividades executadas");
     if(ret.ativs.length) tab(["Atividade","Local","Pessoas","Situação","Feito","Observação"], ret.ativs.map(a=>[a.atividade,a.onde,a.n,a.status,`${a.progresso}%`,dados.obsAtiv?.[a.id]||""]),

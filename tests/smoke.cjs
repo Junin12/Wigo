@@ -67,6 +67,21 @@ const confere = (ok, msg) => { console.log(`${ok ? "ok  " : "FALHA"} ${msg}`); i
     return MOD2.qual.tipos.some(t => t.id === "laudo") && comp.status === "Não conforme" && comp.alertas.some(a => /ramo seco/.test(a[1]))
       && traco.status === "Atenção" && areia.status === "Atenção" && numBR("1.000,5") === 1000.5 && dataLaudo("31/08/26") === "2026-08-31";
   }), "laudos do laboratório: compactação, traço e agregados avaliados");
+  // RDO em PDF de outro sistema (Consulte GEO): linhas como o pdf.js remonta → campos do RDO (os PDFs reais são testados fora daqui)
+  confere(await p.evaluate(() => {
+    const R = lerRdoPdf([["Consórcio X"], ["#SIAA-RG-121"], ["RELATÓRIO DIÁRIO DE OBRA (RDO)"], ["Enviado para aprovação"], ["IDENTIFICAÇÃO"],
+      ["DATA DO RDO", "LOCALIZAÇÃO"], ["22/10/2026 · Quinta", "Rua A"], ["CONDIÇÕES CLIMÁTICAS"], ["MANHÃ", "TARDE", "NOITE"], ["Nublado", "Chuvoso", "Claro"],
+      ["RESUMO · ANOTAÇÕES GERAIS DO DIA"], ["- Fundações da ETA"], ["Observações:"], ["01 - Recebidas as carretas"], ["da adutora DN 900."],
+      ["ATIVIDADES EXECUTADAS"], ["[6.15] Floculadores", "1 atividade"], ["6.15 Floculadores", "Em andamento"], ["Armação das paredes"], ["Página 2 de 6"],
+      ["MÃO DE OBRA"], ["Empresa", "Tipo", "Função", "Qtd"], ["Consórcio", "Própria", "Pedreiro", "7"], ["Consórcio"], ["Terceirizada"], ["Armador"], ["13"], ["TOTAL", "20"],
+      ["EQUIPAMENTOS"], ["Tipo", "Identificação", "Operador", "Propriedade", "Status", "Observação"], ["Veículo Leve", "SHU6D29", "Ana", "Locada", "Em uso", "—"],
+      ["REGISTROS FOTOGRÁFICOS"], ["#1", "#2"], ["Armação", "Formas"], ["23/10/2026 08:46RASCUNHO", "23/10/2026 08:47"]]);
+    return R.numero === "SIAA-RG-121" && R.status === "Enviado para aprovação" && R.data === "2026-10-22"
+      && R.clima.manha === "Nublado" && R.clima.tarde === "Chuva" && R.clima.noite === "Bom" && R.observacoes[0] === "Recebidas as carretas da adutora DN 900."
+      && R.atividades.length === 1 && R.atividades[0].codigo === "6.15" && R.atividades[0].descricao === "Armação das paredes"
+      && R.maoObra.length === 2 && R.maoObra[1].qtd === 13 && R.totalMo === 20 && R.equipamentos[0].ident === "SHU6D29"
+      && R.fotos.length === 2 && R.fotos[0].em === "23/10/2026 08:46" && typeof importarRdoPdf === "function";
+  }), "leitor de RDO em PDF: número, data, clima, observações, atividades, mão de obra, equipamentos e fotos");
 
   // mapa das paredes dos floculadores A e C (gera o PDF inteiro, sem baixar)
   for (const k of ["FLOC-A", "FLOC-C"]) {

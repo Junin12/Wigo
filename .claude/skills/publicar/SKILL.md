@@ -27,6 +27,7 @@ o GitHub Actions testa (oxlint + Playwright) e só então envia por FTP para wia
 - Sem Node nesta máquina: abra o app no preview (`hub-wigo`, http://localhost:8093/wigo/) e confira no console que não há erro de JavaScript
   ao abrir e na tela mexida. O CI continua sendo a barreira final.
 - Mudou uma função importante? Acrescente uma linha `confere(...)` em `tests/smoke.cjs` que falharia sem a mudança.
+- Mexeu em tela ou em algo pesado: `node tests/acessibilidade.cjs` (o CI também roda, só avisa) e `node tests/desempenho.cjs` (skill `desempenho`).
 
 ## 4. Commit e push
 - Mensagem em português, dizendo o que muda para quem usa (ex.: `v145: Qualidade mostra o laudo do lab ao lado do ensaio`). Autor Junin12.
@@ -37,7 +38,7 @@ o GitHub Actions testa (oxlint + Playwright) e só então envia por FTP para wia
 - Acompanhe o workflow "Publicar na HostGator" (Actions). Sem `gh`, use a API pública:
   `https://api.github.com/repos/Junin12/Wigo/actions/runs?branch=main&per_page=1`.
 - Falhou no oxlint: leia as anotações em `.../check-runs/<id>/annotations` (linha = linha do `index.html`/`painel.html`), corrija e publique de novo com a **mesma** versão se nada subiu.
-- Verde: abra `https://wiapps.com.br/wigo/sw.js` e confirme `armacao-vNNN`.
+- Verde: `node tests/canario.cjs --rodadas 2` (skill `canario`): confere `armacao-vNNN` no ar, o app e o painel abrindo sem erro.
 
 ## 6. Script da planilha (só se `apps-script/` mudou)
 O CI não publica o Apps Script. No Chrome, projeto "CAU - Armação": confira que o texto no ar é igual ao do commit anterior,
@@ -45,7 +46,10 @@ cole o arquivo exato de `raw.githubusercontent.com/Junin12/Wigo/<commit>/apps-sc
 Ctrl+S, Implantar › Gerenciar implantações › lápis › Nova versão. Depois confirme pela chave de leitura que `script` é o número novo.
 Atualize `apps-script/LEIA-ME.md` com o número.
 
-## 7. Novidades para os usuários
+## 7. Documentação e novidades
+Skill `documentar-versao`: histórico de versões (OneDrive), LEIA-ME do script, planos em `docs/`.
+
+### Novidades para os usuários
 Se a mudança é visível, proponha 1 a 3 frases curtas para o Painel Dev › Avisos › Novidades (chave `NOVIDADES`) e entregue o texto pronto para colar.
 
 ## Relatório final

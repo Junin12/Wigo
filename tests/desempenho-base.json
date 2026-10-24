@@ -1,0 +1,20 @@
+{
+  "em": "2026-10-23",
+  "versao": "v149",
+  "pronto": 7120,
+  "prontoG": 646,
+  "fcpG": 1232,
+  "fcp": 736,
+  "longas": 1031,
+  "transf": 1177996,
+  "html": 1094665,
+  "telas": {
+    "prod": 15,
+    "conc": 41,
+    "fotos": 15,
+    "rdo": 49,
+    "ponto": 18,
+    "producao": 16,
+    "supaco": 66
+  }
+}

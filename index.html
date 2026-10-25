@@ -2246,7 +2246,7 @@ function setCampo(on){ LS.set("campo",!!on); if(on) document.documentElement.dat
 $("#campo-modo").addEventListener("click", e=>{ const b=e.target.closest("button[data-c]"); if(b) setCampo(b.dataset.c==="1"); });
 setCampo(!!LS.get("campo"));
 
-const VERSAO_APP = "v150"; // igual ao número em sw.js (armacao-v150)
+const VERSAO_APP = "v151"; // igual ao número em sw.js (armacao-v151)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -8492,6 +8492,8 @@ const regs2 = () => memoEf("reg2", ()=>{
   return [...m.values()].sort((a,b)=>String(b.data).localeCompare(String(a.data)) || String(b.criadoEm||"").localeCompare(String(a.criadoEm||"")));
 });
 const regs2De = (mod, tipo) => regs2().filter(r=>r.modulo===mod && (!tipo || r.tipo===tipo));
+// Registros2 internos, sem tela de módulo: pré-levantamento do aço, etapas do concreto e coordenadas das fotos
+const REG2_INTERNOS = new Set(["aco/prelev","concreto/etapa","fotos/geo"]);
 function setReg2(id, campos, log){ const p=(S.pendReg2[id] ??= {}); Object.assign(p, campos); if(log) p.log=log; savePendReg2(); scheduleSync(); }
 function delReg2(id){ delete S.pendReg2[id]; if(S.reg2.some(r=>r.id===id)) S.pendReg2Del.push(id); savePendReg2(); scheduleSync(); }
 // tira da fila só o que o Google devolveu igual
@@ -11559,7 +11561,7 @@ function testesDev(){
   tenta("Efetivo de hoje", ()=>{ const h=resumoEfDia(hojeISO()); return h ? `${h.tot} na obra` : "sem dados"; });
   // registros que quebrariam a lista do módulo (tipo sem cadastro ou título com erro)
   const ruins=[];
-  for(const r of regs2()){ const M=MOD2[r.modulo], T=M?.tipos.find(x=>x.id===r.tipo); if(!M||!T){ ruins.push(`${r.modulo}/${r.tipo} (${r.id}): sem cadastro no app`); continue; }
+  for(const r of regs2()){ if(REG2_INTERNOS.has(`${r.modulo}/${r.tipo}`)) continue; const M=MOD2[r.modulo], T=M?.tipos.find(x=>x.id===r.tipo); if(!M||!T){ ruins.push(`${r.modulo}/${r.tipo} (${r.id}): sem cadastro no app`); continue; }
     try{ tituloReg2(T,r); cardReg2(r,T); }catch(e){ ruins.push(`${r.modulo}/${r.tipo} (${r.id}): ${e.message}`); } }
   ok("Registros dos módulos", ruins.length ? false : true, ruins.length ? ruins.slice(0,10).join(" | ") : `${regs2().length} registros lidos sem erro`);
   ok("Erros neste celular", ERR.fila.length ? "and" : true, ERR.fila.length ? ERR.fila.slice(-5).map(e=>`${e.msg} (${e.onde})`).join(" | ") : "nenhum na fila");

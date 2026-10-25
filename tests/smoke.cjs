@@ -181,6 +181,9 @@ const confere = (ok, msg) => { console.log(`${ok ? "ok  " : "FALHA"} ${msg}`); i
   await p.reload(); await p.waitForTimeout(1500);
   confere(await p.evaluate(() => S.pendRdo["2026-01-06"]?.teste === "ls" && !S.pendRdo["2026-01-05"]), "fila com espaço no localStorage: vale a cópia mais nova");
   await p.evaluate(() => { S.pendRdo = {}; savePendRdo(); });
+  const paresReg2 = [...new Set([...fs.readFileSync(path.join(RAIZ, "index.html"), "utf8").matchAll(/modulo:"([a-z0-9_]+)", *tipo:"([a-z0-9_]+)"/g)].map(m => `${m[1]}/${m[2]}`))];
+  const semCadastro = await p.evaluate(ps => ps.filter(k => { const [m, t] = k.split("/"); return !MOD2[m]?.tipos.some(x => x.id === t) && !REG2_INTERNOS.has(k); }), paresReg2);
+  confere(!semCadastro.length, "todo registro gravado pelo app tem módulo ou é interno (Diagnóstico sem falso alerta)" + (semCadastro.length ? `: ${semCadastro.join(", ")}` : ""));
   confere(!erros.length, "nenhum erro durante os testes" + (erros.length ? `: ${erros[0]}` : ""));
 
   // ---- painel ----

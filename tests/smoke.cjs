@@ -123,9 +123,20 @@ const confere = (ok, msg) => { console.log(`${ok ? "ok  " : "FALHA"} ${msg}`); i
     const mk = (c, loc, qp, cu, kp) => ({ c, est: "FLOCULADORES", loc, qp, cu, kp, ppb: kp / qp });
     const its = [mk("F", "FUNDO", 10, 11, 100), mk("V", "PAREDE 4, PAREDE 5 E PAREDE 6", 10, 4.89, 100), mk("A", "PAREDE 4, PAREDE 5 E PAREDE 6", 10, 2.95, 100),
       mk("H", "PAREDE 4, PAREDE 5 E PAREDE 6", 455, 9.7, 455), mk("L", "LAJE DAS PASSARELAS", 10, 10, 50), mk("X", "PILARES", 10, 3, 30)];
+    const antes = S.pendCfg.ACO_MODULOS; S.pendCfg.ACO_MODULOS = JSON.stringify({ FLOCULADORES: { n: 1 } }); // sem módulos neste caso
     const r = aeSoma(its, new Map([["F", 10], ["V", 10], ["A", 10], ["H", 100]])), ok = (a, b) => Math.abs(a - b) < 0.01;
+    if (antes == null) delete S.pendCfg.ACO_MODULOS; else S.pendCfg.ACO_MODULOS = antes;
     return ok(r.p[0], 345) && ok(r.p[1], 190) && ok(r.p[2], 195) && ok(r.p[3], 75) && ok(r.x[0], 345) && ok(r.x[1], 55) && r.x[2] === 0 && r.op === 30;
   }), "aço por etapa de concretagem: fundo + todas as verticais + horizontais até 0,45 m na 1ª etapa");
+  // módulos (juntas de dilatação): floculadores 1 e 3 em armação → nenhuma etapa passa de 2/3, mesmo com mais barras lançadas
+  confere(await p.evaluate(() => {
+    const it = { c: "M", est: "FLOCULADORES", loc: "PAREDE 4, PAREDE 5 E PAREDE 6", qp: 300, cu: 9.7, kp: 300, ppb: 1 };
+    const antes = S.pendCfg.ACO_MODULOS; delete S.pendCfg.ACO_MODULOS; // padrão: módulos 1 e 3
+    const r = aeSoma([it], new Map([["M", 180]])), m2 = aeSoma([it], new Map([["M", 180]]), 2), r2 = aeSoma([it], new Map([["M", 250]]));
+    if (antes != null) S.pendCfg.ACO_MODULOS = antes;
+    const ok = (a, b) => Math.abs(a - b) < 0.01;
+    return ok(r.x[0] / r.p[0], 2 / 3) && ok(r.x[1] / r.p[1], 2 / 3) && m2.x.every(v => v === 0) && ok(r2.x[0] + r2.x[1] + r2.x[2] + r2.x[3], 250) && r2.x[1] / r2.p[1] > 2 / 3;
+  }), "módulos 1 e 3 de 3 em armação: cada etapa no máximo 66,7%; o que passar vai para o módulo 2");
   // parede com o arranque cadastrado (pedido de aço): vertical na 1ª, costela pela altura, posição fora do cadastro só da 2ª em diante
   confere(await p.evaluate(() => {
     const mk = (pos, cu) => ({ c: pos, pos, est: "FLOCULADORES", loc: "PAREDE 1 , PAREDE 2, PAREDE 3", qp: 455, cu, kp: 455, ppb: 1 });

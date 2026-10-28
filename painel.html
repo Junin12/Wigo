@@ -141,6 +141,7 @@ tfoot td{font-weight:700;border-bottom:0}
   .hrow{grid-template-columns:1fr} th,td{padding:7px 4px}
   .filtros select{flex:1 1 140px}
 }
+tr.sub td{font-size:.82rem;color:var(--muted)} tr.sub td:first-child{padding-left:16px}
 .per-ctl{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .per-ctl input{font:inherit;color:inherit;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:7px 10px;min-height:42px;max-width:100%}
 .per-ctl .seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
@@ -359,11 +360,24 @@ function aeFracoes(i){
   if(r.t==="sup"){ f[0]=0; if(!f.some(v=>v>0)) f[1]=1; }
   const s=f.reduce((a,v)=>a+v,0); return f.map(v=>v/s);
 }
-function aeSoma(its, ac){
-  const r={p:[0,0,0,0],x:[0,0,0,0],op:0,ox:0};
-  for(const i of its){ const f=aeFracoes(i), ex=Math.min(ac.get(i.c)||0,i.qp);
-    if(!f){ r.op+=i.kp; r.ox+=ex*i.ppb; continue; }
-    let cum=0; f.forEach((v,k)=>{ const q=i.qp*v; r.p[k]+=q*i.ppb; r.x[k]+=Math.max(0,Math.min(q,ex-cum))*i.ppb; cum+=q; }); }
+// módulos (juntas de dilatação), mesma conta do app: cada posição vale para os n módulos juntos (1/n das barras em cada um);
+// o armado fica só nos módulos em armação (ACO_MODULOS na aba Config; sem ela, o padrão), em partes iguais
+const AE_MOD_PADRAO={"FLOCULADORES":{n:3,ativos:[1,3]},"DECANTADORES":{n:3,ativos:[1,3]}};
+const aeModulos=()=>{ let c=null; try{ c=JSON.parse(D?.cfg?.ACO_MODULOS||"null"); }catch{ /* valor corrompido: padrão */ }
+  return Object.fromEntries(Object.entries({...AE_MOD_PADRAO,...(c&&typeof c==="object"?c:{})}).map(([k,v])=>[normTxt(k),v])); };
+const aeMod=(est,mods=aeModulos())=>{ const m=mods[normTxt(est)]; return m&&m.n>1?{n:m.n,ativos:(m.ativos||[]).filter(a=>a>=1&&a<=m.n)}:null; };
+function aePorModulo(ex,qp,md){
+  const cap=qp/md.n, at=md.ativos.length?md.ativos:[1], exA=Math.min(ex,cap*at.length), resto=Math.max(0,ex-exA), out=[];
+  const outros=[...Array(md.n).keys()].map(k=>k+1).filter(k=>!at.includes(k));
+  for(let m=1;m<=md.n;m++) out[m]=at.includes(m)?exA/at.length:outros.length?Math.min(cap,resto/outros.length):0;
+  return out;
+}
+function aeSoma(its, ac, so){
+  const r={p:[0,0,0,0],x:[0,0,0,0],op:0,ox:0}, mods=aeModulos();
+  for(const i of its){ const f=aeFracoes(i), ex=Math.min(ac.get(i.c)||0,i.qp), md=aeMod(i.est,mods);
+    const ms=md?aePorModulo(ex,i.qp,md).map((x,m)=>[m,x]).filter(([m])=>m>=1&&(!so||m===so)):[[0,ex]], cap=md?i.qp/md.n:i.qp;
+    if(!f){ for(const [,x] of ms){ r.op+=cap*i.ppb; r.ox+=x*i.ppb; } continue; }
+    for(const [,x] of ms){ let cum=0; f.forEach((v,k)=>{ const q=cap*v; r.p[k]+=q*i.ppb; r.x[k]+=Math.max(0,Math.min(q,x-cum))*i.ppb; cum+=q; }); } }
   return r;
 }
 
@@ -429,7 +443,7 @@ function preparar(j){
   for(const [n,c0,q,eq] of j.lanc){ const s=bn.get(n), c=consertaCod(c0), i=by.get(c); if(!s||!i) continue;
     s.exec.set(c,(s.exec.get(c)||0)+q); s.kg+=q*i.ppb; const e=(s.porEq[eq]??={kg:0}); e.kg+=q*i.ppb; }
   const meta=num(j.config?.META_KG_ARM_DIA)||200, dias=num(j.config?.DIAS_SEMANA)||6;
-  D={itens,by,sem,eqs:j.equipes||[],ocs:(j.registros||[]).filter(r=>r.tipo==="ocorrencia"),els:j.elementos||[],meta,dias,prazo:j.config?.PRAZO||"",forma:j.forma||null,concreto:j.concreto||null,cps:j.cps};
+  D={itens,by,sem,cfg:j.config||{},eqs:j.equipes||[],ocs:(j.registros||[]).filter(r=>r.tipo==="ocorrencia"),els:j.elementos||[],meta,dias,prazo:j.config?.PRAZO||"",forma:j.forma||null,concreto:j.concreto||null,cps:j.cps};
   const emps=[...new Set(itens.map(i=>i.emp))].sort((a,b)=>a.localeCompare(b,"pt"));
   if(EMP && !emps.includes(EMP)) EMP="";
   $("#emp").replaceChildren(el("option",{value:"",text:"Obra inteira (todos os empreendimentos)"}),...emps.map(e=>el("option",{value:e,text:e}))); $("#emp").value=EMP; opEst();
@@ -813,7 +827,11 @@ function renderAco(E,A,h){
   const tot={p:[0,0,0,0],x:[0,0,0,0],op:0,ox:0}, LT=[];
   for(const [est,L] of [...gt].sort((a,b)=>a[0].localeCompare(b[0],"pt"))){ const r=aeSoma(L,A.ac); if(!r.p.some(v=>v>0)) continue;
     r.p.forEach((v,k)=>{ tot.p[k]+=v; tot.x[k]+=r.x[k]; }); tot.op+=r.op; tot.ox+=r.ox;
-    LT.push(el("tr",{},el("td",{},el("b",{text:est})),...r.p.map((p,k)=>celE(r.x[k],p)),celE(r.ox,r.op))); }
+    const md=aeMod(est);
+    LT.push(el("tr",{},el("td",{},el("b",{text:est}),md?el("div",{class:"info",text:`${md.n} módulos · em armação: ${md.ativos.join(" e ")||"nenhum"}`}):null),...r.p.map((p,k)=>celE(r.x[k],p)),celE(r.ox,r.op)));
+    // um módulo por linha (juntas de dilatação)
+    if(md) for(let m=1;m<=md.n;m++){ const rm=aeSoma(L,A.ac,m);
+      LT.push(el("tr",{class:"sub"},el("td",{text:`↳ módulo ${m}${md.ativos.includes(m)?"":" (não começou)"}`}),...rm.p.map((p,k)=>celE(rm.x[k],p)),celE(rm.ox,rm.op))); } }
   $("#a-etapa").replaceChildren(LT.length?tabela(["Estrutura",...AE_ROT,"Outros"],LT,LT.length>1?el("tr",{},el("td",{text:"Total"}),...tot.p.map((p,k)=>celE(tot.x[k],p)),celE(tot.ox,tot.op)):null)
     :vazio("Nenhuma posição de fundo, parede ou laje de cobertura nesta seleção."));
   // por bitola

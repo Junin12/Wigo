@@ -227,6 +227,7 @@ img.croqui{display:block;background:#fff;border-radius:6px;border:1px solid var(
 .chart .ln{fill:none;stroke:var(--accent);stroke-width:2.5}
 .chart .pt{fill:var(--accent)}
 .tbl{overflow-x:auto}
+.tbl tr.sub td{font-size:.85em;color:var(--muted)} .tbl tr.sub td:first-child{padding-left:14px}
 table{border-collapse:collapse;width:100%;font-size:.88rem}
 th,td{padding:8px 6px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
 /* celular: a tabela cabe na tela (o texto quebra linha) em vez de arrastar para o lado */
@@ -1592,6 +1593,8 @@ const SEMENTES=[
       tipoCp.calc(d); const st=tipoCp.statusAuto(d);
       setReg2(velha.id, {dados:d, status:st}, `Alterou: ${tituloReg2(tipoCp,{dados:d})} (juntou a moldagem repetida da planilha do laboratório)`);
       delReg2(nova.id); } }},
+  // a Equipe 1 é a equipe do Salgadeiro (28/10/2026): passa a se chamar Salgadeiro, com os lançamentos e as ocorrências
+  {id:"EQ_SALGADEIRO", fazer:()=>{ if(eqList().some(e=>e.nome==="Equipe 1") && !eqList().some(e=>e.nome==="Salgadeiro")) renomearEquipe("Equipe 1", "Salgadeiro"); }},
 ];
 function rodarSementes(){
   if(!S.cfg?.url || !S.lastSync || LS.get("semSementes")) return; // semSementes: teste automático (testa à parte)
@@ -2248,7 +2251,7 @@ function setCampo(on){ LS.set("campo",!!on); if(on) document.documentElement.dat
 $("#campo-modo").addEventListener("click", e=>{ const b=e.target.closest("button[data-c]"); if(b) setCampo(b.dataset.c==="1"); });
 setCampo(!!LS.get("campo"));
 
-const VERSAO_APP = "v159"; // igual ao número em sw.js (armacao-v159)
+const VERSAO_APP = "v160"; // igual ao número em sw.js (armacao-v160)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -3082,6 +3085,25 @@ function setEquipe(nome, campos){
   if("arm" in campos || "ativa" in campos){ const w=semanaDeHoje(), tot=totalArmadores(); if(w && tot && w.arm!==tot) setWeekField(w.n,"arm",tot); }
   scheduleSync(); renderEquipes(); renderFiltros(); refreshRows(); if(!$("#v-semanas").hidden) renderSemanas();
 }
+// Renomear equipe: o nome é a chave nos lançamentos de aço (semana × posição × equipe), nos registros (ocorrências) e na aba
+// Equipes. Tudo passa para o nome novo com as operações de sempre: a equipe nova recebe os mesmos dados, cada lançamento
+// vai para ela (somado ao que ela já tiver) e o antigo fica 0, os registros mudam de equipe e a antiga fica inativa
+// (a planilha não apaga linha de equipe). Fotos ficam com o nome antigo (o arquivo já foi enviado).
+function renomearEquipe(antigo, novo){
+  const e=eqList().find(x=>x.nome===antigo); if(!e || !novo || novo===antigo) return 0;
+  S.pendEq[novo]={...(S.pendEq[novo]||{}), arm:e.arm||0, ativa:e.ativa!==false, encarregado:e.encarregado||"", frentes:e.frentes||[]};
+  let n=0;
+  for(const s of new Set([...Object.keys(S.weeks), ...Object.keys(S.pend)])){
+    const base=S.weeks[s]?.raw||{}, pend=S.pend[s]?.raw||{}, val=k=>+(pend[k] ?? base[k] ?? 0), suf="|"+antigo;
+    for(const k of new Set([...Object.keys(base), ...Object.keys(pend)])){ if(!k.endsWith(suf)) continue;
+      const cod=k.slice(0,-suf.length), q=val(k); if(!q) continue;
+      const raw=((S.pend[s] ??= {}).raw ??= {}); raw[K(cod,novo)]=val(K(cod,novo))+q; raw[k]=0; n++; } }
+  for(const r of regsAll()) if(r.equipe===antigo && r.tipo!=="foto"){ S.pendReg=S.pendReg.filter(x=>x.id!==r.id); S.pendReg.push({...r, equipe:novo}); }
+  S.pendEq[antigo]={...(S.pendEq[antigo]||{}), ativa:false, frentes:[]};
+  if(S.eq===antigo){ S.eq=novo; LS.set("eq",novo); }
+  savePend(); savePendExtra(); recompute(); scheduleSync();
+  return n;
+}
 function renderEquipes(){
   const eqs=eqList(), at=eqs.filter(e=>e.ativa), fr=at.reduce((s,e)=>s+(e.frentes||[]).length,0), w=semanaDeHoje();
   $("#eq-resumo").textContent = `${at.length} equipe${at.length!==1?"s":""} ativa${at.length!==1?"s":""} · ${totalArmadores()} armadores · ${fr} frente${fr!==1?"s":""}.`
@@ -3108,7 +3130,13 @@ function renderEquipes(){
       if(frentes.some(x=>x.est===f.est && x.det===f.det)){ toast("Essa frente já está na equipe."); return; }
       setEquipe(e.nome,{frentes:[...frentes,f]}); toast(`Frente adicionada à ${e.nome}`); };
     return el("div",{class:"eqcard"+(e.ativa?"":" inativa")},
-      el("div",{class:"topo"}, el("b",{text:e.nome}), el("label",{class:"chk",htmlFor:"eqat-"+id}, ativa, " ativa")),
+      el("div",{class:"topo"}, el("b",{text:e.nome}), el("label",{class:"chk",htmlFor:"eqat-"+id}, ativa, " ativa"),
+        podeLanc() ? el("button",{class:"linkbtn",type:"button",text:"Renomear",onclick:()=>{
+          const novo=(prompt(`Novo nome da ${e.nome}:`, "")||"").trim().replace(/[|;]/g,"-").slice(0,60); if(!novo) return;
+          if(eqList().some(x=>x.nome.toUpperCase()===novo.toUpperCase())) return toast("Já existe uma equipe com esse nome.");
+          if(!confirm(`Renomear "${e.nome}" para "${novo}"? Os lançamentos de aço e as ocorrências dela passam para o nome novo (a "${e.nome}" fica inativa, sem lançamentos).`)) return;
+          const n=renomearEquipe(e.nome, novo); renderEquipes(); renderFiltros(); refreshRows(); if(!$("#v-semanas").hidden) renderSemanas();
+          toast(`Equipe renomeada para ${novo}: ${n} lançamento(s) movido(s).`); }}) : null),
       el("div",{class:"dados"},
         el("label",{class:"campo",htmlFor:"eqenc-"+id},"Encarregado",enc),
         el("label",{class:"campo",htmlFor:"eqarm-"+id},"Armadores",arm)),
@@ -3562,23 +3590,53 @@ function aeFracoes(i){
   const s=f.reduce((a,v)=>a+v,0); return f.map(v=>v/s);
 }
 // soma das posições: kg previstos e armados em cada etapa; as horizontais sobem de baixo para cima (o que foi armado enche a etapa 1, depois a 2…)
-function aeSoma(its, acum){
-  const r={p:[0,0,0,0], x:[0,0,0,0], op:0, ox:0};
-  for(const i of its){ const f=aeFracoes(i), ex=Math.min(acum.get(i.c)||0, i.qp);
-    if(!f){ r.op+=i.kp; r.ox+=ex*i.ppb; continue; }
-    let cum=0; f.forEach((v,k)=>{ const q=i.qp*v; r.p[k]+=q*i.ppb; r.x[k]+=Math.max(0, Math.min(q, ex-cum))*i.ppb; cum+=q; }); }
+// Estruturas divididas em módulos pelas juntas de dilatação (floculadores e decantadores: 1, 2 e 3). Cada posição da base vale
+// para os módulos juntos: cada um tem 1/n das barras. O que foi armado fica só nos módulos em armação (em partes iguais, cada um
+// enchendo as suas etapas de baixo para cima); o que passar deles vai para os outros. Com os módulos 1 e 3 em armação, nenhuma
+// etapa passa de 66,7%. Os módulos em armação ficam na aba Config (ACO_MODULOS, o painel lê a mesma); sem ela, vale o padrão.
+const AE_MOD_PADRAO={"FLOCULADORES":{n:3, ativos:[1,3]}, "DECANTADORES":{n:3, ativos:[1,3]}};
+const aeModulos = () => { let c=null; try{ c=JSON.parse(cfgv("ACO_MODULOS","")||"null"); }catch{ /* valor corrompido: padrão */ }
+  return Object.fromEntries(Object.entries({...AE_MOD_PADRAO, ...(c&&typeof c==="object"?c:{})}).map(([k,v])=>[normTxt(k),v])); };
+const aeMod = (est, mods=aeModulos()) => { const m=mods[normTxt(est)]; return m && m.n>1 ? {n:m.n, ativos:(m.ativos||[]).filter(a=>a>=1&&a<=m.n)} : null; };
+// barras armadas de uma posição em cada módulo (1..n): primeiro os em armação, em partes iguais; o que sobrar, nos outros
+function aePorModulo(ex, qp, md){
+  const cap=qp/md.n, at=md.ativos.length ? md.ativos : [1], exA=Math.min(ex, cap*at.length), resto=Math.max(0, ex-exA), out=[];
+  const outros=[...Array(md.n).keys()].map(k=>k+1).filter(k=>!at.includes(k));
+  for(let m=1;m<=md.n;m++) out[m]=at.includes(m) ? exA/at.length : outros.length ? Math.min(cap, resto/outros.length) : 0;
+  return out;
+}
+// soma: kg previstos e armados em cada etapa; so = só um módulo (1..n) das estruturas divididas em módulos
+function aeSoma(its, acum, so){
+  const r={p:[0,0,0,0], x:[0,0,0,0], op:0, ox:0}, mods=aeModulos();
+  for(const i of its){ const f=aeFracoes(i), ex=Math.min(acum.get(i.c)||0, i.qp), md=aeMod(i.est, mods);
+    const ms = md ? aePorModulo(ex, i.qp, md).map((x,m)=>[m,x]).filter(([m])=>m>=1 && (!so || m===so)) : [[0,ex]], cap = md ? i.qp/md.n : i.qp;
+    if(!f){ for(const [,x] of ms){ r.op+=cap*i.ppb; r.ox+=x*i.ppb; } continue; }
+    for(const [,x] of ms){ let cum=0; f.forEach((v,k)=>{ const q=cap*v; r.p[k]+=q*i.ppb; r.x[k]+=Math.max(0, Math.min(q, x-cum))*i.ppb; cum+=q; }); } }
   return r;
 }
 function aeTabela(its, acum){
   const g=new Map(); for(const i of its){ if(!g.has(i.est)) g.set(i.est,[]); g.get(i.est).push(i); }
   const cel=(x,p)=>p ? el("td",{}, el("b",{text:pct(x/p)}), el("div",{class:"info",text:`${t(x)} / ${t(p)} t`})) : el("td",{text:"–"});
   const tb=el("tbody"), tot={p:[0,0,0,0], x:[0,0,0,0], op:0, ox:0};
+  const mods=aeModulos(), comMod=[];
   for(const [est,L] of [...g].sort((a,b)=>a[0].localeCompare(b[0],"pt"))){ const r=aeSoma(L, acum); if(!r.p.some(v=>v>0)) continue;
     r.p.forEach((v,k)=>{ tot.p[k]+=v; tot.x[k]+=r.x[k]; }); tot.op+=r.op; tot.ox+=r.ox;
-    tb.append(el("tr",{}, el("td",{}, el("b",{text:est})), ...r.p.map((p,k)=>cel(r.x[k],p)), cel(r.ox,r.op))); }
+    const md=aeMod(est, mods);
+    tb.append(el("tr",{}, el("td",{}, el("b",{text:est}), md ? el("div",{class:"info",text:`${md.n} módulos · em armação: ${md.ativos.join(" e ")||"nenhum"}`}) : null), ...r.p.map((p,k)=>cel(r.x[k],p)), cel(r.ox,r.op)));
+    // um módulo por linha (juntas de dilatação): o que está em armação e o que ainda não começou
+    if(md){ comMod.push([est,md]); for(let m=1;m<=md.n;m++){ const rm=aeSoma(L, acum, m);
+      tb.append(el("tr",{class:"sub"}, el("td",{text:`↳ módulo ${m}${md.ativos.includes(m)?"":" (não começou)"}`}), ...rm.p.map((p,k)=>cel(rm.x[k],p)), cel(rm.ox,rm.op))); } } }
   if(!tb.children.length) return el("p",{class:"info",text:"Nenhuma posição de fundo, parede ou laje de cobertura nesta seleção."});
   tb.append(el("tr",{}, el("td",{}, el("b",{text:"Total"})), ...tot.p.map((p,k)=>cel(tot.x[k],p)), cel(tot.ox,tot.op)));
-  return el("table",{}, el("thead",{}, el("tr",{}, ...["Estrutura",...AE_ROT,"Outros"].map(h=>el("th",{text:h})))), tb);
+  // módulos em armação (quem lança muda; vale para o app e o painel)
+  const salvarMods=(est,ativos)=>{ let c={}; try{ c=JSON.parse(cfgv("ACO_MODULOS","")||"{}")||{}; }catch{ c={}; }
+    const md=aeMod(est); c[est]={n:md.n, ativos}; S.pendCfg.ACO_MODULOS=JSON.stringify(c); savePendExtra(); scheduleSync(); renderPainel(); };
+  const editor = comMod.length && podeLanc() ? el("div",{class:"campo"}, "Módulos em armação (juntas de dilatação): toque para marcar ou desmarcar",
+    ...comMod.map(([est,md])=>el("div",{class:"pr-bts",role:"group","aria-label":`Módulos em armação: ${est}`}, el("span",{class:"info",text:est}),
+      ...[...Array(md.n).keys()].map(k=>k+1).map(m=>{ const on=md.ativos.includes(m);
+        return el("button",{type:"button",class:"chipbtn"+(on?" on":""),"aria-pressed":String(on),text:`Módulo ${m}`,
+          onclick:()=>salvarMods(est, on ? md.ativos.filter(x=>x!==m) : [...md.ativos, m].sort((a,b)=>a-b))}); })))) : null;
+  return el("div",{}, el("table",{}, el("thead",{}, el("tr",{}, ...["Estrutura",...AE_ROT,"Outros"].map(h=>el("th",{text:h})))), tb), editor);
 }
 function elCard(e){
   const toggle=(campo,rot)=>{ const v=e.st[campo];
@@ -4784,13 +4842,17 @@ function remessas(){
   for(const R of L){
     // recebimento da remessa inteira (ACO_REC_<n>) ou romaneio a romaneio (ACO_REC_ROM_<número>)
     R.recRem = R.fixo ? (R.recData||"sim") : cfgv("ACO_REC_"+R.n, ""); // entregue: com data (recebida) ou só "sim"
-    R.roms = (R.roms||[]).map(x=>({...x, rec: R.recRem || cfgv("ACO_REC_ROM_"+x.n, ""), recSo: !R.recRem && !!cfgv("ACO_REC_ROM_"+x.n, "")}));
-    const rRec = R.roms.filter(x=>x.rec);
+    R.roms = (R.roms||[]).map(x=>{ const so=cfgv("ACO_REC_ROM_"+x.n, ""), parc=!R.recRem && !so ? parcDe(x.n) : null;
+      // recebimento parcial (romaneio em mais de um caminhão): recebido quando todos os caminhões chegaram (data do último)
+      const ds=parc ? parc.map(p=>p.data).filter(Boolean) : [], cheg=parc ? parc.filter(p=>p.data) : [];
+      return {...x, rec: R.recRem || so || (parc && ds.length===parc.length ? ds.sort().pop() : ""), recSo: !R.recRem && !!so,
+        parc, nParc: ds.length, kgParc: somaKg(cheg), bParc: cheg.reduce((o,p)=>somaBit(o,p.b||{}),{})}; });
+    const rRec = R.roms.filter(x=>x.rec), rParc = R.roms.filter(x=>!x.rec && x.nParc);
     // todos os romaneios confirmados = remessa recebida (na data do último)
     R.rec = R.recRem || (R.roms.length && rRec.length===R.roms.length ? rRec.map(x=>x.rec).sort().pop() : "");
-    R.kgRec = R.rec ? R.kg : somaKg(rRec);
-    R.bRec = R.rec ? R.b : rRec.reduce((o,x)=>somaBit(o,x.b),{});
-    R.nRomRec = rRec.length;
+    R.kgRec = R.rec ? R.kg : somaKg(rRec) + rParc.reduce((s,x)=>s+x.kgParc,0);
+    R.bRec = R.rec ? R.b : [...rRec.map(x=>x.b), ...rParc.map(x=>x.bParc)].reduce((o,b)=>somaBit(o,b),{});
+    R.nRomRec = rRec.length; R.nRomParc = rParc.length;
   }
   return L.sort((a,b)=>a.n-b.n);
 }
@@ -4799,7 +4861,7 @@ const somaRec = l => l.reduce((s,R)=>s+R.kgRec,0);
 const janela = R => R.ini===R.fim ? ddmm(R.ini) : R.ini.slice(5,7)===R.fim.slice(5,7) ? `${R.ini.slice(8,10)} a ${ddmm(R.fim)}` : `${ddmm(R.ini)} a ${ddmm(R.fim)}`;
 function statusRemessa(R){
   if(R.rec) return {cls:"ok", txt: R.rec==="sim" ? "Entregue" : `Recebida em ${ddmm(R.rec)}`};
-  if(R.nRomRec) return {cls:"and", txt:`Parcial · ${R.nRomRec} de ${R.roms.length} romaneios`};
+  if(R.nRomRec || R.nRomParc) return {cls:"and", txt:`Parcial · ${R.nRomRec} de ${R.roms.length} romaneios`+(R.nRomParc?` · ${R.nRomParc} chegando em partes`:"")};
   if(!R.ini || !R.fim) return {cls:"", txt: R.data ? `Pedida em ${ddmm(R.data)}` : "Aguardando entrega"};
   const h=hojeISO(), jan=janela(R);
   if(h>R.fim) return {cls:"bad", txt:`Atrasada · prevista ${jan}`};
@@ -4820,16 +4882,30 @@ function controleRomaneio(x, R){
   if(x.recSo) return el("div",{class:"row"}, el("button",{class:"btn",type:"button",text:"Desfazer chegada",
     onclick:()=>{ if(confirm(`Desfazer a chegada do romaneio ${x.n}?`)) gravarCfg("ACO_REC_ROM_"+x.n, ""); }}));
   const d=el("input",{type:"date",value:hojeISO(),max:hojeISO(),"aria-label":`Data em que o romaneio ${x.n} chegou`});
+  const dataOk=()=>{ if(!d.value){ toast("Informe a data em que chegou."); return false; } if(d.value>hojeISO()){ toast("A data não pode ser no futuro."); return false; } return true; };
+  // recebimento parcial em andamento: confirma o próximo caminhão (as OS de cada um são marcadas na conferência)
+  if(x.parc){ const k=x.parc.findIndex(p=>!p.data);
+    if(k<0) return null;
+    return el("div",{class:"row rec"}, el("span",{class:"info",text:`Caminhão ${k+1} de ${x.parc.length} chegou em`}), d,
+      el("button",{class:"btn pri",type:"button",text:`Confirmar caminhão ${k+1}`,onclick:()=>{ if(!dataOk()) return;
+        const c=confDe(x.n); c.parc[k].data=d.value;
+        for(const [os,i] of Object.entries(c.cam||{})) if(i===k){ const a=(c.m[os]||"000").padEnd(3,"0").split(""); a[0]="1"; c.m[os]=a.join(""); } // OS já marcadas nele: entregues
+        gravarConf(x.n, c); renderSupAco();
+        toast(`Caminhão ${k+1} do romaneio ${x.n} chegou em ${ddmm(d.value)}. Marque na conferência as OS que vieram nele.`); }})); }
   return el("div",{class:"row rec"}, el("span",{class:"info",text:"Chegou em"}), d,
-    el("button",{class:"btn",type:"button",text:"Confirmar este romaneio",onclick:()=>{
-      if(!d.value) return toast("Informe a data em que chegou.");
-      if(d.value>hojeISO()) return toast("A data não pode ser no futuro.");
-      gravarCfg("ACO_REC_ROM_"+x.n, d.value); toast(`Romaneio ${x.n} recebido em ${ddmm(d.value)}.`); }}));
+    el("button",{class:"btn",type:"button",text:"Confirmar este romaneio",onclick:()=>{ if(!dataOk()) return;
+      gravarCfg("ACO_REC_ROM_"+x.n, d.value); toast(`Romaneio ${x.n} recebido em ${ddmm(d.value)}.`); }}),
+    // romaneio acima de 23 t: não cabe numa carreta só e chega em dias separados
+    x.kg>PARC_MIN ? el("button",{class:"btn",type:"button",text:"Chegou só uma parte (recebimento parcial)",onclick:()=>{ if(!dataOk()) return;
+      if(!confirm(`Romaneio ${x.n} (${t(x.kg)} t) em 2 caminhões: o 1º chegou em ${ddmm(d.value)}. Na conferência você marca as OS que vieram em cada caminhão e a pesagem de cada um. Continuar?`)) return;
+      const c=confDe(x.n); c.parc=[{data:d.value},{data:""}]; c.cam={}; gravarConf(x.n, c);
+      toast("Recebimento parcial aberto: marque as OS do caminhão 1."); CF.rom=x.n; CF.cam=0; abrirTela("supconf"); }}) : null);
 }
 function romaneioItem(x, R){
   const bits=Object.entries(x.b).sort((a,b)=>a[0]-b[0]);
-  const chip = R && !R.fixo && x.rec ? el("span",{class:"chip ok",style:"margin-left:0",text:`✓ ${ddmm(x.rec)}`}) : null;
-  const cf = R && x.rec ? confDe(x.n) : null;
+  const chip = R && !R.fixo && x.rec ? el("span",{class:"chip ok",style:"margin-left:0",text:`✓ ${ddmm(x.rec)}${x.parc?` · ${x.parc.length} caminhões`:""}`})
+    : x.nParc ? el("span",{class:"chip and",style:"margin-left:0",text:`Parcial · ${x.nParc} de ${x.parc.length} caminhões`}) : null;
+  const cf = R && (x.rec || x.nParc) ? confDe(x.n) : null;
   const chipCf = cf?.ok ? el("span",{class:"chip ok",style:"margin-left:0",text:"Conferido"}) : cf?.nOk ? el("span",{class:"chip and",style:"margin-left:0",text:`Conferência ${cf.nOk}/${cf.n}`}) : null;
   return el("details",{class:"item rom"},
     el("summary",{}, el("b",{text:`C.AGUA.${x.n}`}), " ", el("span",{class:"loc",text:x.desc}), el("span",{class:"rom-kg",text:`${t(x.kg)} t`}), chip, chipCf),
@@ -4921,7 +4997,12 @@ function renderSupAco(){
 // As OS vêm de romaneios-os.json (lidas dos PDFs da Aços Campinas): {romaneio: [[elemento, [[OS, folha, posição, bitola, barras, compr. cm, kg], …]], …]}.
 // O resultado fica na aba Config como ACO_CONF_<romaneio> = JSON {m:{OS:"111"}, cheia, real, tara, obs, n, nOk, por, em, ok, okPor}
 // (m: 3 marcas por OS na ordem veio / quantidade / comprimento; "1" = conferido).
-const CF={rom:null, lista:null};
+const CF={rom:null, lista:null, cam:0}; // cam: caminhão em que as OS estão sendo marcadas (recebimento parcial)
+// --- Recebimento parcial: romaneio acima de 23 t (não cabe numa carreta) que chega em mais de um caminhão, em dias separados ---
+// Fica na conferência do romaneio (ACO_CONF_<n>): parc = [{data, cheia, real, tara, kg, b}] um por caminhão e cam = {OS: caminhão}.
+// kg e b (kg por bitola) de cada caminhão = soma das OS marcadas nele: valem para o aço recebido enquanto falta caminhão.
+const PARC_MIN=23000;
+const parcDe = n => { const p=confDe(n).parc; return Array.isArray(p) && p.length ? p : null; };
 async function carregarOsRom(){
   if(!CF.lista){ try{ CF.lista=await (await fetch("romaneios-os.json")).json(); }catch{ CF.lista=null; } }
   return CF.lista;
@@ -4958,8 +5039,8 @@ function carretaDe(n){
 // podem entrar na carreta: chegaram no mesmo dia (sem data: mesma remessa entregue), sem conferência concluída e fora de outra carreta
 function candidatosCarreta(n){
   const todos=remessas().flatMap(R=>R.roms), eu=todos.find(x=>x.n===n), minha=carretaDe(n);
-  if(!eu?.rec) return [];
-  return todos.filter(x=>x.n!==n && x.rec===eu.rec && (eu.rec!=="sim" || x.rem===eu.rem)
+  if(!eu?.rec || eu.parc) return []; // romaneio em partes: cada caminhão tem a sua pesagem
+  return todos.filter(x=>x.n!==n && !x.parc && x.rec===eu.rec && (eu.rec!=="sim" || x.rem===eu.rem)
     && (minha.includes(x.n) || (carretaDe(x.n).length===1 && !confDe(x.n).ok)));
 }
 function gravarConf(n, c){ S.pendCfg["ACO_CONF_"+n]=JSON.stringify(c); savePendExtra(); scheduleSync(); }
@@ -4989,7 +5070,14 @@ async function renderSupConf(){
   const CR=Object.fromEntries(await Promise.all(ns.map(async k=>[k, await croquisDe(k)]))); // desenho de cada OS (dos PDFs dos romaneios)
   const todas=ns.flatMap(k=>OSS[k].map(o=>[k,o]));
   const kgRom=todas.reduce((s,[,o])=>s+o[6],0), nOk=todas.filter(([k,o])=>C[k].m[o[0]]==="111").length;
+  // recebimento parcial (só romaneio sozinho): caminhão de cada OS, o escolhido para marcar e o peso das OS de cada um
+  const parc=!junto && Array.isArray(c0.parc) && c0.parc.length ? c0.parc : null, sel=parc ? Math.min(CF.cam||0, parc.length-1) : 0;
+  const camDe=os=>c0.cam?.[os], osDoCam=i=>parc ? OSS[n].filter(o=>camDe(o[0])===i) : [], kgCam=i=>osDoCam(i).reduce((s,o)=>s+o[6],0);
+  const semCam=parc ? OSS[n].filter(o=>camDe(o[0])==null) : [];
+  const entregue=(os,v)=>{ const a=(c0.m[os]||"000").padEnd(3,"0").split(""); a[0]=v?"1":"0"; c0.m[os]=a.join(""); };
   const salvar=()=>{
+    if(parc) parc.forEach((p,i)=>{ const os=osDoCam(i); p.kg=Math.round(os.reduce((s,o)=>s+o[6],0)*100)/100;
+      p.b=os.reduce((b,o)=>{ b[o[3]]=Math.round(((b[o[3]]||0)+o[6])*100)/100; return b; },{}); });
     for(const k of ns){ const c=C[k]; if(junto) c.junto=ns;
       if(k!==n) for(const f of ["cheia","vazia","real","tara","obs","ok","okPor"]) if(c0[f]!=null) c[f]=c0[f]; else delete c[f];
       salvarConf(k, c, OSS[k]); }
@@ -5018,8 +5106,14 @@ async function renderSupConf(){
     const c=C[k], [os,folha,pos,bit,q,cm,kg]=o, v=(c.m[os]||"000").padEnd(3,"0"), ok=v==="111";
     const marca=(i,rot)=>el("button",{type:"button",class:"chipbtn"+(v[i]==="1"?" on":""),text:(v[i]==="1"?"✓ ":"")+rot,disabled:trav,"aria-pressed":String(v[i]==="1"),
       "aria-label":`${CF_MARCAS[i]} certo: OS ${os}${junto?" do romaneio "+k:""}`,onclick:()=>{ const a=v.split(""); a[i]=a[i]==="1"?"0":"1"; c.m[os]=a.join(""); salvar(); }});
+    // recebimento parcial: em qual caminhão a OS veio (tocar de novo tira); marcar põe "Entregue" quando o caminhão já chegou
+    const cams = parc ? el("div",{class:"cf-bts"}, ...parc.map((p,i)=>{ const on=camDe(os)===i;
+      return el("button",{type:"button",class:"chipbtn"+(on?" on":""),disabled:trav,"aria-pressed":String(on),text:`${on?"✓ ":""}Caminhão ${i+1}`,
+        "aria-label":`OS ${os} veio no caminhão ${i+1}`,onclick:()=>{ c0.cam??={};
+          if(on){ delete c0.cam[os]; entregue(os,false); } else { c0.cam[os]=i; if(p.data) entregue(os,true); } salvar(); }}); })) : null;
     return el("div",{class:"cf-os"+(ok?" ok":"")},
       el("div",{class:"cf-top"}, el("b",{text:`OS ${os}`}), el("span",{text:`Pos. ${pos}`}), el("span",{text:bitola(bit)+" mm"}), el("span",{class:"info",text:`folha ${folha} · ${kgF(kg)}`})),
+      cams,
       CR[k]?.[os] ? imgCroqui(CR[k][os], `Desenho da barra da OS ${os}`) : null,
       el("div",{class:"cf-bts"}, marca(0,"Entregue"), marca(1,`${nf0.format(q)} barras`), marca(2,cmF(cm)),
         !trav && !ok ? el("button",{type:"button",class:"chipbtn",text:"Tudo certo",onclick:()=>{ c.m[os]="111"; salvar(); }}) : null));
@@ -5032,15 +5126,21 @@ async function renderSupConf(){
           el("button",{class:"btn",type:"button",text:"Reabrir conferência",onclick:()=>{ if(!confirm(junto?`Reabrir a conferência dos ${ns.length} romaneios desta carreta para corrigir?`:"Reabrir a conferência para corrigir?")) return; delete c0.ok; delete c0.okPor; salvar(); }})))
     : el("div",{class:"row"}, el("button",{class:"btn pri",type:"button",text:"Concluir e gerar relatório",onclick:e=>{
         const falta=todas.length-nOk;
+        if(parc){ const sd=parc.map((p,i)=>p.data?null:i+1).filter(Boolean), sp=parc.map((p,i)=>pesagem(p,kgCam(i))?null:i+1).filter(Boolean);
+          if(sd.length && !confirm(`O caminhão ${sd.join(" e ")} ainda não chegou. Concluir mesmo assim?`)) return;
+          if(semCam.length && !confirm(`${semCam.length} OS sem caminhão marcado. Concluir assim?`)) return;
+          if(sp.length && !confirm(`A pesagem do caminhão ${sp.join(" e ")} não foi preenchida. Concluir mesmo assim?`)) return; }
         if(falta && !confirm(`${falta} OS não estão com as três marcas. Elas vão no relatório como divergência. Concluir assim?`)) return;
-        if(!pesagem(c0,kgRom) && !confirm("A pesagem da carreta não foi preenchida. Concluir mesmo assim?")) return;
+        if(!parc && !pesagem(c0,kgRom) && !confirm("A pesagem da carreta não foi preenchida. Concluir mesmo assim?")) return;
         c0.ok=new Date().toISOString(); c0.okPor=U?.nome||""; salvar(); pdfConf(n,e.currentTarget); }}));
   // OS: por romaneio (quando são vários) e por elemento
   const blocos=ns.flatMap(k=>{
     const rx=ROMANEIOS.find(r=>r.n===k), ok=OSS[k].filter(o=>C[k].m[o[0]]==="111").length;
     return [junto ? el("h2",{class:"tela-tit",text:`C.AGUA.${k} · ${rx.desc} · ${ok}/${OSS[k].length} OS`}) : null,
-      ...L[k].map(([elem,l])=>{ const e=l.filter(o=>C[k].m[o[0]]==="111").length;
+      ...L[k].map(([elem,l])=>{ const e=l.filter(o=>C[k].m[o[0]]==="111").length, sc=parc ? l.filter(o=>camDe(o[0])==null) : [];
         return el("div",{class:"card"}, el("div",{class:"i-top"}, el("h3",{text:elem||"Sem elemento"}), el("span",{class:"chip"+(e===l.length?" ok":""),text:`${e}/${l.length}`})),
+          sc.length && !trav ? el("button",{class:"linkbtn",type:"button",text:`Pôr as ${sc.length} OS sem caminhão deste elemento no caminhão ${sel+1}`,onclick:()=>{ c0.cam??={};
+            for(const o of sc){ c0.cam[o[0]]=sel; if(parc[sel].data) entregue(o[0],true); } salvar(); }}) : null,
           el("div",{class:"lista"}, ...l.map(o=>linha(k,o)))); })]; });
   // contador: o peso das OS marcadas como "Entregue" × o peso do romaneio (atualiza a cada marca)
   const ent=todas.filter(([k,o])=>(C[k].m[o[0]]||"")[0]==="1"), kgEnt=ent.reduce((s2,[,o])=>s2+o[6],0), brEnt=ent.reduce((s2,[,o])=>s2+o[4],0);
@@ -5048,11 +5148,37 @@ async function renderSupConf(){
     el("div",{class:"kpis"},
       kpi("Entregue (marcado)", kgF(kgEnt), `${pct(kgRom?kgEnt/kgRom:0)} de ${kgF(kgRom)} · ${ent.length} de ${todas.length} OS · ${nf0.format(brEnt)} barras`),
       kpi("Falta marcar", kgF(Math.max(0,kgRom-kgEnt)), pz ? `peso real da pesagem: ${kgF(pz.real)} (${sg(pz.real-kgEnt)}${kgF(pz.real-kgEnt)} do marcado)` : `${todas.length-ent.length} OS`),
-      kpi("OS conferidas", `${nOk} de ${todas.length}`, trav?"conferência concluída":"as três marcas em cada OS")),
+      kpi("OS conferidas", `${nOk} de ${todas.length}`, trav?"conferência concluída":"as três marcas em cada OS"),
+      parc ? kpi("Por caminhão", parc.map((p,i)=>`C${i+1} ${t(kgCam(i))} t`).join(" · "), semCam.length ? `${semCam.length} OS sem caminhão · ${kgF(semCam.reduce((s,o)=>s+o[6],0))}` : "todas as OS com caminhão") : null),
     barra(kgRom?kgEnt/kgRom:0));
+  // recebimento parcial: um quadro por caminhão (data de chegada, pesagem e o peso das OS marcadas nele)
+  const cardCams = parc ? el("div",{class:"card"}, el("h3",{text:`Recebimento parcial · ${parc.length} caminhões`}),
+    el("p",{class:"info",text:"Escolha o caminhão e toque, em cada OS, no caminhão em que ela veio (ou use o botão de cada elemento). A pesagem de cada caminhão é comparada com o peso das OS marcadas nele."}),
+    ...parc.map((p,i)=>{
+      const num0=(v,lab)=>el("input",{type:"number",inputMode:"decimal",min:0,step:10,value:v??"",disabled:trav,"aria-label":`${lab} do caminhão ${i+1} (kg)`});
+      const iD=el("input",{type:"date",value:p.data||"",max:hojeISO(),disabled:trav,"aria-label":`Data em que o caminhão ${i+1} chegou`});
+      const iC=num0(p.cheia,"Peso cheio"), iR=num0(p.real,"Peso real de aço"), iT=num0(p.tara,"Tara");
+      iD.onchange=()=>{ if(iD.value>hojeISO()) return toast("A data não pode ser no futuro.");
+        p.data=iD.value; for(const o of osDoCam(i)) entregue(o[0], !!p.data); salvar(); };
+      iC.onchange=()=>{ p.cheia=iC.value; salvar(); }; iR.onchange=()=>{ p.real=iR.value; salvar(); }; iT.onchange=()=>{ p.tara=iT.value; salvar(); };
+      const kg=kgCam(i), pz=pesagem(p,kg); if(pz?.pelaTara) iR.placeholder=`${nf1.format(pz.real)} (cheio − tara)`;
+      return el("div",{class:"ce-et"+(i===sel?" and":"")},
+        el("div",{class:"i-top"}, el("b",{text:`Caminhão ${i+1}`}), el("span",{class:"chip "+(p.data?"ok":""),text:p.data?`chegou em ${ddmm(p.data)}`:"aguardando"})),
+        el("div",{class:"cf-peso"}, el("label",{class:"campo"}, "Chegou em", iD), el("label",{class:"campo"}, "Cheio, antes de descarregar (kg)", iC),
+          el("label",{class:"campo"}, "Peso real de aço entregue (kg)", iR), el("label",{class:"campo"}, "Tara, peso do caminhão (kg)", iT)),
+        el("p",{class:"info",text:`${osDoCam(i).length} OS marcadas neste caminhão · ${kgF(kg)} pelo romaneio`}),
+        pz ? el("p",{class:Math.abs(pz.p)>0.02?"aviso":"okmsg",text:`Peso real ${kgF(pz.real)}${pz.pelaTara?" (cheio − tara)":""} − OS marcadas ${kgF(kg)} = ${sg(pz.dif)}${kgF(pz.dif)} (${sg(pz.p)}${pct(pz.p)})${Math.abs(pz.p)>0.02?" · acima de 2%: confira as OS marcadas":""}`}) : null,
+        !trav ? el("button",{type:"button",class:"chipbtn"+(i===sel?" on":""),"aria-pressed":String(i===sel),text:i===sel?`✓ Marcando as OS do caminhão ${i+1}`:`Marcar as OS do caminhão ${i+1}`,
+          onclick:()=>{ CF.cam=i; renderSupConf(); }}) : null); }),
+    !trav ? el("div",{class:"row"},
+      parc.length<4 ? el("button",{class:"btn",type:"button",text:"+ Caminhão",onclick:()=>{ parc.push({data:""}); CF.cam=parc.length-1; salvar(); }}) : null,
+      parc.length>2 && !osDoCam(parc.length-1).length && !parc[parc.length-1].data ? el("button",{class:"btn",type:"button",text:`Tirar o caminhão ${parc.length}`,onclick:()=>{ parc.pop(); CF.cam=0; salvar(); }}) : null,
+      !Object.keys(c0.cam||{}).length ? el("button",{class:"btn",type:"button",text:"Desfazer recebimento parcial",style:"color:var(--bad)",onclick:()=>{
+        if(!confirm(`Desfazer o recebimento parcial do romaneio ${n}? Ele volta a "aguardando entrega".`)) return;
+        delete c0.parc; delete c0.cam; salvarConf(n, c0, OSS[n]); toast("Recebimento parcial desfeito."); abrirTela("supaco",false); }}) : null) : null) : null;
   repor(box, topo, contador,
     carreta,
-    el("div",{class:"card"}, el("h3",{text:"Pesagem da carreta"}),
+    cardCams || el("div",{class:"card"}, el("h3",{text:"Pesagem da carreta"}),
       el("div",{class:"cf-peso"}, el("label",{class:"campo"}, "Cheia, antes de descarregar (kg)", iCh), el("label",{class:"campo"}, "Peso real de aço entregue (kg)", iRe), el("label",{class:"campo"}, "Tara, peso do caminhão (kg)", iTa)), resPeso),
     !trav ? el("div",{class:"row"}, el("p",{class:"info",style:"flex:1",text:"Em cada OS, marque o que conferiu: se foi entregue, a quantidade de barras e o comprimento."}),
       nOk<todas.length ? el("button",{class:"btn",type:"button",text:"Marcar todas como certas",onclick:()=>{ if(!confirm(`Marcar as ${todas.length} OS como certas (entregue, quantidade e comprimento)?`)) return; for(const [k,o] of todas) C[k].m[o[0]]="111"; salvar(); }}) : null) : null,
@@ -5076,15 +5202,22 @@ async function pdfConf(n, btn){
     // Entregue: Sim/Não; Qntd e Compr.: OK/Não
     const sim=(v,i)=>v[i]==="1" ? (i===0?"Sim":"OK") : "Não";
     const div=oss.filter(o=>mk(o)!=="111"), pz=pesagem(c,kgRom);
+    // recebimento parcial: uma linha por caminhão (chegada, OS, peso do romaneio e pesagem)
+    const parc=!junto && Array.isArray(c.parc) && c.parc.length ? c.parc : null, camO=o=>c.cam?.[o[1]];
+    const linhaCam=(p,i)=>{ const os=oss.filter(o=>camO(o)===i), kg=os.reduce((s,o)=>s+o[7],0), z=pesagem(p,kg);
+      return [`Caminhão ${i+1}`, `${p.data?"chegou em "+dataBR(p.data):"não chegou"} · ${os.length} OS · ${kgF(kg)} pelo romaneio`
+        +(z?` · pesagem ${kgF(z.real)}${z.pelaTara?" (cheio − tara)":""} · diferença ${z.dif>=0?"+":""}${kgF(z.dif)} (${z.dif>=0?"+":""}${pct(z.p)})`:" · sem pesagem")]; };
     doc.setFontSize(9);
     const linhas=[
-      ["Chegada", !xr?.rec ? "—" : xr.rec==="sim" ? "Entregue" : dataBR(xr.rec)],
+      ["Chegada", parc ? `recebimento parcial em ${parc.length} caminhões` : !xr?.rec ? "—" : xr.rec==="sim" ? "Entregue" : dataBR(xr.rec)],
+      ...(parc ? parc.map(linhaCam) : []),
+      ...(parc && oss.some(o=>camO(o)==null) ? [["Sem caminhão", `${oss.filter(o=>camO(o)==null).length} OS sem caminhão marcado`]] : []),
       ...(junto ? [["Romaneios na carreta", xs.map(r=>`C.AGUA.${r.n} · ${r.desc} · remessa ${r.rem} · ${kgF(kgDe(r.n))}`).join("\n")]] : []),
       ["Conferido por", c.ok ? `${nomeRel(c.okPor)||"?"} em ${new Date(c.ok).toLocaleString("pt-BR")}` : "Conferência não concluída"],
       ["OS conferidas", `${oss.length-div.length} de ${oss.length}`+(div.length?` · ${div.length} com divergência`:" · sem divergência")],
       [junto ? "Peso dos romaneios (soma)" : "Peso do romaneio", kgF(kgRom)],
-      ["Carreta cheia / tara", c.cheia||c.tara ? [c.cheia,c.tara].map(v=>v?kgF(num(v)):"—").join(" / ") : "não pesada"],
-      ["Peso real entregue", pz ? `${kgF(pz.real)}${pz.pelaTara?" (cheia − tara)":""} · diferença ${pz.dif>=0?"+":""}${kgF(pz.dif)} (${pz.dif>=0?"+":""}${pct(pz.p)}) · ${pz.dif<0?"veio menos":pz.dif>0?"veio mais":"igual ao romaneio"}` : "—"]];
+      ...(parc ? [] : [["Carreta cheia / tara", c.cheia||c.tara ? [c.cheia,c.tara].map(v=>v?kgF(num(v)):"—").join(" / ") : "não pesada"],
+        ["Peso real entregue", pz ? `${kgF(pz.real)}${pz.pelaTara?" (cheia − tara)":""} · diferença ${pz.dif>=0?"+":""}${kgF(pz.dif)} (${pz.dif>=0?"+":""}${pct(pz.p)}) · ${pz.dif<0?"veio menos":pz.dif>0?"veio mais":"igual ao romaneio"}` : "—"]])];
     doc.autoTable({startY:y, body:linhas, theme:"plain", margin:{left:M,right:M}, styles:{fontSize:9,cellPadding:1.2,textColor:20},
       columnStyles:{0:{fontStyle:"bold",cellWidth:45}},
       didParseCell:d=>{ if(d.column.index!==1) return; const rot=d.row.raw[0];
@@ -5092,7 +5225,7 @@ async function pdfConf(n, btn){
         if(rot==="OS conferidas") d.cell.styles.textColor=div.length?VM:VD; }});
     y=doc.lastAutoTable.finalY+6;
     // carreta: coluna "Rom." no começo das tabelas
-    const off=junto?1:0, rom=o=>junto?[o[8]]:[], hRom=junto?["Rom."]:[];
+    const off=(junto?1:0)+(parc?1:0), rom=o=>[...(junto?[o[8]]:[]), ...(parc?[camO(o)!=null?`C${camO(o)+1}`:"—"]:[])], hRom=[...(junto?["Rom."]:[]), ...(parc?["Cam."]:[])];
     if(div.length){
       doc.setFont("helvetica","bold"); doc.setFontSize(11); doc.setTextColor(...VM); doc.text("Divergências",M,y); y+=3; doc.setTextColor(20);
       doc.autoTable({startY:y, head:[[...hRom,"OS","Elemento","Pos.","Ø (mm)","Barras","Compr. (cm)","Entregue","Qntd","Compr."]],
@@ -5166,7 +5299,8 @@ function ligarRomaneios(){
   const ests=new Map(), addE=(n,c)=>{ const i=S.byCode.get(c); if(i) (ests.get(n)||ests.set(n,new Set()).get(n)).add(i.est); };
   for(const i of S.items) if(i.ped==="1"||i.ped==="2") addE(Number(i.ped), i.c);
   for(const [n,txt] of Object.entries(ITENS_REMESSA)) for(const s of txt.split(" ")) addE(Number(n), s.split(":")[0]);
-  const usado=new Map(), res=new Map(); res.semPar=new Map(); res.osDe=new Map(); // semPar: romaneio → OS sem posição na base; osDe: código → [[romaneio, OS]]
+  // semPar: romaneio → OS sem posição na base; osDe: código → [[romaneio, OS]]; osQ: romaneio → OS → [[código, barras]] (recebimento parcial)
+  const usado=new Map(), res=new Map(); res.semPar=new Map(); res.osDe=new Map(); res.osQ=new Map();
   for(const x of ROMANEIOS){
     const cand=S.items.filter(i=>ests.get(x.rem)?.has(i.est)), m=new Map(), sp=[];
     for(const [el,oss] of CF.lista[x.n]||[]) for(const o of osJuntas(oss)){
@@ -5179,7 +5313,8 @@ function ligarRomaneios(){
           if(usaFl && o.fl && folhaDe(i.pr)!==o.fl) continue;
           if(Math.abs(i.cu*100-o.comp) > (tol<1 ? Math.max(3, o.comp*tol) : tol)) continue;
           const a=Math.min(q,r); usado.set(i.c,(usado.get(i.c)||0)+a); m.set(i.c,(m.get(i.c)||0)+a); q-=a;
-          if(a>0) (res.osDe.get(i.c)||res.osDe.set(i.c,[]).get(i.c)).push([x.n, o.os]); }
+          if(a>0){ (res.osDe.get(i.c)||res.osDe.set(i.c,[]).get(i.c)).push([x.n, o.os]);
+            const r=res.osQ.get(x.n)||res.osQ.set(x.n,new Map()).get(x.n); (r.get(o.os)||r.set(o.os,[]).get(o.os)).push([i.c, a]); } }
         if(q<=0) break;
       }
       if(q>0) sp.push({el, pos:o.pos, bit:o.bit, q, comp:Math.round(o.comp)});
@@ -5203,7 +5338,12 @@ const barrasNaObra = () => memoEf("naObra", ()=>{
   const soma=(c,q)=>{ const i=S.byCode.get(c); if(i && q>0) out.set(c, Math.min(i.qp,(out.get(c)||0)+q)); };
   for(const R of remessas()){
     if(R.app){ if(R.rec) for(const [c,q] of Object.entries(pedidosApp().find(p=>p.n===R.n)?.itens||{})) soma(c, Number(q)||0); continue; }
-    if(lig){ for(const x of R.roms) if(x.rec) for(const [c,q] of lig.get(x.n)||[]) soma(c,q); continue; }
+    if(lig){ for(const x of R.roms){
+        if(x.rec){ for(const [c,q] of lig.get(x.n)||[]) soma(c,q); continue; }
+        // recebimento parcial: só as OS dos caminhões que já chegaram
+        if(x.nParc){ const cf=confDe(x.n), cheg=new Set(x.parc.map((p,i)=>p.data?i:-1));
+          for(const [os,l] of lig.osQ.get(x.n)||[]) if(cheg.has(cf.cam?.[os])) for(const [c,q] of l) soma(c,q); } }
+      continue; }
     if(R.rec) for(const [c,q] of porRem.get(R.n)||[]) soma(c,q); // lista de OS ainda não carregada
   }
   return out;
@@ -8130,7 +8270,9 @@ function abrirEtapas(nome){
   const o=concObra(nome); if(!o) return;
   const ed=pode("lanc-edit"), prev=cePrev(o);
   // aço de cada etapa (mesma divisão do painel): da estrutura da base de aço ligada a esta obra
-  const ae=o.est && S.items.some(i=>i.est===o.est) ? aeSoma(S.items.filter(i=>i.est===o.est), S.acum) : null;
+  // floculador A, B ou C = módulo 1, 2 ou 3 da estrutura FLOCULADORES (juntas de dilatação): só a parte dele
+  const modO="ABC".indexOf(String(o.ks?.[0]||"").match(/^FLOC-([ABC])$/)?.[1]||"x")+1||undefined;
+  const ae=o.est && S.items.some(i=>i.est===o.est) ? aeSoma(S.items.filter(i=>i.est===o.est), S.acum, aeMod(o.est) ? modO : undefined) : null;
   const blocos=CE_ETAPAS.map((t,e)=>{ const r=ceDe(nome,e), st=r?.status||"", ex=ceVol(r,prev[e]), cs=(r?.dados.conc||[]).map(concDe).filter(Boolean);
     const iData=el("input",{type:"date",value:r?.data||"","aria-label":`${t}: data`,disabled:!ed});
     const iVol=el("input",{type:"text",inputMode:"decimal",value:r?.dados.vol>0&&!r.dados.estimado?String(r.dados.vol).replace(".",","):"",placeholder:cs.length?"dos caminhões":nf1.format(prev[e]),"aria-label":`${t}: volume executado (m³)`,disabled:!ed||cs.length>0});
@@ -8143,7 +8285,7 @@ function abrirEtapas(nome){
     return el("div",{class:"ce-et full "+ceCel(st)},
       el("div",{class:"i-top"}, el("b",{text:`${e?e+"ª":"M"} · ${t}`}), el("span",{class:"chip "+ceCel(st),text:st||"Não iniciada"})),
       el("small",{class:"i-sub",text:`${CE_DESC[e]} · previsto ${nf1.format(prev[e])} m³${ex?` · executado ${nf1.format(ex)} m³${r?.dados.estimado?" (estimado)":""}`:""}`}),
-      e && ae?.p[e-1]>0 ? el("small",{class:"i-sub",text:`Aço da etapa (${o.est}): ${t(ae.x[e-1])} de ${t(ae.p[e-1])} t armadas · ${pct(ae.x[e-1]/ae.p[e-1])}`}) : null,
+      e && ae?.p[e-1]>0 ? el("small",{class:"i-sub",text:`Aço da etapa (${o.est}${aeMod(o.est) && modO ? ` · módulo ${modO}` : ""}): ${t(ae.x[e-1])} de ${t(ae.p[e-1])} t armadas · ${pct(ae.x[e-1]/ae.p[e-1])}`}) : null,
       ed ? el("div",{class:"pr-bts"}, ...[["","Não iniciada"],...CE_ST.map(s=>[s,s])].map(([v,x])=>el("button",{class:"chipbtn"+(st===v?" on":""),type:"button",text:x,"aria-pressed":String(st===v),onclick:()=>marcar(v)}))) : null,
       el("div",{class:"ce-campos"}, el("label",{}, "Data", iData), el("label",{}, "Volume executado (m³)", iVol)),
       cs.length ? el("div",{class:"i-sub",text:"Concretagens: "+cs.map(c=>`${ddmm(c.data)} · ${nf1.format(volLancado(c))} m³ (${c.cams.length} caminhões, ${c.status.toLowerCase()})`).join(" · ")}) : null,

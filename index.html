@@ -2246,7 +2246,7 @@ function setCampo(on){ LS.set("campo",!!on); if(on) document.documentElement.dat
 $("#campo-modo").addEventListener("click", e=>{ const b=e.target.closest("button[data-c]"); if(b) setCampo(b.dataset.c==="1"); });
 setCampo(!!LS.get("campo"));
 
-const VERSAO_APP = "v152"; // igual ao número em sw.js (armacao-v152)
+const VERSAO_APP = "v153"; // igual ao número em sw.js (armacao-v153)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -3976,13 +3976,16 @@ stage.addEventListener("pointerdown", e=>{
   if(ptr.size===1){ inicio=pos(e); arrastou=false; } else arrastou=true;
   // concretagem: um dedo pinta; o segundo dedo cancela o traço e vira pinça/arrasto
   if(ptr.size===1 && CC.conc && CC.modo==="pintar") iniciarTraco(pos(e));
+  else if(ptr.size===1 && CC.conc && CC.modo==="texto") iniciarRotulo(pos(e)); // fora de um texto: arrasta a folha
   else if(CC.atual) cancelarTraco();
+  else if(CC.arr){ CC.arr=null; limparVivo(); }
 });
 stage.addEventListener("pointermove", e=>{
   if(!ptr.has(e.pointerId)) return;
   const antes=[...ptr.values()], p=pos(e); ptr.set(e.pointerId,p);
   if(inicio && Math.hypot(p.x-inicio.x,p.y-inicio.y)>10) arrastou=true;
   if(ptr.size===1 && CC.atual){ continuarTraco(p); return; }
+  if(ptr.size===1 && CC.arr){ CC.arr.p=p; desenharRotuloVivo(); return; }
   if(ptr.size===1){ const a=antes[0]; V.tx+=p.x-a.x; V.ty+=p.y-a.y; }
   else if(ptr.size===2){
     const [a1,a2]=antes, [b1,b2]=[...ptr.values()];
@@ -3995,11 +3998,13 @@ stage.addEventListener("pointermove", e=>{
 function soltar(e){
   const p=ptr.get(e.pointerId); ptr.delete(e.pointerId);
   if(CC.atual){ if(e.type==="pointerup" && !ptr.size) concluirTraco(); else cancelarTraco(); return; }
+  if(CC.arr){ if(e.type==="pointerup" && !ptr.size) soltarRotulo(arrastou); else { CC.arr=null; limparVivo(); } return; }
   if(e.type==="pointerup" && p && !ptr.size){
     const agora=Date.now();
     if(arrastou){ ultimoToque=0; return; }
     if(CC.conc && CC.modo==="apagar"){ apagarTracoEm(p); return; }
     if(CC.conc && CC.modo==="limite"){ tocarLimite(p); return; }
+    if(CC.conc && CC.modo==="texto"){ toast("Toque num texto C1, C2… e arraste até onde ele deve ficar."); return; }
     if(MK.marcando){ tocarMarca(p); return; }
     if(PEND.marcando){ tocarPend(p); return; }
     const pin=pendNoToque(p); if(pin){ formReg2(pin.m, "nc", pin.r); return; }
@@ -7436,7 +7441,7 @@ const agoraHM = () => new Date().toTimeString().slice(0,5);
 // cada caminhão é desenhado opaco numa camada à parte e aplicado com transparência: traços sobrepostos não escurecem
 function desenharPintura(ctx, vp, ox, oy, conc, pag, dpr=1, letra=1){ // letra: aumenta o "C1, C2…" (relatório)
   const c=concDe(conc); if(!c) return;
-  if(letra===1) desenharLimite(ctx, vp, ox, oy, c, pag, dpr); // contorno da forma: só na tela
+  if(letra===1){ desenharLimite(ctx, vp, ox, oy, c, pag, dpr); CC.rots=[]; } // contorno da forma: só na tela; CC.rots = textos (para arrastar)
   const ts=tracosDe(conc).filter(t=>t.pag===pag); if(!ts.length) return;
   const cor=n=>c.cams.find(k=>k.n===n)?.cor||"#888", grupos=new Map(), area=areaPintavel(c, pag);
   for(const t of ts){ if(!grupos.has(t.cam)) grupos.set(t.cam,[]); grupos.get(t.cam).push(t); }
@@ -7447,7 +7452,7 @@ function desenharPintura(ctx, vp, ox, oy, conc, pag, dpr=1, letra=1){ // letra: 
     for(const t of lista){
       // retângulo lançado por cota (mapa das paredes): w negativo = cota do topo em cm; pts = dois cantos
       if(t.w<0){ const [x1,y1]=vp.convertToViewportPoint(t.pts[0],t.pts[1]), [x2,y2]=vp.convertToViewportPoint(t.pts[2],t.pts[3]);
-        const r=[Math.min(x1,x2)+ox, Math.min(y1,y2)+oy, Math.abs(x2-x1), Math.abs(y2-y1)]; o.fillStyle=cor(cam); o.fillRect(...r); rets.push([r, -t.w/100]); continue; }
+        const r=[Math.min(x1,x2)+ox, Math.min(y1,y2)+oy, Math.abs(x2-x1), Math.abs(y2-y1)]; o.fillStyle=cor(cam); o.fillRect(...r); rets.push([r, -t.w/100, t.id]); continue; }
       o.lineWidth=Math.max(1, t.w*vp.scale); o.beginPath();
       for(let i=0;i<t.pts.length;i+=2){ const [x,y]=vp.convertToViewportPoint(t.pts[i],t.pts[i+1]); if(i) o.lineTo(x+ox,y+oy); else o.moveTo(x+ox,y+oy); sx+=x+ox; sy+=y+oy; n++; }
       if(t.pts.length===2){ const [x,y]=vp.convertToViewportPoint(t.pts[0],t.pts[1]); o.lineTo(x+ox+0.01,y+oy); }
@@ -7457,12 +7462,16 @@ function desenharPintura(ctx, vp, ox, oy, conc, pag, dpr=1, letra=1){ // letra: 
     recortarArea(o, area, ([x,y,w,h])=>{ const [ax,ay]=vp.convertToViewportPoint(x*72/25.4,(MP.H-y)*72/25.4), [bx,by]=vp.convertToViewportPoint((x+w)*72/25.4,(MP.H-y-h)*72/25.4);
       return [Math.min(ax,bx)+ox, Math.min(ay,by)+oy, Math.abs(bx-ax), Math.abs(by-ay)]; });
     ctx.save(); ctx.globalAlpha=0.5; ctx.drawImage(off,0,0); ctx.restore();
-    // número do caminhão no meio da área dele (no retângulo por cota: "C2 até 1,30 m")
+    // número do caminhão no meio da área dele (no retângulo por cota: "C2 até 1,30 m"); texto arrastado (✥ Mover texto) fica onde foi solto
     const fs=Math.max(12*dpr, Math.min(40*dpr, vp.scale*14))*letra;
-    const rotulo=(txt,x,y,f)=>{ ctx.save(); ctx.font=`700 ${f}px Barlow, Arial, sans-serif`; ctx.textAlign="center"; ctx.textBaseline="middle";
-      ctx.lineWidth=f*0.22; ctx.strokeStyle="#fff"; ctx.strokeText(txt, x, y); ctx.fillStyle=cor(cam); ctx.fillText(txt, x, y); ctx.restore(); };
-    if(n) rotulo("C"+cam, sx/n, sy/n, fs);
-    for(const [[x,y,w,h],ate] of rets) rotulo(`C${cam} até ${nf2(ate)} m`, x+w/2, y+h/2, Math.min(fs*0.8, Math.max(9*dpr, h*0.6)));
+    const rotulo=(txt,x,y,f,key)=>{ const q=rotDe(c, cam, key); if(q){ const [vx,vy]=vp.convertToViewportPoint(q[0],q[1]); x=vx+ox; y=vy+oy; }
+      ctx.save(); ctx.font=`700 ${f}px Barlow, Arial, sans-serif`; ctx.textAlign="center"; ctx.textBaseline="middle";
+      ctx.lineWidth=f*0.22; ctx.strokeStyle="#fff"; ctx.strokeText(txt, x, y); ctx.fillStyle=cor(cam); ctx.fillText(txt, x, y);
+      if(letra===1){ const [px,py]=vp.convertToPdfPoint(x-ox, y-oy); CC.rots.push({cam, key, pag, txt, cor:cor(cam), x:px, y:py, f:f/dpr,
+        hw:ctx.measureText(txt).width/2/vp.scale, hh:f/2/vp.scale, movido:!!q}); }
+      ctx.restore(); };
+    if(n) rotulo("C"+cam, sx/n, sy/n, fs, "p"+pag);
+    for(const [[x,y,w,h],ate,id] of rets) rotulo(`C${cam} até ${nf2(ate)} m`, x+w/2, y+h/2, Math.min(fs*0.8, Math.max(9*dpr, h*0.6)), id);
   }
 }
 
@@ -7512,6 +7521,37 @@ function barraLimite(bar, c){
     tem ? el("button",{type:"button",text:"🗑 Tirar o limite",onclick:()=>{
       if(!confirm("Tirar o limite da forma desta folha? A pintura volta a ficar livre (nada pintado é apagado).")) return;
       gravarLimite(c, V.n, [], "Limite da forma retirado"); sair(); }}) : null);
+}
+
+// --- texto do caminhão (C1, C2…) arrastado para outro lugar: fica no caminhão, cams[].rot = {chave:[x,y]} em pontos do PDF.
+// Chave "p"+folha = o texto no meio da pintura do caminhão naquela folha; id do traço = o texto de um retângulo por cota.
+const rotDe = (c, cam, key) => c?.cams.find(k=>k.n===cam)?.rot?.[key];
+function rotuloEm(p){ const [x,y]=pontoPdf(p), tol=8/V.z;
+  return (CC.rots||[]).filter(r=>r.pag===V.n && Math.abs(x-r.x)<=r.hw+tol && Math.abs(y-r.y)<=r.hh+tol).pop(); }
+function iniciarRotulo(p){
+  const r=rotuloEm(p); if(!r) return;
+  const b=stage.getBoundingClientRect(), dpr=devicePixelRatio||1, [gx,gy]=pontoPdf(p);
+  live.width=Math.round(b.width*dpr); live.height=Math.round(b.height*dpr); live.style.width=b.width+"px"; live.style.height=b.height+"px";
+  CC.arr={...r, dx:r.x-gx, dy:r.y-gy, p, dpr}; desenharRotuloVivo();
+}
+function desenharRotuloVivo(){
+  const a=CC.arr, g=live.getContext("2d"), f=a.f*V.z/(V.R?.z||V.z), [x,y]=V.page.getViewport({scale:V.z}).convertToViewportPoint(...pontoPdf(a.p).map((v,i)=>v+(i?a.dy:a.dx)));
+  g.setTransform(a.dpr,0,0,a.dpr,0,0); g.clearRect(0,0,live.width,live.height);
+  g.font=`700 ${f}px Barlow, Arial, sans-serif`; g.textAlign="center"; g.textBaseline="middle"; g.lineWidth=f*0.22; g.strokeStyle="#fff";
+  g.strokeText(a.txt, x+V.tx, y+V.ty); g.fillStyle=a.cor; g.fillText(a.txt, x+V.tx, y+V.ty);
+}
+function soltarRotulo(arrastado){
+  const a=CC.arr; CC.arr=null; const c=concDe(CC.conc); if(!a || !c) return limparVivo();
+  const k=c.cams.find(x=>x.n===a.cam); if(!k) return limparVivo();
+  let rot={...(k.rot||{})}, log;
+  if(arrastado){ const [x,y]=pontoPdf(a.p); rot[a.key]=[Math.round((x+a.dx)*10)/10, Math.round((y+a.dy)*10)/10]; log=`Texto C${a.cam} movido`; }
+  else { limparVivo();
+    if(!a.movido) return toast(`Arraste o texto ${a.txt} até onde ele deve ficar.`);
+    if(!confirm(`Voltar o texto ${a.txt} para o meio da área pintada?`)) return;
+    delete rot[a.key]; log=`Texto C${a.cam} de volta ao lugar`; }
+  if(!Object.keys(rot).length) rot=undefined;
+  setConc(c.id, {cams:c.cams.map(x=>x.n===a.cam ? {...x, rot} : x)}, log);
+  desenhar().then(limparVivo);
 }
 
 // --- pintura com o dedo no visualizador ---
@@ -7575,6 +7615,7 @@ function renderCcBar(){
   const desf=CC.desfazer.filter(id=>tracosDe(CC.conc).some(t=>t.id===id));
   repor(bar,
     modo("mover","✋ Mover"), ed?modo("pintar","🖌 Pintar"):null, ed?modo("apagar","🧽 Apagar"):null,
+    ed && c.cams.length ? modo("texto","✥ Mover texto") : null,
     el("span",{class:"cc-sep"}),
     ...c.cams.map(k=>{ const b=el("button",{class:"cc-cam"+(CC.cam===k.n?" on":""),type:"button",text:`C${k.n} · ${nf1.format(+k.vol||0)} m³`,
       title:ed?"Toque de novo para editar o caminhão":"", "aria-pressed":String(CC.cam===k.n),
@@ -7727,7 +7768,7 @@ function editarConc(c, pre){
     onclick:()=>{ tipo=v; tipoManual=true;
       // primeira vez no arranque: nenhuma parede marcada (escolha quais) e altura de 0,45 m
       if(v==="fa" && !jaFa){ jaFa=true; marcadas.clear(); iDe.value=""; if(!iAte.value.trim()) iAte.value="0,45"; montarLista(); }
-      desTipo(); atualizarVol(); }})));
+      desTipo(); montarLista(); }})));
     boxLaje.hidden=tipo==="par"; boxPar.hidden=tipo==="laje"; boxArr.hidden=tipo!=="fa"; };
   // sem escolha manual, o elemento/lance decide: "laje", "fundo", "passarela"… = forma; "parede", "lance 1/2" = mapa
   let tipoManual=!!c; iLoc.oninput=()=>{ if(tipoManual || tipo==="fa") return; const t=normTxt(iLoc.value);
@@ -7750,7 +7791,7 @@ function editarConc(c, pre){
   const pagsPint=[...new Set((c ? tracosDe(c.id) : []).map(t=>t.pag))];
   const iFolha=el("input",{type:"number",min:1,step:1,inputMode:"numeric","aria-label":"Folha do PDF da forma",
     value:m0?.forma ? m0.forma.pag||1 : pagsPint.length===1 ? pagsPint[0] : LS.get("ccPag:"+c?.id)||1, disabled:!!m0?.forma || pagsPint.length>0});
-  repor(boxArr, "Arranque das paredes: marque acima só as paredes que levam arranque nesta concretagem. O app gera o corte (elevação) de cada uma e a pintura fica só da base até a altura do arranque (campo \"até\", 0,45 m).",
+  repor(boxArr, "Arranque das paredes: marque acima só as paredes que levam arranque nesta concretagem. Ao marcar, o app pede a altura a concretar naquela parede (vem com a do campo \"até\", 0,45 m; toque em \"até … m ✎\" para mudar). O app gera o corte (elevação) de cada uma e a pintura fica só da base até essa altura.",
     el("div",{class:"cc-faixa"}, "Laje na folha", iFolha, "do PDF da forma"),
     el("small",{class:"i-sub",text:"A forma continua na folha 1 do mapa, com a pintura já feita; as paredes entram da folha 2 em diante. Use ✂ Limite da forma (no mapa) para pintar só dentro da laje."}));
   // paredes: conjunto do catálogo (os da estrutura escolhida primeiro), paredes marcadas, faixa de altura do lance e paredes a mais
@@ -7765,12 +7806,25 @@ function editarConc(c, pre){
     iConj.value=atual; if(trocou || !m0) marcadas=new Set(tipo==="fa" ? [] : (catParedes(iConj.value)?.par||[]).map(p=>p.id)); montarLista(); };
   const paredesDisp=()=>[...(catParedes(iConj.value)?.par||[]), ...extras];
   const lerFaixa=()=>{ const de=iDe.value.trim()===""?null:num(iDe.value), ate=iAte.value.trim()===""?null:num(iAte.value); return {de:de>0?de:null, ate:ate>0?ate:null}; };
-  const atualizarVol=()=>{ const {de,ate}=lerFaixa(), ps=paredesDisp().filter(p=>marcadas.has(p.id)), v=ps.reduce((s,p)=>s+volPar(p,de,ate),0);
+  // arranque: ao marcar uma parede, o app pede a altura a concretar nela (vem com a do campo "até"); fica em alt {id: m}
+  const alt={...(m0?.alt||{})}, ateDe=(p,ate)=>tipo==="fa" ? alt[p.id] ?? ate : ate;
+  const pedirAlt=p=>{ const {de,ate}=lerFaixa(), pad=alt[p.id] ?? ate ?? 0.45;
+    const r=prompt(`Altura a concretar na ${p.id} (m, a partir da base). A parede tem ${nf2(p.h)} m.`, nf2(pad)); if(r==null) return false;
+    const v=Math.round(num(r)*100)/100;
+    if(!(v>0) || (de!=null && v<=de)) { toast(`Altura inválida: informe em metros, maior que ${nf2(de||0)} (ex.: 0,45).`); return false; }
+    if(v>p.h) { toast(`A ${p.id} tem ${nf2(p.h)} m de altura.`); return false; }
+    alt[p.id]=v; return true; };
+  const atualizarVol=()=>{ const {de,ate}=lerFaixa(), ps=paredesDisp().filter(p=>marcadas.has(p.id)), v=ps.reduce((s,p)=>s+volPar(p,de,ateDe(p,ate)),0);
     iVolTxt.textContent=ps.length ? `${ps.length} parede${ps.length>1?"s":""} · volume teórico ${nf2(v)} m³${de!=null||ate!=null?" (só a faixa do lance)":""}` : "Marque as paredes desta concretagem.";
     if(volAuto && tipo==="par" && ps.length) iVol.value=String(Math.round(v*10)/10); };
   const montarLista=()=>{ const ps=paredesDisp();
-    repor(boxLista, ...ps.map(p=>{ const ck=el("input",{type:"checkbox",checked:marcadas.has(p.id)}); ck.onchange=()=>{ if(ck.checked) marcadas.add(p.id); else marcadas.delete(p.id); atualizarVol(); };
-      return el("label",{class:"cc-parl"}, ck, el("span",{}, el("b",{text:p.id}), ` ${nf2(p.c)} × ${nf2(p.h)} × ${nf2(p.e)} m`)); }),
+    repor(boxLista, ...ps.map(p=>{ const ck=el("input",{type:"checkbox",checked:marcadas.has(p.id)});
+      ck.onchange=()=>{ if(ck.checked && tipo==="fa" && !pedirAlt(p)){ ck.checked=false; return; }
+        if(ck.checked) marcadas.add(p.id); else marcadas.delete(p.id); if(tipo==="fa") montarLista(); else atualizarVol(); };
+      const h=tipo==="fa" && marcadas.has(p.id) ? ateDe(p, lerFaixa().ate) : null;
+      return el("label",{class:"cc-parl"}, ck, el("span",{}, el("b",{text:p.id}), ` ${nf2(p.c)} × ${nf2(p.h)} × ${nf2(p.e)} m`),
+        h!=null ? el("button",{class:"linkbtn",type:"button",text:`até ${nf2(h)} m ✎`,title:"Mudar a altura a concretar nesta parede",style:"margin-left:8px",
+          onclick:e=>{ e.preventDefault(); if(pedirAlt(p)) montarLista(); }}) : null); }),
       !ps.length ? el("p",{class:"info",text:"Nenhuma parede ainda: toque em + Parede."}) : null);
     atualizarVol(); };
   const novaParede=()=>{ const i=(ph,lab)=>el("input",{type:"text",inputMode:ph?"decimal":"text",placeholder:ph||"Ex.: PAR 13",maxLength:40,"aria-label":lab});
@@ -7782,7 +7836,7 @@ function editarConc(c, pre){
       extras.push(P_(id,cc,hh,ee)); marcadas.add(id); caixa.remove(); montarLista(); }}));
     boxLista.after(caixa); n.focus(); };
   iConj.onchange=()=>{ marcadas=new Set(tipo==="fa" ? [] : (catParedes(iConj.value)?.par||[]).map(p=>p.id)); montarLista(); };
-  iDe.oninput=iAte.oninput=atualizarVol; iVol.oninput=()=>{ volAuto=false; };
+  iDe.oninput=iAte.oninput=()=>tipo==="fa" ? montarLista() : atualizarVol(); iVol.oninput=()=>{ volAuto=false; };
   repor(boxPar, "Paredes (o app gera o mapa com uma elevação para cada parede)", iConj,
     el("div",{class:"row"}, el("button",{class:"linkbtn",type:"button",text:"Marcar todas",onclick:()=>{ marcadas=new Set(paredesDisp().map(p=>p.id)); montarLista(); }}),
       el("button",{class:"linkbtn",type:"button",text:"Desmarcar todas",onclick:()=>{ marcadas.clear(); montarLista(); }}),
@@ -7818,7 +7872,10 @@ function editarConc(c, pre){
         forma={id:fid, nome:nomeF, pag, ...(lim?{lim}:{})};
         if(pag!==1) mover=ts; // mesma pintura, só passa da folha do PDF para a folha 1 do mapa
       }
-      const m={forma, k:cat?.k||"", nome:cat ? cat.nome : estrutura, p:ps, ...(de!=null?{de}:{}), ate, um:1};
+      // altura de cada parede: só as diferentes da do campo "até"
+      const alts=Object.fromEntries(ps.filter(p=>alt[p.id]!=null && alt[p.id]!==ate).map(p=>[p.id, alt[p.id]]));
+      if(ps.some(p=>de!=null && (alts[p.id]??ate)<=de)) return toast("No arranque, a altura de cada parede tem que ser maior que a inicial.");
+      const m={forma, k:cat?.k||"", nome:cat ? cat.nome : estrutura, p:ps, ...(de!=null?{de}:{}), ate, ...(Object.keys(alts).length?{alt:alts}:{}), um:1};
       pdfId = cat && ps.every(p=>cat.par.includes(p)) ? mapaCurto(m) : "mapa:"+JSON.stringify(m); pdfNome=`Laje de fundo e arranque · ${m.nome}`;
     }
     else if(tipo==="par"){
@@ -7862,7 +7919,7 @@ function editarConc(c, pre){
 }
 function cardConc(c, ed){
   const lanc=volLancado(c), frac=c.volPrev?lanc/c.volPrev:0, edSt=ed && pode("lanc-edit"), m=mapaDe(c);
-  const onde = m ? `${m.forma?"📄 laje (forma) + ":""}🧱 ${m.nome} · ${m.p.length} parede${m.p.length>1?"s":""}${m.de!=null||m.ate!=null?` · lance ${nf2(m.de||0)} a ${m.ate!=null?nf2(m.ate)+" m":"topo"}`:""}`
+  const onde = m ? `${m.forma?"📄 laje (forma) + ":""}🧱 ${m.nome} · ${m.p.length} parede${m.p.length>1?"s":""}${m.de!=null||m.ate!=null?` · lance ${nf2(m.de||0)} a ${m.ate!=null?nf2(m.ate)+" m":"topo"}${m.alt?" (alturas por parede)":""}`:""}`
     : `📄 ${c.pdfNome?pjTitulo(c.pdfNome):"sem PDF da forma"}`;
   const dots=el("div",{class:"cc-dots"}, ...c.cams.map(k=>{ const s=el("span",{class:"cc-dot",text:`C${k.n}`}); s.style.setProperty("--cor",k.cor); return s; }));
   return el("div",{class:"card pr-card "+(CC_COR_ST[c.status]||"")},
@@ -8223,8 +8280,10 @@ const mapaDe = c => {
 // ks: paredes de mais de uma estrutura (ex.: arranque dos Floculadores A e C). forma: {id, nome, pag} = a folha 1 do mapa é a
 // página do PDF da forma (laje de fundo), nas mesmas coordenadas da pintura feita nela; as paredes vêm da folha 2 em diante.
 const catsDe = m => (m.ks||[m.k]).map(catParedes).filter(Boolean);
+// alt: altura confirmada de cada parede no arranque ({id: m}); sem ela, vale a do lance (ate)
+const ateP = (m, p) => m.alt?.[p.id] ?? m.ate;
 const catPar = (m, p) => catsDe(m).find(x=>x.par.includes(p));
-const mapaCurto = m => "mapa:"+JSON.stringify({...(m.forma?{forma:m.forma}:{}), ...(m.ks?{ks:m.ks}:{k:m.k}), nome:m.nome, ids:m.p.map(p=>p.id), ...(m.de!=null?{de:m.de}:{}), ...(m.ate!=null?{ate:m.ate}:{}), um:1});
+const mapaCurto = m => "mapa:"+JSON.stringify({...(m.forma?{forma:m.forma}:{}), ...(m.ks?{ks:m.ks}:{k:m.k}), nome:m.nome, ids:m.p.map(p=>p.id), ...(m.de!=null?{de:m.de}:{}), ...(m.ate!=null?{ate:m.ate}:{}), ...(m.alt?{alt:m.alt}:{}), um:1});
 // laje de fundo + arranque dos Floculadores A e C: a forma na folha 1 e todas as paredes dos dois, só de 0 a 0,40 m
 const mapaFundoArranque = (id, nome) => mapaCurto({forma:{id, nome:nome||"", pag:1}, ks:["FLOC-A","FLOC-C"], nome:"Floculadores A e C",
   p:[...catParedes("FLOC-A").par, ...catParedes("FLOC-C").par], ate:0.4});
@@ -8273,7 +8332,7 @@ function volPintado(c, fs, m){
       if(t.pts.length===2){ const [x,y]=ptMm(t.pts[0],t.pts[1]); g.lineTo(x*G+0.01,y*G); }
       g.stroke(); }
     let v=0;
-    for(const w of f.ws){ const topo=Math.min(m.ate??w.p.h, w.p.h), base=Math.max(0, m.de||0); if(topo<=base) continue;
+    for(const w of f.ws){ const topo=Math.min(ateP(m,w.p)??w.p.h, w.p.h), base=Math.max(0, m.de||0); if(topo<=base) continue;
       const X0=Math.round(w.x*G), X1=Math.round((w.x+w.w)*G), Y0=Math.round((w.y+(w.p.h-topo)*w.s)*G), Y1=Math.round((w.y+(w.p.h-base)*w.s)*G);
       if(X1<=X0 || Y1<=Y0) continue;
       const px=g.getImageData(X0,Y0,X1-X0,Y1-Y0).data; let n=0; for(let i=3;i<px.length;i+=4) if(px[i]>127) n++;
@@ -8289,7 +8348,7 @@ function areaPintavel(c, pag){
   if(!m || (m.forma && pag===1)){ const ls=formaDe(c)?.lim?.[pag]; // contorno em pontos do PDF → mm da folha (como os traços)
     return ls?.length ? ls.map(l=>{ const pol=[]; for(let i=0;i+1<l.length;i+=2) pol.push(ptMm(l[i],l[i+1])); return {pol}; }) : null; }
   const f=folhasMapa(m)[pag-2]; if(!f) return [];
-  return f.ws.map(w=>{ const topo=Math.min(m.ate??w.p.h, w.p.h), base=Math.max(0, m.de||0);
+  return f.ws.map(w=>{ const topo=Math.min(ateP(m,w.p)??w.p.h, w.p.h), base=Math.max(0, m.de||0);
     return topo>base ? [w.x, w.y+(w.p.h-topo)*w.s, w.w, (topo-base)*w.s] : null; }).filter(Boolean);
 }
 // recorta uma camada (canvas) à área pintável; ret(r) converte o retângulo em mm para [x,y,l,a] da camada
@@ -8390,9 +8449,10 @@ function desenharElevacao(doc, w, m){
   doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.setTextColor(20);
   doc.text(descPar(p)+(w.tr?` — trecho ${w.tr[0]} de ${w.tr[1]}`:""), x, y-13);
   // fora da faixa do lance: cinza claro
-  if(m.de!=null || m.ate!=null){ doc.setFillColor(236,236,236);
+  const ate=ateP(m,p);
+  if(m.de!=null || ate!=null){ doc.setFillColor(236,236,236);
     if((m.de||0)>0) doc.rect(x, Y(Math.min(m.de,p.h)), W, Math.min(m.de,p.h)*s, "F");
-    if(m.ate!=null && m.ate<p.h) doc.rect(x, y, W, (p.h-m.ate)*s, "F"); }
+    if(ate!=null && ate<p.h) doc.rect(x, y, W, (p.h-ate)*s, "F"); }
   // malha referida ao topo: linhas a cada 10 cm (25 ou 50 cm se a escala for pequena), fortes a cada 50 cm
   doc.setFont("helvetica","normal"); doc.setFontSize(6);
   for(let f=0, i=0; f<=p.h+1e-6; i++, f=Math.round(i*passo*1000)/1000){
@@ -8421,9 +8481,9 @@ function desenharElevacao(doc, w, m){
     const mid=Math.min(b,Math.max(a,(ea+eb)/2)); if(mid>=a && mid<=b) doc.text(rot, X(mid), y-2, {align:"center"}); }
   doc.setLineDashPattern([],0);
   // faixa do lance
-  if(m.de!=null || m.ate!=null){ doc.setDrawColor(31,58,95); doc.setLineWidth(0.45);
-    for(const v of [m.de, m.ate]) if(v!=null && v>0 && v<p.h) doc.line(x-3, Y(v), x+W+3, Y(v));
-    doc.setFontSize(6); doc.setTextColor(31,58,95); doc.text(`lance: ${nf2(m.de||0)} a ${nf2(Math.min(m.ate??p.h,p.h))} m`, x+W, y-5.5, {align:"right"}); }
+  if(m.de!=null || ate!=null){ doc.setDrawColor(31,58,95); doc.setLineWidth(0.45);
+    for(const v of [m.de, ate]) if(v!=null && v>0 && v<p.h) doc.line(x-3, Y(v), x+W+3, Y(v));
+    doc.setFontSize(6); doc.setTextColor(31,58,95); doc.text(`lance: ${nf2(m.de||0)} a ${nf2(Math.min(ate??p.h,p.h))} m`, x+W, y-5.5, {align:"right"}); }
   // contorno, rótulos das escalas e cotas
   doc.setDrawColor(20); doc.setLineWidth(0.5); doc.rect(x, y, W, H);
   doc.setFontSize(5.5); doc.setTextColor(60); doc.text("FALTA (m)", x-1.5, y-5.5, {align:"right"}); doc.text("ALTURA (m)", x+W+1.5, y-5.5);
@@ -8458,7 +8518,7 @@ async function docMapa(c, {pintura=false}={}){
   const cps=n=>regs2De("qual","cp").filter(r=>r.dados.conc===rotConc(c) && new RegExp(`^C${n}\\b`).test(String(r.dados.cam||""))).reduce((s,r)=>s+(+r.dados.qtd||0),0);
   // CPs com o resultado mais recente e o volume que a pintura do caminhão ocupa nas paredes (para comparar com a nota)
   const rcp=new Map(cams.map(k=>[k.n, cpResumoCam(c,k.n)])), vpin=volPintado(c, fs, m), corDe=i=>cams[i]?.cor;
-  const fx=m.de!=null||m.ate!=null, total=m.p.reduce((s,p)=>s+volPar(p,m.de,m.ate),0);
+  const fx=m.de!=null||m.ate!=null||!!m.alt, total=m.p.reduce((s,p)=>s+volPar(p,m.de,ateP(m,p)),0);
   // com a forma: a folha 1 é a laje (no relatório, o trecho pintado; na tela, a página do PDF entra no lugar em mapaPdf)
   // e o resumo vai para depois das paredes, para não mudar a folha da pintura
   if(m.forma && pintura) await folhaForma(doc, c, m);
@@ -8482,7 +8542,7 @@ async function docMapa(c, {pintura=false}={}){
   tabC(linhasC.slice(0,MAXC), 30); if(linhasC.length>MAXC) resto.push(["c", linhasC.slice(MAXC), MAXC]);
   let y=doc.lastAutoTable.finalY+7;
   doc.setFont("helvetica","bold"); doc.setFontSize(10); doc.text("Paredes concretadas", tx, y);
-  const linhasP=m.p.map(p=>[cats.length>1 ? `${p.id} · ${catPar(m,p)?.nome.replace(/^Floculador /,"Floc. ")||""}` : p.id, nf2(p.c), nf2(p.h), nf2(p.e), nf2(volPar(p,m.de,m.ate)), String(folhaDe.get(p.id)||"")]);
+  const linhasP=m.p.map(p=>[cats.length>1 ? `${p.id} · ${catPar(m,p)?.nome.replace(/^Floculador /,"Floc. ")||""}` : p.id, nf2(p.c), nf2(p.h), nf2(p.e), nf2(volPar(p,m.de,ateP(m,p))), String(folhaDe.get(p.id)||"")]);
   const cabeP=Math.max(1, Math.floor((196-y-14)/5.2)), visP=linhasP.length>cabeP ? linhasP.slice(0,cabeP-1) : linhasP;
   if(visP.length<linhasP.length){ visP.push([`… mais ${linhasP.length-visP.length} paredes na última folha`,"","","","",""]); resto.push(["p", linhasP]); }
   doc.autoTable({startY:y+2, margin:{left:tx,right:12}, tableWidth:tw, theme:"grid",
@@ -8495,6 +8555,7 @@ async function docMapa(c, {pintura=false}={}){
   const notas=[m.forma?`Folha 1: laje de fundo, no PDF da forma (${pjTitulo(m.forma.nome||"forma")}); paredes da folha 2 à ${fs.length+1}.`:"",
     cats.length?`Dimensões do levantamento de concreto (comprimento × altura × espessura)${cats.some(x=>x.planta)?"; planta e encontros conforme o mapa do Floculador A":""}.`:"Paredes cadastradas na concretagem.",
     fx?`${m.forma&&!m.de?"Arranque":"Lance"}: de ${nf2(m.de||0)} m a ${m.ate!=null?nf2(m.ate)+" m":"o topo"} a partir da base (fora da faixa aparece em cinza nas elevações).`:"",
+    m.alt?`Altura confirmada por parede: ${m.p.filter(p=>m.alt[p.id]!=null).map(p=>`${p.id} até ${nf2(m.alt[p.id])} m`).join("; ")}.`:"",
     ...cats.map(x=>x.nota), ...m.p.filter(p=>p.obs).map(p=>`${p.id}: ${p.obs}.`), "Volume teórico sem as passagens desenhadas; confira o volume real pelas notas fiscais.",
     vpin.size?"Mapa (m³): área pintada de cada caminhão nas elevações × espessura da parede, para comparar com a nota (diferença grande = pintura incompleta, perda ou forma abrindo).":"",
     (l=>l?loteTxt(l)+(l.aviso?" Atenção: "+l.aviso+".":""):"")(loteConc(c)),
@@ -8520,7 +8581,7 @@ async function docMapa(c, {pintura=false}={}){
       if(!k.vazio && k.cor){ doc.setFillColor(...hexRgb(k.cor)); doc.rect(bx+12.5, 176.5, 8, 5, "F"); }
       doc.setDrawColor(40); doc.setLineWidth(0.25); doc.rect(bx+12.5, 176.5, 8, 5); });
     const p0=f.ws[0].p, passo=0.1*f.ws[0].s>=1.4?10:0.25*f.ws[0].s>=1.4?25:50;
-    const leg=`Elevação esc. 1:${f.d} · H = ${nf2(p0.h)} m · e = ${nf2(p0.e)} m · volume teórico: ${nf2(f.ws.reduce((s,w)=>s+volPar(w.p,m.de,m.ate),0))} m³`
+    const leg=`Elevação esc. 1:${f.d} · H = ${nf2(p0.h)} m · e = ${nf2(p0.e)} m · volume teórico: ${nf2(f.ws.reduce((s,w)=>s+volPar(w.p,m.de,ateP(m,w.p)),0))} m³`
       +`${(f.ws.some(w=>w.p.pass?.length))?" · passagem hachurada = sem concreto":""} · Malha: linhas a cada ${passo} cm (fortes a cada 50 cm), referidas ao topo — escala da esquerda = falta, da direita = altura a partir da base.`
       +`${f.ws.some(w=>w.p.enc?.length)?" Tracejado = encontro com outra parede.":""}`;
     doc.setFontSize(6.5); doc.setTextColor(60); doc.text(doc.splitTextToSize(leg, 285-lx-20), lx, 190);
@@ -8551,7 +8612,7 @@ async function docMapa(c, {pintura=false}={}){
         const rets=[];
         for(const t of lista){
           if(t.w<0){ const [x1,y1]=ptMm(t.pts[0],t.pts[1]), [x2,y2]=ptMm(t.pts[2],t.pts[3]), r=[Math.min(x1,x2), Math.min(y1,y2), Math.abs(x2-x1), Math.abs(y2-y1)];
-            go.fillRect(r[0]*G, r[1]*G, r[2]*G, r[3]*G); rets.push([r, -t.w/100]); continue; }
+            go.fillRect(r[0]*G, r[1]*G, r[2]*G, r[3]*G); rets.push([r, -t.w/100, t.id]); continue; }
           const ps=[]; for(let i=0;i<t.pts.length;i+=2){ const q=ptMm(t.pts[i],t.pts[i+1]); ps.push(q); sx+=q[0]; sy+=q[1]; n++; }
           if(ps.length===1) ps.push([ps[0][0]+0.01, ps[0][1]]);
           go.lineWidth=Math.max(0.3, t.w*25.4/72)*G; go.beginPath(); ps.forEach((q,k)=>k?go.lineTo(q[0]*G,q[1]*G):go.moveTo(q[0]*G,q[1]*G)); go.stroke(); }
@@ -8560,10 +8621,11 @@ async function docMapa(c, {pintura=false}={}){
         marcas.push({cam, cor, sx, sy, n, rets}); }
       doc.addImage(cv.toDataURL("image/png"), "PNG", 0, 0, MP.W, MP.H, undefined, "FAST");
       for(const {cam, cor, sx, sy, n, rets} of marcas){
-        if(n){ const lx=sx/n, ly=sy/n; doc.setFont("helvetica","bold"); doc.setFontSize(9); const tw2=doc.getTextWidth("C"+cam)+2;
+        if(n){ const q=rotDe(c, cam, "p"+pag), [lx,ly]=q ? ptMm(...q) : [sx/n, sy/n]; doc.setFont("helvetica","bold"); doc.setFontSize(9); const tw2=doc.getTextWidth("C"+cam)+2;
           doc.setFillColor(255,255,255); doc.roundedRect(lx-tw2/2, ly-3, tw2, 4.4, 0.8, 0.8, "F"); doc.setTextColor(...cor); doc.text("C"+cam, lx, ly+0.4, {align:"center"}); }
-        for(const [[x,y,w,h],ate] of rets){ const txt=`C${cam} até ${nf2(ate)} m`; doc.setFont("helvetica","bold"); doc.setFontSize(Math.min(9, Math.max(5, h*2))); const tw3=doc.getTextWidth(txt)+2;
-          doc.setFillColor(255,255,255); doc.roundedRect(x+w/2-tw3/2, y+h/2-2, tw3, 3.6, 0.6, 0.6, "F"); doc.setTextColor(...cor); doc.text(txt, x+w/2, y+h/2+0.6, {align:"center"}); }
+        for(const [[x,y,w,h],ate,id] of rets){ const txt=`C${cam} até ${nf2(ate)} m`, q=rotDe(c, cam, id), [cx,cy]=q ? ptMm(...q) : [x+w/2, y+h/2];
+          doc.setFont("helvetica","bold"); doc.setFontSize(Math.min(9, Math.max(5, h*2))); const tw3=doc.getTextWidth(txt)+2;
+          doc.setFillColor(255,255,255); doc.roundedRect(cx-tw3/2, cy-2, tw3, 3.6, 0.6, 0.6, "F"); doc.setTextColor(...cor); doc.text(txt, cx, cy+0.6, {align:"center"}); }
       }
     }
   }

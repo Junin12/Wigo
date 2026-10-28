@@ -104,6 +104,19 @@ const confere = (ok, msg) => { console.log(`${ok ? "ok  " : "FALHA"} ${msg}`); i
     return mapaDe(c).p.length === 2 && a1?.[0]?.pol?.length === 4 && a2.length === 1 && Math.abs(a2[0][3] - 0.45 * w.s) < 0.01
       && naArea(a1, ...ptMm(50, 50), 0) && !naArea(a1, ...ptMm(200, 200), 0);
   }), "laje + arranque: paredes escolhidas até 0,45 m e limite da forma");
+  // altura confirmada por parede (alt) e texto do caminhão arrastado (cams[].rot): vale no mapa e no relatório
+  const alt = await p.evaluate(async () => {
+    try {
+      const cat = catParedes("DEC"), ps = cat.par.slice(0, 2), c = { id: "fa2", data: "2026-10-28", cams: [{ n: 1, vol: 8, cor: "#FDD835", rot: { p2: [100, 300] } }],
+        pdfId: mapaCurto({ forma: { id: "x", nome: "", pag: 1 }, k: "DEC", nome: cat.nome, p: ps, ate: 0.45, alt: { [ps[1].id]: 0.8 } }) };
+      S.pendTr.t_alt = { conc: "fa2", cam: 1, pag: 2, w: 4, pts: [200, 100, 220, 100] };
+      const m = mapaDe(c), fs = folhasMapa(m), a = [2, 3].map(n => areaPintavel(c, n)[0]), s = [0, 1].map(i => fs[i].ws[0].s);
+      const doc = await docMapa(c, { pintura: false }); delete S.pendTr.t_alt;
+      return m.alt[ps[1].id] === 0.8 && Math.abs(a[0][3] - 0.45 * s[0]) < 0.01 && Math.abs(a[1][3] - 0.8 * s[1]) < 0.01
+        && rotDe(c, 1, "p2")[0] === 100 && doc.getNumberOfPages() === fs.length + 2;
+    } catch (e) { return false; }
+  });
+  confere(alt, "arranque: altura de cada parede e texto do caminhão no lugar escolhido");
   // Qualidade: dashboards de cada categoria (concreto, aço, solo, forma e geral)
   const dash = await p.evaluate(() => {
     try {

@@ -117,6 +117,14 @@ const confere = (ok, msg) => { console.log(`${ok ? "ok  " : "FALHA"} ${msg}`); i
     } catch (e) { return false; }
   });
   confere(alt, "arranque: altura de cada parede e texto do caminhão no lugar escolhido");
+  // aço por etapa: fundo e verticais na 1ª; horizontais pela altura da parede (Floculador, H = 4,55 m); armado enche de baixo para cima
+  confere(await p.evaluate(() => {
+    const mk = (c, loc, qp, cu, kp) => ({ c, est: "FLOCULADORES", loc, qp, cu, kp, ppb: kp / qp });
+    const its = [mk("F", "FUNDO", 10, 11, 100), mk("V", "PAREDE 1 , PAREDE 2, PAREDE 3", 10, 4.89, 100), mk("H", "PAREDE 1 , PAREDE 2, PAREDE 3", 455, 9.7, 455),
+      mk("L", "LAJE DAS PASSARELAS", 10, 10, 50), mk("X", "PILARES", 10, 3, 30)];
+    const r = aeSoma(its, new Map([["F", 10], ["V", 10], ["H", 100]])), ok = (a, b) => Math.abs(a - b) < 0.01;
+    return ok(r.p[0], 240) && ok(r.p[1], 195) && ok(r.p[2], 195) && ok(r.p[3], 75) && ok(r.x[0], 240) && ok(r.x[1], 60) && r.x[2] === 0 && r.op === 30;
+  }), "aço por etapa de concretagem: fundo + verticais + horizontais até 0,40 m na 1ª etapa");
   // Qualidade: dashboards de cada categoria (concreto, aço, solo, forma e geral)
   const dash = await p.evaluate(() => {
     try {

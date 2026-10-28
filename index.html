@@ -955,6 +955,7 @@ svg .alvo.on{fill:var(--accent);fill-opacity:.13}
     <div class="card"><h3>Produtividade por equipe</h3><div class="tbl" id="t-eq"></div><p class="info">kg/arm/dia = aço da equipe ÷ (armadores × dias).</p></div>
     <div class="card"><h3>Ocorrências por semana</h3><div class="tbl" id="t-oc"></div></div>
     <div class="card"><h3>Avanço por estrutura</h3><div class="tbl" id="t-est"></div></div>
+    <div class="card"><h3>Aço por etapa de concretagem</h3><div class="tbl" id="t-etapa"></div><p class="info">1ª = laje de fundo + todas as barras verticais das paredes + horizontais até 0,40 m · 2ª = horizontais de 0,40 a 2,35 m · 3ª = de 2,35 a 4,30 m · 4ª = de 4,30 m ao topo + lajes de cobertura/passarela. As horizontais se dividem pela altura da parede (catálogo das paredes) e o armado enche as etapas de baixo para cima. Outros = pilares, vigas, lajes de piso.</p></div>
     <div class="card"><h3>Avanço por diâmetro</h3><div class="tbl" id="t-bit"></div></div>
   </section>
 
@@ -2042,6 +2043,7 @@ function renderPainel(){
   }
   $("#t-oc").replaceChildren(tbO.children.length ? el("table",{}, el("thead",{},el("tr",{}, ...["Semana","Nº","Horas perdidas","Tipos","kg/arm/dia"].map(h=>el("th",{text:h})))), tbO) : el("p",{class:"info",text:"Nenhuma ocorrência registrada."}));
   $("#t-est").replaceChildren(progTable(grp(i=>i.est),"Estrutura"));
+  $("#t-etapa").replaceChildren(aeTabela(its, acAte));
   $("#t-bit").replaceChildren(progTable(grp(i=>bitLabel(i.bit)),"Diâmetro"));
   renderMetaCurva();
 }
@@ -2246,7 +2248,7 @@ function setCampo(on){ LS.set("campo",!!on); if(on) document.documentElement.dat
 $("#campo-modo").addEventListener("click", e=>{ const b=e.target.closest("button[data-c]"); if(b) setCampo(b.dataset.c==="1"); });
 setCampo(!!LS.get("campo"));
 
-const VERSAO_APP = "v153"; // igual ao número em sw.js (armacao-v153)
+const VERSAO_APP = "v154"; // igual ao número em sw.js (armacao-v154)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -3479,8 +3481,8 @@ function elementos(){
   const serv=new Map(S.els.map(e=>[e.chave,e])), m=new Map();
   for(const i of S.items){
     const ch=elChave(i); let e=m.get(ch);
-    if(!e){ e={chave:ch,emp:i.emp,est:i.est,loc:i.loc||"(sem local)",pr:new Set(),n:0,kp:0,ke:0}; m.set(ch,e); }
-    e.pr.add(i.pr); e.n++; e.kp+=i.kp; e.ke+=Math.min(S.acum.get(i.c)||0,i.qp)*i.ppb;
+    if(!e){ e={chave:ch,emp:i.emp,est:i.est,loc:i.loc||"(sem local)",pr:new Set(),n:0,kp:0,ke:0,its:[]}; m.set(ch,e); }
+    e.pr.add(i.pr); e.n++; e.kp+=i.kp; e.ke+=Math.min(S.acum.get(i.c)||0,i.qp)*i.ppb; e.its.push(i);
   }
   for(const e of m.values()){
     e.st={...(serv.get(e.chave)||{}), ...(S.pendEl[e.chave]||{})}; e.pct=e.kp?e.ke/e.kp:0; e.tipo=tipoEl(e.loc);
@@ -3516,6 +3518,53 @@ function lancarElemento(e){
   Object.assign(F,{emp:e.emp,est:e.est,pr:"",loc:e.loc==="(sem local)"?"":e.loc,q:"",pend:false}); LS.set("filtros",F); S.limit=60;
   renderFiltros(); renderLista(); show("coleta");
 }
+// ---------- aço por etapa de concretagem (as mesmas 4 etapas do concreto; o painel do gerente usa a mesma conta) ----------
+// 1 = laje de fundo + arranque: o FUNDO inteiro, todas as barras verticais das paredes (saem da laje) e as horizontais de 0 a 0,40 m
+// 2 = lance 1: horizontais de 0,40 a 2,35 m · 3 = lance 2: de 2,35 a 4,30 m · 4 = o resto da parede (4,30 m ao topo) + lajes de cobertura/passarela
+// Horizontais (e o que se espalha pela altura: grampos, cantos, espaçadores) se dividem pela altura H da parede, na proporção de cada faixa.
+// Vertical = barra de 45% da altura até a altura + 1,50 m (ancoragem) que não corre ao longo da parede (menor que 80% do comprimento).
+// H e comprimento: as paredes do local no catálogo (PAREDE 1, PAREDE 2… → PAR 1, PAR 2…); sem elas, a média das paredes da estrutura;
+// estrutura sem catálogo: 4,55 m. Pilares, vigas, lajes de piso e outros elementos ficam fora das 4 etapas ("outros").
+const AE_FAIXA=[[0,0.4],[0.4,2.35],[2.35,4.3],[4.3,Infinity]], AE_H=4.55;
+const AE_ROT=["1 · Fundo + arranque","2 · Lance 1","3 · Lance 2","4 · Restante + cobertura"];
+function aeParedes(est, loc){
+  const cat=PAREDES_CAT.filter(x=>x.est===est).flatMap(x=>x.par), ids=paredesDoEl(loc); // "PAR 1" vale para PAR 1, 1A, 1B e PAR 11 inf.
+  return {ps:cat.filter(p=>ids.some(id=>new RegExp(`^${id}(?:[A-Z]|\\s|$)`).test(p.id))), cat};
+}
+const AE_CACHE=new WeakMap();
+// frações das barras da posição em cada etapa [e1,e2,e3,e4]; null = fora das etapas
+function aeFracoes(i){
+  if(AE_CACHE.has(i)) return AE_CACHE.get(i);
+  const u=normTxt(i.loc); let f=null;
+  if(/FUNDO/.test(u)) f=[1,0,0,0];
+  else if(/PAREDE|\bPAR\s*\d/.test(u)){
+    const {ps, cat}=aeParedes(i.est, i.loc), base=ps.length ? ps : cat, cs=base.reduce((s,p)=>s+p.c,0);
+    const H=base.length ? (cs ? base.reduce((s,p)=>s+p.h*p.c,0)/cs : base[0].h) : AE_H, L=ps.length ? Math.max(...ps.map(p=>p.c)) : 0, cu=+i.cu||0;
+    if(cu>=0.45*H && cu<=H+1.5 && !(L && cu>=0.8*L)) f=[1,0,0,0];
+    else f=AE_FAIXA.map(([a,b])=>Math.max(0, Math.min(b,H)-Math.min(a,H))/H);
+  }
+  else if(/COBERTURA|PASSARELA|TAMPA|LAJE SUPERIOR/.test(u)) f=[0,0,0,1];
+  AE_CACHE.set(i,f); return f;
+}
+// soma das posições: kg previstos e armados em cada etapa; as horizontais sobem de baixo para cima (o que foi armado enche a etapa 1, depois a 2…)
+function aeSoma(its, acum){
+  const r={p:[0,0,0,0], x:[0,0,0,0], op:0, ox:0};
+  for(const i of its){ const f=aeFracoes(i), ex=Math.min(acum.get(i.c)||0, i.qp);
+    if(!f){ r.op+=i.kp; r.ox+=ex*i.ppb; continue; }
+    let cum=0; f.forEach((v,k)=>{ const q=i.qp*v; r.p[k]+=q*i.ppb; r.x[k]+=Math.max(0, Math.min(q, ex-cum))*i.ppb; cum+=q; }); }
+  return r;
+}
+function aeTabela(its, acum){
+  const g=new Map(); for(const i of its){ if(!g.has(i.est)) g.set(i.est,[]); g.get(i.est).push(i); }
+  const cel=(x,p)=>p ? el("td",{}, el("b",{text:pct(x/p)}), el("div",{class:"info",text:`${t(x)} / ${t(p)} t`})) : el("td",{text:"–"});
+  const tb=el("tbody"), tot={p:[0,0,0,0], x:[0,0,0,0], op:0, ox:0};
+  for(const [est,L] of [...g].sort((a,b)=>a[0].localeCompare(b[0],"pt"))){ const r=aeSoma(L, acum); if(!r.p.some(v=>v>0)) continue;
+    r.p.forEach((v,k)=>{ tot.p[k]+=v; tot.x[k]+=r.x[k]; }); tot.op+=r.op; tot.ox+=r.ox;
+    tb.append(el("tr",{}, el("td",{}, el("b",{text:est})), ...r.p.map((p,k)=>cel(r.x[k],p)), cel(r.ox,r.op))); }
+  if(!tb.children.length) return el("p",{class:"info",text:"Nenhuma posição de fundo, parede ou laje de cobertura nesta seleção."});
+  tb.append(el("tr",{}, el("td",{}, el("b",{text:"Total"})), ...tot.p.map((p,k)=>cel(tot.x[k],p)), cel(tot.ox,tot.op)));
+  return el("table",{}, el("thead",{}, el("tr",{}, ...["Estrutura",...AE_ROT,"Outros"].map(h=>el("th",{text:h})))), tb);
+}
 function elCard(e){
   const toggle=(campo,rot)=>{ const v=e.st[campo];
     const b=el("button",{class:"chipbtn"+(v?" on":""),type:"button",text:v?`${rot} ✓ ${ddmm(v)}`:`${rot}?`});
@@ -3536,6 +3585,8 @@ function elCard(e){
     el("div",{class:"i-top"}, el("span",{class:"pos",style:"font-size:1.15rem",text:e.loc}), el("span",{class:"chip "+SIT[e.sit][1],text:rotSit(e)})),
     el("div",{class:"i-sub",text:`${e.emp} · ${e.est} · ${[...e.pr].join(", ")}`}),
     el("div",{class:"i-prog"}, el("div",{class:"bar"},el("i",{style:`width:${Math.min(100,e.pct*100)}%`})), el("span",{text:`${t(e.ke)} / ${t(e.kp)} t · ${pct(e.pct)}`})),
+    // parede: o aço de cada etapa de concretagem (arranque = 1ª, lance 1 = 2ª, lance 2 = 3ª, lance 3 = 4ª)
+    e.tipo.lances.length>1 ? (r=>el("div",{class:"i-sub",text:"Aço por etapa: "+r.p.map((p,k)=>p>0?`${k+1}ª ${pct(r.x[k]/p)} de ${t(p)} t`:null).filter(Boolean).join(" · ")}))(aeSoma(e.its, S.acum)) : null,
     el("div",{class:"i-in"}, e.tipo.magro ? toggle("magro","Concreto magro pronto") : null, toggle("aco","Aço entregue"), ck, lz));
 }
 function renderFrentes(){
@@ -7791,7 +7842,7 @@ function editarConc(c, pre){
   const pagsPint=[...new Set((c ? tracosDe(c.id) : []).map(t=>t.pag))];
   const iFolha=el("input",{type:"number",min:1,step:1,inputMode:"numeric","aria-label":"Folha do PDF da forma",
     value:m0?.forma ? m0.forma.pag||1 : pagsPint.length===1 ? pagsPint[0] : LS.get("ccPag:"+c?.id)||1, disabled:!!m0?.forma || pagsPint.length>0});
-  repor(boxArr, "Arranque das paredes: marque acima só as paredes que levam arranque nesta concretagem. Ao marcar, o app pede a altura a concretar naquela parede (vem com a do campo \"até\", 0,45 m; toque em \"até … m ✎\" para mudar). O app gera o corte (elevação) de cada uma e a pintura fica só da base até essa altura.",
+  repor(boxArr, "Arranque das paredes: marque acima só as paredes que levam arranque nesta concretagem. Ao marcar, o app pede a altura a concretar naquela parede (vem com a do campo \"até\", 0,45 m; toque em \"até … m ✎\" para mudar). O app gera o corte (elevação) de cada uma e a pintura fica só da base até essa altura. A pintura vale na folha da laje e nas folhas das paredes. Na 4ª etapa (laje de cobertura/passarela) o lance vai de 4,30 m ao topo: escolha a etapa no levantamento de concreto, acima.",
     el("div",{class:"cc-faixa"}, "Laje na folha", iFolha, "do PDF da forma"),
     el("small",{class:"i-sub",text:"A forma continua na folha 1 do mapa, com a pintura já feita; as paredes entram da folha 2 em diante. Use ✂ Limite da forma (no mapa) para pintar só dentro da laje."}));
   // paredes: conjunto do catálogo (os da estrutura escolhida primeiro), paredes marcadas, faixa de altura do lance e paredes a mais
@@ -7808,7 +7859,7 @@ function editarConc(c, pre){
   const lerFaixa=()=>{ const de=iDe.value.trim()===""?null:num(iDe.value), ate=iAte.value.trim()===""?null:num(iAte.value); return {de:de>0?de:null, ate:ate>0?ate:null}; };
   // arranque: ao marcar uma parede, o app pede a altura a concretar nela (vem com a do campo "até"); fica em alt {id: m}
   const alt={...(m0?.alt||{})}, ateDe=(p,ate)=>tipo==="fa" ? alt[p.id] ?? ate : ate;
-  const pedirAlt=p=>{ const {de,ate}=lerFaixa(), pad=alt[p.id] ?? ate ?? 0.45;
+  const pedirAlt=p=>{ const {de,ate}=lerFaixa(), pad=alt[p.id] ?? ate ?? (de!=null ? p.h : 0.45);
     const r=prompt(`Altura a concretar na ${p.id} (m, a partir da base). A parede tem ${nf2(p.h)} m.`, nf2(pad)); if(r==null) return false;
     const v=Math.round(num(r)*100)/100;
     if(!(v>0) || (de!=null && v<=de)) { toast(`Altura inválida: informe em metros, maior que ${nf2(de||0)} (ex.: 0,45).`); return false; }
@@ -7821,7 +7872,7 @@ function editarConc(c, pre){
     repor(boxLista, ...ps.map(p=>{ const ck=el("input",{type:"checkbox",checked:marcadas.has(p.id)});
       ck.onchange=()=>{ if(ck.checked && tipo==="fa" && !pedirAlt(p)){ ck.checked=false; return; }
         if(ck.checked) marcadas.add(p.id); else marcadas.delete(p.id); if(tipo==="fa") montarLista(); else atualizarVol(); };
-      const h=tipo==="fa" && marcadas.has(p.id) ? ateDe(p, lerFaixa().ate) : null;
+      const h=tipo==="fa" && marcadas.has(p.id) ? ateDe(p, lerFaixa().ate) ?? p.h : null; // sem "até": até o topo
       return el("label",{class:"cc-parl"}, ck, el("span",{}, el("b",{text:p.id}), ` ${nf2(p.c)} × ${nf2(p.h)} × ${nf2(p.e)} m`),
         h!=null ? el("button",{class:"linkbtn",type:"button",text:`até ${nf2(h)} m ✎`,title:"Mudar a altura a concretar nesta parede",style:"margin-left:8px",
           onclick:e=>{ e.preventDefault(); if(pedirAlt(p)) montarLista(); }}) : null); }),
@@ -7855,8 +7906,8 @@ function editarConc(c, pre){
       const fid=iPdf.value; if(!fid) return toast("Escolha o PDF da forma da laje.");
       const ps=paredesDisp().filter(p=>marcadas.has(p.id)); if(!ps.length) return toast("Marque as paredes que levam arranque.");
       const cat=catParedes(iConj.value), {de,ate}=lerFaixa();
-      if(ate==null) return toast("Informe a altura do arranque no campo \"até\" (ex.: 0,45 m).");
-      if(de!=null && ate<=de) return toast("No arranque, a altura final tem que ser maior que a inicial.");
+      if(ate==null && de==null) return toast("Informe a altura do arranque no campo \"até\" (ex.: 0,45 m).");
+      if(de!=null && ate!=null && ate<=de) return toast("No arranque, a altura final tem que ser maior que a inicial.");
       const ts=c ? tracosDe(c.id) : [], nomeF=PJ.lista.find(x=>x.id===fid)?.nome || (fid===pdfAnt ? nomeAnt : "");
       let forma;
       if(m0?.forma){ // já era laje + arranque
@@ -7874,9 +7925,9 @@ function editarConc(c, pre){
       }
       // altura de cada parede: só as diferentes da do campo "até"
       const alts=Object.fromEntries(ps.filter(p=>alt[p.id]!=null && alt[p.id]!==ate).map(p=>[p.id, alt[p.id]]));
-      if(ps.some(p=>de!=null && (alts[p.id]??ate)<=de)) return toast("No arranque, a altura de cada parede tem que ser maior que a inicial.");
+      if(ps.some(p=>{ const h=alts[p.id]??ate; return de!=null && h!=null && h<=de; })) return toast("No arranque, a altura de cada parede tem que ser maior que a inicial.");
       const m={forma, k:cat?.k||"", nome:cat ? cat.nome : estrutura, p:ps, ...(de!=null?{de}:{}), ate, ...(Object.keys(alts).length?{alt:alts}:{}), um:1};
-      pdfId = cat && ps.every(p=>cat.par.includes(p)) ? mapaCurto(m) : "mapa:"+JSON.stringify(m); pdfNome=`Laje de fundo e arranque · ${m.nome}`;
+      pdfId = cat && ps.every(p=>cat.par.includes(p)) ? mapaCurto(m) : "mapa:"+JSON.stringify(m); pdfNome=`${de>0?"Laje de cobertura e topo das paredes":"Laje de fundo e arranque"} · ${m.nome}`;
     }
     else if(tipo==="par"){
       const ps=paredesDisp().filter(p=>marcadas.has(p.id)); if(!ps.length) return toast("Marque pelo menos uma parede.");
@@ -7913,9 +7964,17 @@ function editarConc(c, pre){
   if(m0?.forma) volAuto=false;
   if(trava){ boxTipo.hidden=boxPar.hidden=boxLaje.hidden=boxArr.hidden=true;
     boxTipo.before(el("p",{class:"info full",text:`Folha 1: forma da laje (${pjTitulo(m0.forma.nome||"PDF da forma")}) · da folha 2 em diante: ${m0.p.length} paredes de ${m0.nome}, de ${nf2(m0.de||0)} a ${nf2(m0.ate??0)} m. As folhas não mudam aqui.`})); }
-  // aberta pela etapa (lances): paredes do catálogo da estrutura e a faixa de altura do lance
-  if(oPre && pre.etapa>=2){ const k=(oPre.ks||[]).find(x=>catParedes(x)); if(k){ iConj.value=k; marcadas=new Set(catParedes(k).par.map(p=>p.id)); }
-    const [a,b]=CE_FAIXA[pre.etapa]; iDe.value=a?String(a).replace(".",","):""; iAte.value=b!=null?String(b).replace(".",","):""; montarLista(); }
+  // etapa do levantamento → mapa: 1ª = laje de fundo (folha 1) + arranque das paredes até 0,40 m; 2ª e 3ª = só paredes
+  // (0,40 a 2,35 e 2,35 a 4,30 m); 4ª = laje de cobertura/passarela (folha 1) + paredes de 4,30 m ao topo. Nas etapas com laje,
+  // a pintura vale na folha da laje e nas folhas das paredes. Concretagem já pintada não muda.
+  const aplicarEtapa=e=>{ if(trava || !(e>=1) || pagsPint.length) return;
+    const k=(oPre || concObra(iCeO.value))?.ks?.find(x=>catParedes(x)), [a,b]=CE_FAIXA[e];
+    tipo = e===1 || e===4 ? "fa" : "par"; jaFa=true; tipoManual=true; if(k) iConj.value=k;
+    marcadas=new Set((catParedes(iConj.value)?.par||[]).filter(p=>p.h>(a||0)+0.01).map(p=>p.id)); for(const id of Object.keys(alt)) delete alt[id];
+    iDe.value=a?nf2(a):""; iAte.value=b!=null?nf2(b):""; desTipo(); montarLista(); };
+  if(oPre && pre.etapa>=1) aplicarEtapa(pre.etapa);
+  iCeE.onchange=()=>{ const e=+iCeE.value; if(trava || !(e>=1) || pagsPint.length) return;
+    if(confirm(`Montar o mapa para a etapa ${e}ª (${CE_ETAPAS[e].toLowerCase()})? As paredes e as alturas do mapa são trocadas.`)) aplicarEtapa(e); };
 }
 function cardConc(c, ed){
   const lanc=volLancado(c), frac=c.volPrev?lanc/c.volPrev:0, edSt=ed && pode("lanc-edit"), m=mapaDe(c);
@@ -8053,6 +8112,8 @@ function resumoConcTopo(){
 function abrirEtapas(nome){
   const o=concObra(nome); if(!o) return;
   const ed=pode("lanc-edit"), prev=cePrev(o);
+  // aço de cada etapa (mesma divisão do painel): da estrutura da base de aço ligada a esta obra
+  const ae=o.est && S.items.some(i=>i.est===o.est) ? aeSoma(S.items.filter(i=>i.est===o.est), S.acum) : null;
   const blocos=CE_ETAPAS.map((t,e)=>{ const r=ceDe(nome,e), st=r?.status||"", ex=ceVol(r,prev[e]), cs=(r?.dados.conc||[]).map(concDe).filter(Boolean);
     const iData=el("input",{type:"date",value:r?.data||"","aria-label":`${t}: data`,disabled:!ed});
     const iVol=el("input",{type:"text",inputMode:"decimal",value:r?.dados.vol>0&&!r.dados.estimado?String(r.dados.vol).replace(".",","):"",placeholder:cs.length?"dos caminhões":nf1.format(prev[e]),"aria-label":`${t}: volume executado (m³)`,disabled:!ed||cs.length>0});
@@ -8065,6 +8126,7 @@ function abrirEtapas(nome){
     return el("div",{class:"ce-et full "+ceCel(st)},
       el("div",{class:"i-top"}, el("b",{text:`${e?e+"ª":"M"} · ${t}`}), el("span",{class:"chip "+ceCel(st),text:st||"Não iniciada"})),
       el("small",{class:"i-sub",text:`${CE_DESC[e]} · previsto ${nf1.format(prev[e])} m³${ex?` · executado ${nf1.format(ex)} m³${r?.dados.estimado?" (estimado)":""}`:""}`}),
+      e && ae?.p[e-1]>0 ? el("small",{class:"i-sub",text:`Aço da etapa (${o.est}): ${t(ae.x[e-1])} de ${t(ae.p[e-1])} t armadas · ${pct(ae.x[e-1]/ae.p[e-1])}`}) : null,
       ed ? el("div",{class:"pr-bts"}, ...[["","Não iniciada"],...CE_ST.map(s=>[s,s])].map(([v,x])=>el("button",{class:"chipbtn"+(st===v?" on":""),type:"button",text:x,"aria-pressed":String(st===v),onclick:()=>marcar(v)}))) : null,
       el("div",{class:"ce-campos"}, el("label",{}, "Data", iData), el("label",{}, "Volume executado (m³)", iVol)),
       cs.length ? el("div",{class:"i-sub",text:"Concretagens: "+cs.map(c=>`${ddmm(c.data)} · ${nf1.format(volLancado(c))} m³ (${c.cams.length} caminhões, ${c.status.toLowerCase()})`).join(" · ")}) : null,

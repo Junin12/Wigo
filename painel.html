@@ -141,6 +141,11 @@ tfoot td{font-weight:700;border-bottom:0}
   .hrow{grid-template-columns:1fr} th,td{padding:7px 4px}
   .filtros select{flex:1 1 140px}
 }
+.per-ctl{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.per-ctl input{font:inherit;color:inherit;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:7px 10px;min-height:42px;max-width:100%}
+.per-ctl .seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.per-ctl .seg button{border:0;border-radius:0;min-height:40px}
+.per-ctl .seg button[aria-pressed=true]{background:var(--navy2);color:#fff}
 .leg-cp{display:flex;flex-wrap:wrap;gap:10px;font-size:.8rem;color:var(--muted);margin-top:4px}.leg-cp i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px}
 details.lote-cp{border-top:1px solid var(--line);padding:8px 0}details.lote-cp summary{cursor:pointer}
 @media print{ .barra{position:static} .tabs{display:none} [role=tabpanel][hidden]{display:grid!important} }
@@ -177,6 +182,7 @@ details.lote-cp{border-top:1px solid var(--line);padding:8px 0}details.lote-cp s
   <!-- VISÃO GERAL -->
   <section id="p-geral" role="tabpanel" aria-labelledby="t-geral" class="grid" hidden>
     <div class="grid g4" id="g-destaques"></div>
+    <div class="card" id="g-per"></div>
     <div class="kpis" id="g-prazos"></div>
     <div class="grid g2">
       <div class="card"><div class="card-top"><h3>Avanço por estrutura</h3><span class="info">toque numa estrutura para ver só ela</span></div><div class="hlist" id="g-est"></div></div>
@@ -196,6 +202,8 @@ details.lote-cp{border-top:1px solid var(--line);padding:8px 0}details.lote-cp s
       <div class="card"><h3>Produção semanal × meta (t)</h3><div class="chart" id="a-ch-sem"></div><div class="legenda" id="a-leg-sem"></div><p class="info nota" id="a-nota-sem"></p></div>
       <div class="card"><h3>Curva S (t acumuladas)</h3><div class="chart" id="a-ch-s"></div><div class="legenda" id="a-leg-s"></div><p class="info nota" id="a-nota-s"></p></div>
     </div>
+    <div class="card"><div class="card-top"><h3>Aço por etapa de concretagem</h3><span class="info">armado ÷ previsto em cada etapa</span></div><div class="tbl" id="a-etapa"></div>
+      <p class="info nota">1ª = laje de fundo + todas as barras verticais das paredes (saem da laje) + horizontais até 0,40 m · 2ª = horizontais de 0,40 a 2,35 m · 3ª = de 2,35 a 4,30 m · 4ª = de 4,30 m ao topo + lajes de cobertura/passarela. As horizontais se dividem pela altura de cada parede e o que foi armado enche as etapas de baixo para cima. Outros = pilares, vigas, lajes de piso.</p></div>
     <div class="grid g2">
       <div class="card"><h3>Por elemento</h3><div class="tbl" id="a-el"></div></div>
       <div class="card"><h3>Por bitola</h3><div class="tbl" id="a-bit"></div></div>
@@ -284,6 +292,55 @@ const CONC_OBRAS=QTD_CONC.flatMap(([setor,nome,mc,mn,cc,cn])=>{ const [tit,est]=
   return [{...b,nome:setor==="ETA"?nome:`${setor} · ${nome}`,titulo:setor==="ETA"?(tit||cap(nome)):`${cap(nome)} (${setor.toLowerCase()})`,est:est||""}]; });
 const CE_ETAPAS=["Concreto magro","Laje de fundo + arranque","Lance 1 de parede","Lance 2 de parede","Lance 3 + laje de cobertura/passarela"];
 
+// ---------- aço por etapa de concretagem (mesma conta do app: aeFracoes / aeSoma no index.html) ----------
+// 1 = laje de fundo + arranque: o FUNDO inteiro, todas as barras verticais das paredes e as horizontais de 0 a 0,40 m;
+// 2 = horizontais de 0,40 a 2,35 m; 3 = de 2,35 a 4,30 m; 4 = de 4,30 m ao topo + lajes de cobertura/passarela.
+// Vertical = barra de 45% da altura até a altura + 1,50 m que não corre ao longo da parede (menor que 80% do comprimento).
+// Paredes do catálogo do app (mapa de concretagem): {estrutura: [[parede, comprimento, altura], …]} em metros.
+const PAR_CAT={"FLOCULADORES":[["1",9.9,4.55],["4",9.3,4.55],["7",9.9,4.55],["10",9.3,4.55],["12",9.3,4.55],["11 inf.",4.5,4.55],["11 sup.",4.5,4.55],["2",9.9,4.55],["5",9.3,4.55],["8",9.9,4.55],["13",9.3,4.55],["15",9.3,4.55],["14 inf.",4.5,4.55],["14 sup.",4.5,4.55],["3",9.9,4.55],["6",9.3,4.55],["9",9.9,4.55],["16",9.3,4.55],["18",9.3,4.55],["17 inf.",4.5,4.55],["17 sup.",4.5,4.55],["19",3.18,2.7],["20",3.18,2.7],["21",1.05,2.7],["22",1.05,2.7],["23",2.3,2.7]],
+  "DECANTADORES":[["1",11.5,4.9],["1A",11.5,4.9],["1B",11.5,4.9],["2",11.5,5.7],["2A",11.5,5.7],["2B",11.5,5.7],["3",16.6,5.1],["9B",16.6,5.1],["3A",16.6,4.9],["3B",16.6,4.9],["9",16.6,4.9],["9A",16.6,4.9],["6",16.6,4.9],["6A",16.6,4.9],["6B",16.6,4.9],["4",18.05,5.1],["4A",18.05,5.1],["4B",18.05,5.1],["8",18.05,5.1],["8A",18.05,5.1],["8B",18.05,5.1],["5",16,5.1],["5A",16,5.1],["5B",16,5.1],["7",16,5.1],["7A",16,5.1],["7B",16,5.1],["10",11.5,2.25],["10A",11.5,2.25],["10B",11.5,2.25],["11",2.25,1.75],["12",2.25,1.75],["14",1.75,1.2],["14A",1.75,1.2],["14B",1.75,1.2],["14C",1.75,1.2],["14D",1.75,1.2],["14E",1.75,1.2],["15",1.65,1.225],["16",1.65,1.225],["17",1.65,1.225],["18",1.65,1.225],["19",1.65,1.225],["20",1.65,1.225]],
+  "FILTROS":[["1",33.35,5.9],["2",33.35,5.9],["3",33.35,3.97],["4",33.35,5.2],["5",33.35,1.2],["7",7.8,3.98],["8",7.8,3.98],["9",7.8,3.98],["10",7.8,3.98],["11",7.8,3.98]],
+  "TANQUE DE CONTATO":[["1",15.65,4.5],["3",15.65,4.5],["2",13.75,4.5],["4",10.05,4.5],["12",10.05,4.5],["5",9.8,4.5],["6",3.9,4.5],["8",3.9,4.5],["10",3.9,4.5],["14",3.9,4.5],["15",3.9,4.5],["16",3.9,4.5],["7",7.8,4.5],["9",7.8,4.5],["11",7.8,4.5],["13",4.9,4.5],["17",2,2.5],["18",2,2.5],["19",2.7,2.5],["20",2.7,2.5]],
+  "RESERVATÓRIO DE ÁGUA PARA LAVAGEM DOS FILTROS (RALF)":[["1",18.6,4.95],["2",18.6,4.95],["3",10,4.95],["4",10,4.95],["5",2.7,2.5],["6",2.65,2.5],["7",2.65,2.5]],
+  "E. ELEVATÓRIA DE ÁGUA P/ LAVAGEM DOS FILTROS (EEALF)":[["1",10.97,3],["2",10.97,3],["3",10,3]],
+  "RESERVATÓRIO ÁGUA TRATADA":[["1",44.8,5.95],["2",44.8,5.95],["5",23.6,5.95],["6",23.6,5.95],["7",23.6,5.95],["10",4,3.4],["12",4,3.4],["13",2.4,3.4],["16",2.4,3.4],["11",7.8,2.25],["14",3.3,2.25],["15",3.3,2.25]],
+  "ESTAÇÃO ELEVATÓRIA DE ÁGUA TRATADA (EEAT)":[["3",39.6,6.65],["4",33.7,3.2],["8",9,3.2],["9",9,3.2],["6 (sucção)",6.65,2.5],["7 (sucção)",6.65,2.5],["8 (sucção)",6.65,2.5]],
+  "TANQUE DE REGULARIZAÇÃO DE VAZÃO (TRV) - UTRR":[["1",26.9,8.15],["2",26.9,8.15],["3",10,8.15],["4",10,8.15]],
+  "CLARIFICADOR - UTRR":[["1",5.1,5],["2",5.1,5],["3",5.1,5],["4",5.75,5.1],["5",5.75,5.1],["6",5.75,1.15],["7",5,0.45],["8",5,0.45],["9",5,0.45],["10",5,0.45],["11",4.4,1],["12",4.4,1],["15",4.4,1],["16",4.4,1],["13",1.3,0.5],["17",1.3,0.5],["14",1,0.5],["18",1,0.5]],
+  "ADENSADOR - UTRR":[["1",5.97,0.8],["2",5.97,0.8],["3",31.92,2.27],["4",31.92,2.27],["5",36.13,1],["6",36.13,1],["7",1.6,0.9],["8",1.6,0.9],["9",1.6,1.2],["10",1.6,1.2]],
+  "TANQUE DE LODO ADENSADO (TLA) - UTRR / TANQUE DE ÁGUA RECUPERADA (TAR) - UTRR":[["1",5,3.75],["2",5,3.75],["3",6.75,3.75],["4",6.75,3.75],["5",5,2.5],["6",5,2.5],["7",6.75,2.5],["8",6.75,2.5]]};
+const AE_FAIXA=[[0,0.4],[0.4,2.35],[2.35,4.3],[4.3,Infinity]], AE_H=4.55, AE_ROT=["1 · Fundo + arranque","2 · Lance 1","3 · Lance 2","4 · Restante + cobertura"];
+const normTxt=s=>String(s??"").normalize("NFD").replace(/[̀-ͯ]/g,"").toUpperCase().replace(/\s+/g," ").trim();
+// paredes citadas no local ("PAREDE 1, PAREDE 2 E PAREDE 3", "PAR1=PAR2", "PAREDE 19 A 23 E VIGAS") → ["1","2","3"…]
+function paredesDoEl(loc){
+  const u=normTxt(loc).replace(/\([^)]*\)/g," "); if(!/^(ARM\.?\s*)?(PAREDES?|PAR\.?|POAREDE)\s*\d/.test(u)) return [];
+  const out=[];
+  for(const pedaco of u.replace(/^ARM\.?\s*/,"").split(/,|=|\bE\b/)){ const tx=pedaco.replace(/(PAREDES?|POAREDE|PAR\.?)\s*/g," ").replace(/\s-\s.*$/,"").trim(), fx=tx.match(/^(\d+)\s+A\s+(\d+)\b/);
+    if(fx){ for(let k=+fx[1];k<=+fx[2];k++) out.push(String(k)); continue; }
+    for(const m of tx.matchAll(/\b(\d+[A-Z]?)\b/g)) out.push(m[1]); }
+  return [...new Set(out)];
+}
+const AE_CACHE=new WeakMap();
+function aeFracoes(i){
+  if(AE_CACHE.has(i)) return AE_CACHE.get(i);
+  const u=normTxt(i.loc); let f=null;
+  if(/FUNDO/.test(u)) f=[1,0,0,0];
+  else if(/PAREDE|\bPAR\s*\d/.test(u)){
+    const cat=(PAR_CAT[i.est]||[]).map(([id,c,h])=>({id,c,h})), ids=paredesDoEl(i.loc), ps=cat.filter(p=>ids.some(n=>new RegExp(`^${n}(?:[A-Z]|\\s|$)`).test(p.id)));
+    const base=ps.length?ps:cat, cs=base.reduce((a,p)=>a+p.c,0), H=base.length?(cs?base.reduce((a,p)=>a+p.h*p.c,0)/cs:base[0].h):AE_H, L=ps.length?Math.max(...ps.map(p=>p.c)):0, cu=+i.cu||0;
+    f = cu>=0.45*H && cu<=H+1.5 && !(L && cu>=0.8*L) ? [1,0,0,0] : AE_FAIXA.map(([a,b])=>Math.max(0,Math.min(b,H)-Math.min(a,H))/H);
+  }
+  else if(/COBERTURA|PASSARELA|TAMPA|LAJE SUPERIOR/.test(u)) f=[0,0,0,1];
+  AE_CACHE.set(i,f); return f;
+}
+function aeSoma(its, ac){
+  const r={p:[0,0,0,0],x:[0,0,0,0],op:0,ox:0};
+  for(const i of its){ const f=aeFracoes(i), ex=Math.min(ac.get(i.c)||0,i.qp);
+    if(!f){ r.op+=i.kp; r.ox+=ex*i.ppb; continue; }
+    let cum=0; f.forEach((v,k)=>{ const q=i.qp*v; r.p[k]+=q*i.ppb; r.x[k]+=Math.max(0,Math.min(q,ex-cum))*i.ppb; cum+=q; }); }
+  return r;
+}
+
 // ---------- acesso: endereço e chave de leitura vêm no link (#u=...&k=...) e ficam guardados neste navegador ----------
 const guardado=(()=>{ try{ return JSON.parse(localStorage.getItem("painel:acesso")||"{}"); }catch{ return {}; } })();
 const H=new URLSearchParams(location.hash.slice(1)), Q=new URLSearchParams(location.search);
@@ -339,7 +396,7 @@ function pedirAcesso(){
 
 // ---------- dados ----------
 function preparar(j){
-  const itens=j.itens.map(r=>{ const qp=num(r[9]),kp=num(r[11]); return {c:consertaCod(r[0]),emp:String(r[1]),est:String(r[2]),pos:String(r[6]||""),bit:num(r[7]),loc:String(r[8]||""),qp,kp,ppb:qp?kp/qp:0}; });
+  const itens=j.itens.map(r=>{ const qp=num(r[9]),kp=num(r[11]); return {c:consertaCod(r[0]),emp:String(r[1]),est:String(r[2]),pos:String(r[6]||""),bit:num(r[7]),loc:String(r[8]||""),qp,cu:num(r[10]),kp,ppb:qp?kp/qp:0}; });
   const by=new Map(itens.map(i=>[i.c,i]));
   const sem=j.semanas.map(s=>{ const p=periodoISO(s.periodo)||{}; return {...s, ini:s.ini||p.ini, fim:s.fim||p.fim, exec:new Map(), porEq:{}, kg:0}; })
     .filter(s=>s.ini&&s.fim).sort((a,b)=>a.n-b.n), bn=new Map(sem.map(s=>[s.n,s]));
@@ -540,7 +597,7 @@ function render(){
   const E=escopo(), A=calcAco(E), F=calcForma(E), C=calcConc(E), h=hojeISO();
   $("#limpar").hidden=E.geral;
   $("#escopo").replaceChildren(E.geral ? el("b",{text:"Obra inteira"}) : el("span",{}, EMP?`${EMP}`:"", EST?" › ":"", EST?el("b",{text:EST}):(EMP?"":null)));
-  renderGeral(E,A,F,h,C); renderAco(E,A,h); renderForma(E,F,h); renderConc(E,C,h); renderFrentes(E,A);
+  renderGeral(E,A,F,h,C); renderPeriodo(E,A,F,C); renderAco(E,A,h); renderForma(E,F,h); renderConc(E,C,h); renderFrentes(E,A);
   mostrarAba();
 }
 function renderGeral(E,A,F,h,C){
@@ -586,6 +643,47 @@ function renderGeral(E,A,F,h,C){
   $("#g-ch-forma").replaceChildren(barras(F.serie.slice(-12).map(s=>({label:ddmm(s.seg),tip:`Semana de ${ddmm(s.seg)}`,v:s.m2,hl:s.seg===segSemana(h)})),{cls:"bf",fmt:nf0.format,unid:" m²"}));
   $("#g-ch-conc").replaceChildren(C.serie.length?barras(C.serie.slice(-12).map(s=>({label:ddmm(s.seg),tip:`Semana de ${ddmm(s.seg)}`,v:s.v,hl:s.seg===segSemana(h)})),{cls:"bc",fmt:nf0.format,unid:" m³"}):vazio("Nenhuma concretagem com caminhões ainda."));
 }
+// ---------- produção num período: por semana (as semanas do lançamento do aço) ou por dia ----------
+// Por dia: a semana cortada pelo período entra com a média diária dela (aço da semana ÷ dias da semana) × os dias dentro do
+// período, porque o aço é lançado por semana. Formas e concreto têm a data de cada lançamento: entram pelo dia exato.
+const PER=(()=>{ try{ return JSON.parse(localStorage.getItem("painel:periodo")||"null")||{}; }catch{ return {}; } })();
+const nDias=(a,b)=>Math.round((new Date(b+"T12:00:00")-new Date(a+"T12:00:00"))/864e5)+1;
+function renderPeriodo(E,A,F,C){
+  const box=$("#g-per"), sems=A.sems, tit=el("div",{class:"card-top"},el("h3",{text:"Produção no período"}),el("span",{class:"info",text:"escolha por semana ou por dia"}));
+  if(!sems.length){ box.replaceChildren(tit,vazio("Nenhuma semana lançada ainda.")); return; }
+  const modo=PER.modo==="dia"?"dia":"sem";
+  let de=sems.find(s=>s.n===+PER.de)||sems[Math.max(0,sems.length-4)], ate=sems.find(s=>s.n===+PER.ate)||sems[sems.length-1]; if(ate.n<de.n) [de,ate]=[ate,de];
+  let d1=PER.d1||de.ini, d2=PER.d2||ate.fim; if(d2<d1) [d1,d2]=[d2,d1];
+  const ini=modo==="sem"?de.ini:d1, fim=modo==="sem"?ate.fim:d2;
+  const salvar=m=>{ Object.assign(PER,m); try{ localStorage.setItem("painel:periodo",JSON.stringify(PER)); }catch{} render(); };
+  const rotS=s=>`Semana ${s.n} · ${dataBR(s.ini)} a ${dataBR(s.fim)}`;
+  const selS=(v,lab,k)=>{ const s=el("select",{"aria-label":lab},...sems.map(x=>el("option",{value:x.n,text:rotS(x)}))); s.value=String(v.n); s.onchange=()=>salvar({[k]:+s.value}); return s; };
+  const inpD=(v,lab,k)=>{ const i=el("input",{type:"date",value:v,"aria-label":lab}); i.onchange=()=>{ if(i.value) salvar({[k]:i.value}); }; return i; };
+  const ctl=el("div",{class:"per-ctl"},
+    el("div",{class:"seg",role:"group","aria-label":"Período por semana ou por dia"},...[["sem","Por semana"],["dia","Por dia"]].map(([v,txt])=>el("button",{type:"button",text:txt,"aria-pressed":String(modo===v),onclick:()=>salvar({modo:v})}))),
+    ...(modo==="sem"?[selS(de,"Da semana","de"),el("span",{class:"info",text:"até"}),selS(ate,"Até a semana","ate")]:[inpD(d1,"Do dia","d1"),el("span",{class:"info",text:"até"}),inpD(d2,"Até o dia","d2")]));
+  const dentro=x=>x.data>=ini&&x.data<=fim, porEst=new Map(), linhas=[]; let aco=0, cortadas=0;
+  const fd=E.fdias.filter(dentro), cs=(C.cs||[]).filter(c=>c.vol>0&&dentro(c));
+  for(const s of sems){ if(s.fim<ini||s.ini>fim) continue;
+    const a=s.ini<ini?ini:s.ini, b=s.fim>fim?fim:s.fim, nd=nDias(s.ini,s.fim), nIn=nDias(a,b), fr=Math.min(1,nIn/nd), kg=s.kgE*fr; aco+=kg; if(fr<1) cortadas++;
+    for(const [c,q] of s.exec) if(E.set.has(c)){ const i=D.by.get(c); porEst.set(i.est,(porEst.get(i.est)||0)+q*i.ppb*fr); }
+    const fw=fd.filter(x=>x.data>=s.ini&&x.data<=s.fim).reduce((v,x)=>v+x.mont,0), cw=cs.filter(c=>c.data>=s.ini&&c.data<=s.fim).reduce((v,c)=>v+c.vol,0);
+    linhas.push(el("tr",{},el("td",{},el("b",{text:`Semana ${s.n}`}),el("div",{class:"info",text:`${ddmm(s.ini)} a ${ddmm(s.fim)}${s.fechada?"":" · em andamento"}`})),
+      el("td",{text:fr<1?`${nIn} de ${nd}`:`${nd}`}),el("td",{text:t(s.kgE)}),el("td",{},el("b",{text:t(kg)}),fr<1?el("div",{class:"info",text:`média ${nf0.format(s.kgE/nd)} kg/dia`}):null),
+      el("td",{text:fw?nf0.format(fw):"–"}),el("td",{text:cw?nf1.format(cw):"–"}))); }
+  const forma=fd.reduce((v,x)=>v+x.mont,0), conc=cs.reduce((v,c)=>v+c.vol,0), nd=nDias(ini,fim);
+  const LE=[...porEst].filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
+  box.replaceChildren(tit, ctl,
+    el("div",{class:"kpis"},
+      kpi("Aço armado",`${t(aco)} t`,`${dataBR(ini)} a ${dataBR(fim)} · ${nd} dias${cortadas?` · ${cortadas} semana(s) pela média diária`:""}`,"aco"),
+      kpi("Formas montadas",`${nf0.format(forma)} m²`,F.meta?`${fd.length} lançamento(s) no período`:"sem quantitativo de forma nesta seleção","forma"),
+      kpi("Concreto lançado",`${nf1.format(conc)} m³`,`${cs.length} concretagem(ns) com caminhões`,"conc"),
+      kpi("Aço por dia",nd?`${nf0.format(aco/nd)} kg`:"–","média do período (dias corridos)","aco")),
+    linhas.length?el("div",{class:"tbl"},tabela(["Semana","Dias no período","Aço da semana (t)","Aço no período (t)","Formas (m²)","Concreto (m³)"],linhas,
+      el("tr",{},el("td",{text:"Total"}),el("td",{text:String(nd)}),el("td",{text:""}),el("td",{text:t(aco)}),el("td",{text:nf0.format(forma)}),el("td",{text:nf1.format(conc)})))):vazio("Nenhuma semana de aço neste período."),
+    LE.length>1?el("div",{class:"tbl"},tabela(["Estrutura","Aço no período (t)","Parte"],LE.map(([est,v])=>el("tr",{},el("td",{},el("b",{text:est})),el("td",{text:t(v)}),el("td",{},pct(aco?v/aco:0),barraTd(aco?v/aco:0)))))):"",
+    el("p",{class:"info nota",text:modo==="dia"?"O aço é lançado por semana: numa semana cortada pelo período, conta a média diária dela (aço da semana ÷ dias da semana) × os dias que ficam dentro do período. Formas e concreto entram pela data de cada lançamento.":"Soma das semanas escolhidas, inteiras (do primeiro ao último dia de cada semana de lançamento do aço). Formas e concreto entram pela data de cada lançamento dentro dessas semanas."}));
+}
 function renderAco(E,A,h){
   const fA=A.P?A.X/A.P:0;
   $("#a-kpis").replaceChildren(kpi("Previsto",`${t(A.P)} t`,`${E.its.length} posições`,"aco"), kpi("Executado",`${t(A.X)} t`,pct(fA)+" do previsto","aco"),
@@ -617,6 +715,15 @@ function renderAco(E,A,h){
   const LE=[...ge.values()].sort((a,b)=>(b.x/b.p||0)-(a.x/a.p||0)||b.p-a.p).slice(0,40);
   $("#a-el").replaceChildren(LE.length?tabela(["Elemento","Previsto (t)","Executado (t)","Avanço"],LE.map(r=>el("tr",{},
     el("td",{},el("b",{text:r.loc}),EST?null:el("div",{class:"info",text:r.est})),el("td",{text:t(r.p)}),el("td",{text:t(r.x)}),el("td",{},pct(r.p?r.x/r.p:0),barraTd(r.p?r.x/r.p:0))))):vazio("Sem posições."));
+  // por etapa de concretagem
+  const gt=new Map(); for(const i of E.its){ if(!gt.has(i.est)) gt.set(i.est,[]); gt.get(i.est).push(i); }
+  const celE=(x,p)=>p>0?el("td",{},el("b",{text:pct(x/p)}),barraTd(x/p),el("div",{class:"info",text:`${t(x)} de ${t(p)} t`})):el("td",{text:"–"});
+  const tot={p:[0,0,0,0],x:[0,0,0,0],op:0,ox:0}, LT=[];
+  for(const [est,L] of [...gt].sort((a,b)=>a[0].localeCompare(b[0],"pt"))){ const r=aeSoma(L,A.ac); if(!r.p.some(v=>v>0)) continue;
+    r.p.forEach((v,k)=>{ tot.p[k]+=v; tot.x[k]+=r.x[k]; }); tot.op+=r.op; tot.ox+=r.ox;
+    LT.push(el("tr",{},el("td",{},el("b",{text:est})),...r.p.map((p,k)=>celE(r.x[k],p)),celE(r.ox,r.op))); }
+  $("#a-etapa").replaceChildren(LT.length?tabela(["Estrutura",...AE_ROT,"Outros"],LT,LT.length>1?el("tr",{},el("td",{text:"Total"}),...tot.p.map((p,k)=>celE(tot.x[k],p)),celE(tot.ox,tot.op)):null)
+    :vazio("Nenhuma posição de fundo, parede ou laje de cobertura nesta seleção."));
   // por bitola
   const gb=new Map(); for(const i of E.its){ const r=gb.get(i.bit)||{p:0,x:0}; r.p+=i.kp; r.x+=Math.min(A.ac.get(i.c)||0,i.qp)*i.ppb; gb.set(i.bit,r); }
   const LB=[...gb].filter(([b])=>b>0).sort((a,b)=>a[0]-b[0]);

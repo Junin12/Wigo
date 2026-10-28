@@ -2248,7 +2248,7 @@ function setCampo(on){ LS.set("campo",!!on); if(on) document.documentElement.dat
 $("#campo-modo").addEventListener("click", e=>{ const b=e.target.closest("button[data-c]"); if(b) setCampo(b.dataset.c==="1"); });
 setCampo(!!LS.get("campo"));
 
-const VERSAO_APP = "v157"; // igual ao número em sw.js (armacao-v157)
+const VERSAO_APP = "v158"; // igual ao número em sw.js (armacao-v158)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -7979,8 +7979,8 @@ function editarConc(c, pre){
   if(m0?.forma) volAuto=false;
   if(trava){ boxTipo.hidden=boxPar.hidden=boxLaje.hidden=boxArr.hidden=true;
     boxTipo.before(el("p",{class:"info full",text:`Folha 1: forma da laje (${pjTitulo(m0.forma.nome||"PDF da forma")}) · da folha 2 em diante: ${m0.p.length} paredes de ${m0.nome}, de ${nf2(m0.de||0)} a ${nf2(m0.ate??0)} m. As folhas não mudam aqui.`})); }
-  // etapa do levantamento → mapa: 1ª = laje de fundo (folha 1) + arranque das paredes até 0,40 m; 2ª e 3ª = só paredes
-  // (0,40 a 2,35 e 2,35 a 4,30 m); 4ª = laje de cobertura/passarela (folha 1) + paredes de 4,30 m ao topo. Nas etapas com laje,
+  // etapa do levantamento → mapa: 1ª = laje de fundo (folha 1) + arranque das paredes até 0,45 m; 2ª e 3ª = só paredes
+  // (0,45 a 2,35 e 2,35 a 4,30 m); 4ª = laje de cobertura/passarela (folha 1) + paredes de 4,30 m ao topo. Nas etapas com laje,
   // a pintura vale na folha da laje e nas folhas das paredes. Concretagem já pintada não muda.
   const aplicarEtapa=e=>{ if(trava || !(e>=1) || pagsPint.length) return;
     const k=(oPre || concObra(iCeO.value))?.ks?.find(x=>catParedes(x)), [a,b]=CE_FAIXA[e];
@@ -8041,8 +8041,10 @@ const concObra = nome => CONC_OBRAS.find(o=>o.nome===nome);
 // as 5 etapas, sempre nesta ordem; faixa = alturas da parede (m, a partir do topo da laje de fundo) de cada etapa
 const CE_ETAPAS=["Concreto magro","Laje de fundo + arranque","Lance 1 de parede","Lance 2 de parede","Lance 3 + laje de cobertura/passarela"];
 const CE_CURTO=["Magro","Fundo + arranque","Lance 1","Lance 2","Lance 3 + cobertura"];
-const CE_DESC=["em geral 5 cm","laje de 30 cm + 40 cm de parede","1,95 m de parede","1,95 m de parede","o restante da parede + a laje de cobertura/passarela"];
-const CE_FAIXA=[null,[0,0.4],[0.4,2.35],[2.35,4.3],[4.3,null]];
+const CE_DESC=["em geral 5 cm","laje de 30 cm + 45 cm de parede","1,90 m de parede","1,95 m de parede","o restante da parede + a laje de cobertura/passarela"];
+// arranque de 0,45 m (só as primeiras concretagens dos floculadores usaram 0,40, e elas ficam como foram gravadas); quem quiser outra
+// altura muda o "até" do mapa ou a altura de cada parede (✎)
+const CE_FAIXA=[null,[0,0.45],[0.45,2.35],[2.35,4.3],[4.3,null]];
 const CE_ST=["Em andamento","Executada"]; // "Executada" (e não "Concluída"): etapa antiga continua indo para o app
 // volume previsto de cada etapa: magro inteiro na 1ª; nas paredes do catálogo, o volume de cada faixa de altura; o resto
 // (lajes) fica 60% no fundo e 40% na cobertura. Sem catálogo: 35% fundo + arranque, 20% cada lance, 25% lance 3 + cobertura.

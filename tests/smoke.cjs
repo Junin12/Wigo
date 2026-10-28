@@ -96,6 +96,14 @@ const confere = (ok, msg) => { console.log(`${ok ? "ok  " : "FALHA"} ${msg}`); i
     }, k);
     confere(!r.erro && r.paginas === r.folhas + 1, `mapa ${k}: ${r.erro || r.paginas + " páginas"}`);
   }
+  // laje + arranque (decantador): só as paredes escolhidas, pintura até 0,45 m e limite da forma na folha 1
+  confere(await p.evaluate(() => {
+    const cat = catParedes("DEC"), c = { id: "fa", cams: [], pdfId: mapaCurto({ forma: { id: "x", nome: "", pag: 1, lim: { 1: [[0, 0, 100, 0, 100, 100, 0, 100]] } },
+      k: "DEC", nome: cat.nome, p: cat.par.slice(0, 2), ate: 0.45 }) };
+    const a1 = areaPintavel(c, 1), a2 = areaPintavel(c, 2), w = folhasMapa(mapaDe(c))[0].ws[0];
+    return mapaDe(c).p.length === 2 && a1?.[0]?.pol?.length === 4 && a2.length === 1 && Math.abs(a2[0][3] - 0.45 * w.s) < 0.01
+      && naArea(a1, ...ptMm(50, 50), 0) && !naArea(a1, ...ptMm(200, 200), 0);
+  }), "laje + arranque: paredes escolhidas até 0,45 m e limite da forma");
   // Qualidade: dashboards de cada categoria (concreto, aço, solo, forma e geral)
   const dash = await p.evaluate(() => {
     try {

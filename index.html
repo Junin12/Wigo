@@ -2246,7 +2246,7 @@ function setCampo(on){ LS.set("campo",!!on); if(on) document.documentElement.dat
 $("#campo-modo").addEventListener("click", e=>{ const b=e.target.closest("button[data-c]"); if(b) setCampo(b.dataset.c==="1"); });
 setCampo(!!LS.get("campo"));
 
-const VERSAO_APP = "v151"; // igual ao número em sw.js (armacao-v151)
+const VERSAO_APP = "v152"; // igual ao número em sw.js (armacao-v152)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -3999,6 +3999,7 @@ function soltar(e){
     const agora=Date.now();
     if(arrastou){ ultimoToque=0; return; }
     if(CC.conc && CC.modo==="apagar"){ apagarTracoEm(p); return; }
+    if(CC.conc && CC.modo==="limite"){ tocarLimite(p); return; }
     if(MK.marcando){ tocarMarca(p); return; }
     if(PEND.marcando){ tocarPend(p); return; }
     const pin=pendNoToque(p); if(pin){ formReg2(pin.m, "nc", pin.r); return; }
@@ -7435,6 +7436,7 @@ const agoraHM = () => new Date().toTimeString().slice(0,5);
 // cada caminhão é desenhado opaco numa camada à parte e aplicado com transparência: traços sobrepostos não escurecem
 function desenharPintura(ctx, vp, ox, oy, conc, pag, dpr=1, letra=1){ // letra: aumenta o "C1, C2…" (relatório)
   const c=concDe(conc); if(!c) return;
+  if(letra===1) desenharLimite(ctx, vp, ox, oy, c, pag, dpr); // contorno da forma: só na tela
   const ts=tracosDe(conc).filter(t=>t.pag===pag); if(!ts.length) return;
   const cor=n=>c.cams.find(k=>k.n===n)?.cor||"#888", grupos=new Map(), area=areaPintavel(c, pag);
   for(const t of ts){ if(!grupos.has(t.cam)) grupos.set(t.cam,[]); grupos.get(t.cam).push(t); }
@@ -7464,6 +7466,54 @@ function desenharPintura(ctx, vp, ox, oy, conc, pag, dpr=1, letra=1){ // letra: 
   }
 }
 
+// --- limite da forma (laje): contorno marcado tocando nos cantos da forma; a pintura fica só dentro dele ---
+// Vai junto da forma no campo do PDF: "mapa:{forma:{id, nome, pag, lim:{folha:[[x,y,x,y…], …]}}, …}" (pontos do PDF).
+// Laje sem paredes: o campo vira "mapa:{forma, ids:[]}" e as folhas continuam as do PDF da forma.
+const formaDe = c => { const s=String(c?.pdfId||""); if(!s) return null;
+  if(!s.startsWith("mapa:")) return {id:s, nome:c.pdfNome||""};
+  try{ return JSON.parse(s.slice(5)).forma||null; }catch{ return null; } };
+const folhaDaForma = (c, pag) => !!formaDe(c) && (mapaDe(c) ? !!mapaDe(c).forma && pag===1 : true);
+function desenharLimite(ctx, vp, ox, oy, c, pag, dpr){
+  const salvos=formaDe(c)?.lim?.[pag]||[], novo=CC.modo==="limite" && CC.conc===c.id && V.n===pag ? CC.lim : null;
+  if(!salvos.length && !novo?.length) return;
+  const caminho=(l,fechar)=>{ ctx.beginPath(); for(let i=0;i+1<l.length;i+=2){ const [x,y]=vp.convertToViewportPoint(l[i],l[i+1]); if(i) ctx.lineTo(x+ox,y+oy); else ctx.moveTo(x+ox,y+oy); } if(fechar) ctx.closePath(); };
+  ctx.save(); ctx.lineWidth=2*dpr; ctx.setLineDash([8*dpr,5*dpr]); ctx.strokeStyle="#E53935";
+  for(const l of salvos){ caminho(l,true); ctx.stroke(); }
+  if(novo?.length){ ctx.strokeStyle="#1E88E5"; caminho(novo,false); ctx.stroke(); ctx.setLineDash([]); ctx.fillStyle="#1E88E5";
+    for(let i=0;i+1<novo.length;i+=2){ const [x,y]=vp.convertToViewportPoint(novo[i],novo[i+1]); ctx.beginPath(); ctx.arc(x+ox,y+oy,5*dpr,0,7); ctx.fill(); } }
+  ctx.restore();
+}
+function gravarLimite(c, pag, lista, log){
+  const s=String(c.pdfId||""), f=formaDe(c); if(!f) return;
+  const lim={...(f.lim||{})}; if(lista.length) lim[pag]=lista; else delete lim[pag];
+  const forma={...f, lim}; if(!Object.keys(lim).length) delete forma.lim;
+  let j; try{ j=s.startsWith("mapa:") ? JSON.parse(s.slice(5)) : {k:"", nome:"", ids:[]}; }catch{ return toast("Não consegui ler o mapa desta concretagem."); }
+  j.forma=forma;
+  // só a forma, sem paredes e sem limite: volta a ser o PDF puro
+  const soForma=!j.p?.length && !j.ids?.length;
+  setConc(c.id, {pdfId: soForma && !forma.lim ? forma.id : "mapa:"+JSON.stringify(j)}, log);
+}
+function tocarLimite(p){ CC.lim.push(...pontoPdf(p).map(v=>Math.round(v*10)/10)); renderCcBar(); desenhar(); }
+function iniciarLimite(c){
+  if(!folhaDaForma(c, V.n)) return toast(mapaDe(c) ? "Vá para a folha 1 (forma da laje) para marcar o limite." : "Esta concretagem não tem PDF da forma.");
+  CC.modo="limite"; CC.lim=[]; renderCcBar(); desenhar();
+  toast("Toque nos cantos da forma, um depois do outro, em volta da laje. Arraste para mover a folha.");
+}
+function barraLimite(bar, c){
+  const n=CC.lim.length/2, tem=(formaDe(c)?.lim?.[V.n]||[]).length;
+  const sair=()=>{ CC.modo="pintar"; CC.lim=[]; renderCcBar(); desenhar(); };
+  repor(bar,
+    el("span",{class:"cc-info",text:`✂ Limite da forma · ${n} ponto${n===1?"":"s"}`}),
+    el("button",{type:"button",text:"✓ Fechar contorno",disabled:n<3,onclick:()=>{
+      gravarLimite(c, V.n, [...(formaDe(c)?.lim?.[V.n]||[]), CC.lim], tem?"Mais um contorno da forma":"Limite da forma marcado");
+      toast("Limite gravado: a pintura fica só dentro do contorno."); sair(); }}),
+    el("button",{type:"button",text:"↶ Ponto",disabled:!n,onclick:()=>{ CC.lim.splice(-2); renderCcBar(); desenhar(); }}),
+    el("button",{type:"button",text:"✕ Cancelar",onclick:sair}),
+    tem ? el("button",{type:"button",text:"🗑 Tirar o limite",onclick:()=>{
+      if(!confirm("Tirar o limite da forma desta folha? A pintura volta a ficar livre (nada pintado é apagado).")) return;
+      gravarLimite(c, V.n, [], "Limite da forma retirado"); sair(); }}) : null);
+}
+
 // --- pintura com o dedo no visualizador ---
 const live=$("#v-cc-live");
 const pontoPdf = p => V.page.getViewport({scale:V.z}).convertToPdfPoint(p.x-V.tx, p.y-V.ty);
@@ -7491,12 +7541,11 @@ function cancelarTraco(){ CC.atual=null; limparVivo(); }
 function concluirTraco(){
   const a=CC.atual; CC.atual=null; if(!a) return;
   const id=uid().slice(0,12), c=concDe(CC.conc);
-  // mapa das paredes: traço sem nenhum ponto (com a largura do pincel) dentro da faixa concretada não é gravado
+  // mapa das paredes (ou forma com limite): traço sem nenhum ponto (com a largura do pincel) dentro da área concretada não é gravado
   const area=areaPintavel(c, V.n), meia=a.w*25.4/72/2;
   if(area){ let dentro=false;
-    for(let i=0;i<a.pts.length && !dentro;i+=2){ const [x,y]=ptMm(a.pts[i],a.pts[i+1]);
-      dentro=area.some(([rx,ry,rw,rh])=>x>=rx-meia && x<=rx+rw+meia && y>=ry-meia && y<=ry+rh+meia); }
-    if(!dentro){ limparVivo(); toast("Fora da área concretada: pinte dentro da faixa do lance nas paredes."); return; } }
+    for(let i=0;i<a.pts.length && !dentro;i+=2){ const [x,y]=ptMm(a.pts[i],a.pts[i+1]); dentro=naArea(area, x, y, meia); }
+    if(!dentro){ limparVivo(); toast(area.some(r=>r.pol) ? "Fora da forma: pinte dentro do contorno da laje." : "Fora da área concretada: pinte dentro da faixa do lance nas paredes."); return; } }
   S.pendTr[id]={conc:CC.conc, cam:CC.cam, pag:V.n, w:Math.round(a.w*10)/10, pts:a.pts.map(v=>Math.round(v*10)/10)};
   CC.desfazer.push(id);
   if(c.status==="Programada") setConc(c.id,{status:"Em andamento"},"Status: Em andamento");
@@ -7521,6 +7570,7 @@ function renderCcBar(){
   const bar=$("#v-cc"), c=CC.conc && concDe(CC.conc);
   bar.hidden=!c; stage.classList.toggle("pintando", !!c && CC.modo!=="mover"); if(!c) return;
   const ed=pode("lanc-edit") && c.status!=="Concluída"; if(!ed) CC.modo="mover";
+  if(CC.modo==="limite") return barraLimite(bar, c);
   const modo=(k,rot)=>el("button",{class:CC.modo===k?"on":"",type:"button",text:rot,"aria-pressed":String(CC.modo===k),onclick:()=>{ CC.modo=k; renderCcBar(); }});
   const desf=CC.desfazer.filter(id=>tracosDe(CC.conc).some(t=>t.id===id));
   repor(bar,
@@ -7532,6 +7582,7 @@ function renderCcBar(){
       b.style.setProperty("--cor",k.cor); return b; }),
     ed ? el("button",{type:"button",text:"+ Caminhão",onclick:()=>editarCaminhao(c,null)}) : null,
     ed && mapaDe(c) ? el("button",{type:"button",text:"📐 Por cota",title:"Pintar o caminhão por cota: altura e trecho da parede",onclick:()=>porCota(c)}) : null,
+    ed && formaDe(c) && (!mapaDe(c) || mapaDe(c).forma) ? el("button",{type:"button",text:"✂ Limite da forma",title:"Marcar o contorno da forma da laje: a pintura fica só dentro dele",onclick:()=>iniciarLimite(c)}) : null,
     el("span",{class:"cc-sep"}),
     ed ? (()=>{ const s=el("select",{"aria-label":"Espessura do pincel"}, ...Object.entries(CC_LARG).map(([k,[n]])=>el("option",{value:k,text:`Pincel ${n.toLowerCase()}`})));
       s.value=CC.larg; s.onchange=()=>{ CC.larg=s.value; LS.set("ccLarg",CC.larg); }; return s; })() : null,
@@ -7581,7 +7632,7 @@ function editarCaminhao(c, k){
   // o seletor de cor devolve minúsculas ("#e53935"): compara sem diferenciar
   const usado=new Set(c.cams.map(x=>String(x.cor).toUpperCase())), cor=k?.cor || CC_CORES.find(x=>!usado.has(x)) || CC_CORES[c.cams.length%CC_CORES.length];
   const inp=(v,extra={})=>el("input",{type:"text",value:v??"",...extra});
-  const iNf=inp(k?.nf,{maxLength:40,placeholder:"Nº da nota ou do ticket"}), iUs=inp(k?.usina??ult?.usina,{maxLength:60,placeholder:"Concreteira"});
+  const iNf=inp(k?.nf,{maxLength:40,placeholder:"Nº da nota ou do ticket"}), iPlaca=inp(k?.placa,{maxLength:10,placeholder:"Ex.: ABC1D23",autocapitalize:"characters"}), iUs=inp(k?.usina??ult?.usina,{maxLength:60,placeholder:"Concreteira"});
   iUs.setAttribute("list","dl-usinas");
   const iVol=el("input",{type:"number",min:0,step:0.5,inputMode:"decimal",value:k?.vol ?? ult?.vol ?? 8});
   const hora=v=>el("input",{type:"time",value:v||""});
@@ -7594,7 +7645,7 @@ function editarCaminhao(c, k){
   const usinas=[...new Set(concs().flatMap(x=>x.cams.map(z=>z.usina)).filter(Boolean))];
   const salvar=()=>{
     const vol=Math.max(0,num(iVol.value)); if(!vol) return toast("Informe o volume do caminhão (m³).");
-    const dados={nf:iNf.value.trim(), usina:iUs.value.trim(), vol, chegada:iCh.value, inicio:iIn.value, fim:iFim.value,
+    const dados={nf:iNf.value.trim(), placa:iPlaca.value.trim().toUpperCase(), usina:iUs.value.trim(), vol, chegada:iCh.value, inicio:iIn.value, fim:iFim.value,
       slump:iSl.value===""?"":num(iSl.value), fck:iFck.value===""?"":num(iFck.value), obs:iObs.value.trim(), cor:iCor.value,
       par:iPar.value.trim(), cps:iCps.value===""?"":num(iCps.value)};
     let cams;
@@ -7605,7 +7656,7 @@ function editarCaminhao(c, k){
     toast(novo?`Caminhão C${cams.at(-1).n} adicionado. Pinte a área que ele concretou.`:"Caminhão atualizado."); fecharEf();
   };
   efModal(novo?"Novo caminhão":`Caminhão C${k.n}`,
-    [campoEf("Volume (m³)",iVol), campoEf("Cor no desenho",iCor), campoEf("Nota fiscal / ticket",iNf), campoEf("Concreteira",iUs),
+    [campoEf("Volume (m³)",iVol), campoEf("Cor no desenho",iCor), campoEf("Placa do caminhão",iPlaca), campoEf("Nota fiscal / ticket",iNf), campoEf("Concreteira",iUs),
      el("datalist",{id:"dl-usinas"}, ...usinas.map(u=>el("option",{value:u}))),
      campoEf("Chegada",iCh), campoEf("Início do lançamento",iIn), campoEf("Fim do lançamento",iFim),
      campoEf("Slump (cm)",iSl), campoEf("fck (MPa)",iFck), campoEf("Nº de CPs",iCps), campoEf("Paredes atendidas",iPar,true), campoEf("Observação",iObs,true)],
@@ -7622,7 +7673,7 @@ function listaCaminhoes(c){
     [el("p",{class:"info full",text:`${nf1.format(volLancado(c))}${c.volPrev?` de ${nf1.format(c.volPrev)}`:""} m³ lançados em ${c.cams.length} caminhão(ões).`}),
      el("div",{class:"full cc-lista"}, ...(c.cams.length ? c.cams.map(k=>{ const b=el("button",{class:"btn cc-linha",type:"button",disabled:!ed,onclick:()=>editarCaminhao(c,k)},
         el("b",{text:`C${k.n} · ${nf1.format(+k.vol||0)} m³`}),
-        el("small",{text:[k.nf&&`NF ${k.nf}`, k.usina, k.chegada&&`chegou ${k.chegada}`, k.inicio&&k.fim&&`lançamento ${k.inicio}–${k.fim}`, k.slump!==""&&k.slump!=null&&`slump ${k.slump}`, k.fck&&`fck ${k.fck}`, k.cps&&`${k.cps} CPs`, k.par&&`paredes ${k.par}`].filter(Boolean).join(" · ")||"sem detalhes"}));
+        el("small",{text:[k.placa&&`placa ${k.placa}`, k.nf&&`NF ${k.nf}`, k.usina, k.chegada&&`chegou ${k.chegada}`, k.inicio&&k.fim&&`lançamento ${k.inicio}–${k.fim}`, k.slump!==""&&k.slump!=null&&`slump ${k.slump}`, k.fck&&`fck ${k.fck}`, k.cps&&`${k.cps} CPs`, k.par&&`paredes ${k.par}`].filter(Boolean).join(" · ")||"sem detalhes"}));
         b.style.setProperty("--cor",k.cor); return b; }) : [el("p",{class:"info",text:"Nenhum caminhão ainda."})]))],
     [ed ? el("button",{class:"btn pri",type:"button",text:"+ Caminhão",onclick:()=>editarCaminhao(c,null)}) : null]);
 }
@@ -7634,7 +7685,7 @@ async function abrirConcretagem(c){
   // paredes: o mapa é gerado na hora (o id muda quando mudam as paredes, os caminhões ou a data: aí o app gera de novo)
   const f = m ? {id:"mapa-"+cyrb53(c.id+c.pdfId+JSON.stringify(c.cams)+c.data+c.local), nome:c.pdfNome||"Mapa das paredes", atualizado:"",
       gerar:()=>mapaPdf(c)}
-    : PJ.lista.find(x=>x.id===c.pdfId) || {id:c.pdfId, nome:c.pdfNome||"Forma", atualizado:""};
+    : (fm=>PJ.lista.find(x=>x.id===fm.id) || {id:fm.id, nome:fm.nome||c.pdfNome||"Forma", atualizado:""})(formaDe(c));
   CC.cam=c.cams.at(-1)?.n ?? null; CC.desfazer=[];
   CC.modo = pode("lanc-edit") && c.status!=="Concluída" && CC.cam!=null ? "pintar" : "mover";
   const pag=(tracosDe(c.id).at(-1)?.pag) || LS.get("ccPag:"+c.id) || (m ? 2 : 1); // mapa: abre na 1ª elevação
@@ -7665,27 +7716,43 @@ function editarConc(c, pre){
   const boxCe=el("div",{class:"campo full"}, "Levantamento de concreto: estrutura e etapa", iCeO, iCeE);
   const estAtual=()=>iEst.value==="__outro"?iEstO.value:iEst.value;
   // o que vai ser pintado: laje (PDF da forma do projeto) ou só paredes (mapa gerado pelo app)
-  const m0=mapaDe(c); let tipo = m0 ? "par" : c ? "laje" : oPre ? (pre.etapa>=2 ? "par" : "laje") : "par";
+  // "fa" = laje + arranque: folha 1 = página do PDF da forma, depois o corte (elevação) de cada parede marcada, só até a altura do arranque.
+  // Laje + arranque de mais de uma estrutura (Floculadores A e C, ks) não muda aqui.
+  const m0=mapaDe(c), f0=formaDe(c), trava=!!(m0?.forma && m0.ks);
+  let tipo = m0 ? (m0.forma ? "fa" : "par") : c ? "laje" : oPre ? (pre.etapa>=2 ? "par" : "laje") : "par";
   const boxTipo=el("div",{class:"pr-bts full",role:"group","aria-label":"O que vai ser concretado"}), boxLaje=el("div",{class:"campo full"}), boxPar=el("div",{class:"campo full cc-par"});
-  const desTipo=()=>{ repor(boxTipo, ...[["par","Só paredes · mapa das paredes"],["laje","Laje · PDF da forma"]].map(([v,t])=>el("button",{type:"button",class:"chipbtn"+(tipo===v?" on":""),text:t,"aria-pressed":String(tipo===v),
-    onclick:()=>{ tipo=v; tipoManual=true; desTipo(); atualizarVol(); }}))); boxLaje.hidden=tipo!=="laje"; boxPar.hidden=tipo!=="par"; };
+  const boxArr=el("div",{class:"campo full"});
+  let jaFa = tipo==="fa";
+  const desTipo=()=>{ repor(boxTipo, ...[["par","Só paredes · mapa das paredes"],["laje","Laje · PDF da forma"],["fa","Laje + arranque das paredes"]].map(([v,t])=>el("button",{type:"button",class:"chipbtn"+(tipo===v?" on":""),text:t,"aria-pressed":String(tipo===v),
+    onclick:()=>{ tipo=v; tipoManual=true;
+      // primeira vez no arranque: nenhuma parede marcada (escolha quais) e altura de 0,45 m
+      if(v==="fa" && !jaFa){ jaFa=true; marcadas.clear(); iDe.value=""; if(!iAte.value.trim()) iAte.value="0,45"; montarLista(); }
+      desTipo(); atualizarVol(); }})));
+    boxLaje.hidden=tipo==="par"; boxPar.hidden=tipo==="laje"; boxArr.hidden=tipo!=="fa"; };
   // sem escolha manual, o elemento/lance decide: "laje", "fundo", "passarela"… = forma; "parede", "lance 1/2" = mapa
-  let tipoManual=!!c; iLoc.oninput=()=>{ if(tipoManual) return; const t=normTxt(iLoc.value);
+  let tipoManual=!!c; iLoc.oninput=()=>{ if(tipoManual || tipo==="fa") return; const t=normTxt(iLoc.value);
     const v=/LAJE|FUNDO|PASSARELA|TAMPA|COBERTURA|SUPERIOR/.test(t) ? "laje" : /PAREDE|PAR|LANCE/.test(t) ? "par" : tipo; if(v!==tipo){ tipo=v; desTipo(); atualizarVol(); } };
   // PDF da forma: os que combinam com a estrutura aparecem primeiro
   const busca=el("input",{type:"search",placeholder:"Filtrar PDFs: forma, parede, DE-0…","aria-label":"Filtrar PDFs"});
   const iPdf=el("select",{"aria-label":"PDF da forma"});
-  const pdfAnt = c?.pdfId && !m0 ? c.pdfId : "";
+  const pdfAnt = m0 ? m0.forma?.id||"" : f0?.id||"", nomeAnt = m0 ? m0.forma?.nome||"" : f0?.nome||c?.pdfNome||"";
   const montarPdfs=()=>{ const q=normTxt(busca.value), pal=tokensEf(estAtual()).filter(t=>t.length>3);
     // compara pelo começo da palavra (DECANTADORES × DECANTADOR)
     const nota=f=>{ const n=normTxt(f.nome); return (pal.some(p=>n.includes(p.slice(0,7)))?2:0)+(/FORMA|FOR-|FORM/.test(n)?1:0); };
     const fs=PJ.lista.filter(f=>!q || normTxt(f.nome).includes(q)).sort((a,b)=>nota(b)-nota(a) || a.nome.localeCompare(b.nome));
     const atual=iPdf.value || pdfAnt;
     repor(iPdf, el("option",{value:"",text:fs.length?"Escolha o PDF da forma…":"Nenhum PDF encontrado"}), ...fs.map(f=>el("option",{value:f.id,text:pjTitulo(f.nome)+(nota(f)>=2?" ★":"")})),
-      pdfAnt && !PJ.lista.some(f=>f.id===pdfAnt) ? el("option",{value:pdfAnt,text:c.pdfNome||"PDF atual"}) : null);
+      pdfAnt && !PJ.lista.some(f=>f.id===pdfAnt) ? el("option",{value:pdfAnt,text:nomeAnt?pjTitulo(nomeAnt):"PDF atual"}) : null);
     iPdf.value=atual; };
   repor(boxLaje, "PDF da forma (pasta Projetos do Drive) · laje de fundo, de passarela ou superior", busca, iPdf,
     !PJ.lista.length ? el("small",{class:"i-sub",text:"Lista de PDFs vazia: toque em Atualizar lista de projetos."}) : null);
+  // laje + arranque: folha do PDF da forma que vira a folha 1 (com pintura já feita, é a folha onde ela está)
+  const pagsPint=[...new Set((c ? tracosDe(c.id) : []).map(t=>t.pag))];
+  const iFolha=el("input",{type:"number",min:1,step:1,inputMode:"numeric","aria-label":"Folha do PDF da forma",
+    value:m0?.forma ? m0.forma.pag||1 : pagsPint.length===1 ? pagsPint[0] : LS.get("ccPag:"+c?.id)||1, disabled:!!m0?.forma || pagsPint.length>0});
+  repor(boxArr, "Arranque das paredes: marque acima só as paredes que levam arranque nesta concretagem. O app gera o corte (elevação) de cada uma e a pintura fica só da base até a altura do arranque (campo \"até\", 0,45 m).",
+    el("div",{class:"cc-faixa"}, "Laje na folha", iFolha, "do PDF da forma"),
+    el("small",{class:"i-sub",text:"A forma continua na folha 1 do mapa, com a pintura já feita; as paredes entram da folha 2 em diante. Use ✂ Limite da forma (no mapa) para pintar só dentro da laje."}));
   // paredes: conjunto do catálogo (os da estrutura escolhida primeiro), paredes marcadas, faixa de altura do lance e paredes a mais
   const iConj=el("select",{"aria-label":"Paredes de qual estrutura"}), boxLista=el("div",{class:"cc-pars"}), iVolTxt=el("small",{class:"i-sub"});
   const iDe=el("input",{type:"text",inputMode:"decimal",placeholder:"0,00",value:m0?.de!=null?String(m0.de).replace(".",","):"","aria-label":"Lance: altura inicial (m)"});
@@ -7695,7 +7762,7 @@ function editarConc(c, pre){
     return [...PAREDES_CAT.filter(igual), ...PAREDES_CAT.filter(x=>!igual(x))].map(x=>[x, igual(x)]); };
   const montarConj=(trocou)=>{ const L=conjs(), atual=trocou ? (L.find(([,i])=>i)?.[0].k || iConj.value) : iConj.value || m0?.k || L.find(([,i])=>i)?.[0].k || "";
     repor(iConj, ...L.map(([x,i])=>el("option",{value:x.k,text:`${x.nome}${x.sub?" ("+x.sub+")":""}${i?" ★":""} · ${x.est.toLowerCase()}`})), el("option",{value:"",text:"Nenhuma do catálogo (só as que eu cadastrar)"}));
-    iConj.value=atual; if(trocou || !m0) marcadas=new Set((catParedes(iConj.value)?.par||[]).map(p=>p.id)); montarLista(); };
+    iConj.value=atual; if(trocou || !m0) marcadas=new Set(tipo==="fa" ? [] : (catParedes(iConj.value)?.par||[]).map(p=>p.id)); montarLista(); };
   const paredesDisp=()=>[...(catParedes(iConj.value)?.par||[]), ...extras];
   const lerFaixa=()=>{ const de=iDe.value.trim()===""?null:num(iDe.value), ate=iAte.value.trim()===""?null:num(iAte.value); return {de:de>0?de:null, ate:ate>0?ate:null}; };
   const atualizarVol=()=>{ const {de,ate}=lerFaixa(), ps=paredesDisp().filter(p=>marcadas.has(p.id)), v=ps.reduce((s,p)=>s+volPar(p,de,ate),0);
@@ -7714,7 +7781,7 @@ function editarConc(c, pre){
       if(paredesDisp().some(p=>p.id===id)) return toast("Já existe uma parede com esse nome.");
       extras.push(P_(id,cc,hh,ee)); marcadas.add(id); caixa.remove(); montarLista(); }}));
     boxLista.after(caixa); n.focus(); };
-  iConj.onchange=()=>{ marcadas=new Set((catParedes(iConj.value)?.par||[]).map(p=>p.id)); montarLista(); };
+  iConj.onchange=()=>{ marcadas=new Set(tipo==="fa" ? [] : (catParedes(iConj.value)?.par||[]).map(p=>p.id)); montarLista(); };
   iDe.oninput=iAte.oninput=atualizarVol; iVol.oninput=()=>{ volAuto=false; };
   repor(boxPar, "Paredes (o app gera o mapa com uma elevação para cada parede)", iConj,
     el("div",{class:"row"}, el("button",{class:"linkbtn",type:"button",text:"Marcar todas",onclick:()=>{ marcadas=new Set(paredesDisp().map(p=>p.id)); montarLista(); }}),
@@ -7726,9 +7793,34 @@ function editarConc(c, pre){
   const salvar=()=>{
     const estrutura=estAtual().trim(); if(!estrutura) return toast("Escolha a estrutura.");
     if(!iData.value) return toast("Informe a data.");
-    let pdfId, pdfNome;
-    // forma + paredes (laje de fundo e arranque): o mapa fica como está, para a pintura não mudar de folha
-    if(m0?.forma){ pdfId=c.pdfId; pdfNome=c.pdfNome; }
+    let pdfId, pdfNome, mover=[];
+    // forma + paredes de mais de uma estrutura (Floculadores A e C): o mapa fica como está, para a pintura não mudar de folha
+    if(trava){ pdfId=c.pdfId; pdfNome=c.pdfNome; }
+    else if(m0?.forma && tipo!=="fa" && tracosDe(c.id).length) return toast("Já há pintura na laje e no arranque: mantenha Laje + arranque das paredes.");
+    else if(tipo==="fa"){
+      const fid=iPdf.value; if(!fid) return toast("Escolha o PDF da forma da laje.");
+      const ps=paredesDisp().filter(p=>marcadas.has(p.id)); if(!ps.length) return toast("Marque as paredes que levam arranque.");
+      const cat=catParedes(iConj.value), {de,ate}=lerFaixa();
+      if(ate==null) return toast("Informe a altura do arranque no campo \"até\" (ex.: 0,45 m).");
+      if(de!=null && ate<=de) return toast("No arranque, a altura final tem que ser maior que a inicial.");
+      const ts=c ? tracosDe(c.id) : [], nomeF=PJ.lista.find(x=>x.id===fid)?.nome || (fid===pdfAnt ? nomeAnt : "");
+      let forma;
+      if(m0?.forma){ // já era laje + arranque
+        forma = fid===m0.forma.id ? m0.forma : {id:fid, nome:nomeF, pag:m0.forma.pag||1};
+        if(fid!==m0.forma.id && ts.some(t=>t.pag===1) && !confirm("Já há pintura na folha da laje. Trocando o PDF da forma, a pintura pode ficar fora do lugar. Continuar?")) return;
+        if(ts.some(t=>t.pag>=2) && JSON.stringify(m0.p.map(p=>p.id))!==JSON.stringify(ps.map(p=>p.id))
+          && !confirm("Já há áreas pintadas nas paredes. Mudando as paredes, as folhas mudam e a pintura pode ficar na parede errada. Continuar?")) return;
+      } else { // laje (PDF da forma, com ou sem limite) que passa a ter o arranque: a pintura da laje vai para a folha 1 do mapa
+        if(m0 && ts.length) return toast("Já há pintura nas paredes deste mapa: ele não pode virar laje + arranque.");
+        if(pagsPint.length>1) return toast(`Já há pintura em ${pagsPint.length} folhas do PDF da forma (${pagsPint.sort((a,b)=>a-b).join(", ")}): o arranque só entra com a pintura da laje numa folha só.`);
+        if(ts.length && f0 && fid!==f0.id && !confirm("Já há pintura na forma. Trocando o PDF da forma, a pintura pode ficar fora do lugar. Continuar?")) return;
+        const pag=pagsPint[0] || Math.max(1, Math.round(num(iFolha.value))||1), lim=f0?.id===fid && f0.lim?.[pag] ? {1:f0.lim[pag]} : null;
+        forma={id:fid, nome:nomeF, pag, ...(lim?{lim}:{})};
+        if(pag!==1) mover=ts; // mesma pintura, só passa da folha do PDF para a folha 1 do mapa
+      }
+      const m={forma, k:cat?.k||"", nome:cat ? cat.nome : estrutura, p:ps, ...(de!=null?{de}:{}), ate, um:1};
+      pdfId = cat && ps.every(p=>cat.par.includes(p)) ? mapaCurto(m) : "mapa:"+JSON.stringify(m); pdfNome=`Laje de fundo e arranque · ${m.nome}`;
+    }
     else if(tipo==="par"){
       const ps=paredesDisp().filter(p=>marcadas.has(p.id)); if(!ps.length) return toast("Marque pelo menos uma parede.");
       const cat=catParedes(iConj.value), {de,ate}=lerFaixa(); if(de!=null && ate!=null && ate<=de) return toast("No lance, a altura final tem que ser maior que a inicial.");
@@ -7738,17 +7830,22 @@ function editarConc(c, pre){
         && !confirm("Já há áreas pintadas neste mapa. Mudando as paredes, as folhas mudam e a pintura pode ficar na parede errada. Continuar?")) return;
       // mapa novo de estrutura do catálogo: só os ids (curto); mapa antigo continua com as paredes inteiras (a pintura já feita fica no lugar)
       pdfId = cat && m.um ? mapaCurto(m) : "mapa:"+JSON.stringify(m); pdfNome=`Mapa das paredes · ${m.nome}`;
-    } else { pdfId=iPdf.value; pdfNome=PJ.lista.find(x=>x.id===iPdf.value)?.nome || (iPdf.value===pdfAnt ? c?.pdfNome||"" : ""); }
+    } else { pdfId=iPdf.value; pdfNome=PJ.lista.find(x=>x.id===iPdf.value)?.nome || (iPdf.value===pdfAnt ? nomeAnt : "");
+      if(!m0 && f0?.lim && iPdf.value===f0.id) pdfId=c.pdfId; } // mesma forma: o limite marcado continua
     const campos={data:iData.value, estrutura, local:iLoc.value.trim(), volPrev:Math.max(0,num(iVol.value)), obs:iObs.value.trim(), pdfId, pdfNome};
     const id=nova ? uid().slice(0,10) : c.id;
     if(nova){ setConc(id, {...campos, status:"Programada", cams:[]}, "Programada"); toast("Concretagem programada."); }
     else { setConc(c.id, campos, "Dados editados"); toast("Concretagem atualizada."); }
+    for(const t of mover){ // traço gravado não muda no servidor: entra de novo na folha 1 (mesmos pontos, caminhão e pincel) e o antigo sai
+      S.pendTr[uid().slice(0,12)]={conc:c.id, cam:t.cam, pag:1, w:t.w, pts:t.pts};
+      if(S.pendTr[t.id] && !S.pendTr[t.id].del) delete S.pendTr[t.id]; else S.pendTr[t.id]={del:true, conc:c.id}; }
+    if(mover.length) savePendCc();
     if((lig?.dados.obra||"")!==iCeO.value || (iCeO.value && lig.dados.etapa-1!==+iCeE.value)) ligarEtapa(id, iData.value, iCeO.value, +iCeE.value);
     fecharEf();
   };
   efModal(nova?"Nova concretagem":"Editar concretagem",
     [campoEf("Data",iData), boxCh, campoEf("Volume previsto (m³)",iVol), campoEf("Estrutura",iEst,true), boxEstO, campoEf("Elemento / lance",iLoc,true), boxCe,
-     boxTipo, boxPar, boxLaje,
+     boxTipo, boxLaje, boxPar, boxArr,
      campoEf("Observação",iObs,true)],
     [el("button",{class:"btn pri",type:"button",text:nova?"Programar concretagem":"Salvar",onclick:salvar}),
      nova ? null : el("button",{class:"btn",type:"button",text:"Excluir",style:"color:var(--bad);margin-left:auto",onclick:()=>{
@@ -7756,7 +7853,8 @@ function editarConc(c, pre){
        delete S.pendCc[c.id]; for(const [id,x] of Object.entries(S.pendTr)) if(x.conc===c.id) delete S.pendTr[id];
        if(S.cc.some(x=>x.id===c.id)) S.pendCcDel.push(c.id); savePendCc(); scheduleSync(); toast("Concretagem excluída."); fecharEf(); }})]);
   boxEstO.hidden=iEst.value!=="__outro"; montarPdfs(); montarConj(false); desTipo();
-  if(m0?.forma){ volAuto=false; boxTipo.hidden=boxPar.hidden=boxLaje.hidden=true;
+  if(m0?.forma) volAuto=false;
+  if(trava){ boxTipo.hidden=boxPar.hidden=boxLaje.hidden=boxArr.hidden=true;
     boxTipo.before(el("p",{class:"info full",text:`Folha 1: forma da laje (${pjTitulo(m0.forma.nome||"PDF da forma")}) · da folha 2 em diante: ${m0.p.length} paredes de ${m0.nome}, de ${nf2(m0.de||0)} a ${nf2(m0.ate??0)} m. As folhas não mudam aqui.`})); }
   // aberta pela etapa (lances): paredes do catálogo da estrutura e a faixa de altura do lance
   if(oPre && pre.etapa>=2){ const k=(oPre.ks||[]).find(x=>catParedes(x)); if(k){ iConj.value=k; marcadas=new Set(catParedes(k).par.map(p=>p.id)); }
@@ -7998,7 +8096,7 @@ async function relatorioConc(c, btn, ver=false){
     // CPs: resultado mais recente de cada moldagem do caminhão ("abaixo" do esperado para a idade, "ok" aprovado aos 28 dias)
     const rcp=c.cams.map(k=>cpResumoCam(c,k.n));
     doc.autoTable({startY:y, margin:{left:M,right:M}, head:[["","Caminhão","NF / ticket","Concreteira","m³","Chegada","Lançamento","Slump","fck","CPs (MPa)"]],
-      body:c.cams.map((k,i)=>["",`C${k.n}`,k.nf||"",k.usina||"",nf1.format(+k.vol||0),k.chegada||"",k.inicio||k.fim?`${k.inicio||"?"}–${k.fim||"?"}`:"",k.slump!==""&&k.slump!=null?`${k.slump} cm`:"",k.fck?`${k.fck} MPa`:"",
+      body:c.cams.map((k,i)=>["",`C${k.n}`+(k.placa?`\n${k.placa}`:""),k.nf||"",k.usina||"",nf1.format(+k.vol||0),k.chegada||"",k.inicio||k.fim?`${k.inicio||"?"}–${k.fim||"?"}`:"",k.slump!==""&&k.slump!=null?`${k.slump} cm`:"",k.fck?`${k.fck} MPa`:"",
         rcp[i].txt || (rcp[i].qtd ? `${rcp[i].qtd} moldados` : k.cps ? `${k.cps} moldados` : "")]),
       styles:{fontSize:8,cellPadding:1.5,textColor:20}, headStyles:{fillColor:AZ,textColor:255}, columnStyles:{0:{cellWidth:5},4:{halign:"right"},9:{cellWidth:34}},
       didParseCell:d=>{ if(d.section==="body" && d.column.index===0) d.cell.styles.fillColor=hexRgb(c.cams[d.row.index].cor);
@@ -8012,9 +8110,10 @@ async function relatorioConc(c, btn, ver=false){
     y+=3;
     // mapa: cada folha que tem área pintada, desenhada com as cores dos caminhões
     const ts=tracosDe(c.id), pags=[...new Set(ts.map(t=>t.pag))].sort((a,b)=>a-b);
-    if(c.pdfId && pags.length){
+    const fm=formaDe(c);
+    if(fm && pags.length){
       await loadPdfjs();
-      const f=PJ.lista.find(x=>x.id===c.pdfId) || {id:c.pdfId, nome:c.pdfNome, atualizado:""};
+      const f=PJ.lista.find(x=>x.id===fm.id) || {id:fm.id, nome:fm.nome||c.pdfNome, atualizado:""};
       const pdf=await pdfjsLib.getDocument({isEvalSupported:false, data:new Uint8Array(await obterPdf(f))}).promise;
       for(const n of pags){
         btn.textContent=`Desenhando folha ${n}…`;
@@ -8184,16 +8283,33 @@ function volPintado(c, fs, m){
 }
 // área que pode ser pintada numa folha do mapa: a elevação de cada parede só na faixa do lance (de..ate), em mm da folha.
 // Fora disso a pintura não aparece (nem na tela nem no relatório) e um traço todo fora é descartado. null = sem limite (forma em PDF).
+// Folha da forma (laje): só dentro do contorno da forma, quando ele foi marcado (✂ Limite da forma); sem contorno, pintura livre.
 function areaPintavel(c, pag){
-  const m=mapaDe(c); if(!m || (m.forma && pag===1)) return null; // folha 1 com a forma: pintura livre, como na laje
+  const m=mapaDe(c);
+  if(!m || (m.forma && pag===1)){ const ls=formaDe(c)?.lim?.[pag]; // contorno em pontos do PDF → mm da folha (como os traços)
+    return ls?.length ? ls.map(l=>{ const pol=[]; for(let i=0;i+1<l.length;i+=2) pol.push(ptMm(l[i],l[i+1])); return {pol}; }) : null; }
   const f=folhasMapa(m)[pag-2]; if(!f) return [];
   return f.ws.map(w=>{ const topo=Math.min(m.ate??w.p.h, w.p.h), base=Math.max(0, m.de||0);
     return topo>base ? [w.x, w.y+(w.p.h-topo)*w.s, w.w, (topo-base)*w.s] : null; }).filter(Boolean);
 }
 // recorta uma camada (canvas) à área pintável; ret(r) converte o retângulo em mm para [x,y,l,a] da camada
+// (contorno da forma: cada vértice passa por ret como um retângulo sem tamanho)
 function recortarArea(g, area, ret){
   if(!area) return; g.save(); g.globalCompositeOperation="destination-in"; g.fillStyle="#000";
-  g.beginPath(); for(const r of area){ const [x,y,w,h]=ret(r); g.rect(x,y,w,h); } g.fill(); g.restore();
+  g.beginPath(); for(const r of area){
+    if(r.pol){ r.pol.forEach(([px,py],i)=>{ const [x,y]=ret([px,py,0,0]); if(i) g.lineTo(x,y); else g.moveTo(x,y); }); g.closePath(); continue; }
+    const [x,y,w,h]=ret(r); g.rect(x,y,w,h); } g.fill(); g.restore();
+}
+// ponto (mm da folha) dentro da área pintável, com folga (meia largura do pincel)
+function naArea(area, x, y, folga){
+  return area.some(r=>{
+    if(!r.pol) { const [rx,ry,rw,rh]=r; return x>=rx-folga && x<=rx+rw+folga && y>=ry-folga && y<=ry+rh+folga; }
+    const P=r.pol; let dentro=false;
+    for(let i=0,j=P.length-1;i<P.length;j=i++){ const [xi,yi]=P[i], [xj,yj]=P[j];
+      if((yi>y)!==(yj>y) && x<(xj-xi)*(y-yi)/(yj-yi)+xi) dentro=!dentro;
+      const l2=(xj-xi)**2+(yj-yi)**2, k=l2?Math.max(0,Math.min(1,((x-xi)*(xj-xi)+(y-yi)*(yj-yi))/l2)):0;
+      if(Math.hypot(x-xi-k*(xj-xi), y-yi-k*(yj-yi))<=folga) return true; }
+    return dentro; });
 }
 // pintura (pontos do PDF, origem embaixo) → mm na folha
 const ptMm = (x,y) => [x*25.4/72, MP.H-y*25.4/72];
@@ -8354,7 +8470,7 @@ async function docMapa(c, {pintura=false}={}){
     doc.setFontSize(6.5); doc.setTextColor(90); doc.text(doc.splitTextToSize("Planta-chave (sem escala)"+(pl.pass?.length?" · tracejado = passagens na base":""), 100), 14, 135); }
   doc.setFont("helvetica","bold"); doc.setFontSize(10); doc.setTextColor(20); doc.text("Caminhões betoneira", tx, 28);
   const MAXC=9, linhasC=(cams.length?cams:[1,2,3,4,5].map(n=>({n, vazio:true}))).map((k,i)=>k.vazio ? [`${i+1}º`,"","","","","","","","",""] :
-    [`${i+1}º`, k.nf||`C${k.n}`, k.inicio||"", k.fim||"", k.vol?nf1.format(+k.vol):"", vpin.has(k.n)?nf1.format(vpin.get(k.n)):"", k.slump!==""&&k.slump!=null?String(k.slump).replace(".",","):"",
+    [`${i+1}º`, [k.nf||`C${k.n}`, k.placa].filter(Boolean).join("\n"), k.inicio||"", k.fim||"", k.vol?nf1.format(+k.vol):"", vpin.has(k.n)?nf1.format(vpin.get(k.n)):"", k.slump!==""&&k.slump!=null?String(k.slump).replace(".",","):"",
       [cps(k.n)||k.cps||"", rcp.get(k.n)?.txt].filter(Boolean).join("\n"), [...(atend.get(k.n)||[])].join(", ")||k.par||"", ""]);
   const tabC=(rows, startY, extra={})=>doc.autoTable({startY, margin:{left:tx,right:12}, tableWidth:tw, theme:"grid",
     head:[["Ordem","Caminhão","Início","Fim","Nota (m³)","Mapa (m³)","Slump (cm)","CPs","Paredes atendidas","Cor"]], body:rows,

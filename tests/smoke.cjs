@@ -117,20 +117,21 @@ const confere = (ok, msg) => { console.log(`${ok ? "ok  " : "FALHA"} ${msg}`); i
     } catch (e) { return false; }
   });
   confere(alt, "arranque: altura de cada parede e texto do caminhão no lugar escolhido");
-  // aço por etapa: fundo e verticais na 1ª; horizontais pela altura da parede (Floculador, H = 4,55 m); armado enche de baixo para cima
+  // aço por etapa (parede sem cadastro de arranque, pela regra do comprimento): fundo e todas as verticais na 1ª; horizontais
+  // pela altura da parede (Floculador, H = 4,55 m: 0,45 m na 1ª, 1,90 no lance 1, 1,95 no lance 2); armado enche de baixo para cima
   confere(await p.evaluate(() => {
     const mk = (c, loc, qp, cu, kp) => ({ c, est: "FLOCULADORES", loc, qp, cu, kp, ppb: kp / qp });
-    const its = [mk("F", "FUNDO", 10, 11, 100), mk("V", "PAREDE 1 , PAREDE 2, PAREDE 3", 10, 4.89, 100), mk("H", "PAREDE 1 , PAREDE 2, PAREDE 3", 455, 9.7, 455),
-      mk("L", "LAJE DAS PASSARELAS", 10, 10, 50), mk("X", "PILARES", 10, 3, 30)];
-    const r = aeSoma(its, new Map([["F", 10], ["V", 10], ["H", 100]])), ok = (a, b) => Math.abs(a - b) < 0.01;
-    return ok(r.p[0], 240) && ok(r.p[1], 195) && ok(r.p[2], 195) && ok(r.p[3], 75) && ok(r.x[0], 240) && ok(r.x[1], 60) && r.x[2] === 0 && r.op === 30;
-  }), "aço por etapa de concretagem: fundo + verticais + horizontais até 0,40 m na 1ª etapa");
-  // parede com arranque (vertical de 2,95 m em parede de 4,55 m): o arranque fica na 1ª e a vertical de altura inteira vai para a 2ª
+    const its = [mk("F", "FUNDO", 10, 11, 100), mk("V", "PAREDE 4, PAREDE 5 E PAREDE 6", 10, 4.89, 100), mk("A", "PAREDE 4, PAREDE 5 E PAREDE 6", 10, 2.95, 100),
+      mk("H", "PAREDE 4, PAREDE 5 E PAREDE 6", 455, 9.7, 455), mk("L", "LAJE DAS PASSARELAS", 10, 10, 50), mk("X", "PILARES", 10, 3, 30)];
+    const r = aeSoma(its, new Map([["F", 10], ["V", 10], ["A", 10], ["H", 100]])), ok = (a, b) => Math.abs(a - b) < 0.01;
+    return ok(r.p[0], 345) && ok(r.p[1], 190) && ok(r.p[2], 195) && ok(r.p[3], 75) && ok(r.x[0], 345) && ok(r.x[1], 55) && r.x[2] === 0 && r.op === 30;
+  }), "aço por etapa de concretagem: fundo + todas as verticais + horizontais até 0,45 m na 1ª etapa");
+  // parede com o arranque cadastrado (pedido de aço): vertical na 1ª, costela pela altura, posição fora do cadastro só da 2ª em diante
   confere(await p.evaluate(() => {
-    const mk = (c, cu) => ({ c, est: "FLOCULADORES", loc: "PAREDE 1 , PAREDE 2, PAREDE 3", qp: 10, cu, kp: 100, ppb: 10 });
-    const r = aeSoma([mk("A", 2.95), mk("V", 4.89)], new Map());
-    return r.p[0] === 100 && r.p[1] === 100 && aeTipo(mk("C", 1.6)).t === "hor";
-  }), "arranque de parede: espera na 1ª etapa, vertical inteira no lance 1");
+    const mk = (pos, cu) => ({ c: pos, pos, est: "FLOCULADORES", loc: "PAREDE 1 , PAREDE 2, PAREDE 3", qp: 455, cu, kp: 455, ppb: 1 });
+    const f = ["N7", "N6", "N2"].map(n => aeFracoes(mk(n, n === "N7" ? 4.89 : 10)).map(v => Math.round(v * 1000) / 1000));
+    return f[0].join() === "1,0,0,0" && f[1].join() === "0.099,0.418,0.429,0.055" && f[2][0] === 0 && Math.abs(f[2].reduce((a, v) => a + v, 0) - 1) < 1e-9;
+  }), "arranque cadastrado: vertical na 1ª, costela pela altura e posição fora do arranque a partir do lance 1");
   // Qualidade: dashboards de cada categoria (concreto, aço, solo, forma e geral)
   const dash = await p.evaluate(() => {
     try {

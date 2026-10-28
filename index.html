@@ -955,7 +955,7 @@ svg .alvo.on{fill:var(--accent);fill-opacity:.13}
     <div class="card"><h3>Produtividade por equipe</h3><div class="tbl" id="t-eq"></div><p class="info">kg/arm/dia = aço da equipe ÷ (armadores × dias).</p></div>
     <div class="card"><h3>Ocorrências por semana</h3><div class="tbl" id="t-oc"></div></div>
     <div class="card"><h3>Avanço por estrutura</h3><div class="tbl" id="t-est"></div></div>
-    <div class="card"><h3>Aço por etapa de concretagem</h3><div class="tbl" id="t-etapa"></div><p class="info">1ª = laje de fundo + arranques das paredes (barras verticais curtas, com o pé dentro da laje e a espera para o traspasse) + horizontais até 0,40 m · 2ª = horizontais de 0,40 a 2,35 m + verticais de altura inteira, que emendam no arranque (parede sem arranque: elas saem da laje e vão na 1ª) · 3ª = de 2,35 a 4,30 m · 4ª = de 4,30 m ao topo + lajes de cobertura/passarela. Vertical = barra de 45% da altura da parede até a altura + 1,50 m; arranque = vertical menor que 80% da altura. As horizontais se dividem pela altura de cada parede e o que foi armado enche as etapas de baixo para cima. Outros = pilares, vigas, lajes de piso.</p></div>
+    <div class="card"><h3>Aço por etapa de concretagem</h3><div class="tbl" id="t-etapa"></div><p class="info">1ª = laje de fundo + toda barra que tem alguma parte nos primeiros 0,45 m da parede: todas as verticais (saem da laje: arranques e verticais de altura inteira) e as horizontais de 0 a 0,45 m · 2ª = horizontais de 0,45 a 2,35 m · 3ª = de 2,35 a 4,30 m · 4ª = de 4,30 m ao topo + lajes de cobertura/passarela. Vertical = barra de 45% da altura da parede até a altura + 1,50 m. As horizontais se dividem pela altura de cada parede (lance 1 e lance 2 ficam com pesos parecidos) e o que foi armado enche as etapas de baixo para cima. Outros = pilares, vigas, lajes de piso.</p></div>
     <div class="card"><h3>Avanço por diâmetro</h3><div class="tbl" id="t-bit"></div></div>
   </section>
 
@@ -2248,7 +2248,7 @@ function setCampo(on){ LS.set("campo",!!on); if(on) document.documentElement.dat
 $("#campo-modo").addEventListener("click", e=>{ const b=e.target.closest("button[data-c]"); if(b) setCampo(b.dataset.c==="1"); });
 setCampo(!!LS.get("campo"));
 
-const VERSAO_APP = "v156"; // igual ao número em sw.js (armacao-v156)
+const VERSAO_APP = "v157"; // igual ao número em sw.js (armacao-v157)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -3519,25 +3519,26 @@ function lancarElemento(e){
   renderFiltros(); renderLista(); show("coleta");
 }
 // ---------- aço por etapa de concretagem (as mesmas 4 etapas do concreto; o painel do gerente usa a mesma conta) ----------
-// 1 = laje de fundo + arranque: o FUNDO inteiro, as barras verticais que saem da laje (arranques/esperas) e as horizontais de 0 a 0,40 m
-// 2 = lance 1: horizontais de 0,40 a 2,35 m (e as verticais de altura inteira, quando a parede tem arranque) · 3 = lance 2: de 2,35 a 4,30 m
-// 4 = o resto da parede (4,30 m ao topo) + lajes de cobertura/passarela
-// Horizontais (e o que se espalha pela altura: grampos, cantos, espaçadores) se dividem pela altura H da parede, na proporção de cada faixa.
-// Vertical = barra de 45% da altura até a altura + 1,50 m (ancoragem) que não corre ao longo da parede (menor que 80% do comprimento):
-//  - arranque (espera): vertical mais curta que 80% da altura. Fica com o pé dentro da laje de fundo e sai acima dela o
-//    traspasse (≈ 40 a 50 Ø): é armada junto com o fundo → 1ª etapa.
-//  - vertical de altura inteira: numa parede que tem arranque, ela emenda no arranque e sobe com o lance 1 → 2ª etapa;
-//    sem arranque no elemento, ela mesma sai da laje → 1ª etapa.
+// 1 = laje de fundo + arranque: o FUNDO inteiro e toda barra que tem alguma parte nos primeiros 0,45 m da parede: todas as
+//     verticais (saem da laje: arranques e verticais de altura inteira) e as horizontais de 0 a 0,45 m
+// 2 = lance 1: horizontais de 0,45 a 2,35 m · 3 = lance 2: de 2,35 a 4,30 m · 4 = o resto da parede (4,30 m ao topo) + lajes de cobertura/passarela
+// Horizontais (e o que se espalha pela altura: grampos, cantos, espaçadores) se dividem pela altura H da parede, na proporção de cada faixa:
+// lance 1 e lance 2 ficam com pesos parecidos (1,90 e 1,95 m de parede).
+// Vertical = barra de 45% da altura até a altura + 1,50 m (ancoragem) que não corre ao longo da parede (menor que 80% do comprimento).
 // H e comprimento: as paredes do local no catálogo (PAREDE 1, PAREDE 2… → PAR 1, PAR 2…); sem elas, a média das paredes da estrutura;
 // estrutura sem catálogo: 4,55 m. Pilares, vigas, lajes de piso e outros elementos ficam fora das 4 etapas ("outros").
-const AE_FAIXA=[[0,0.4],[0.4,2.35],[2.35,4.3],[4.3,Infinity]], AE_H=4.55;
+const AE_FAIXA=[[0,0.45],[0.45,2.35],[2.35,4.3],[4.3,Infinity]], AE_H=4.55;
 const AE_ROT=["1 · Fundo + arranque","2 · Lance 1","3 · Lance 2","4 · Restante + cobertura"];
 function aeParedes(est, loc){
   const cat=PAREDES_CAT.filter(x=>x.est===est).flatMap(x=>x.par), ids=paredesDoEl(loc); // "PAR 1" vale para PAR 1, 1A, 1B e PAR 11 inf.
-  return {ps:cat.filter(p=>ids.some(id=>new RegExp(`^${id}(?:[A-Z]|\s|$)`).test(p.id))), cat};
+  return {ps:cat.filter(p=>ids.some(id=>new RegExp(`^${id}(?:[A-Z]|\\s|$)`).test(p.id))), cat};
 }
 const AE_CACHE=new WeakMap();
-// tipo da posição: {t:"fundo"|"cob"|"arr"|"vert"|"hor", H}; null = fora das etapas
+// paredes com o arranque cadastrado (ARRANQUE_PADRAO, o mesmo do pedido de aço): o tipo de cada posição decide a etapa.
+// vertical, ligação laje/parede, horizontal na base e "tudo" → 1ª; costela, amarração/canto e estribo → pela altura;
+// posição fora do cadastro ("não pedir" no arranque) → não tem nada nos primeiros 0,45 m: pela altura, só da 2ª etapa em diante
+const AE_ARR={vert:"vert", lig:"vert", base:"vert", tudo:"vert", cost:"hor", dist:"hor", estr:"hor", nao:"sup"};
+// tipo da posição: {t:"fundo"|"cob"|"vert"|"hor"|"sup", H}; vert = barra que sai da laje de fundo; null = fora das etapas
 function aeTipo(i){
   if(AE_CACHE.has(i)) return AE_CACHE.get(i);
   const u=normTxt(i.loc); let r=null;
@@ -3545,24 +3546,25 @@ function aeTipo(i){
   else if(/PAREDE|\bPAR\s*\d/.test(u)){
     const {ps, cat}=aeParedes(i.est, i.loc), base=ps.length ? ps : cat, cs=base.reduce((s,p)=>s+p.c,0);
     const H=base.length ? (cs ? base.reduce((s,p)=>s+p.h*p.c,0)/cs : base[0].h) : AE_H, L=ps.length ? Math.max(...ps.map(p=>p.c)) : 0, cu=+i.cu||0;
-    r={t: cu>=0.45*H && cu<=H+1.5 && !(L && cu>=0.8*L) ? (cu<0.8*H ? "arr" : "vert") : "hor", H};
+    const cad=ARR_PADRAO.get(chaveArr(i.est,i.loc));
+    r={t: cad ? AE_ARR[cad[String(i.pos).toUpperCase()]||"nao"] : cu>=0.45*H && cu<=H+1.5 && !(L && cu>=0.8*L) ? "vert" : "hor", H};
   }
   else if(/COBERTURA|PASSARELA|TAMPA|LAJE SUPERIOR/.test(u)) r={t:"cob"};
   AE_CACHE.set(i,r); return r;
 }
-// frações das barras da posição em cada etapa [e1,e2,e3,e4]; comArr = o elemento (estrutura + local) tem arranque
-function aeFracoes(i, comArr){
+// frações das barras da posição em cada etapa [e1,e2,e3,e4]
+function aeFracoes(i){
   const r=aeTipo(i); if(!r) return null;
-  if(r.t==="fundo" || r.t==="arr") return [1,0,0,0];
+  if(r.t==="fundo" || r.t==="vert") return [1,0,0,0];
   if(r.t==="cob") return [0,0,0,1];
-  if(r.t==="vert") return comArr ? [0,1,0,0] : [1,0,0,0];
-  return AE_FAIXA.map(([a,b])=>Math.max(0, Math.min(b,r.H)-Math.min(a,r.H))/r.H);
+  const f=AE_FAIXA.map(([a,b])=>Math.max(0, Math.min(b,r.H)-Math.min(a,r.H)));
+  if(r.t==="sup"){ f[0]=0; if(!f.some(v=>v>0)) f[1]=1; }
+  const s=f.reduce((a,v)=>a+v,0); return f.map(v=>v/s);
 }
-const aeComArr = its => new Set(its.filter(i=>aeTipo(i)?.t==="arr").map(i=>i.est+"|"+i.loc));
 // soma das posições: kg previstos e armados em cada etapa; as horizontais sobem de baixo para cima (o que foi armado enche a etapa 1, depois a 2…)
 function aeSoma(its, acum){
-  const r={p:[0,0,0,0], x:[0,0,0,0], op:0, ox:0}, arr=aeComArr(its);
-  for(const i of its){ const f=aeFracoes(i, arr.has(i.est+"|"+i.loc)), ex=Math.min(acum.get(i.c)||0, i.qp);
+  const r={p:[0,0,0,0], x:[0,0,0,0], op:0, ox:0};
+  for(const i of its){ const f=aeFracoes(i), ex=Math.min(acum.get(i.c)||0, i.qp);
     if(!f){ r.op+=i.kp; r.ox+=ex*i.ppb; continue; }
     let cum=0; f.forEach((v,k)=>{ const q=i.qp*v; r.p[k]+=q*i.ppb; r.x[k]+=Math.max(0, Math.min(q, ex-cum))*i.ppb; cum+=q; }); }
   return r;

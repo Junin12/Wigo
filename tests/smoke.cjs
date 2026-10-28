@@ -146,7 +146,9 @@ const confere = (ok, msg) => { console.log(`${ok ? "ok  " : "FALHA"} ${msg}`); i
   // projetos separados por disciplina, pela codificação da prancha (ou pelas palavras do nome)
   confere(await p.evaluate(() => [["PR-023-006-E8-PE-EST-DE-038-01 FLOCULADORES.pdf", "Estrutural"], ["PR-023-006-E8-PE-HID-DE-056-01 CANTEIRO.pdf", "Hidráulica"],
     ["PR-023-006-E8-PE-ARQ-DE-010-00 ADM.pdf", "Arquitetônico"], ["PR-023-006-E8-PE-TER-DE-001-00 TERRAPLENAGEM.pdf", "Civil"], ["ATA REUNIÃO.pdf", "Outros"]]
-    .every(([n, s]) => secaoProjeto(n) === s) && pjTitulo("PR-023-006-E8-PE-EST-MD-002-00 MEMORIAL.pdf") === "MEMORIAL"), "projetos por seção: estrutural, hidráulica, arquitetônico, civil e outros");
+    .every(([n, s]) => secaoProjeto(n) === s) && pjTitulo("PR-023-006-E8-PE-EST-MD-002-00 MEMORIAL.pdf") === "MEMORIAL"
+    && localProjeto("PR-023-006-E7-PE-EST-DE-001-03 AR - TQ. PULMÃO.pdf") === "Alto Recalque" && localProjeto("PR-023-006-E5-PE-EST-DE-001-02 CPT - CANAL.pdf") === "Captação / Baixo Recalque"
+    && pjTipoDoc("PR-023-006-E8-PE-EST-DE-038-01 ETA - FLOCULADORES - ARMADURAS - 5 FL.pdf") === "desenho · armaduras"), "projetos por seção e por local (ETA, Alto Recalque, Captação), com formas/armaduras");
   // Qualidade: dashboards de cada categoria (concreto, aço, solo, forma e geral)
   const dash = await p.evaluate(() => {
     try {

@@ -366,7 +366,7 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
 canvas.qr{display:block;width:min(260px,100%);height:auto;image-rendering:pixelated;margin:8px 0;border-radius:8px}
 .projs{display:grid;gap:8px}
 .proj{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px;display:grid;grid-template-columns:1fr auto;gap:4px 12px;align-items:center}
-.pj-sec{border:1px solid var(--line);border-radius:var(--r);padding:4px 12px;margin:0 0 10px;background:var(--surface)} .pj-sec>summary{display:flex;justify-content:space-between;align-items:center;gap:8px;cursor:pointer;min-height:44px;font-size:1.05rem} .pj-sec[open]>summary{border-bottom:1px solid var(--line);margin-bottom:8px} .pj-sec .lista{display:grid;gap:8px;padding-bottom:10px}
+.pj-sec{border:1px solid var(--line);border-radius:var(--r);padding:4px 12px;margin:0 0 10px;background:var(--surface)} .pj-sec>summary{display:flex;justify-content:space-between;align-items:center;gap:8px;cursor:pointer;min-height:44px;font-size:1.05rem} .pj-sec[open]>summary{border-bottom:1px solid var(--line);margin-bottom:8px} .pj-sec .lista{display:grid;gap:8px;padding-bottom:10px} .pj-loc{margin:6px 0 0;font-size:.85rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
 .proj b{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-size:1.15rem;font-weight:600;line-height:1.15}
 .proj small{grid-column:1;color:var(--muted);font-size:.8rem}
 .proj .acoes{grid-column:2;grid-row:1/span 2;display:flex;gap:6px;align-items:center}
@@ -2252,7 +2252,7 @@ function setCampo(on){ LS.set("campo",!!on); if(on) document.documentElement.dat
 $("#campo-modo").addEventListener("click", e=>{ const b=e.target.closest("button[data-c]"); if(b) setCampo(b.dataset.c==="1"); });
 setCampo(!!LS.get("campo"));
 
-const VERSAO_APP = "v162"; // igual ao número em sw.js (armacao-v162)
+const VERSAO_APP = "v163"; // igual ao número em sw.js (armacao-v163)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -3928,8 +3928,15 @@ function secaoProjeto(nome){
   if(cod){ const s=PJ_SECOES.find(([,rc])=>rc.test(cod)); if(s) return s[0]; }
   return PJ_SECOES.find(([,,rp])=>rp.test(u))?.[0] || PJ_OUTROS;
 }
-// tipo do documento pela codificação: DE = desenho, MD = memorial, LV = lista/levantamento, ET = especificação
-const pjTipoDoc = n => ({DE:"desenho", MD:"memorial", LV:"lista", ET:"especificação"})[normTxt(n).match(/-PE-[A-Z]{2,4}-([A-Z]{2})-/)?.[1]] || "";
+// tipo do documento pela codificação: DE = desenho, MD = memorial, LV = lista/levantamento, ET = especificação;
+// nos desenhos estruturais, se a prancha é de formas ou de armaduras (pelo nome)
+const pjTipoDoc = n => { const u=normTxt(n), d=({DE:"desenho", MD:"memorial", LV:"lista", ET:"especificação"})[u.match(/-PE-[A-Z]{2,4}-([A-Z]{2})-/)?.[1]] || "";
+  const fa=/FORMAS?\b/.test(u) && /ARMA[CÇ]|ARMADURA/.test(u) ? "formas e armaduras" : /ARMA[CÇ]|ARMADURA/.test(u) ? "armaduras" : /FORMAS?\b/.test(u) ? "formas" : "";
+  return [d, fa].filter(Boolean).join(" · "); };
+// local da obra pela codificação (PR-023-006-E8-…: E8 = ETA, E7 = Alto Recalque, E5 = Captação / Baixo Recalque) ou pelo começo do título
+const PJ_LOCAIS=[["E8","Estação de tratamento (ETA)",/^ETA\b/],["E7","Alto Recalque",/^AR\b/],["E5","Captação / Baixo Recalque",/^(CPT|BR)\b/]];
+const localProjeto = n => { const u=normTxt(n), e=u.match(/^PR-\d{3}-\d{3}-(E\d+)-/)?.[1], t=normTxt(pjTitulo(n));
+  return PJ_LOCAIS.find(([c])=>c===e)?.[1] || PJ_LOCAIS.find(([,,r])=>r.test(t))?.[1] || (e ? `Local ${e}` : "Sem local"); };
 const PJ_ABERTA = new Set(LS.get("pjSecoes")||[]); // seções abertas (lembra no aparelho)
 // lista de projetos agrupada por seção; q = busca. Usada na tela Projetos e no Arquivo da obra.
 function projetosPorSecao(q=""){
@@ -3944,9 +3951,15 @@ function projetosPorSecao(q=""){
       el("div",{class:"acoes"},abrir)); };
   const secs=[...g].filter(([,l])=>l.length);
   if(!secs.length) return [el("div",{class:"vazio",text:"Nenhum projeto com essa busca."})];
+  // dentro da seção: por local da obra (ETA, Alto Recalque, Captação), na ordem das pranchas (formas e armaduras de cada estrutura ficam juntas)
+  const posL=k=>{ const i=PJ_LOCAIS.findIndex(x=>x[1]===k); return i<0 ? 99 : i; };
+  const porLocal=l=>{ const m=new Map(); for(const f of l){ const k=localProjeto(f.nome); if(!m.has(k)) m.set(k,[]); m.get(k).push(f); }
+    const ord=[...m].sort((a,b)=>posL(a[0])-posL(b[0]) || a[0].localeCompare(b[0],"pt"));
+    for(const [,fs] of ord) fs.sort((a,b)=>(+pjRev(a.nome)[1]||9999)-(+pjRev(b.nome)[1]||9999) || a.nome.localeCompare(b.nome,"pt"));
+    return ord.length>1 ? ord.flatMap(([loc,fs])=>[el("h3",{class:"pj-loc",text:`${loc} · ${fs.length}`}), ...fs.map(item)]) : ord.flatMap(([,fs])=>fs.map(item)); };
   return secs.map(([sec,l])=>{ const d=el("details",{class:"pj-sec",open:!!q || PJ_ABERTA.has(sec) || secs.length===1},
       el("summary",{}, el("b",{text:sec}), el("span",{class:"chip",text:`${l.length} arquivo${l.length>1?"s":""}`})),
-      el("div",{class:"lista"}, ...l.map(item)));
+      el("div",{class:"lista"}, ...porLocal(l)));
     d.addEventListener("toggle",()=>{ if(q) return; if(d.open) PJ_ABERTA.add(sec); else PJ_ABERTA.delete(sec); LS.set("pjSecoes",[...PJ_ABERTA]); });
     return d; });
 }

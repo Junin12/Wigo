@@ -143,6 +143,10 @@ const confere = (ok, msg) => { console.log(`${ok ? "ok  " : "FALHA"} ${msg}`); i
     const f = ["N7", "N6", "N2"].map(n => aeFracoes(mk(n, n === "N7" ? 4.89 : 10)).map(v => Math.round(v * 1000) / 1000));
     return f[0].join() === "1,0,0,0" && f[1].join() === "0.099,0.418,0.429,0.055" && f[2][0] === 0 && Math.abs(f[2].reduce((a, v) => a + v, 0) - 1) < 1e-9;
   }), "arranque cadastrado: vertical na 1ª, costela pela altura e posição fora do arranque a partir do lance 1");
+  // projetos separados por disciplina, pela codificação da prancha (ou pelas palavras do nome)
+  confere(await p.evaluate(() => [["PR-023-006-E8-PE-EST-DE-038-01 FLOCULADORES.pdf", "Estrutural"], ["PR-023-006-E8-PE-HID-DE-056-01 CANTEIRO.pdf", "Hidráulica"],
+    ["PR-023-006-E8-PE-ARQ-DE-010-00 ADM.pdf", "Arquitetônico"], ["PR-023-006-E8-PE-TER-DE-001-00 TERRAPLENAGEM.pdf", "Civil"], ["ATA REUNIÃO.pdf", "Outros"]]
+    .every(([n, s]) => secaoProjeto(n) === s) && pjTitulo("PR-023-006-E8-PE-EST-MD-002-00 MEMORIAL.pdf") === "MEMORIAL"), "projetos por seção: estrutural, hidráulica, arquitetônico, civil e outros");
   // Qualidade: dashboards de cada categoria (concreto, aço, solo, forma e geral)
   const dash = await p.evaluate(() => {
     try {

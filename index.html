@@ -366,6 +366,7 @@ textarea{font:inherit;color:inherit;background:var(--surface);border:1px solid v
 canvas.qr{display:block;width:min(260px,100%);height:auto;image-rendering:pixelated;margin:8px 0;border-radius:8px}
 .projs{display:grid;gap:8px}
 .proj{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px;display:grid;grid-template-columns:1fr auto;gap:4px 12px;align-items:center}
+.pj-sec{border:1px solid var(--line);border-radius:var(--r);padding:4px 12px;margin:0 0 10px;background:var(--surface)} .pj-sec>summary{display:flex;justify-content:space-between;align-items:center;gap:8px;cursor:pointer;min-height:44px;font-size:1.05rem} .pj-sec[open]>summary{border-bottom:1px solid var(--line);margin-bottom:8px} .pj-sec .lista{display:grid;gap:8px;padding-bottom:10px}
 .proj b{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-size:1.15rem;font-weight:600;line-height:1.15}
 .proj small{grid-column:1;color:var(--muted);font-size:.8rem}
 .proj .acoes{grid-column:2;grid-row:1/span 2;display:flex;gap:6px;align-items:center}
@@ -2251,7 +2252,7 @@ function setCampo(on){ LS.set("campo",!!on); if(on) document.documentElement.dat
 $("#campo-modo").addEventListener("click", e=>{ const b=e.target.closest("button[data-c]"); if(b) setCampo(b.dataset.c==="1"); });
 setCampo(!!LS.get("campo"));
 
-const VERSAO_APP = "v161"; // igual ao número em sw.js (armacao-v161)
+const VERSAO_APP = "v162"; // igual ao número em sw.js (armacao-v162)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -3790,8 +3791,10 @@ const folhaDe = s => +((String(s).match(/(?:FL|FOLHA)\s*(\d+)/i)||[])[1]||1);
 // e não casavam com o "N4" do romaneio)
 function posComN(p){ const s=String(p??"").trim(); return /^\d/.test(s) ? "N"+s : s; } // function: usada ao carregar a base, antes desta linha
 const posNorm = p => posComN(p).replace(/\s+/g,"").toUpperCase();
-const pjTitulo = n => n.replace(/\.pdf$/i,"").replace(/^PR-[\w-]*?DE-\d{3}(-\d{2})?[\s-]*/i,"").trim() || n;
-const pjRev = n => (n.match(/DE-(\d{3})(?:-(\d{2}))?/i)||[]);
+// DE = desenho, MD = memorial, LV = lista/levantamento, ET = especificação (codificação da prancha)
+const pjTitulo = n => n.replace(/\.pdf$/i,"").replace(/^PR-[\w-]*?(?:DE|MD|LV|ET)-\d{3}(-\d{2})?[\s-]*/i,"").trim() || n;
+const pjRev = n => (n.match(/(?:DE|MD|LV|ET)-(\d{3})(?:-(\d{2}))?/i)||[]); // [, número, revisão]
+const pjCodDoc = n => String(n).toUpperCase().match(/-(DE|MD|LV|ET)-\d{3}/)?.[1] || "DE";
 const mb = b => nf1.format(b/1e6)+" MB";
 function pjFind(prancha){
   const cod=codigoDe(prancha); if(!cod) return null;
@@ -3905,19 +3908,53 @@ async function abrirPdfDoCelular(arq){
   abrirPdf(f, 1);
 }
 $("#pj-local").addEventListener("change", ev=>{ const a=ev.target.files[0]; ev.target.value=""; abrirPdfDoCelular(a).catch(e=>toast(e.message||"Não foi possível abrir o PDF.")); });
-function renderProjetos(){
-  const L=$("#pj-lista"), q=$("#pj-busca").value.trim().toLowerCase();
-  if(!S.cfg?.url){ L.replaceChildren(el("div",{class:"vazio",text:"Conecte o app ao Google Drive em Ajustes."})); return; }
-  if(!PJ.lista.length){ L.replaceChildren(el("div",{class:"vazio",text:"Nenhum PDF na pasta Projetos do Drive. Coloque os arquivos lá e toque em Atualizar lista."})); return; }
-  const fs=PJ.lista.filter(f=>!q || f.nome.toLowerCase().includes(q));
-  L.replaceChildren(...fs.map(f=>{
-    const [,de,rev]=pjRev(f.nome), guardado=PJ.off[f.id]===f.atualizado;
+// ---------- seções dos projetos (disciplinas) ----------
+// Pela codificação da prancha no nome do arquivo (PR-023-006-E8-PE-EST-DE-038: EST = estrutural, HID = hidráulica…);
+// sem código, por palavras do nome. O que não se encaixa fica em "Outros".
+const PJ_SECOES=[
+  ["Estrutural",         /^(EST|ESF|FUN|FND)$/,          /ESTRUT|ARMA[CÇ]|ARMADURA|FORMA|FUNDA[CÇ]|ESTACA|SAPATA|PILAR|VIGA|LAJE/],
+  ["Civil",              /^(CIV|TER|TOP|GEO|GET|PAV|DRE|DRN|URB|TPG|SON|CAN)$/, /CIVIL|TERRAPLEN|TOPOGRAF|GEOT|SONDAGEM|PAVIMENT|DRENAGEM|URBANIZ|IMPLANTA|CANTEIRO|LOCA[CÇ]/],
+  ["Arquitetônico",      /^(ARQ|ARC|PAI|PSG|INT)$/,      /ARQUITET|LAYOUT|PLANTA BAIXA|FACHADA|PAISAG|ACABAMENTO|ESQUADRIA/],
+  ["Hidráulica",         /^(HID|HDR|SAN|ESG|TUB|ADU|PLU|AGU|IHS)$/, /HIDR[AÁ]UL|SANIT|ESGOTO|TUBULA|ADUTORA|PLUVIAL|[AÁ]GUA FRIA|REDE/],
+  ["Elétrica",           /^(ELE|ELT|ILU|SPD|SPDA|TEL|CAB|EL)$/, /EL[EÉ]TRIC|ILUMINA|SPDA|ATERRAMENTO|SUBESTA|TELEFON|CABEAMENTO|QUADRO/],
+  ["Mecânica",           /^(MEC|MCN|EQP|EQU|BOM|CAL|VEN|HVAC)$/, /MEC[AÂ]NIC|EQUIPAMENT|BOMBA|COMPORTA|VENTILA|CALDEIRA/],
+  ["Automação e instrumentação", /^(AUT|ISA|CTR|SCD)$/, /AUTOMA|INSTRUMENT|CONTROLE|SUPERVIS/],
+  ["Incêndio",           /^(INC|PCI|PPCI)$/,             /INC[EÊ]NDIO|PCI\b|SPRINKLER|HIDRANTE/],
+  ["Processo",           /^(PRO|PRC|PRS|FLX)$/,          /PROCESSO|FLUXOGRAMA|DIMENSIONAMENTO HIDR/],
+];
+const PJ_OUTROS="Outros";
+function secaoProjeto(nome){
+  const u=normTxt(nome), cod=u.match(/-PE-([A-Z]{2,4})-(?:DE|MD|LV|ET|RT|PL|ES|MC)-/)?.[1] || u.match(/-(EST|HID|ARQ|ELE|MEC|CIV|TER|TOP|GEO|INC|AUT|SAN|PAV|DRE)-(?:DE|MD|LV|ET)\b/)?.[1];
+  if(cod){ const s=PJ_SECOES.find(([,rc])=>rc.test(cod)); if(s) return s[0]; }
+  return PJ_SECOES.find(([,,rp])=>rp.test(u))?.[0] || PJ_OUTROS;
+}
+// tipo do documento pela codificação: DE = desenho, MD = memorial, LV = lista/levantamento, ET = especificação
+const pjTipoDoc = n => ({DE:"desenho", MD:"memorial", LV:"lista", ET:"especificação"})[normTxt(n).match(/-PE-[A-Z]{2,4}-([A-Z]{2})-/)?.[1]] || "";
+const PJ_ABERTA = new Set(LS.get("pjSecoes")||[]); // seções abertas (lembra no aparelho)
+// lista de projetos agrupada por seção; q = busca. Usada na tela Projetos e no Arquivo da obra.
+function projetosPorSecao(q=""){
+  const fs=PJ.lista.filter(f=>!q || normTxt(f.nome).includes(normTxt(q)) || normTxt(secaoProjeto(f.nome)).includes(normTxt(q)));
+  const g=new Map([...PJ_SECOES.map(s=>[s[0],[]]), [PJ_OUTROS,[]]]);
+  for(const f of fs) g.get(secaoProjeto(f.nome)).push(f);
+  const item=f=>{ const [,de,rev]=pjRev(f.nome), guardado=PJ.off[f.id]===f.atualizado, tp=pjTipoDoc(f.nome);
     const abrir=el("button",{class:"btn pri",type:"button",text:"Abrir"}); abrir.onclick=()=>abrirPdf(f,1);
     return el("div",{class:"proj"},
       el("b",{text:pjTitulo(f.nome)}),
-      el("small",{}, `DE-${de||"?"}${rev?" · rev "+rev:""} · ${mb(f.tamanho)} `, guardado?el("span",{class:"off",text:"· NO CELULAR"}):null),
-      el("div",{class:"acoes"},abrir));
-  }));
+      el("small",{}, `${de?pjCodDoc(f.nome)+"-"+de:"sem código"}${rev?" · rev "+rev:""}${tp?" · "+tp:""} · ${mb(f.tamanho)} `, guardado?el("span",{class:"off",text:"· NO CELULAR"}):null),
+      el("div",{class:"acoes"},abrir)); };
+  const secs=[...g].filter(([,l])=>l.length);
+  if(!secs.length) return [el("div",{class:"vazio",text:"Nenhum projeto com essa busca."})];
+  return secs.map(([sec,l])=>{ const d=el("details",{class:"pj-sec",open:!!q || PJ_ABERTA.has(sec) || secs.length===1},
+      el("summary",{}, el("b",{text:sec}), el("span",{class:"chip",text:`${l.length} arquivo${l.length>1?"s":""}`})),
+      el("div",{class:"lista"}, ...l.map(item)));
+    d.addEventListener("toggle",()=>{ if(q) return; if(d.open) PJ_ABERTA.add(sec); else PJ_ABERTA.delete(sec); LS.set("pjSecoes",[...PJ_ABERTA]); });
+    return d; });
+}
+function renderProjetos(){
+  const L=$("#pj-lista"), q=$("#pj-busca").value.trim();
+  if(!S.cfg?.url){ L.replaceChildren(el("div",{class:"vazio",text:"Conecte o app ao Google Drive em Ajustes."})); return; }
+  if(!PJ.lista.length){ L.replaceChildren(el("div",{class:"vazio",text:"Nenhum PDF na pasta Projetos do Drive. Coloque os arquivos lá e toque em Atualizar lista."})); return; }
+  L.replaceChildren(...projetosPorSecao(q));
   navigator.storage?.estimate?.().then(e=>{ $("#pj-uso").textContent=`Usando ${mb(e.usage||0)} no celular`; }).catch(()=>{});
   // "NO CELULAR" só para o que de fato está guardado (o navegador pode ter apagado a cópia)
   caches.open(PDFCACHE).then(c=>c.keys()).then(ks=>{
@@ -4320,7 +4357,7 @@ const MODULOS=[
   // todos: aparece para qualquer cargo (não depende da lista de módulos do cargo)
   {id:"dev",   nome:"Painel Dev",       desc:"Permissões, saúde do app, lançamentos e diagnóstico", c:["#4A5466","#1E2430"], ativo:true},
   {id:"ferr",  nome:"Ferramentas",      desc:"Editor PDF, converter para Word e mais", c:["#E2544A","#B3261E"], ativo:true, todos:true},
-  {id:"arquivo", nome:"Arquivo da obra", desc:"Recebimentos e cálculos da Calculadora de obra", c:["#D98A3D","#9C5A1C"], ativo:true, todos:true},
+  {id:"arquivo", nome:"Arquivo da obra", desc:"Recebimentos, cálculos da Calculadora de obra e projetos por seção", c:["#D98A3D","#9C5A1C"], ativo:true, todos:true},
 ];
 const podeMod = m => (m.todos && !CARGOS[cargoEf()]?.restrito) || pode(m.id);
 const SERVICOS=[
@@ -10492,7 +10529,7 @@ function topoArquivo(T, lista){
   return out;
 }
 const campoV = (k, rot, f) => ({k:"v", rot, t:"txt", fmt:v=>f ? f(v) : String(v?.[k]??"")});
-MOD2.arquivo={nome:"Arquivo da obra", desc:"Recebimentos de material e cálculos guardados pela Calculadora de obra", todos:true, tipos:[
+MOD2.arquivo={nome:"Arquivo da obra", desc:"Recebimentos de material, cálculos guardados pela Calculadora de obra e projetos da obra por seção", todos:true, tipos:[
   {id:"receb", nome:"Recebimentos", semNovo:true, status:["Conforme","Divergente"],
     vazio:"Nenhum recebimento no período e filtro escolhidos.",
     campos:[{k:"titulo",rot:"Material",t:"txt"},{k:"obra",rot:"Obra",t:"txt"},{k:"destaque",rot:"Medido",t:"txt"},
@@ -10504,7 +10541,18 @@ MOD2.arquivo={nome:"Arquivo da obra", desc:"Recebimentos de material e cálculos
   {id:"calc", nome:"Cálculos", semNovo:true, vazio:"Nenhum cálculo no período e filtro escolhidos.",
     campos:[{k:"titulo",rot:"Cálculo",t:"txt"},{k:"calcNome",rot:"Tipo",t:"txt"},{k:"obra",rot:"Obra",t:"txt"},{k:"destaque",rot:"Resultado",t:"txt"}],
     titulo:d=>d.titulo||d.calcNome||"Cálculo", chip:r=>[r.dados?.calcNome||"", ""],
-    filtro:r=>(!ARQ.obra || r.dados?.obra===ARQ.obra) && (!ARQ.calc || r.dados?.calcNome===ARQ.calc), abrir:r=>verArquivo(r)}],
+    filtro:r=>(!ARQ.obra || r.dados?.obra===ARQ.obra) && (!ARQ.calc || r.dados?.calcNome===ARQ.calc), abrir:r=>verArquivo(r)},
+  // os PDFs da pasta Projetos do Drive (os mesmos da tela Projetos), separados por disciplina
+  {id:"proj", nome:"Projetos", semNovo:true, semData:true, campos:[], painel:()=>{
+    const lista=el("div",{}), busca=el("input",{type:"search",placeholder:"Buscar projeto ou seção","aria-label":"Buscar projeto"});
+    const pinta=()=>repor(lista, ...(PJ.lista.length ? projetosPorSecao(busca.value.trim())
+      : [el("div",{class:"vazio",text:S.cfg?.url ? "Nenhum PDF na pasta Projetos do Drive. Coloque os arquivos lá e toque em Atualizar lista." : "Conecte o app ao Google Drive em Ajustes."})]));
+    let bT; busca.oninput=()=>{ clearTimeout(bT); bT=setTimeout(pinta,250); };
+    pinta();
+    return [el("p",{class:"info",text:"Projetos da obra por seção: estrutural, civil, arquitetônico, hidráulica, elétrica, mecânica… A seção vem da codificação da prancha no nome do arquivo (ex.: PE-EST-DE = estrutural, PE-HID-DE = hidráulica). Para pôr um projeto novo, coloque o PDF na pasta Projetos do Drive."}),
+      el("div",{class:"row"}, el("button",{class:"btn",type:"button",text:"Atualizar lista",onclick:async e=>{ const b=e.currentTarget; b.disabled=true;
+        try{ await carregarProjetos(); toast(`${PJ.lista.length} projetos na pasta`); pinta(); }catch(err){ toast(err.message); } finally{ b.disabled=false; } }})),
+      el("div",{class:"filtros"}, busca), lista]; }}],
   topo:topoArquivo};
 
 function verArquivo(r){

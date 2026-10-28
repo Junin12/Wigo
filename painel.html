@@ -688,10 +688,12 @@ function renderPeriodo(box, tipo, E,A,F,C){
   const sems=[...reais], mais=fimMin=>{ let u=sems[sems.length-1]; while(sems.length<reais.length+26 || u.fim<fimMin){ if(sems.length>reais.length+520) break;
     const ini=somaDias(segSemana(u.ini),7); u={n:u.n+1, ini, fim:somaDias(ini,6), futura:true, exec:new Map(), kgE:0}; sems.push(u); } };
   mais("");
-  const modo=PER.modo==="dia"?"dia":"sem";
+  // acum = acumulado: do primeiro lançamento (aço, forma ou concreto) até hoje, sem previsão
+  const modo=["dia","acum"].includes(PER.modo)?PER.modo:"sem";
   let de=sems.find(s=>s.n===+PER.de)||reais[Math.max(0,reais.length-4)], ate=sems.find(s=>s.n===+PER.ate)||reais[reais.length-1]; if(ate.n<de.n) [de,ate]=[ate,de];
   let d1=PER.d1||de.ini, d2=PER.d2||ate.fim; if(d2<d1) [d1,d2]=[d2,d1];
-  const ini=modo==="sem"?de.ini:d1, fim=modo==="sem"?ate.fim:d2; mais(fim);
+  const prim=[reais[0].ini, ...E.fdias.map(x=>x.data), ...(C.cs||[]).filter(c=>c.vol>0).map(c=>c.data)].filter(Boolean).reduce(minD);
+  const ini=modo==="sem"?de.ini:modo==="acum"?minD(prim,h):d1, fim=modo==="sem"?ate.fim:modo==="acum"?h:d2; mais(fim);
   const salvar=m=>{ Object.assign(PER,m); try{ localStorage.setItem("painel:periodo",JSON.stringify(PER)); }catch{} render(); };
   const rotS=s=>`Semana ${s.n} · ${dataBR(s.ini)} a ${dataBR(s.fim)}${s.futura?" (futura)":""}`;
   const selS=(v,lab,k)=>{ const s=el("select",{"aria-label":lab},...sems.map(x=>el("option",{value:x.n,text:rotS(x)}))); s.value=String(v.n); s.onchange=()=>salvar({[k]:+s.value}); return s; };
@@ -703,8 +705,10 @@ function renderPeriodo(box, tipo, E,A,F,C){
   const chave=[modo, sems.length, sems[0].n, modo==="sem"?`${de.n}-${ate.n}`:""].join("|");
   if(box._chave!==chave || !box.contains(box._res)){ box._chave=chave; box._res=el("div",{class:"grid"});
     box.replaceChildren(tit, el("div",{class:"per-ctl"},
-    el("div",{class:"seg",role:"group","aria-label":"Período por semana ou por dia"},...[["sem","Por semana"],["dia","Por dia"]].map(([v,txt])=>el("button",{type:"button",text:txt,"aria-pressed":String(modo===v),onclick:()=>salvar({modo:v})}))),
-    ...(modo==="sem"?[selS(de,"Da semana","de"),el("span",{class:"info",text:"até"}),selS(ate,"Até a semana","ate")]:[inpD(d1,"Do dia","d1"),el("span",{class:"info",text:"até"}),inpD(d2,"Até o dia","d2")])), box._res); }
+    el("div",{class:"seg",role:"group","aria-label":"Período por semana, por dia ou acumulado"},...[["sem","Por semana"],["dia","Por dia"],["acum","Acumulado"]].map(([v,txt])=>el("button",{type:"button",text:txt,"aria-pressed":String(modo===v),onclick:()=>salvar({modo:v})}))),
+    ...(modo==="sem"?[selS(de,"Da semana","de"),el("span",{class:"info",text:"até"}),selS(ate,"Até a semana","ate")]
+      :modo==="acum"?[el("span",{class:"info",text:`tudo o que foi lançado, de ${dataBR(ini)} até hoje (${dataBR(h)})`})]
+      :[inpD(d1,"Do dia","d1"),el("span",{class:"info",text:"até"}),inpD(d2,"Até o dia","d2")])), box._res); }
   else if(modo==="dia") for(const [lab,v] of [["Do dia",d1],["Até o dia",d2]]){ const i=box.querySelector(`[aria-label="${lab}"]`); if(i && i!==document.activeElement && i.value!==v) i.value=v; }
   // aço lançado de a até b (b ≤ hoje): cada semana espalhada pelos seus dias (a em andamento, pelos dias que já passaram)
   const ndReal=s=>nDias(s.ini,minD(s.fim,h));
@@ -723,14 +727,22 @@ function renderPeriodo(box, tipo, E,A,F,C){
   for(const x of fdR) porObra.set(obraDe(x.obra),(porObra.get(obraDe(x.obra))||0)+x.mont);
   if(nFut){ for(const [est,v] of estMes) porEst.set(est,(porEst.get(est)||0)+v/30*nFut); for(const [o,v] of obraMes) porObra.set(o,(porObra.get(o)||0)+v/30*nFut); }
   const aco=acoR+mAco*nFut, forma=formaR+mForma*nFut, conc=concR+mConc*nFut;
+  // formas e concreto lançados antes da primeira semana de aço: uma linha própria (o aço só existe nas semanas)
+  const ant=somaDias(reais[0].ini,-1);
+  if(ini<=ant && (ver("forma")||ver("conc"))){ const b0=minD(ant,fim), fw=soma(E.fdias,ini,b0,x=>x.mont), cw=soma(csAll,ini,b0,c=>c.vol);
+    if(fw||cw) linhas.push(el("tr",{},el("td",{},el("b",{text:`Antes da semana ${reais[0].n}`}),el("div",{class:"info",text:`${ddmm(ini)} a ${ddmm(b0)}`})),
+      el("td",{text:String(nDias(ini,b0))}), ver("aco")?el("td",{text:"–"}):null, ver("aco")?el("td",{text:"–"}):null,
+      ver("forma")?el("td",{text:fw?nf0.format(fw):"–"}):null, ver("conc")?el("td",{text:cw?nf1.format(cw):"–"}):null)); }
   // dias entre uma semana e a seguinte (domingo sem lançamento) ficam com a semana de antes: a previsão conta todos os dias corridos
   sems.forEach((s,k)=>{ const fimF=sems[k+1] ? somaDias(sems[k+1].ini,-1) : s.fim; if(fimF<ini||s.ini>fim) return;
     const a=maxD(s.ini,ini), b=minD(s.fim,fim), nd=nDias(s.ini,s.fim), nIn=a<=b?nDias(a,b):0, rb=minD(b,h), bF=minD(maxD(fimF,s.fim),fim), fa=maxD(a,somaDias(h,1)), nf=bF>h&&fa<=bF?nDias(fa,bF):0;
     if(!nIn && !nf) return;
-    const kgR=s.futura?0:acoReal(a,rb), kg=kgR+mAco*nf; if(nIn<nd && !s.futura) cortadas++;
-    const fw=(a<=rb?soma(E.fdias,a,rb,x=>x.mont):0)+mForma*nf, cw=(a<=rb?soma(csAll,a,rb,c=>c.vol):0)+mConc*nf, est=nf?" *":"";
+    // semana cortada pelo período (não só por hoje): o aço dela entra pela média diária
+    const cort=!s.futura && nIn<nd && (a>s.ini || rb<minD(s.fim,h)), rbF=minD(bF,h);
+    const kgR=s.futura?0:acoReal(a,rb), kg=kgR+mAco*nf; if(cort) cortadas++;
+    const fw=(a<=rbF?soma(E.fdias,a,rbF,x=>x.mont):0)+mForma*nf, cw=(a<=rbF?soma(csAll,a,rbF,c=>c.vol):0)+mConc*nf, est=nf?" *":"";
     const fut=nf?`${nf} dia${nf>1?"s":""} futuro${nf>1?"s":""} pela média do último mês`:"";
-    const obs=[ver("aco")&&nIn<nd&&!s.futura&&nf<nIn?`média ${nf0.format(s.kgE/ndReal(s))} kg/dia`:"", fut].filter(Boolean).join(" · ");
+    const obs=[ver("aco")&&cort?`média ${nf0.format(s.kgE/ndReal(s))} kg/dia`:"", fut].filter(Boolean).join(" · ");
     linhas.push(el("tr",{},el("td",{},el("b",{text:`Semana ${s.n}`}),el("div",{class:"info",text:`${ddmm(s.ini)} a ${ddmm(s.fim)}${s.futura?" · futura":s.fechada?"":" · em andamento"}`}),
         tipo!=="todos"&&tipo!=="aco"&&obs?el("div",{class:"info",text:obs}):null),
       el("td",{text:nIn<nd?`${nIn} de ${nd}`:`${nd}`}),
@@ -749,7 +761,8 @@ function renderPeriodo(box, tipo, E,A,F,C){
   const cab=["Semana","Dias no período",...(ver("aco")?["Aço da semana (t)","Aço no período (t)"]:[]),...(ver("forma")?["Formas (m²)"]:[]),...(ver("conc")?["Concreto (m³)"]:[])];
   const rodape=el("tr",{},el("td",{text:"Total"}),el("td",{text:String(nd)}),ver("aco")?el("td",{text:""}):null,ver("aco")?el("td",{text:t(aco)+prev}):null,
     ver("forma")?el("td",{text:nf0.format(forma)+prev}):null,ver("conc")?el("td",{text:nf1.format(conc)+prev}):null);
-  const comoAco=modo==="dia"?"O aço é lançado por semana: numa semana cortada pelo período, conta a média diária dela (aço da semana ÷ dias da semana; semana em andamento, ÷ dias que já passaram) × os dias que ficam dentro do período."
+  const comoAco=modo==="acum"?"Acumulado: soma de todas as semanas de lançamento do aço até hoje (a semana em andamento entra com o que já foi lançado), sem previsão."
+    :modo==="dia"?"O aço é lançado por semana: numa semana cortada pelo período, conta a média diária dela (aço da semana ÷ dias da semana; semana em andamento, ÷ dias que já passaram) × os dias que ficam dentro do período."
     :"Soma das semanas escolhidas, inteiras (do primeiro ao último dia de cada semana de lançamento do aço).";
   box._res.replaceChildren(
     el("div",{class:"kpis"},...kpis),

@@ -172,7 +172,8 @@ details.lote-cp{border-top:1px solid var(--line);padding:8px 0}details.lote-cp s
     <button role="tab" id="t-aco" aria-controls="p-aco" aria-selected="false">Armação</button>
     <button role="tab" id="t-forma" aria-controls="p-forma" aria-selected="false">Formas</button>
     <button role="tab" id="t-conc" aria-controls="p-conc" aria-selected="false">Concreto</button>
-    <button role="tab" id="t-frentes" aria-controls="p-frentes" aria-selected="false">Frentes e ocorrências</button>
+    <!-- aba Frentes e ocorrências escondida por enquanto (28/10/2026): para voltar, tire o hidden daqui e o SEM_FRENTES abaixo -->
+    <button role="tab" id="t-frentes" aria-controls="p-frentes" aria-selected="false" hidden>Frentes e ocorrências</button>
   </div>
 </div></div>
 
@@ -388,7 +389,9 @@ const H=new URLSearchParams(location.hash.slice(1)), Q=new URLSearchParams(locat
 const EMBUTIDO=window.PAINEL_ACESSO||{};
 const URLD=H.get("u")||Q.get("u")||guardado.u||EMBUTIDO.u, CHAVE=H.get("k")||Q.get("k")||guardado.k||EMBUTIDO.k;
 if(URLD&&CHAVE){ try{ localStorage.setItem("painel:acesso",JSON.stringify({u:URLD,k:CHAVE})); }catch{} }
+const SEM_FRENTES=true; // aba Frentes e ocorrências escondida por enquanto
 let D=null, EMP=H.get("emp")||"", EST=H.get("est")||"", ABA=H.get("aba")||"geral", G_TODAS=false;
+if(SEM_FRENTES && ABA==="frentes") ABA="geral";
 
 async function carregar(){
   if(!URLD||!CHAVE){ pedirAcesso(); return; }
@@ -638,7 +641,7 @@ function render(){
   $("#limpar").hidden=E.geral;
   $("#escopo").replaceChildren(E.geral ? el("b",{text:"Obra inteira"}) : el("span",{}, EMP?`${EMP}`:"", EST?" › ":"", EST?el("b",{text:EST}):(EMP?"":null)));
   renderGeral(E,A,F,h,C); renderAco(E,A,h);
-  for(const [id,tipo] of [["#g-per","todos"],["#a-per","aco"],["#f-per","forma"],["#c-per","conc"]]) renderPeriodo($(id), tipo, E,A,F,C); renderForma(E,F,h); renderConc(E,C,h); renderFrentes(E,A);
+  for(const [id,tipo] of [["#g-per","todos"],["#a-per","aco"],["#f-per","forma"],["#c-per","conc"]]) renderPeriodo($(id), tipo, E,A,F,C); renderForma(E,F,h); renderConc(E,C,h); if(!SEM_FRENTES) renderFrentes(E,A);
   mostrarAba();
 }
 function renderGeral(E,A,F,h,C){

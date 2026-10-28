@@ -197,13 +197,14 @@ details.lote-cp{border-top:1px solid var(--line);padding:8px 0}details.lote-cp s
   <!-- ARMAÇÃO -->
   <section id="p-aco" role="tabpanel" aria-labelledby="t-aco" class="grid" hidden>
     <div class="kpis" id="a-kpis"></div>
+    <div class="card" id="a-per"></div>
     <div class="kpis" id="a-prazos"></div>
     <div class="grid g2">
       <div class="card"><h3>Produção semanal × meta (t)</h3><div class="chart" id="a-ch-sem"></div><div class="legenda" id="a-leg-sem"></div><p class="info nota" id="a-nota-sem"></p></div>
       <div class="card"><h3>Curva S (t acumuladas)</h3><div class="chart" id="a-ch-s"></div><div class="legenda" id="a-leg-s"></div><p class="info nota" id="a-nota-s"></p></div>
     </div>
     <div class="card"><div class="card-top"><h3>Aço por etapa de concretagem</h3><span class="info">armado ÷ previsto em cada etapa</span></div><div class="tbl" id="a-etapa"></div>
-      <p class="info nota">1ª = laje de fundo + todas as barras verticais das paredes (saem da laje) + horizontais até 0,40 m · 2ª = horizontais de 0,40 a 2,35 m · 3ª = de 2,35 a 4,30 m · 4ª = de 4,30 m ao topo + lajes de cobertura/passarela. As horizontais se dividem pela altura de cada parede e o que foi armado enche as etapas de baixo para cima. Outros = pilares, vigas, lajes de piso.</p></div>
+      <p class="info nota">1ª = laje de fundo + arranques das paredes (barras verticais curtas, com o pé dentro da laje e a espera para o traspasse) + horizontais até 0,40 m · 2ª = horizontais de 0,40 a 2,35 m + verticais de altura inteira, que emendam no arranque (parede sem arranque: elas saem da laje e vão na 1ª) · 3ª = de 2,35 a 4,30 m · 4ª = de 4,30 m ao topo + lajes de cobertura/passarela. Vertical = barra de 45% da altura da parede até a altura + 1,50 m; arranque = vertical menor que 80% da altura. As horizontais se dividem pela altura de cada parede e o que foi armado enche as etapas de baixo para cima. Outros = pilares, vigas, lajes de piso.</p></div>
     <div class="grid g2">
       <div class="card"><h3>Por elemento</h3><div class="tbl" id="a-el"></div></div>
       <div class="card"><h3>Por bitola</h3><div class="tbl" id="a-bit"></div></div>
@@ -214,6 +215,7 @@ details.lote-cp{border-top:1px solid var(--line);padding:8px 0}details.lote-cp s
   <!-- FORMAS -->
   <section id="p-forma" role="tabpanel" aria-labelledby="t-forma" class="grid" hidden>
     <div class="kpis" id="f-kpis"></div>
+    <div class="card" id="f-per"></div>
     <div class="grid g2">
       <div class="card"><h3>m² de forma montados por semana</h3><div class="chart" id="f-ch"></div><p class="info nota" id="f-nota"></p></div>
       <div class="card"><h3>Avanço acumulado (m²)</h3><div class="chart" id="f-ch-ac"></div><p class="info nota" id="f-nota-ac"></p></div>
@@ -225,6 +227,7 @@ details.lote-cp{border-top:1px solid var(--line);padding:8px 0}details.lote-cp s
   <!-- CONCRETO -->
   <section id="p-conc" role="tabpanel" aria-labelledby="t-conc" class="grid" hidden>
     <div class="kpis" id="c-kpis"></div>
+    <div class="card" id="c-per"></div>
     <div class="grid g2">
       <div class="card"><h3>m³ concretados por semana</h3><div class="chart" id="c-ch"></div><p class="info nota" id="c-nota"></p></div>
       <div class="card"><h3>Últimas concretagens</h3><div class="tbl" id="c-ult"></div></div>
@@ -292,9 +295,9 @@ const CONC_OBRAS=QTD_CONC.flatMap(([setor,nome,mc,mn,cc,cn])=>{ const [tit,est]=
   return [{...b,nome:setor==="ETA"?nome:`${setor} · ${nome}`,titulo:setor==="ETA"?(tit||cap(nome)):`${cap(nome)} (${setor.toLowerCase()})`,est:est||""}]; });
 const CE_ETAPAS=["Concreto magro","Laje de fundo + arranque","Lance 1 de parede","Lance 2 de parede","Lance 3 + laje de cobertura/passarela"];
 
-// ---------- aço por etapa de concretagem (mesma conta do app: aeFracoes / aeSoma no index.html) ----------
-// 1 = laje de fundo + arranque: o FUNDO inteiro, todas as barras verticais das paredes e as horizontais de 0 a 0,40 m;
-// 2 = horizontais de 0,40 a 2,35 m; 3 = de 2,35 a 4,30 m; 4 = de 4,30 m ao topo + lajes de cobertura/passarela.
+// 1 = laje de fundo + arranque: o FUNDO inteiro, os arranques das paredes (verticais curtas com o pé na laje) e as horizontais de 0 a 0,40 m;
+// 2 = horizontais de 0,40 a 2,35 m + verticais de altura inteira (emendam no arranque; sem arranque, vão na 1ª); 3 = de 2,35 a 4,30 m; 4 = de 4,30 m ao topo + lajes de cobertura/passarela.
+// Vertical = barra de 45% da altura até a altura + 1,50 m que não corre ao longo da parede (menor que 80% do comprimento); arranque = vertical menor que 80% da altura.
 // Vertical = barra de 45% da altura até a altura + 1,50 m que não corre ao longo da parede (menor que 80% do comprimento).
 // Paredes do catálogo do app (mapa de concretagem): {estrutura: [[parede, comprimento, altura], …]} em metros.
 const PAR_CAT={"FLOCULADORES":[["1",9.9,4.55],["4",9.3,4.55],["7",9.9,4.55],["10",9.3,4.55],["12",9.3,4.55],["11 inf.",4.5,4.55],["11 sup.",4.5,4.55],["2",9.9,4.55],["5",9.3,4.55],["8",9.9,4.55],["13",9.3,4.55],["15",9.3,4.55],["14 inf.",4.5,4.55],["14 sup.",4.5,4.55],["3",9.9,4.55],["6",9.3,4.55],["9",9.9,4.55],["16",9.3,4.55],["18",9.3,4.55],["17 inf.",4.5,4.55],["17 sup.",4.5,4.55],["19",3.18,2.7],["20",3.18,2.7],["21",1.05,2.7],["22",1.05,2.7],["23",2.3,2.7]],
@@ -321,21 +324,29 @@ function paredesDoEl(loc){
   return [...new Set(out)];
 }
 const AE_CACHE=new WeakMap();
-function aeFracoes(i){
+// tipo: {t:"fundo"|"cob"|"arr"|"vert"|"hor", H}; arr = arranque (vertical curta, com o pé na laje); vert = vertical de altura inteira
+function aeTipo(i){
   if(AE_CACHE.has(i)) return AE_CACHE.get(i);
-  const u=normTxt(i.loc); let f=null;
-  if(/FUNDO/.test(u)) f=[1,0,0,0];
+  const u=normTxt(i.loc); let r=null;
+  if(/FUNDO/.test(u)) r={t:"fundo"};
   else if(/PAREDE|\bPAR\s*\d/.test(u)){
-    const cat=(PAR_CAT[i.est]||[]).map(([id,c,h])=>({id,c,h})), ids=paredesDoEl(i.loc), ps=cat.filter(p=>ids.some(n=>new RegExp(`^${n}(?:[A-Z]|\\s|$)`).test(p.id)));
+    const cat=(PAR_CAT[i.est]||[]).map(([id,c,h])=>({id,c,h})), ids=paredesDoEl(i.loc), ps=cat.filter(p=>ids.some(n=>new RegExp(`^${n}(?:[A-Z]|\s|$)`).test(p.id)));
     const base=ps.length?ps:cat, cs=base.reduce((a,p)=>a+p.c,0), H=base.length?(cs?base.reduce((a,p)=>a+p.h*p.c,0)/cs:base[0].h):AE_H, L=ps.length?Math.max(...ps.map(p=>p.c)):0, cu=+i.cu||0;
-    f = cu>=0.45*H && cu<=H+1.5 && !(L && cu>=0.8*L) ? [1,0,0,0] : AE_FAIXA.map(([a,b])=>Math.max(0,Math.min(b,H)-Math.min(a,H))/H);
+    r={t: cu>=0.45*H && cu<=H+1.5 && !(L && cu>=0.8*L) ? (cu<0.8*H ? "arr" : "vert") : "hor", H};
   }
-  else if(/COBERTURA|PASSARELA|TAMPA|LAJE SUPERIOR/.test(u)) f=[0,0,0,1];
-  AE_CACHE.set(i,f); return f;
+  else if(/COBERTURA|PASSARELA|TAMPA|LAJE SUPERIOR/.test(u)) r={t:"cob"};
+  AE_CACHE.set(i,r); return r;
+}
+function aeFracoes(i, comArr){
+  const r=aeTipo(i); if(!r) return null;
+  if(r.t==="fundo"||r.t==="arr") return [1,0,0,0];
+  if(r.t==="cob") return [0,0,0,1];
+  if(r.t==="vert") return comArr?[0,1,0,0]:[1,0,0,0];
+  return AE_FAIXA.map(([a,b])=>Math.max(0,Math.min(b,r.H)-Math.min(a,r.H))/r.H);
 }
 function aeSoma(its, ac){
-  const r={p:[0,0,0,0],x:[0,0,0,0],op:0,ox:0};
-  for(const i of its){ const f=aeFracoes(i), ex=Math.min(ac.get(i.c)||0,i.qp);
+  const r={p:[0,0,0,0],x:[0,0,0,0],op:0,ox:0}, arr=new Set(its.filter(i=>aeTipo(i)?.t==="arr").map(i=>i.est+"|"+i.loc));
+  for(const i of its){ const f=aeFracoes(i, arr.has(i.est+"|"+i.loc)), ex=Math.min(ac.get(i.c)||0,i.qp);
     if(!f){ r.op+=i.kp; r.ox+=ex*i.ppb; continue; }
     let cum=0; f.forEach((v,k)=>{ const q=i.qp*v; r.p[k]+=q*i.ppb; r.x[k]+=Math.max(0,Math.min(q,ex-cum))*i.ppb; cum+=q; }); }
   return r;
@@ -597,7 +608,8 @@ function render(){
   const E=escopo(), A=calcAco(E), F=calcForma(E), C=calcConc(E), h=hojeISO();
   $("#limpar").hidden=E.geral;
   $("#escopo").replaceChildren(E.geral ? el("b",{text:"Obra inteira"}) : el("span",{}, EMP?`${EMP}`:"", EST?" › ":"", EST?el("b",{text:EST}):(EMP?"":null)));
-  renderGeral(E,A,F,h,C); renderPeriodo(E,A,F,C); renderAco(E,A,h); renderForma(E,F,h); renderConc(E,C,h); renderFrentes(E,A);
+  renderGeral(E,A,F,h,C); renderAco(E,A,h);
+  for(const [id,tipo] of [["#g-per","todos"],["#a-per","aco"],["#f-per","forma"],["#c-per","conc"]]) renderPeriodo($(id), tipo, E,A,F,C); renderForma(E,F,h); renderConc(E,C,h); renderFrentes(E,A);
   mostrarAba();
 }
 function renderGeral(E,A,F,h,C){
@@ -651,8 +663,11 @@ function renderGeral(E,A,F,h,C){
 const PER=(()=>{ try{ return JSON.parse(localStorage.getItem("painel:periodo")||"null")||{}; }catch{ return {}; } })();
 const nDias=(a,b)=>Math.round((new Date(b+"T12:00:00")-new Date(a+"T12:00:00"))/864e5)+1;
 const maxD=(a,b)=>a>b?a:b, minD=(a,b)=>a<b?a:b;
-function renderPeriodo(E,A,F,C){
-  const box=$("#g-per"), h=hojeISO(), reais=A.sems, tit=el("div",{class:"card-top"},el("h3",{text:"Produção no período"}),el("span",{class:"info",text:"escolha por semana ou por dia · datas futuras pela média do último mês"}));
+// um quadro por aba: tipo "todos" (visão geral), "aco", "forma" ou "conc"; o período escolhido é o mesmo em todas as abas
+const PER_TIT={todos:"Produção no período", aco:"Armação no período", forma:"Formas no período", conc:"Concreto no período"};
+function renderPeriodo(box, tipo, E,A,F,C){
+  if(!box) return;
+  const h=hojeISO(), reais=A.sems, ver=k=>tipo==="todos"||tipo===k, tit=el("div",{class:"card-top"},el("h3",{text:PER_TIT[tipo]}),el("span",{class:"info",text:"escolha por semana ou por dia · datas futuras pela média do último mês"}));
   if(!reais.length){ box._chave=""; box.replaceChildren(tit,vazio("Nenhuma semana lançada ainda.")); return; }
   // semanas futuras para escolher: de segunda a domingo, depois da última já começada
   const sems=[...reais], mais=fimMin=>{ let u=sems[sems.length-1]; while(sems.length<reais.length+26 || u.fim<fimMin){ if(sems.length>reais.length+520) break;
@@ -668,12 +683,14 @@ function renderPeriodo(E,A,F,C){
   // data digitada: só vale quando está completa (o ano chega como 0002, 0020, 0202… enquanto se digita)
   const inpD=(v,lab,k)=>{ const i=el("input",{type:"date",value:v,"aria-label":lab,min:"2020-01-01",max:"2099-12-31"});
     i.oninput=i.onchange=()=>{ if(/^20\d\d-\d\d-\d\d$/.test(i.value) && i.value!==PER[k]) salvar({[k]:i.value}); }; return i; };
-  // os campos ficam os mesmos entre um desenho e outro (só o resultado é redesenhado): não perdem o que está sendo digitado
+  // os campos ficam os mesmos entre um desenho e outro (só o resultado é redesenhado): não perdem o que está sendo digitado.
+  // Numa aba, a data trocada em outra aba aparece no campo (sem refazer o campo que está com o cursor)
   const chave=[modo, sems.length, sems[0].n, modo==="sem"?`${de.n}-${ate.n}`:""].join("|");
   if(box._chave!==chave || !box.contains(box._res)){ box._chave=chave; box._res=el("div",{class:"grid"});
     box.replaceChildren(tit, el("div",{class:"per-ctl"},
     el("div",{class:"seg",role:"group","aria-label":"Período por semana ou por dia"},...[["sem","Por semana"],["dia","Por dia"]].map(([v,txt])=>el("button",{type:"button",text:txt,"aria-pressed":String(modo===v),onclick:()=>salvar({modo:v})}))),
     ...(modo==="sem"?[selS(de,"Da semana","de"),el("span",{class:"info",text:"até"}),selS(ate,"Até a semana","ate")]:[inpD(d1,"Do dia","d1"),el("span",{class:"info",text:"até"}),inpD(d2,"Até o dia","d2")])), box._res); }
+  else if(modo==="dia") for(const [lab,v] of [["Do dia",d1],["Até o dia",d2]]){ const i=box.querySelector(`[aria-label="${lab}"]`); if(i && i!==document.activeElement && i.value!==v) i.value=v; }
   // aço lançado de a até b (b ≤ hoje): cada semana espalhada pelos seus dias (a em andamento, pelos dias que já passaram)
   const ndReal=s=>nDias(s.ini,minD(s.fim,h));
   const acoReal=(a,b,porEst)=>{ let kg=0; if(a>b) return 0;
@@ -682,39 +699,54 @@ function renderPeriodo(E,A,F,C){
     return kg; };
   const csAll=(C.cs||[]).filter(c=>c.vol>0), soma=(L,a,b,f)=>L.filter(x=>x.data>=a&&x.data<=b).reduce((v,x)=>v+f(x),0);
   // média diária do último mês (30 dias até hoje)
-  const ma=somaDias(h,-29), estMes=new Map(), mAco=acoReal(ma,h,estMes)/30, mForma=soma(E.fdias,ma,h,x=>x.mont)/30, mConc=soma(csAll,ma,h,c=>c.vol)/30;
+  const ma=somaDias(h,-29), estMes=new Map(), obraMes=new Map(), mAco=acoReal(ma,h,estMes)/30, mForma=soma(E.fdias,ma,h,x=>x.mont)/30, mConc=soma(csAll,ma,h,c=>c.vol)/30;
+  for(const x of E.fdias) if(x.data>=ma&&x.data<=h) obraMes.set(obraDe(x.obra),(obraMes.get(obraDe(x.obra))||0)+x.mont);
   const rFim=minD(fim,h), fIni=maxD(ini,somaDias(h,1)), nFut=fim>h?nDias(fIni,fim):0;
-  const porEst=new Map(), linhas=[]; let cortadas=0;
+  const porEst=new Map(), porObra=new Map(), linhas=[]; let cortadas=0;
   const acoR=acoReal(ini,rFim,porEst), formaR=ini<=h?soma(E.fdias,ini,rFim,x=>x.mont):0, concR=ini<=h?soma(csAll,ini,rFim,c=>c.vol):0;
-  const nForma=ini<=h?E.fdias.filter(x=>x.data>=ini&&x.data<=rFim).length:0, nConc=ini<=h?csAll.filter(c=>c.data>=ini&&c.data<=rFim).length:0;
-  if(nFut) for(const [est,v] of estMes) porEst.set(est,(porEst.get(est)||0)+v/30*nFut);
+  const fdR=ini<=h?E.fdias.filter(x=>x.data>=ini&&x.data<=rFim):[], csR=ini<=h?csAll.filter(c=>c.data>=ini&&c.data<=rFim):[];
+  for(const x of fdR) porObra.set(obraDe(x.obra),(porObra.get(obraDe(x.obra))||0)+x.mont);
+  if(nFut){ for(const [est,v] of estMes) porEst.set(est,(porEst.get(est)||0)+v/30*nFut); for(const [o,v] of obraMes) porObra.set(o,(porObra.get(o)||0)+v/30*nFut); }
   const aco=acoR+mAco*nFut, forma=formaR+mForma*nFut, conc=concR+mConc*nFut;
   // dias entre uma semana e a seguinte (domingo sem lançamento) ficam com a semana de antes: a previsão conta todos os dias corridos
   sems.forEach((s,k)=>{ const fimF=sems[k+1] ? somaDias(sems[k+1].ini,-1) : s.fim; if(fimF<ini||s.ini>fim) return;
     const a=maxD(s.ini,ini), b=minD(s.fim,fim), nd=nDias(s.ini,s.fim), nIn=a<=b?nDias(a,b):0, rb=minD(b,h), bF=minD(maxD(fimF,s.fim),fim), fa=maxD(a,somaDias(h,1)), nf=bF>h&&fa<=bF?nDias(fa,bF):0;
     if(!nIn && !nf) return;
     const kgR=s.futura?0:acoReal(a,rb), kg=kgR+mAco*nf; if(nIn<nd && !s.futura) cortadas++;
-    const fw=(a<=rb?soma(E.fdias,a,rb,x=>x.mont):0)+mForma*nf, cw=(a<=rb?soma(csAll,a,rb,c=>c.vol):0)+mConc*nf;
-    const obs=[nIn<nd&&!s.futura&&nf<nIn?`média ${nf0.format(s.kgE/ndReal(s))} kg/dia`:"", nf?`${nf} dia${nf>1?"s":""} futuro${nf>1?"s":""} pela média do último mês`:""].filter(Boolean).join(" · ");
-    linhas.push(el("tr",{},el("td",{},el("b",{text:`Semana ${s.n}`}),el("div",{class:"info",text:`${ddmm(s.ini)} a ${ddmm(s.fim)}${s.futura?" · futura":s.fechada?"":" · em andamento"}`})),
-      el("td",{text:nIn<nd?`${nIn} de ${nd}`:`${nd}`}),el("td",{text:s.futura?"–":t(s.kgE)}),el("td",{},el("b",{text:t(kg)+(nf?" *":"")}),obs?el("div",{class:"info",text:obs}):null),
-      el("td",{text:fw?nf0.format(fw)+(nf?" *":""):"–"}),el("td",{text:cw?nf1.format(cw)+(nf?" *":""):"–"}))); });
-  const nd=nDias(ini,fim), LE=[...porEst].filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]), prev=nFut?" *":"";
-  const subFut=nFut?` · ${nFut} dia(s) futuro(s) pela média do último mês`:"";
+    const fw=(a<=rb?soma(E.fdias,a,rb,x=>x.mont):0)+mForma*nf, cw=(a<=rb?soma(csAll,a,rb,c=>c.vol):0)+mConc*nf, est=nf?" *":"";
+    const fut=nf?`${nf} dia${nf>1?"s":""} futuro${nf>1?"s":""} pela média do último mês`:"";
+    const obs=[ver("aco")&&nIn<nd&&!s.futura&&nf<nIn?`média ${nf0.format(s.kgE/ndReal(s))} kg/dia`:"", fut].filter(Boolean).join(" · ");
+    linhas.push(el("tr",{},el("td",{},el("b",{text:`Semana ${s.n}`}),el("div",{class:"info",text:`${ddmm(s.ini)} a ${ddmm(s.fim)}${s.futura?" · futura":s.fechada?"":" · em andamento"}`}),
+        tipo!=="todos"&&tipo!=="aco"&&obs?el("div",{class:"info",text:obs}):null),
+      el("td",{text:nIn<nd?`${nIn} de ${nd}`:`${nd}`}),
+      ver("aco")?el("td",{text:s.futura?"–":t(s.kgE)}):null, ver("aco")?el("td",{},el("b",{text:t(kg)+est}),obs?el("div",{class:"info",text:obs}):null):null,
+      ver("forma")?el("td",{text:fw?nf0.format(fw)+est:"–"}):null, ver("conc")?el("td",{text:cw?nf1.format(cw)+est:"–"}):null)); });
+  const nd=nDias(ini,fim), prev=nFut?" *":"", subFut=nFut?` · ${nFut} dia(s) futuro(s) pela média do último mês`:"", per=`${dataBR(ini)} a ${dataBR(fim)} · ${nd} dias`;
+  const LE=[...porEst].filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]), LO=[...porObra].filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
+  const kpis=[
+    ver("aco")?kpi("Aço armado",`${t(aco)} t${prev}`,`${per}${cortadas?` · ${cortadas} semana(s) pela média diária`:""}${subFut}`,"aco"):null,
+    ver("forma")?kpi("Formas montadas",`${nf0.format(forma)} m²${prev}`,(F.meta?`${fdR.length} lançamento(s) no período`:"sem quantitativo de forma nesta seleção")+(tipo==="forma"?" · "+per:"")+subFut,"forma"):null,
+    ver("conc")?kpi("Concreto lançado",`${nf1.format(conc)} m³${prev}`,`${csR.length} concretagem(ns) com caminhões${tipo==="conc"?" · "+per:""}${subFut}`,"conc"):null,
+    ver("aco")?kpi("Aço por dia",nd?`${nf0.format(aco/nd)} kg`:"–","média do período (dias corridos)","aco"):null,
+    tipo==="forma"?kpi("Formas por dia",nd?`${nf1.format(forma/nd)} m²`:"–","média do período (dias corridos)","forma"):null,
+    tipo==="conc"?kpi("Concreto por dia",nd?`${nf1.format(conc/nd)} m³`:"–","média do período (dias corridos)","conc"):null].filter(Boolean);
+  const medias=[ver("aco")?`aço ${nf0.format(mAco)} kg/dia`:"", ver("forma")?`formas ${nf1.format(mForma)} m²/dia`:"", ver("conc")?`concreto ${nf1.format(mConc)} m³/dia`:""].filter(Boolean).join(" · ");
+  const cab=["Semana","Dias no período",...(ver("aco")?["Aço da semana (t)","Aço no período (t)"]:[]),...(ver("forma")?["Formas (m²)"]:[]),...(ver("conc")?["Concreto (m³)"]:[])];
+  const rodape=el("tr",{},el("td",{text:"Total"}),el("td",{text:String(nd)}),ver("aco")?el("td",{text:""}):null,ver("aco")?el("td",{text:t(aco)+prev}):null,
+    ver("forma")?el("td",{text:nf0.format(forma)+prev}):null,ver("conc")?el("td",{text:nf1.format(conc)+prev}):null);
+  const comoAco=modo==="dia"?"O aço é lançado por semana: numa semana cortada pelo período, conta a média diária dela (aço da semana ÷ dias da semana; semana em andamento, ÷ dias que já passaram) × os dias que ficam dentro do período."
+    :"Soma das semanas escolhidas, inteiras (do primeiro ao último dia de cada semana de lançamento do aço).";
   box._res.replaceChildren(
-    el("div",{class:"kpis"},
-      kpi("Aço armado",`${t(aco)} t${prev}`,`${dataBR(ini)} a ${dataBR(fim)} · ${nd} dias${cortadas?` · ${cortadas} semana(s) pela média diária`:""}${subFut}`,"aco"),
-      kpi("Formas montadas",`${nf0.format(forma)} m²${prev}`,(F.meta?`${nForma} lançamento(s) no período`:"sem quantitativo de forma nesta seleção")+subFut,"forma"),
-      kpi("Concreto lançado",`${nf1.format(conc)} m³${prev}`,`${nConc} concretagem(ns) com caminhões${subFut}`,"conc"),
-      kpi("Aço por dia",nd?`${nf0.format(aco/nd)} kg`:"–","média do período (dias corridos)","aco")),
+    el("div",{class:"kpis"},...kpis),
     nFut?el("p",{class:"info nota",style:"border-left-color:var(--warn)"},el("b",{text:"* Datas futuras: usada a média diária do último mês. "}),
-      `${nFut} dia(s), de ${dataBR(fIni)} a ${dataBR(fim)}, calculados pela média diária de ${dataBR(ma)} a ${dataBR(h)}: aço ${nf0.format(mAco)} kg/dia · formas ${nf1.format(mForma)} m²/dia · concreto ${nf1.format(mConc)} m³/dia.`):"",
-    linhas.length?el("div",{class:"tbl"},tabela(["Semana","Dias no período","Aço da semana (t)","Aço no período (t)","Formas (m²)","Concreto (m³)"],linhas,
-      el("tr",{},el("td",{text:"Total"}),el("td",{text:String(nd)}),el("td",{text:""}),el("td",{text:t(aco)+prev}),el("td",{text:nf0.format(forma)+prev}),el("td",{text:nf1.format(conc)+prev})))):vazio("Nenhuma semana de aço neste período."),
-    LE.length>1?el("div",{class:"tbl"},tabela(["Estrutura","Aço no período (t)","Parte"],LE.map(([est,v])=>el("tr",{},el("td",{},el("b",{text:est})),el("td",{text:t(v)+prev}),el("td",{},pct(aco?v/aco:0),barraTd(aco?v/aco:0)))))):"",
-    el("p",{class:"info nota",text:(modo==="dia"?"O aço é lançado por semana: numa semana cortada pelo período, conta a média diária dela (aço da semana ÷ dias da semana; semana em andamento, ÷ dias que já passaram) × os dias que ficam dentro do período. Formas e concreto entram pela data de cada lançamento."
-      :"Soma das semanas escolhidas, inteiras (do primeiro ao último dia de cada semana de lançamento do aço). Formas e concreto entram pela data de cada lançamento dentro dessas semanas.")
-      +" Dias depois de hoje entram pela média diária do último mês (30 dias até hoje); na estrutura, pela parte de cada uma nesse mês."}));
+      `${nFut} dia(s), de ${dataBR(fIni)} a ${dataBR(fim)}, calculados pela média diária de ${dataBR(ma)} a ${dataBR(h)}: ${medias}.`):"",
+    linhas.length?el("div",{class:"tbl"},tabela(cab,linhas,rodape)):vazio("Nenhuma semana neste período."),
+    ver("aco")&&LE.length>1?el("div",{class:"tbl"},tabela(["Estrutura","Aço no período (t)","Parte"],LE.map(([est,v])=>el("tr",{},el("td",{},el("b",{text:est})),el("td",{text:t(v)+prev}),el("td",{},pct(aco?v/aco:0),barraTd(aco?v/aco:0)))))):"",
+    tipo==="forma"&&LO.length?el("div",{class:"tbl"},tabela(["Obra","Formas no período (m²)","Parte"],LO.map(([o,v])=>el("tr",{},el("td",{},el("b",{text:o})),el("td",{text:nf0.format(v)+prev}),el("td",{},pct(forma?v/forma:0),barraTd(forma?v/forma:0,"f")))))):"",
+    tipo==="conc"&&csR.length?el("div",{class:"tbl"},tabela(["Data","Concretagem","Caminhões","m³"],csR.sort((a,b)=>a.data.localeCompare(b.data)).map(c=>el("tr",{},
+      el("td",{},el("b",{text:dataBR(c.data)})),el("td",{class:"txt",text:`${c.estrutura}${c.local?" · "+c.local:""}`}),el("td",{text:c.cams||"–"}),el("td",{text:nf1.format(c.vol)}))))):"",
+    el("p",{class:"info nota",text:[ver("aco")?comoAco:"", tipo==="todos"?"Formas e concreto entram pela data de cada lançamento.":tipo==="forma"?"As formas entram pela data de cada lançamento.":tipo==="conc"?"O concreto entra pela data de cada concretagem.":"",
+      "Dias depois de hoje entram pela média diária do último mês (30 dias até hoje)"+(tipo==="todos"||tipo==="aco"?"; na estrutura, pela parte de cada uma nesse mês.":tipo==="forma"?"; na obra, pela parte de cada uma nesse mês.":".")].filter(Boolean).join(" ")}));
 }
 function renderAco(E,A,h){
   const fA=A.P?A.X/A.P:0;

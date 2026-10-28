@@ -125,6 +125,12 @@ const confere = (ok, msg) => { console.log(`${ok ? "ok  " : "FALHA"} ${msg}`); i
     const r = aeSoma(its, new Map([["F", 10], ["V", 10], ["H", 100]])), ok = (a, b) => Math.abs(a - b) < 0.01;
     return ok(r.p[0], 240) && ok(r.p[1], 195) && ok(r.p[2], 195) && ok(r.p[3], 75) && ok(r.x[0], 240) && ok(r.x[1], 60) && r.x[2] === 0 && r.op === 30;
   }), "aço por etapa de concretagem: fundo + verticais + horizontais até 0,40 m na 1ª etapa");
+  // parede com arranque (vertical de 2,95 m em parede de 4,55 m): o arranque fica na 1ª e a vertical de altura inteira vai para a 2ª
+  confere(await p.evaluate(() => {
+    const mk = (c, cu) => ({ c, est: "FLOCULADORES", loc: "PAREDE 1 , PAREDE 2, PAREDE 3", qp: 10, cu, kp: 100, ppb: 10 });
+    const r = aeSoma([mk("A", 2.95), mk("V", 4.89)], new Map());
+    return r.p[0] === 100 && r.p[1] === 100 && aeTipo(mk("C", 1.6)).t === "hor";
+  }), "arranque de parede: espera na 1ª etapa, vertical inteira no lance 1");
   // Qualidade: dashboards de cada categoria (concreto, aço, solo, forma e geral)
   const dash = await p.evaluate(() => {
     try {

@@ -31,8 +31,9 @@ async function rodada(nav) {
   // painel (só leitura)
   const q = await ctx.newPage();
   q.on("pageerror", e => R.erros.push("painel: " + e.message));
-  try { const r = await q.goto(SITE + "painel/", { waitUntil: "load", timeout: 60000 }); if (!r.ok()) R.falhas.push(`${r.status()} painel/`); await q.waitForTimeout(4000);
-    R.painel = await q.evaluate(() => document.body.innerText.length > 200); } catch (e) { R.erros.push("painel não abriu: " + e.message.split("\n")[0]); }
+  try { const r = await q.goto(SITE + "painel/", { waitUntil: "load", timeout: 60000 }); if (!r.ok()) R.falhas.push(`${r.status()} painel/`);
+    // os dados vêm do Apps Script (leva uns 10 s): espera o conteúdo por até 30 s
+    R.painel = await q.waitForFunction(() => document.body.innerText.length > 200, null, { timeout: 30000 }).then(() => true).catch(() => false); } catch (e) { R.erros.push("painel não abriu: " + e.message.split("\n")[0]); }
   await ctx.close();
   return R;
 }

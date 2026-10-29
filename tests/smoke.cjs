@@ -53,6 +53,12 @@ const confere = (ok, msg) => { console.log(`${ok ? "ok  " : "FALHA"} ${msg}`); i
     if (r) delReg2(r.id);
     return ok;
   }), "Arquivo da obra › Enviados manda o arquivo em pedaços e cria o registro para os celulares");
+  // o arquivo recebido vai para outras partes do app, só as que o cargo pode usar
+  confere(await p.evaluate(() => {
+    const U0 = U, n = c => { U = { nome: "Teste", cargo: c }; MEMO_EF.clear(); return [usosNoApp("pdf").length, usosNoApp("xlsx").length, usosNoApp("dwg").length]; };
+    try { const ep = n("Engenheiro de produção"), me = n("Mestre de obras"); return ep[0] >= 3 && ep[1] >= 3 && ep[2] === 0 && me[0] === 0 && me[1] === 0; }
+    finally { U = U0; MEMO_EF.clear(); }
+  }), "arquivo recebido pode ser usado em Projetos, Laudos, RDO, Cronograma… conforme o cargo");
   // campo e saneamento: abas novas nos módulos que já existiam e as contas de referência
   confere(await p.evaluate(() => {
     const tem = (m, t) => MOD2[m].tipos.some(x => x.id === t);

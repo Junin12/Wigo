@@ -2267,7 +2267,7 @@ function setCampo(on){ LS.set("campo",!!on); if(on) document.documentElement.dat
 $("#campo-modo").addEventListener("click", e=>{ const b=e.target.closest("button[data-c]"); if(b) setCampo(b.dataset.c==="1"); });
 setCampo(!!LS.get("campo"));
 
-const VERSAO_APP = "v166"; // igual ao número em sw.js (armacao-v166)
+const VERSAO_APP = "v167"; // igual ao número em sw.js (armacao-v167)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -12995,13 +12995,33 @@ function menuEnviado(r){
   if(/^(pdf|dwg|dxf)$/.test(e)) ops.push([e==="pdf"?"Abrir no leitor do app":"Abrir no leitor de DWG", "Fica guardado no aparelho para abrir sem internet", ()=>abrirPdf(arqDoReg(d))]);
   if(/^(jpe?g|png|webp|gif)$/.test(e)) ops.push(["Ver a imagem","",async()=>{ try{ const b=await blobEnviado(d), u=URL.createObjectURL(b);
     efModal(d.nome, [el("img",{class:"full",src:u,alt:d.nome,style:"max-width:100%;border-radius:8px"})], [el("button",{class:"btn",type:"button",text:"Fechar",onclick:()=>{ fecharEf(); URL.revokeObjectURL(u); }})]); }catch(x){ erro(x); } }]);
-  if(/^(jpe?g|png|webp)$/.test(e) && pode("fotos")) ops.push(["Guardar em Fotos da obra","Com a data de hoje",async()=>{ try{ const b=await blobEnviado(d);
-    toast(await guardarFoto(new File([b], d.nome, {type:b.type})) ? "Foto guardada" : "Não foi possível guardar."); }catch(x){ erro(x); } }]);
+  // usar o arquivo em outra parte do app: baixa (ou pega a cópia guardada) e entrega como se tivesse sido escolhido lá
+  for(const [nome, desc, fn] of usosNoApp(e)) ops.push([nome, desc, async()=>{ try{ const b=await blobEnviado(d); await fn(new File([b], d.nome, {type:b.type})); }catch(x){ erro(x); } }]);
   ops.push([/Mobi|Android|iPhone/i.test(navigator.userAgent) ? "Abrir em outro app ou salvar" : "Baixar no computador",
     /Mobi|Android|iPhone/i.test(navigator.userAgent) ? "Excel, Word, WhatsApp, Arquivos… (pelo Compartilhar do celular)" : "Vai para a pasta Downloads",
     async()=>{ try{ await entregarArquivo(await blobEnviado(d), d.nome, d.nome); renderReg2(); }catch(x){ erro(x); } }]);
   if(podeApagarEnv(r)) ops.push(["Apagar","Some de todos os aparelhos e vai para a lixeira do Drive",()=>{ if(!confirm(`Apagar ${d.nome}?`)) return; delReg2(r.id); toast("Arquivo apagado."); renderReg2(); }]);
   escolher(`${iconeArq(d.nome)} ${d.nome} · ${tamTxt(d.tamanho||0)}`, ops);
+}
+// lugares do app que leem um arquivo deste tipo e que o cargo pode usar: [nome, descrição, async f(File)]
+// cada um abre a tela de destino e chama o mesmo importador do botão de lá
+const depois = fn => new Promise(ok=>setTimeout(()=>ok(fn()), 250)); // a tela de destino desenha antes do importador
+const lerOuAvisar = fn => async f => { try{ await fn(f); }catch(x){ toast("Não consegui ler o arquivo: "+(x.message||x)); } };
+function usosNoApp(e){
+  const u=[], planilha=/^(xlsx|xls|xlsm|csv)$/.test(e);
+  if(/^(jpe?g|png|webp)$/.test(e) && pode("fotos")) u.push(["Guardar em Fotos da obra","Com a data de hoje", async f=>{ toast(await guardarFoto(f) ? "Foto guardada em Fotos da obra" : "Não foi possível guardar."); }]);
+  if(e==="pdf" && pode("prod")) u.push(["Guardar como projeto","Aparece na aba Projetos do Aço, com marcação de posições", f=>{ irAco("projetos"); return depois(()=>abrirPdfDoCelular(f)); }]);
+  if(e==="pdf" && pode("qual-edit")) u.push(["Ler como laudo do laboratório","Qualidade › Laudos: o PDF vira dados e alertas", f=>{ RG.tipo.qual="laudo"; abrirModulo("qual"); return depois(()=>importarLaudos([f])); }]);
+  if(e==="pdf" && pode("rdo-edit")) u.push(["Importar como RDO","Diário de obra: lê o PDF do RDO e preenche o dia", f=>{ abrirTela("rdo"); return depois(()=>importarRdoPdf(f)); }]);
+  if(planilha && pode("qual-edit")) u.push(["Planilha do laboratório","Qualidade › Corpos de prova: resultados dos rompimentos", f=>{ RG.tipo.qual="cp"; abrirModulo("qual"); return depois(()=>importarLab(f)); }]);
+  if((planilha || e==="xml") && pode("med-edit")) u.push(["Importar como cronograma","Medição › Cronograma (MS Project em XML ou Excel)", lerOuAvisar(f=>{ RG.tipo.med="crono"; abrirModulo("med"); return depois(()=>importarCrono(f)); })]);
+  if(planilha && pode("med-edit")) u.push(["Gerar cronograma do orçamento","Medição › Cronograma, pelas composições SINAPI do orçamento", lerOuAvisar(f=>{ RG.tipo.med="crono"; abrirModulo("med"); return depois(()=>importarOrcamento(f)); })]);
+  if(/^(xlsx|xls|xlsm)$/.test(e) && pode("ponto-ger")) {
+    const ponto = (aba, fn) => f => { EF.gerenciar=true; EF.aba=aba; LS.set("efAba",aba); abrirTela("ponto"); return depois(()=>fn({files:[f], value:""})); };
+    u.push(["Planilha de efetivo diário","Ponto › Quadro: importa os dias da planilha", ponto("quadro", importarEf)],
+      ["Lista de nomes do efetivo","Ponto › Nomes: põe as pessoas nas funções", ponto("nomes", importarNomes)]);
+  }
+  return u;
 }
 // avisa quando chega um arquivo enviado por outro aparelho (a primeira vez neste aparelho só anota o que já existe)
 function envVistos(){

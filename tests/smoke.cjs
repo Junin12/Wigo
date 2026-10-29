@@ -53,6 +53,16 @@ const confere = (ok, msg) => { console.log(`${ok ? "ok  " : "FALHA"} ${msg}`); i
     if (r) delReg2(r.id);
     return ok;
   }), "Arquivo da obra › Enviados manda o arquivo em pedaços e cria o registro para os celulares");
+  // pastas dos Enviados: automática pelo tipo, ou a escolhida (dados.pasta); a lista vem agrupada por pasta
+  confere(await p.evaluate(() => {
+    const ids = ["p1", "p2", "p3"], mk = (id, nome, pasta) => ({ id, modulo: "arquivo", tipo: "env", data: "2026-10-29", status: "Enviado", dados: { id: "d" + id, nome, tamanho: 10, ...(pasta ? { pasta } : {}) } });
+    S.reg2.push(mk("p1", "planta.dwg"), mk("p2", "lab.pdf", "Laboratório"), mk("p3", "lab2.pdf", "Laboratório")); MEMO_EF.clear();
+    const box = document.createElement("div"); box.append(...painelEnviados().filter(Boolean));
+    const grupos = [...box.querySelectorAll("details.pj-sec summary b")].map(b => b.textContent);
+    S.reg2 = S.reg2.filter(r => !ids.includes(r.id)); MEMO_EF.clear();
+    return pastaAuto("x.dwg") === "Projetos e plantas" && pastaAuto("x.xlsx") === "Planilhas" && pastaAuto("x.jpg") === "Fotos"
+      && grupos.includes("📁 Laboratório") && grupos.includes("📁 Projetos e plantas") && grupos.length === 2;
+  }), "Enviados separados em pastas (automática pelo tipo ou escolhida)");
   // o arquivo recebido vai para outras partes do app, só as que o cargo pode usar
   confere(await p.evaluate(() => {
     const U0 = U, n = c => { U = { nome: "Teste", cargo: c }; MEMO_EF.clear(); return [usosNoApp("pdf").length, usosNoApp("xlsx").length, usosNoApp("dwg").length]; };

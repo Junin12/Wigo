@@ -169,7 +169,7 @@ section.view{padding-block:14px;display:grid;gap:14px}
 .okmsg{font-size:.85rem;color:var(--good);font-weight:600}
 .vazio{padding:28px 16px;text-align:center;color:var(--muted);background:var(--surface);border:1px dashed var(--line);border-radius:var(--r);display:grid;gap:12px;justify-items:center}
 .env-zona.sobre{border-color:var(--in-ink);background:var(--in-bg)}
-.env-prog{display:grid;gap:8px} .env-prog[hidden]{display:none} .env-nome{overflow-wrap:anywhere;min-width:0}
+.env-pasta{width:min(100%,360px);text-align:left} .env-prog{display:grid;gap:8px} .env-prog[hidden]{display:none} .env-nome{overflow-wrap:anywhere;min-width:0}
 .env-barra{height:12px;background:var(--line);border-radius:999px;overflow:hidden} .env-barra>i{display:block;height:100%;background:var(--in-ink);border-radius:999px;transition:width .4s linear}
 
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
@@ -2269,7 +2269,7 @@ function setCampo(on){ LS.set("campo",!!on); if(on) document.documentElement.dat
 $("#campo-modo").addEventListener("click", e=>{ const b=e.target.closest("button[data-c]"); if(b) setCampo(b.dataset.c==="1"); });
 setCampo(!!LS.get("campo"));
 
-const VERSAO_APP = "v171"; // igual ao número em sw.js (armacao-v171)
+const VERSAO_APP = "v172"; // igual ao número em sw.js (armacao-v172)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -12957,7 +12957,7 @@ async function receberCompartilhado(){
   if(pdfs.length && pode("qual")) ops.push(["Ler como laudo do laboratório","Qualidade › Laudos: o PDF vira dados e alertas",()=>{ RG.tipo.qual="laudo"; abrirModulo("qual"); setTimeout(()=>importarLaudos(pdfs),200); }]);
   if(pdfs.length===1 && pode("prod")) ops.push(["Guardar e abrir como projeto","Fica no celular, na aba Projetos",()=>{ irAco("projetos"); setTimeout(()=>abrirPdfDoCelular(pdfs[0]).catch(e=>toast(e.message)),200); }]);
   if(pdfs.length) ops.push(["Só ver o PDF","Abre no leitor do celular",()=>{ for(const f of pdfs) open(URL.createObjectURL(f),"_blank"); }]);
-  if(podeMod({id:"arquivo", todos:true})) ops.push([`Guardar em Arquivo da obra › Enviados`, "Fica no Drive da obra: abre no computador e nos outros celulares", ()=>{ RG.tipo.arquivo="env"; abrirModulo("arquivo"); enviarVarios(arqs); }]);
+  if(podeMod({id:"arquivo", todos:true})) ops.push([`Guardar em Arquivo da obra › Enviados`, "Fica no Drive da obra: abre no computador e nos outros celulares", ()=>{ RG.tipo.arquivo="env"; abrirModulo("arquivo"); enviarVarios(arqs, ""); }]);
   if(!ops.length) return toast("Seu cargo não tem onde guardar este arquivo.");
   escolher(`Recebido: ${arqs.length>1?arqs.length+" arquivos":arqs[0].name}`, ops);
 }
@@ -12966,7 +12966,7 @@ async function receberCompartilhado(){
 // No computador: wiapps.com.br/wigo/#enviar (entra e é liberado como um celular) e arrasta o arquivo para a página.
 // O arquivo vai em pedaços de 2 MB para a pasta "Arquivos" do Drive (acao arqEnviar) e vira um registro arquivo/env;
 // os celulares o veem na sincronização seguinte e baixam pelo mesmo caminho dos projetos (acao pdf, em pedaços, guardado no celular).
-const ENV={ocupado:false, fila:[], total:0, prog:null, tm:0}, ENV_MAX=60*1024*1024;
+const ENV={ocupado:false, fila:[], total:0, prog:null, tm:0, pasta:LS.get("envPasta")||"", busca:""}, ENV_MAX=60*1024*1024;
 const MIME_EXT={pdf:"application/pdf", jpg:"image/jpeg", jpeg:"image/jpeg", png:"image/png", webp:"image/webp", gif:"image/gif", heic:"image/heic",
   xlsx:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", xls:"application/vnd.ms-excel", csv:"text/csv",
   docx:"application/vnd.openxmlformats-officedocument.wordprocessingml.document", doc:"application/msword", txt:"text/plain",
@@ -12977,7 +12977,7 @@ const iconeArq = n => { const e=extDe(n); return e==="pdf"?"📄" : /^(dwg|dxf)$
 const tamTxt = b => b>=1e6 ? mb(b) : nf0.format(Math.max(1,Math.round(b/1e3)))+" KB";
 // bytes → base64 em blocos (String.fromCharCode com tudo de uma vez estoura a pilha)
 function bytesB64(u8){ let s=""; for(let i=0;i<u8.length;i+=0x8000) s+=String.fromCharCode.apply(null, u8.subarray(i,i+0x8000)); return btoa(s); }
-async function enviarArquivoObra(f, prog){
+async function enviarArquivoObra(f, prog, pasta){
   if(!f.size) throw new Error(`${f.name}: arquivo vazio.`);
   if(f.size>ENV_MAX) throw new Error(`${f.name}: o limite é 60 MB (este tem ${mb(f.size)}).`);
   if(S.scriptVer && S.scriptVer<41) throw new Error(`O script da planilha é a versão ${S.scriptVer}: publique a versão 41 para enviar arquivos.`);
@@ -12995,20 +12995,22 @@ async function enviarArquivoObra(f, prog){
   }
   const id=uid();
   setReg2(id, {modulo:"arquivo", tipo:"env", data:hojeISO(), status:"Enviado",
-    dados:{titulo:arq.nome, nome:arq.nome, id:arq.id, tamanho:arq.tamanho, atualizado:arq.atualizado, mime:tipo, de:/Mobi|Android|iPhone/i.test(navigator.userAgent)?"celular":"computador"}}, arq.nome.slice(0,120));
+    dados:{titulo:arq.nome, nome:arq.nome, id:arq.id, tamanho:arq.tamanho, atualizado:arq.atualizado, mime:tipo, pasta:pasta||pastaAuto(arq.nome),
+      de:/Mobi|Android|iPhone/i.test(navigator.userAgent)?"celular":"computador"}}, arq.nome.slice(0,120));
   // quem mandou já tem o arquivo: guarda a cópia para abrir sem baixar de novo
   if(f.size<=20e6) await guardarPdf({id:arq.id, nome:arq.nome}, await f.arrayBuffer(), arq.atualizado);
   LS.set("envVistos", [id, ...(LS.get("envVistos")||[])].slice(0,300)); // não avisa "chegou" no aparelho que mandou
   return arq;
 }
-async function enviarVarios(arqs){
-  ENV.fila.push(...arqs); ENV.total=(ENV.ocupado ? ENV.total : 0)+arqs.length; if(ENV.ocupado) return notaEnv();
+// pasta "" = automática pelo tipo do arquivo
+async function enviarVarios(arqs, pasta=ENV.pasta){
+  ENV.fila.push(...arqs.map(f=>({f, pasta}))); ENV.total=(ENV.ocupado ? ENV.total : 0)+arqs.length; if(ENV.ocupado) return notaEnv();
   ENV.ocupado=true; let n=0, k=0;
   try{
     while(ENV.fila.length){
-      const f=ENV.fila.shift(); k++;
-      iniciarProg("Enviando", f.name, f.size, ENV.total>1 ? `arquivo ${k} de ${ENV.total}` : "");
-      try{ await enviarArquivoObra(f, avancarProg); n++; }
+      const {f, pasta:p}=ENV.fila.shift(); k++;
+      iniciarProg("Enviando", f.name, f.size, [p||pastaAuto(f.name) ? `pasta ${p||pastaAuto(f.name)}` : "", ENV.total>1 ? `arquivo ${k} de ${ENV.total}` : ""].filter(Boolean).join(" · "));
+      try{ await enviarArquivoObra(f, avancarProg, p); n++; }
       catch(e){ toast(e.message||`Não foi possível enviar ${f.name}.`); }
     }
   }finally{ ENV.ocupado=false; ENV.total=0; pararProg(); }
@@ -13036,19 +13038,56 @@ function notaEnv(){
     el("small",{class:"info",text:[`${p.acao} ${tamTxt(e.feito)} de ${tamTxt(p.total)}`, tempoTxt(e.resta), p.extra, ENV.fila.length?`${ENV.fila.length} na fila`:""].filter(Boolean).join(" · ")}));
 }
 const podeApagarEnv = r => !r.criadoPor || r.criadoPor===quemSou() || pode("rel");
+// ---- pastas dos Enviados: escolhida ao enviar ("" = automática pelo tipo); os antigos, sem pasta, vão pela automática ----
+// A pasta é só do app (dados.pasta do registro): no Drive os arquivos continuam todos na pasta Arquivos.
+const pastaAuto = n => { const e=extDe(n); return /^(dwg|dxf)$/.test(e) ? "Projetos e plantas" : e==="pdf" ? "PDFs" : EXT_PLANILHA.includes(e) || e==="ods" ? "Planilhas"
+  : /^(jpe?g|png|webp|gif|heic)$/.test(e) ? "Fotos" : /^(docx?|odt|txt)$/.test(e) ? "Documentos" : /^(mp4|mov)$/.test(e) ? "Vídeos" : "Outros"; };
+const pastaDe = r => String(r.dados?.pasta||"").trim() || pastaAuto(r.dados?.nome);
+const PASTAS_PADRAO=["Projetos e plantas","PDFs","Planilhas","Fotos","Documentos","Laboratório","Medições","Contratos"];
+const pastasEnv = () => [...new Set([...PASTAS_PADRAO, ...regs2De("arquivo","env").map(pastaDe)])].sort((a,b)=>a.localeCompare(b,"pt-BR"));
+const nomePasta = s => String(s||"").replace(/[\\/<>|"]/g," ").replace(/\s+/g," ").trim().slice(0,40);
+const ENV_ABERTAS=new Set();
+// select de pasta com "＋ Nova pasta…": ao escolher, pergunta o nome; aoMudar(nome) recebe a pasta ("" = automática)
+function selPasta(atual, aoMudar, comAuto=true){
+  const ops=pastasEnv(); if(atual && !ops.includes(atual)) ops.push(atual);
+  const s=el("select",{"aria-label":"Pasta",onchange:()=>{ if(s.value!=="+"){ aoMudar(s.value); return; }
+      const n=nomePasta(prompt("Nome da nova pasta (ex.: Laboratório, ETA, Medições):")||""); if(!n){ s.value=atual; return; } aoMudar(n); }},
+    comAuto ? el("option",{value:"",text:"Automática (pelo tipo do arquivo)",selected:!atual}) : null,
+    ...ops.map(p=>el("option",{value:p,text:"📁 "+p,selected:p===atual})), el("option",{value:"+",text:"＋ Nova pasta…"}));
+  return s;
+}
+function moverEnviado(r){
+  const d=r.dados||{}; let nova=pastaDe(r);
+  efModal(`Mover ${d.nome}`, [el("label",{class:"campo full"}, "Pasta", selPasta(nova, p=>{ nova=p; }, false))],
+    [el("button",{class:"btn pri",type:"button",text:"Mover",onclick:()=>{ if(!nova) return; setReg2(r.id, {dados:{...d, pasta:nova}}, `Moveu ${d.nome} para ${nova}`);
+      ENV_ABERTAS.add(nova); fecharEf(); toast(`${d.nome} → 📁 ${nova}`); renderReg2(); }})]);
+}
 function painelEnviados(){
   const inp=el("input",{type:"file",multiple:true,hidden:true,onchange:e=>{ const fs=[...e.target.files]; e.target.value=""; if(fs.length) enviarVarios(fs); }});
+  const sel=selPasta(ENV.pasta, p=>{ ENV.pasta=p; LS.set("envPasta", p); renderReg2(); });
   const zona=el("div",{class:"vazio env-zona"},
     el("b",{text:"Arraste os arquivos para cá"}), el("small",{class:"info",text:"PDF, planilha, foto, DWG, Word… até 60 MB cada"}),
+    el("label",{class:"campo env-pasta"}, "Guardar na pasta", sel),
     el("button",{class:"btn pri",type:"button",text:"📤 Escolher arquivos para enviar",onclick:()=>inp.click()}), inp);
   zona.addEventListener("dragover", e=>{ e.preventDefault(); zona.classList.add("sobre"); });
   zona.addEventListener("dragleave", ()=>zona.classList.remove("sobre"));
   zona.addEventListener("drop", e=>{ e.preventDefault(); zona.classList.remove("sobre"); const fs=[...(e.dataTransfer?.files||[])]; if(fs.length) enviarVarios(fs); });
-  const lista=regs2De("arquivo","env").sort((a,b)=>String(b.criadoEm||"9").localeCompare(String(a.criadoEm||"9")));
+  const todos=regs2De("arquivo","env").sort((a,b)=>String(b.criadoEm||"9").localeCompare(String(a.criadoEm||"9")));
   const offline=!S.cfg?.url ? el("div",{class:"vazio",text:"Conecte o app ao Google Drive em Ajustes."}) : null;
+  // pastas com os arquivos (as mais recentes em cima), busca pelo nome do arquivo ou da pasta
+  const lista=el("div",{}), busca=el("input",{type:"search",placeholder:"Buscar arquivo ou pasta","aria-label":"Buscar arquivo ou pasta",value:ENV.busca||""});
+  const pinta=()=>{ const q=normTxt(busca.value.trim()), rs=q ? todos.filter(r=>normTxt(`${r.dados?.nome} ${pastaDe(r)}`).includes(q)) : todos;
+    const grupos=new Map(); for(const r of rs){ const p=pastaDe(r); if(!grupos.has(p)) grupos.set(p, []); grupos.get(p).push(r); }
+    repor(lista, ...(grupos.size ? [...grupos].map(([p, l])=>{ const d=el("details",{class:"pj-sec",open:!!q || ENV_ABERTAS.has(p) || grupos.size===1},
+        el("summary",{}, el("b",{text:`📁 ${p}`}), el("span",{class:"chip",text:`${l.length} arquivo${l.length>1?"s":""} · ${tamTxt(l.reduce((s,r)=>s+(+r.dados?.tamanho||0),0))}`})),
+        ...l.slice(0,200).map(cardEnviado));
+      d.addEventListener("toggle", ()=>{ d.open ? ENV_ABERTAS.add(p) : ENV_ABERTAS.delete(p); }); return d; })
+      : [el("div",{class:"vazio",text:todos.length ? "Nada encontrado." : "Nenhum arquivo enviado ainda."})])); };
+  let bT; busca.oninput=()=>{ ENV.busca=busca.value; clearTimeout(bT); bT=setTimeout(pinta,250); };
+  pinta();
   return [el("p",{class:"info",text:"Para levar um arquivo do computador para o celular sem WhatsApp: no computador da obra abra wiapps.com.br/wigo/#enviar, entre com o seu nome e mande o arquivo aqui. Ele fica no Drive da obra e aparece nesta lista em todos os celulares. Também vale ao contrário (do celular: Compartilhar › WIGO)."}),
     offline || zona, el("div",{id:"env-prog",class:"card env-prog",hidden:true,"aria-live":"polite"}),
-    ...(lista.length ? lista.slice(0,200).map(cardEnviado) : [el("div",{class:"vazio",text:"Nenhum arquivo enviado ainda."})])];
+    todos.length>3 ? el("div",{class:"filtros"}, busca) : null, lista];
 }
 function cardEnviado(r){
   const d=r.dados||{}, noCel=!!PJ.off[d.id];
@@ -13074,6 +13113,7 @@ function menuEnviado(r){
   ops.push([/Mobi|Android|iPhone/i.test(navigator.userAgent) ? "Abrir em outro app ou salvar" : "Baixar no computador",
     /Mobi|Android|iPhone/i.test(navigator.userAgent) ? "Excel, Word, WhatsApp, Arquivos… (pelo Compartilhar do celular)" : "Vai para a pasta Downloads",
     async()=>{ try{ await entregarArquivo(await blobEnviado(d), d.nome, d.nome); renderReg2(); }catch(x){ erro(x); } }]);
+  if(podeApagarEnv(r)) ops.push([`📁 Mover para outra pasta`, `Agora em ${pastaDe(r)}`, ()=>moverEnviado(r)]);
   if(podeApagarEnv(r)) ops.push(["Apagar","Some de todos os aparelhos e vai para a lixeira do Drive",()=>{ if(!confirm(`Apagar ${d.nome}?`)) return; delReg2(r.id); toast("Arquivo apagado."); renderReg2(); }]);
   escolher(`${iconeArq(d.nome)} ${d.nome} · ${tamTxt(d.tamanho||0)}`, ops);
 }
@@ -13114,7 +13154,7 @@ function listaParaImportar(tit, lista, aoEscolher){
   efModal(`${tit} · Arquivo da obra`, lista.length
     ? [el("div",{class:"lista full"}, ...lista.slice(0,60).map(r=>{ const d=r.dados;
         return el("button",{class:"card r2-card",type:"button",onclick:()=>usar(r)}, el("b",{text:`${iconeArq(d.nome)} ${d.nome}`}),
-          el("div",{class:"i-sub",text:[tamTxt(d.tamanho||0), PJ.off[d.id]?"no aparelho":"", r.criadoPor, r.criadoEm?quandoTxt(r.criadoEm):dataBR(r.data)].filter(Boolean).join(" · ")})); }))]
+          el("div",{class:"i-sub",text:["📁 "+pastaDe(r), tamTxt(d.tamanho||0), PJ.off[d.id]?"no aparelho":"", r.criadoPor, r.criadoEm?quandoTxt(r.criadoEm):dataBR(r.data)].filter(Boolean).join(" · ")})); }))]
     : [el("p",{class:"info full",text:"Para trazer um arquivo do computador da obra: abra wiapps.com.br/wigo/#enviar no computador e mande o arquivo. Ele aparece aqui e em Arquivo da obra › Enviados."})],
     [el("button",{class:"btn",type:"button",text:"Abrir Enviados",onclick:()=>{ fecharEf(); RG.tipo.arquivo="env"; abrirModulo("arquivo"); }})]);
 }

@@ -59,6 +59,27 @@ const confere = (ok, msg) => { console.log(`${ok ? "ok  " : "FALHA"} ${msg}`); i
     try { const ep = n("Engenheiro de produção"), me = n("Mestre de obras"); return ep[0] >= 3 && ep[1] >= 3 && ep[2] === 0 && me[0] === 0 && me[1] === 0; }
     finally { U = U0; MEMO_EF.clear(); }
   }), "arquivo recebido pode ser usado em Projetos, Laudos, RDO, Cronograma… conforme o cargo");
+  // botões de importar: "Do Arquivo da obra" lista só os arquivos com a extensão pedida
+  confere(await p.evaluate(async () => {
+    const ids = ["t-pdf", "t-dwg"]; S.reg2.push(...ids.map((id, k) => ({ id, modulo: "arquivo", tipo: "env", data: "2026-10-29", status: "Enviado", dados: { id: "d" + k, nome: k ? "planta.dwg" : "lab.pdf", tamanho: 10 } })));
+    MEMO_EF.clear(); escolherArquivoDe("Teste", ["xlsx", "pdf"], () => {}, document.createElement("input"));
+    const t1 = [...document.querySelectorAll(".modal-box")].map(m => m.innerText).join(" ");
+    [...document.querySelectorAll(".modal-box button")].find(b => /Do Arquivo da obra/.test(b.innerText)).click();
+    const t2 = [...document.querySelectorAll(".modal-box")].map(m => m.innerText).join(" ");
+    fecharEf(); S.reg2 = S.reg2.filter(r => !ids.includes(r.id)); MEMO_EF.clear();
+    return /Do Arquivo da obra/.test(t1) && /lab\.pdf/.test(t2) && !/planta\.dwg/.test(t2);
+  }), "importar: escolher do aparelho ou do Arquivo da obra (só os tipos aceitos)");
+  // resultados do laboratório em PDF: a tabela é remontada pela posição do texto, com o cabeçalho repetido em cada folha
+  confere(await p.evaluate(async () => {
+    try {
+      await carregarJsPdf(); const { jsPDF } = window.jspdf, doc = new jsPDF({ unit: "mm", format: "a4", orientation: "landscape" });
+      const head = [[{ content: "DATA", rowSpan: 2 }, { content: "NF", rowSpan: 2 }, { content: "LOCAL", rowSpan: 2 }, { content: "7 DIAS", colSpan: 2 }, { content: "28 DIAS", colSpan: 2 }], ["RESULTADO 1", "RESULTADO 2", "RESULTADO 1", "RESULTADO 2"]];
+      doc.autoTable({ startY: 18, head, body: [["05/10/2026", "123456", "Laje L1", "22,4", "23,1", "31,5", "32,0"], ["06/10/2026", "123457", "Pilar P3", "21,0", "20,8", "", ""]] });
+      doc.addPage(); doc.autoTable({ startY: 18, head, body: [["09/10/2026", "123470", "Bloco B1", "24", "24,5", "", ""]] });
+      const r = lerPlanilhaLab(await tabelaDoPdf(doc.output("arraybuffer"))), a = r.res.find(x => x.nf === "123456");
+      return r.res.length === 3 && a.v.r7a === 22.4 && a.v.r28b === 32 && a.info.data === "2026-10-05" && r.res[2].v.r7b === 24.5;
+    } catch (e) { return "erro: " + e.message; }
+  }) === true, "resultados do laboratório lidos de um relatório em PDF");
   // campo e saneamento: abas novas nos módulos que já existiam e as contas de referência
   confere(await p.evaluate(() => {
     const tem = (m, t) => MOD2[m].tipos.some(x => x.id === t);

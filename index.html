@@ -1039,7 +1039,7 @@ svg .alvo.on{fill:var(--accent);fill-opacity:.13}
     <p class="info">PDFs da pasta <b>Projetos</b> no seu Google Drive. Os que você abrir ficam guardados no celular para ver sem internet.</p>
     <input id="pj-busca" type="search" placeholder="Filtrar: floculador, decantador, armadura, DE-038…" aria-label="Filtrar projetos">
     <div class="row"><button class="btn" id="pj-todos" type="button">Baixar todos para usar offline</button>
-      <label class="btn" for="pj-local">📂 Abrir PDF do celular<input type="file" id="pj-local" accept="application/pdf,.pdf" hidden></label>
+      <label class="btn" for="pj-local">📂 Abrir PDF (celular ou Arquivo da obra)<input type="file" id="pj-local" accept="application/pdf,.pdf" hidden></label>
       <span id="pj-uso" class="info"></span></div>
     <div class="projs" id="pj-lista"></div>
   </section>
@@ -2267,7 +2267,7 @@ function setCampo(on){ LS.set("campo",!!on); if(on) document.documentElement.dat
 $("#campo-modo").addEventListener("click", e=>{ const b=e.target.closest("button[data-c]"); if(b) setCampo(b.dataset.c==="1"); });
 setCampo(!!LS.get("campo"));
 
-const VERSAO_APP = "v167"; // igual ao número em sw.js (armacao-v167)
+const VERSAO_APP = "v168"; // igual ao número em sw.js (armacao-v168)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -3923,6 +3923,9 @@ async function abrirPdfDoCelular(arq){
   abrirPdf(f, 1);
 }
 $("#pj-local").addEventListener("change", ev=>{ const a=ev.target.files[0]; ev.target.value=""; abrirPdfDoCelular(a).catch(e=>toast(e.message||"Não foi possível abrir o PDF.")); });
+// o botão pergunta antes: do aparelho (o seletor de sempre) ou do Arquivo da obra › Enviados
+$("#pj-local").closest("label").addEventListener("click", ev=>{ if(ev.target.id==="pj-local") return; ev.preventDefault();
+  escolherArquivoDe("PDF do projeto", ["pdf"], fs=>abrirPdfDoCelular(fs[0]).catch(e=>toast(e.message||"Não foi possível abrir o PDF.")), $("#pj-local")); });
 // ---------- seções dos projetos (disciplinas) ----------
 // Pela codificação da prancha no nome do arquivo (PR-023-006-E8-PE-EST-DE-038: EST = estrutural, HID = hidráulica…);
 // sem código, por palavras do nome. O que não se encaixa fica em "Outros".
@@ -6528,7 +6531,7 @@ function efQuadro(){
   return [
     el("p",{class:"info",text:"Desative o que saiu da obra (o histórico fica). Exclua só cadastro feito por engano. O grupo (Produção ou Gestão) de cada função muda em Editar."}),
     el("div",{class:"row"}, el("button",{class:"btn pri",type:"button",text:"+ Nova empresa ou função",onclick:()=>editarFuncao(null)}),
-      el("button",{class:"btn",type:"button",text:"Importar planilha de efetivo",onclick:()=>arq.click()}), arq),
+      el("button",{class:"btn",type:"button",text:"Importar planilha de efetivo",onclick:()=>escolherArquivoDe("Planilha de efetivo", EXT_EXCEL, fs=>importarEf({files:fs, value:""}), arq)}), arq),
     imp, ...(cards.length ? cards : [el("div",{class:"vazio",text:"Nenhuma função cadastrada ainda."})])];
 }
 function efNomes(){
@@ -6550,7 +6553,7 @@ function efNomes(){
     el("p",{class:"info",text:"Nomes são opcionais: com eles, a função é contada pela presença de cada um. Quem saiu da obra: desmarque Ativo."}),
     el("div",{class:"row"}, el("button",{class:"btn pri",type:"button",text:"+ Adicionar nome",onclick:()=>editarPessoa(null)}),
       el("button",{class:"btn",type:"button",text:"Colar lista de nomes",onclick:colarNomes}),
-      el("button",{class:"btn",type:"button",text:"Importar lista de nomes (Excel)",onclick:()=>arq.click()}), arq),
+      el("button",{class:"btn",type:"button",text:"Importar lista de nomes (Excel)",onclick:()=>escolherArquivoDe("Lista de nomes", EXT_EXCEL, fs=>importarNomes({files:fs, value:""}), arq)}), arq),
     EF.impNomes ? previaNomes() : null,
     todas.length ? busca : null,
     ...(cards.length ? cards : [el("div",{class:"vazio",text:todas.length?"Nenhum nome encontrado.":"Nenhum nome cadastrado ainda."})])];
@@ -7403,7 +7406,7 @@ function vozCard(d){
       el("button",{class:"btn pri",type:"button",text:"✨ Organizar no RDO",onclick:e=>organizarVoz(d,e.currentTarget)}),
       V.texto ? el("button",{class:"btn",type:"button",text:"Limpar",onclick:()=>{ if(V.gravando) pararVoz(); V.texto=""; renderRdo(); }}) : null),
     el("div",{class:"row"},
-      el("button",{class:"btn",type:"button",text:"📄 Importar RDO em PDF",onclick:()=>arq.click()}), arq,
+      el("button",{class:"btn",type:"button",text:"📄 Importar RDO em PDF",onclick:()=>escolherArquivoDe("RDO em PDF", ["pdf"], fs=>importarRdoPdf(fs[0]), arq)}), arq,
       el("small",{class:"i-sub",text:"PDF do RDO de outro sistema (ex.: Consulte GEO): clima, atividades, mão de obra e equipamentos."})));
 }
 function previaVoz(d){
@@ -10327,9 +10330,10 @@ function cpResumoCam(c, n){
 // agenda dos rompimentos (atrasados e próximos 7 dias)
 function agendaCp(){
   const h=hojeISO(), L=cpPendentes().filter(x=>x.data<=somaDias(h,7));
-  const arq=el("input",{type:"file",accept:".xlsx,.xls,.csv",hidden:true,onchange:e=>{ const f=e.target.files[0]; e.target.value=""; if(f) importarLab(f); }});
-  return [pode("qual-edit") ? el("div",{class:"row"}, el("button",{class:"btn",type:"button",text:"📥 Importar planilha do laboratório",onclick:()=>arq.click()}),
-      el("span",{class:"info",text:"Excel com o nº da nota e os resultados por idade"}), arq) : null,
+  const arq=el("input",{type:"file",accept:".xlsx,.xls,.csv,.pdf,application/pdf",hidden:true,onchange:e=>{ const f=e.target.files[0]; e.target.value=""; if(f) importarLab(f); }});
+  return [pode("qual-edit") ? el("div",{class:"row"}, el("button",{class:"btn",type:"button",text:"📥 Importar resultados do laboratório (Excel ou PDF)",
+      onclick:()=>escolherArquivoDe("Resultados do laboratório", [...EXT_PLANILHA, "pdf"], fs=>importarLab(fs[0]), arq)}),
+      el("span",{class:"info",text:"Excel ou relatório em PDF com o nº da nota e os resultados por idade, do aparelho ou do Arquivo da obra"}), arq) : null,
     cardLotes(),
     el("div",{class:"card"}, el("h3",{text:`Rompimentos · ${L.length} até ${ddmm(somaDias(h,7))}`}),
     L.length ? tabelaSimples(["Data","Idade","Concretagem",""], L.map(x=>[ddmm(x.data), `${x.idade} dias`, tituloReg2(tipoCp,x.r), x.data<h?"atrasado":x.data===h?"hoje":""]))
@@ -10431,12 +10435,15 @@ function gravarCt(lidas, arquivo){
 }
 async function importarLab(arquivo){
   try{
-    await loadXLSX();
-    const wb=XLSX.read(await arquivo.arrayBuffer(), {type:"array"}), lidas=[];
+    // relatório em PDF: a tabela é remontada pela posição do texto (todas as folhas juntas: o cabeçalho da 1ª vale para as outras)
+    const pdf=/pdf$/i.test(arquivo.type) || /\.pdf$/i.test(arquivo.name);
+    if(pdf) toast("Lendo o PDF do laboratório…"); else await loadXLSX();
+    const wb=pdf ? null : XLSX.read(await arquivo.arrayBuffer(), {type:"array"}), lidas=[];
+    const abas=pdf ? [["PDF", await tabelaDoPdf(await arquivo.arrayBuffer())]] : wb.SheetNames.map(nome=>[nome, XLSX.utils.sheet_to_json(wb.Sheets[nome],{header:1, raw:true, defval:""})]);
     let idades=[];
     const motivos=[];
-    for(const nome of wb.SheetNames){ try{ const r=lerPlanilhaLab(XLSX.utils.sheet_to_json(wb.Sheets[nome],{header:1, raw:true, defval:""})); lidas.push(...r.res); idades=[...new Set([...idades,...r.idades])];
-      if(!r.res.length) motivos.push(`${nome}: nenhuma linha com nota abaixo do cabeçalho`); }catch(e){ if(wb.SheetNames.length===1) throw e; motivos.push(`${nome}: ${e.message}`); } }
+    for(const [nome, linhas] of abas){ try{ const r=lerPlanilhaLab(linhas); lidas.push(...r.res); idades=[...new Set([...idades,...r.idades])];
+      if(!r.res.length) motivos.push(`${nome}: nenhuma linha com nota abaixo do cabeçalho`); }catch(e){ if(abas.length===1) throw e; motivos.push(`${nome}: ${e.message}`); } }
     // o motivo de cada aba aparece na mensagem (para saber o que a planilha tem de diferente)
     if(!lidas.length) throw new Error(`Não encontrei nenhuma linha com número de nota na planilha (app ${VERSAO_APP}). ${motivos.join(" · ")}`.slice(0,600));
     // nota → caminhão da concretagem
@@ -10456,7 +10463,7 @@ async function importarLab(arquivo){
       const nct=gravarCt(lidas, arquivo.name.replace(/\.[^.]+$/,""));
       toast(`Planilha lançada: ${alteradas} moldage${alteradas===1?"m atualizada":"ns atualizadas"}, ${novas} nova${novas===1?"":"s"}${nct?`, ${nct} caminh${nct===1?"ão":"ões"} no controle tecnológico`:""}.${nc}`); fecharEf(); };
     const comData=lidas.filter(x=>x.info?.data).length;
-    efModal("Importar planilha do laboratório", [
+    efModal("Importar resultados do laboratório", [
       el("p",{class:"info full",text:`${lidas.length} nota${lidas.length===1?"":"s"} lida${lidas.length===1?"":"s"} · idades: ${idades.sort((a,b)=>a-b).map(i=>i+" dias").join(", ")}.`}),
       ok.length ? el("div",{class:"full"}, tabelaSimples(["NF","Concretagem","Caminhão","Resultados (MPa)"], ok.map(x=>[x.nf, `${x.c.estrutura}${x.c.local?" · "+x.c.local:""} · ${ddmm(x.c.data)}`, `C${x.k.n}`,
         CP_TODAS.filter(i=>x.v["r"+i+"a"]!=null||x.v["r"+i+"b"]!=null).map(i=>`${i}d ${[x.v["r"+i+"a"],x.v["r"+i+"b"]].filter(v=>v!=null).map(v=>nf1.format(v)).join(" / ")}`).join(" · ")]))) : null,
@@ -10465,7 +10472,7 @@ async function importarLab(arquivo){
       comData ? el("p",{class:"info full",text:`${comData} caminh${comData===1?"ão vai":"ões vão"} para o Controle tecnológico (Qualidade › Concreto), com setor, local, volume e resultados: é o que monta o Dashboard, inclusive das concretagens que não estão no app.`}) : null],
       ok.length || comData ? [el("button",{class:"btn pri",type:"button",text:ok.length ? `Lançar ${ok.length} resultado${ok.length===1?"":"s"}${comData?" e o controle":""}` : `Lançar ${comData} caminhões no controle`,onclick:lancar})] : []);
   }catch(e){ const m=e.message||"Não foi possível ler a planilha.";
-    if(m.length>120) efModal("Importar planilha do laboratório", [el("p",{class:"aviso full",text:m})], []); else toast(m); }
+    if(m.length>120) efModal("Importar resultados do laboratório", [el("p",{class:"aviso full",text:m})], []); else toast(m); }
 }
 // botão da concretagem: nova moldagem ou ver as desta concretagem
 function cpDaConc(c){
@@ -11838,7 +11845,7 @@ function verLaudo(r){
 // painel dos laudos: totais, o que pede atenção e a evolução do grau de compactação
 function topoLaudos(lista){
   const inp=el("input",{type:"file",accept:"application/pdf,.pdf",multiple:true,hidden:true}); inp.onchange=()=>{ const fs=[...inp.files]; inp.value=""; if(fs.length) importarLaudos(fs); };
-  const bt=pode("qual-edit") ? el("div",{class:"row"}, el("button",{class:"btn pri",type:"button",text:"📥 Ler laudos do laboratório (PDF)",onclick:()=>inp.click()}), inp) : null;
+  const bt=pode("qual-edit") ? el("div",{class:"row"}, el("button",{class:"btn pri",type:"button",text:"📥 Ler laudos do laboratório (PDF)",onclick:()=>escolherArquivoDe("Laudos do laboratório", ["pdf"], importarLaudos, inp)}), inp) : null;
   if(!lista.length) return [bt, el("p",{class:"info",text:"Escolha os PDFs do laboratório (compactação, caracterização do solo, agregados, dosagem do concreto): o app lê os resultados, compara com as normas e com a especificação e guarda tudo aqui."})];
   const al=lista.flatMap(r=>(r.dados.alertas||[]).filter(a=>a[0]!=="ok").map(a=>[r,a])), sol=regs2De("qual","solo").filter(r=>r.dados.laudo && r.dados.gc!=null).sort((a,b)=>a.data.localeCompare(b.data));
   const gcs=sol.map(r=>+r.dados.gc), bad=lista.filter(r=>r.status==="Não conforme").length;
@@ -13023,6 +13030,56 @@ function usosNoApp(e){
   }
   return u;
 }
+// Botões de importar: perguntam de onde vem o arquivo. "Do aparelho" abre o seletor de sempre (input, com o onchange de lá);
+// "Do Arquivo da obra" lista só os arquivos de Enviados com a extensão certa, baixa o escolhido e chama aoEscolher([File]).
+const EXT_EXCEL=["xlsx","xls","xlsm"], EXT_PLANILHA=[...EXT_EXCEL,"csv"];
+function escolherArquivoDe(tit, exts, aoEscolher, input){
+  const lista=regs2De("arquivo","env").filter(r=>!r.pend && exts.includes(extDe(r.dados?.nome))), cel=/Mobi|Android|iPhone/i.test(navigator.userAgent);
+  const tipos=[...new Set(exts.map(e=>e==="xlsm"||e==="xls"?"xlsx":e))].map(e=>e==="xlsx"?"Excel":e.toUpperCase()).join(", ");
+  escolher(`${tit}: de onde vem o arquivo?`, [
+    [cel ? "📱 Do celular" : "💻 Do computador", cel ? "Downloads, WhatsApp, Arquivos, Drive…" : "Uma pasta deste computador", ()=>input.click()],
+    ["🗂 Do Arquivo da obra", lista.length ? `${lista.length} arquivo${lista.length>1?"s":""} (${tipos}) mandado${lista.length>1?"s":""} para Enviados` : `Nenhum arquivo ${tipos} em Enviados ainda`,
+      ()=>listaParaImportar(tit, lista, aoEscolher)]]);
+}
+function listaParaImportar(tit, lista, aoEscolher){
+  const usar=async r=>{ fecharEf(); try{ const b=await blobEnviado(r.dados); await aoEscolher([new File([b], r.dados.nome, {type:b.type})]); }
+    catch(x){ toast(x.message||"Não foi possível baixar o arquivo."); } };
+  efModal(`${tit} · Arquivo da obra`, lista.length
+    ? [el("div",{class:"lista full"}, ...lista.slice(0,60).map(r=>{ const d=r.dados;
+        return el("button",{class:"card r2-card",type:"button",onclick:()=>usar(r)}, el("b",{text:`${iconeArq(d.nome)} ${d.nome}`}),
+          el("div",{class:"i-sub",text:[tamTxt(d.tamanho||0), PJ.off[d.id]?"no aparelho":"", r.criadoPor, r.criadoEm?quandoTxt(r.criadoEm):dataBR(r.data)].filter(Boolean).join(" · ")})); }))]
+    : [el("p",{class:"info full",text:"Para trazer um arquivo do computador da obra: abra wiapps.com.br/wigo/#enviar no computador e mande o arquivo. Ele aparece aqui e em Arquivo da obra › Enviados."})],
+    [el("button",{class:"btn",type:"button",text:"Abrir Enviados",onclick:()=>{ fecharEf(); RG.tipo.arquivo="env"; abrirModulo("arquivo"); }})]);
+}
+// Tabela de um PDF (relatório exportado de planilha): o texto vira linhas pela altura e colunas pela posição na folha.
+// As colunas saem do centro das células das linhas com números (o corpo da tabela); cada pedaço de texto vai para a primeira
+// coluna que começa depois da borda esquerda dele, então um título que cobre duas colunas ("7 DIAS") fica na primeira delas.
+async function tabelaDoPdf(buf){
+  await loadPdfjs();
+  const doc=await pdfjsLib.getDocument({isEvalSupported:false, data:new Uint8Array(buf), isOffscreenCanvasSupported:false}).promise, linhas=[];
+  try{
+    for(let p=1;p<=doc.numPages;p++){
+      const its=(await (await doc.getPage(p)).getTextContent()).items.filter(i=>i.str?.trim()).map(i=>({s:i.str, x:i.transform[4], y:i.transform[5], w:i.width||0}))
+        .sort((a,b)=>b.y-a.y || a.x-b.x);
+      let lin=null;
+      for(const it of its){
+        if(!lin || Math.abs(lin.y-it.y)>3){ lin={c:[], y:it.y}; linhas.push(lin); }
+        const ult=lin.c.at(-1), gap=ult ? it.x-(ult.x+ult.w) : 99;
+        if(ult && gap<4){ ult.s += (gap>1.2 ? " " : "")+it.s; ult.w=it.x+it.w-ult.x; } else lin.c.push({s:it.s, x:it.x, w:it.w});
+      }
+    }
+  } finally { doc.destroy(); }
+  const ehNum = s => /^[-+]?\d+(?:[.,]\d+)?$|^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(s.trim());
+  const corpo=linhas.filter(l=>l.c.filter(c=>ehNum(c.s)).length>=3), base=corpo.length ? corpo : linhas;
+  const centros=base.flatMap(l=>l.c.map(c=>c.x+c.w/2)).sort((a,b)=>a-b), cols=[];
+  for(const x of centros){ const g=cols.at(-1); if(g && x-g.ult<8){ g.soma+=x; g.n++; g.ult=x; } else cols.push({soma:x, n:1, ult:x}); }
+  const cx=cols.map(g=>g.soma/g.n);
+  // cabeçalho repetido em cada folha: fica só o primeiro (senão a leitura começaria depois do último)
+  const vistos=new Set();
+  return linhas.filter(l=>{ if(l.c.some(c=>ehNum(c.s))) return true; const k=l.c.map(c=>c.s.trim()).join("|"); if(vistos.has(k)) return false; vistos.add(k); return true; }).map(l=>{ const L=Array(cx.length).fill("");
+    for(const c of l.c){ let j=cx.findIndex(x=>x>=c.x-2); if(j<0) j=cx.length-1; L[j]=L[j] ? L[j]+" "+c.s.trim() : c.s.trim(); }
+    return L.map(v=>ehNum(v) && /^[-+]?\d+(?:[.,]\d+)?$/.test(v) ? Number(v.replace(",",".")) : v); });
+}
 // avisa quando chega um arquivo enviado por outro aparelho (a primeira vez neste aparelho só anota o que já existe)
 function envVistos(){
   const rs=regs2De("arquivo","env"), vistos=LS.get("envVistos"), novos = vistos ? rs.filter(r=>!vistos.includes(r.id)) : [];
@@ -13461,10 +13518,11 @@ topoCrono=function(lista){
 // ---------- importar: MS Project (XML) ou planilha (Excel/CSV exportado do Project ou feito à mão) ----------
 function escolherArquivoCrono(modo){
   const inp=el("input",{type:"file",accept: modo==="orc" ? ".xlsx,.xls,.csv" : ".xml,.xlsx,.xls,.csv,.mpp"});
-  inp.onchange=async()=>{ const f=inp.files[0]; if(!f) return;
+  const usar=async f=>{ if(!f) return;
     if(/\.mpp$/i.test(f.name)) return efModal("Arquivo .mpp", [el("p",{class:"full",text:"O .mpp é um formato fechado do MS Project, que o celular não consegue ler. No Project: Arquivo › Salvar como › escolha “Formato XML (*.xml)” (ou exporte para Excel) e importe esse arquivo aqui."})], [el("button",{class:"btn pri",type:"button",text:"Entendi",onclick:fecharEf})]);
     try{ if(modo==="orc") await importarOrcamento(f); else await importarCrono(f); }catch(e){ toast("Não consegui ler o arquivo: "+(e.message||e)); } };
-  inp.click();
+  inp.onchange=()=>usar(inp.files[0]);
+  escolherArquivoDe(modo==="orc" ? "Orçamento (SINAPI)" : "Cronograma (MS Project ou Excel)", modo==="orc" ? EXT_PLANILHA : [...EXT_PLANILHA, "xml", "mpp"], fs=>usar(fs[0]), inp);
 }
 const durH = s => { const m=String(s||"").match(/PT(\d+(?:\.\d+)?)H(\d+)M/); return m ? +m[1]+(+m[2])/60 : 0; };
 function lerMsProjectXml(txt){

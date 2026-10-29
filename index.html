@@ -169,6 +169,8 @@ section.view{padding-block:14px;display:grid;gap:14px}
 .okmsg{font-size:.85rem;color:var(--good);font-weight:600}
 .vazio{padding:28px 16px;text-align:center;color:var(--muted);background:var(--surface);border:1px dashed var(--line);border-radius:var(--r);display:grid;gap:12px;justify-items:center}
 .env-zona.sobre{border-color:var(--in-ink);background:var(--in-bg)}
+.env-prog{display:grid;gap:8px} .env-prog[hidden]{display:none} .env-nome{overflow-wrap:anywhere;min-width:0}
+.env-barra{height:12px;background:var(--line);border-radius:999px;overflow:hidden} .env-barra>i{display:block;height:100%;background:var(--in-ink);border-radius:999px;transition:width .4s linear}
 
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
 /* módulos: indicadores sempre em 2 colunas no celular, para a ação principal ficar perto do topo */
@@ -2267,7 +2269,7 @@ function setCampo(on){ LS.set("campo",!!on); if(on) document.documentElement.dat
 $("#campo-modo").addEventListener("click", e=>{ const b=e.target.closest("button[data-c]"); if(b) setCampo(b.dataset.c==="1"); });
 setCampo(!!LS.get("campo"));
 
-const VERSAO_APP = "v170"; // igual ao número em sw.js (armacao-v170)
+const VERSAO_APP = "v171"; // igual ao número em sw.js (armacao-v171)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -12964,7 +12966,7 @@ async function receberCompartilhado(){
 // No computador: wiapps.com.br/wigo/#enviar (entra e é liberado como um celular) e arrasta o arquivo para a página.
 // O arquivo vai em pedaços de 2 MB para a pasta "Arquivos" do Drive (acao arqEnviar) e vira um registro arquivo/env;
 // os celulares o veem na sincronização seguinte e baixam pelo mesmo caminho dos projetos (acao pdf, em pedaços, guardado no celular).
-const ENV={ocupado:false, nota:"", fila:[]}, ENV_MAX=60*1024*1024;
+const ENV={ocupado:false, fila:[], total:0, prog:null, tm:0}, ENV_MAX=60*1024*1024;
 const MIME_EXT={pdf:"application/pdf", jpg:"image/jpeg", jpeg:"image/jpeg", png:"image/png", webp:"image/webp", gif:"image/gif", heic:"image/heic",
   xlsx:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", xls:"application/vnd.ms-excel", csv:"text/csv",
   docx:"application/vnd.openxmlformats-officedocument.wordprocessingml.document", doc:"application/msword", txt:"text/plain",
@@ -12983,12 +12985,13 @@ async function enviarArquivoObra(f, prog){
   const ini=await post({acao:"arqEnviar", op:"ini", nome:f.name, tipo, tamanho:f.size}, 60000);
   let pos=0, falhas=0, arq=null;
   while(!arq){
-    prog?.(pos, f.size);
+    prog?.(pos, f.size, Math.min(ini.parte, f.size-pos));
     const pedaco=new Uint8Array(await f.slice(pos, pos+ini.parte).arrayBuffer());
     let r;
     try{ r=await post({acao:"arqEnviar", op:"parte", up:ini.up, ini:pos, b64:bytesB64(pedaco)}, 120000); falhas=0; }
     catch(e){ if(/conexão|inválida do Google/i.test(e.message) && ++falhas<=3) continue; throw e; } // sinal fraco: manda o mesmo pedaço de novo
     if(r.fim) arq=r.arquivo; else pos = r.recebido>pos ? r.recebido : pos+pedaco.length;
+    if(!arq && pos>=f.size) throw new Error(`O Drive não confirmou o fim de ${f.name}. Mande de novo.`); // não fica repetindo sem fim
   }
   const id=uid();
   setReg2(id, {modulo:"arquivo", tipo:"env", data:hojeISO(), status:"Enviado",
@@ -12999,18 +13002,39 @@ async function enviarArquivoObra(f, prog){
   return arq;
 }
 async function enviarVarios(arqs){
-  ENV.fila.push(...arqs); if(ENV.ocupado) return;
-  ENV.ocupado=true; let n=0;
+  ENV.fila.push(...arqs); ENV.total=(ENV.ocupado ? ENV.total : 0)+arqs.length; if(ENV.ocupado) return notaEnv();
+  ENV.ocupado=true; let n=0, k=0;
   try{
     while(ENV.fila.length){
-      const f=ENV.fila.shift(), resto=ENV.fila.length;
-      try{ await enviarArquivoObra(f, (feito,total)=>{ ENV.nota=`Enviando ${f.name} (${tamTxt(total)})… ${Math.min(99,Math.round(feito*100/total))}%${resto?` · faltam ${resto}`:""}`; notaEnv(); }); n++; }
+      const f=ENV.fila.shift(); k++;
+      iniciarProg("Enviando", f.name, f.size, ENV.total>1 ? `arquivo ${k} de ${ENV.total}` : "");
+      try{ await enviarArquivoObra(f, avancarProg); n++; }
       catch(e){ toast(e.message||`Não foi possível enviar ${f.name}.`); }
     }
-  }finally{ ENV.ocupado=false; ENV.nota=""; notaEnv(); }
+  }finally{ ENV.ocupado=false; ENV.total=0; pararProg(); }
   if(n){ toast(`${n} arquivo${n>1?"s enviados":" enviado"}: aparece${n>1?"m":""} nos celulares na próxima sincronização.`); if(!$("#tela-reg").hidden && RG.mod==="arquivo") renderReg2(); }
 }
-const notaEnv = () => { const e=$("#env-nota"); if(e){ e.textContent=ENV.nota; e.hidden=!ENV.nota; } };
+// Barra de andamento do envio (e do download) em Enviados: nome, MB, % e tempo restante.
+// O arquivo vai em pedaços de 2 MB e cada pedaço leva alguns segundos; enquanto um pedaço está indo, a barra anda
+// pela velocidade medida nos anteriores (no 1º, uma estimativa), sem passar do fim desse pedaço.
+function iniciarProg(acao, nome, total, extra){ clearInterval(ENV.tm); ENV.prog={acao, nome, total, extra, feito:0, t0:Date.now(), ini:0, ped:0, tPed:Date.now()}; ENV.tm=setInterval(notaEnv, 400); notaEnv(); }
+function avancarProg(feito, total, ped){ const p=ENV.prog; if(!p) return; Object.assign(p, {feito, total:total||p.total, ini:feito, ped:ped||0, tPed:Date.now()}); notaEnv(); }
+function pararProg(){ clearInterval(ENV.tm); ENV.prog=null; notaEnv(); }
+function estimaProg(p){
+  const agora=Date.now(), vel = p.feito>0 ? p.feito/Math.max(1,(p.tPed-p.t0)) : 150; // bytes por ms (150 ≈ 1,2 Mbit/s na 1ª estimativa)
+  const feito=Math.min(p.total, p.feito + Math.min(p.ped*0.95, vel*(agora-p.tPed)));
+  const resta = feito>0 && agora-p.t0>1500 ? (p.total-feito)/(feito/(agora-p.t0)) : null;
+  return {feito, pct: p.total ? Math.min(99, Math.floor(feito*100/p.total)) : 0, resta};
+}
+const tempoTxt = ms => ms==null ? "calculando o tempo…" : ms<60000 ? `faltam ~${Math.max(1,Math.round(ms/1000))} s` : `faltam ~${Math.round(ms/60000)} min`;
+function notaEnv(){
+  const box=$("#env-prog"); if(!box) return;
+  const p=ENV.prog; box.hidden=!p; if(!p) return box.replaceChildren();
+  const e=estimaProg(p);
+  repor(box, el("div",{class:"row"}, el("b",{class:"env-nome",text:`${p.acao==="Enviando"?"📤":"📥"} ${p.nome}`}), el("span",{class:"chip",text:`${e.pct}%`})),
+    el("div",{class:"env-barra",role:"progressbar","aria-label":`${p.acao} ${p.nome}`,"aria-valuemin":"0","aria-valuemax":"100","aria-valuenow":String(e.pct)}, el("i",{style:`width:${e.pct}%`})),
+    el("small",{class:"info",text:[`${p.acao} ${tamTxt(e.feito)} de ${tamTxt(p.total)}`, tempoTxt(e.resta), p.extra, ENV.fila.length?`${ENV.fila.length} na fila`:""].filter(Boolean).join(" · ")}));
+}
 const podeApagarEnv = r => !r.criadoPor || r.criadoPor===quemSou() || pode("rel");
 function painelEnviados(){
   const inp=el("input",{type:"file",multiple:true,hidden:true,onchange:e=>{ const fs=[...e.target.files]; e.target.value=""; if(fs.length) enviarVarios(fs); }});
@@ -13023,7 +13047,7 @@ function painelEnviados(){
   const lista=regs2De("arquivo","env").sort((a,b)=>String(b.criadoEm||"9").localeCompare(String(a.criadoEm||"9")));
   const offline=!S.cfg?.url ? el("div",{class:"vazio",text:"Conecte o app ao Google Drive em Ajustes."}) : null;
   return [el("p",{class:"info",text:"Para levar um arquivo do computador para o celular sem WhatsApp: no computador da obra abra wiapps.com.br/wigo/#enviar, entre com o seu nome e mande o arquivo aqui. Ele fica no Drive da obra e aparece nesta lista em todos os celulares. Também vale ao contrário (do celular: Compartilhar › WIGO)."}),
-    offline || zona, el("p",{id:"env-nota",class:"info",hidden:!ENV.nota,text:ENV.nota}),
+    offline || zona, el("div",{id:"env-prog",class:"card env-prog",hidden:true,"aria-live":"polite"}),
     ...(lista.length ? lista.slice(0,200).map(cardEnviado) : [el("div",{class:"vazio",text:"Nenhum arquivo enviado ainda."})])];
 }
 function cardEnviado(r){
@@ -13035,7 +13059,8 @@ function cardEnviado(r){
 const arqDoReg = d => ({id:d.id, nome:d.nome, tamanho:d.tamanho, atualizado:d.atualizado});
 async function blobEnviado(d){
   toast(`Baixando ${d.nome}…`);
-  const buf=await obterPdf(arqDoReg(d), (feito,total)=>{ ENV.nota=`Baixando ${d.nome}… ${total?Math.min(99,Math.round(feito*100/total)):0}%`; notaEnv(); }).finally(()=>{ ENV.nota=""; notaEnv(); });
+  if(!ENV.ocupado) iniciarProg("Baixando", d.nome, d.tamanho||0, "");
+  const buf=await obterPdf(arqDoReg(d), (feito,total)=>{ if(!ENV.ocupado) avancarProg(feito, total, 0); }).finally(()=>{ if(!ENV.ocupado) pararProg(); });
   return new Blob([buf],{type:d.mime||MIME_EXT[extDe(d.nome)]||"application/octet-stream"});
 }
 function menuEnviado(r){

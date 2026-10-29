@@ -951,7 +951,7 @@ function carregar(versaoCliente) {
     criadoEm: r[8] instanceof Date ? r[8].toISOString() : String(r[8] || ''), criadoPor: String(r[9] || ''),
     atualizadoEm: r[10] instanceof Date ? r[10].toISOString() : String(r[10] || ''), atualizadoPor: String(r[11] || ''), hist: lerJsonA(r[12], '[]'),
   }));
-  const out = { script: VERSAO_SCRIPT, versao: versao, semanas: semanas, lanc: lanc, equipes: equipes, registros: registros,
+  const out = { script: VERSAO_SCRIPT, teste: /\bTESTE\b/i.test(SpreadsheetApp.getActive().getName()), versao: versao, semanas: semanas, lanc: lanc, equipes: equipes, registros: registros,
     elementos: elementos, config: config, efetivo: efetivo, efDia: efDia, pessoas: pessoas, presencas: presencas,
     presPor: presPor, atividades: atividades, rdo: lerRdos(), concretagens: lerConcretagens(), registros2: lerRegistros2(), leitura: chaveLeitura(), agora: new Date().toISOString() };
   if (versaoCliente !== versao) out.itens = itens; // só manda a base quando mudou

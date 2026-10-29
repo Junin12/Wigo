@@ -216,6 +216,40 @@ const confere = (ok, msg) => { console.log(`${ok ? "ok  " : "FALHA"} ${msg}`); i
     } catch (e) { return "erro: " + e.message; }
   });
   confere(v149 === "ok", `busca geral, dica nos gráficos, ordem dos atalhos e tempos: ${v149}`);
+  // v164: romaneio pelo PDF (texto), romaneios da planilha, concreto → Suprimentos, equipamentos, faltas repetidas, SINAPI e LGPD
+  const v164 = await p.evaluate(() => {
+    const r = [], S0 = JSON.stringify({ cc: S.cc, pendReg2: S.pendReg2, pendCfg: S.pendCfg, reg2: S.reg2, pes: S.pes, presEf: S.presEf }), U0 = U;
+    try {
+      U = { nome: "Teste", cargo: "Engenheiro de produção" }; MEMO_EF.clear();
+      const t = "Descrição: RESERVATÓRIO (ROM.1)\nRomaneio\nC.AGUA.004901\nElemento: PAR1 Qtd: 1\nBitola Aço\n12,5mm CA50\nComp.(cm):\n275\nPeso (Kg):\n328,38\nElemento: LAJE Qtd: 2\n8mm CA50\nPeso (Kg):\n1.022,04\nImpresso em: 05/10/2026 às 10:05";
+      const x = lerRomaneioTexto(t);
+      if (!(x.n === "004901" && x.emit === "2026-10-05" && x.b["12.5"] === 328.38 && x.b["8"] === 1022.04 && x.pos === 2 && /PAR1 · LAJE/.test(x.els))) r.push("leitura do romaneio " + JSON.stringify(x));
+      setCfg("ACO_REMESSA_90", JSON.stringify({ est: "RESERVATÓRIO" })); setCfg("ACO_ROMANEIO_004901", JSON.stringify({ n: "004901", rem: 90, desc: "teste", emit: "2026-10-05", b: x.b }));
+      const R = remessas().find(q => q.n === 90);
+      if (!(R && R.est === "RESERVATÓRIO" && Math.abs(R.kg - 1350.42) < 0.01 && ROMANEIOS.some(q => q.n === "004901"))) r.push("romaneio da planilha");
+      setCfg("ACO_ROMANEIO_004901", ""); setCfg("ACO_REMESSA_90", ""); remessas();
+      if (ROMANEIOS.some(q => q.n === "004901") || REMESSAS_ACO[90]) r.push("romaneio apagado continuou");
+      S.cc = [{ id: "cct", data: "2026-10-20", estrutura: "FLOCULADORES", local: "Lance 3", status: "Em andamento", cams: [], volPrev: 20 }];
+      setConc("cct", { cams: [{ n: 1, nf: "123", vol: 8, usina: "Supermix" }, { n: 2, nf: "124", vol: 7 }] });
+      let rc = regs2De("sup", "conc").filter(q => q.id.startsWith("rcc-cct-"));
+      if (!(rc.length === 2 && rc.find(q => q.id === "rcc-cct-1").dados.forn === "Supermix" && rc.find(q => q.id === "rcc-cct-2").dados.qtd === 7)) r.push("concreto em Suprimentos");
+      setConc("cct", { cams: [{ n: 1, nf: "123", vol: 8, usina: "Supermix" }] });
+      rc = regs2De("sup", "conc").filter(q => q.id.startsWith("rcc-cct-")); if (rc.length !== 1) r.push("caminhão excluído continuou em Suprimentos");
+      const sit = situacaoEquip({ dados: { nome: "Escavadeira T", rev: 250, hRev: 0, posse: "Locado", valor: 100, valorUn: "hora" } });
+      setReg2("eqt1", { modulo: "equip", tipo: "apont", data: hojeISO(), status: "Trabalhando", dados: { equip: "Escavadeira T", hi: 230, hf: 240, horas: 10 } });
+      const s2 = situacaoEquip({ dados: { nome: "Escavadeira T", rev: 250, hRev: 0, posse: "Locado", valor: 100, valorUn: "hora" } });
+      if (!(sit.h === null && s2.h === 240 && s2.rev.falta === 10 && s2.rev.cor === "and" && s2.custo === 1000)) r.push("equipamento " + JSON.stringify(s2));
+      S.pes = [{ id: "pf1", nome: "Fulano Teste", fid: "" }]; const ym = hojeISO().slice(0, 7);
+      S.presEf = { [ym + "-01"]: { pf1: "F" }, [ym + "-02"]: { pf1: "F" }, [ym + "-03"]: { pf1: "AT" } }; MEMO_EF.clear();
+      const f2 = faltasRepetidas(2); if (!(f2.length === 1 && f2[0].n === 2) || faltasRepetidas(3).length) r.push("faltas repetidas");
+      if (precoSinapi({ pu: { MG: 10, SP: 12 } }, "SP") !== 12 || precoSinapi({ p: 5 }, "MG") !== 5 || !buscaSinapi(() => {})) r.push("SINAPI");
+      const dp = dadosDaPessoa(S.pes[0]); if (!(dp.pessoa.nome === "Fulano Teste" && dp.presencas.length === 3)) r.push("dados da pessoa (LGPD)");
+      if (textoTermo().length < 5 || typeof pedirPin !== "function" || typeof faixaTeste !== "function") r.push("termo/PIN/faixa");
+    } catch (e) { r.push("erro: " + e.message); }
+    finally { Object.assign(S, JSON.parse(S0)); U = U0; savePendReg2(); MEMO_EF.clear(); }
+    return r.length ? r.join(" · ") : "ok";
+  });
+  confere(v164 === "ok", `romaneio pelo PDF, romaneios da planilha, concreto em Suprimentos, equipamentos, faltas, SINAPI e LGPD: ${v164}`);
   const man = JSON.parse(fs.readFileSync(path.join(RAIZ, "manifest.webmanifest"), "utf8"));
   confere(man.share_target?.method === "POST" && /compartilhar/.test(man.share_target.action) && /compartilhar/.test(fs.readFileSync(path.join(RAIZ, "sw.js"), "utf8")),
     "compartilhar para o WIGO: manifest e sw.js");

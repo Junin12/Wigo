@@ -1495,7 +1495,16 @@ function tirarRecusadas(L){
   savePend(); savePendExtra(); savePendEf(); savePendAt(); savePendRdo(); savePendCc(); savePendReg2();
   setTimeout(()=>toast(`${L.length} alteração(ões) não gravada(s): seu cargo não tem permissão.`), 0);
 }
+// planilha de teste (nome com "TESTE", script 39+): faixa vermelha no topo de todas as telas
+function faixaTeste(on){
+  let f=$("#faixa-teste");
+  if(on && !f){ f=el("div",{id:"faixa-teste",role:"status",text:"AMBIENTE DE TESTE · o que for lançado aqui não vai para a obra"});
+    f.style.cssText="position:fixed;top:0;left:0;right:0;z-index:46;background:#B42318;color:#fff;font:700 12px/1.6 system-ui,sans-serif;text-align:center;padding:2px 8px calc(2px + env(safe-area-inset-top,0px)*0);letter-spacing:.04em;pointer-events:none";
+    document.body.append(f); }
+  if(f) f.hidden=!on;
+}
 function applyServer(j){
+  if("teste" in j){ S.teste=!!j.teste; LS.set("bancoTeste", S.teste); faixaTeste(S.teste); }
   if(j.recusadas?.length) tirarRecusadas(j.recusadas);
   MEMO_EF.clear();
   if(j.itens) for(const r of j.itens) r[0]=consertaCod(r[0]);
@@ -2098,6 +2107,8 @@ $("#cfg-ok").addEventListener("click", async ()=>{
   const url=$("#cfg-url").value.trim(), token=$("#cfg-tok").value.trim(), m=$("#cfg-msg");
   if(!/^https:\/\/script\.google(usercontent)?\.com\/.+\/exec$/.test(url)){ m.className="msg"; m.textContent="O endereço deve começar com https://script.google.com/ e terminar em /exec."; return; }
   if(!token){ m.className="msg"; m.textContent="Informe a senha do app."; return; }
+  // outro banco (ex.: o de teste) com lançamentos esperando: eles iriam para o banco errado
+  if(S.cfg?.url && S.cfg.url!==url && pendCount()){ m.className="msg"; m.textContent=`Há ${pendCount()} lançamento(s) deste celular esperando envio para o banco atual. Sincronize antes de trocar de banco.`; return; }
   S.cfg={url,token}; LS.set("cfg",S.cfg); m.className="info"; m.textContent="Conectando…";
   await cancelarSync(); // uma sincronização presa (com a senha antiga) não pode segurar a nova
   S.err=""; await sync();
@@ -2255,7 +2266,7 @@ function setCampo(on){ LS.set("campo",!!on); if(on) document.documentElement.dat
 $("#campo-modo").addEventListener("click", e=>{ const b=e.target.closest("button[data-c]"); if(b) setCampo(b.dataset.c==="1"); });
 setCampo(!!LS.get("campo"));
 
-const VERSAO_APP = "v163"; // igual ao número em sw.js (armacao-v163)
+const VERSAO_APP = "v164"; // igual ao número em sw.js (armacao-v164)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -4892,6 +4903,7 @@ function pedidosApp(){
 }
 // todas as remessas (romaneios já emitidos + pedidos do app), com o recebimento confirmado no app
 function remessas(){
+  aplicarRomaneiosCfg(); // romaneios e remessas cadastrados na planilha (aba Config)
   const L=[];
   for(const [n,R] of Object.entries(REMESSAS_ACO)){
     const roms=ROMANEIOS.filter(x=>x.rem===Number(n));
@@ -5033,7 +5045,8 @@ function renderSupAco(){
 
   repor($("#sup-aco"),
     el("p",{class:"saud"}, "Aço", el("small",{text:"Romaneios da Aços Campinas · armadura cortada e dobrada"})),
-    el("div",{class:"row"}, el("button",{class:"btn pri",type:"button",text:"Gerar pedido de aço",onclick:()=>abrirTela("supped")})),
+    el("div",{class:"row"}, el("button",{class:"btn pri",type:"button",text:"Gerar pedido de aço",onclick:()=>abrirTela("supped")}),
+      pode("sup-edit") ? el("button",{class:"btn",type:"button",text:"+ Romaneio (PDF)",onclick:novoRomaneio}) : null),
     el("label",{class:"campo full"}, "Estrutura", selEst),
     el("div",{class:"kpis"},
       kpi("Pedido", `${t(tot)} t`, `${L.length} remessas`),
@@ -7917,12 +7930,12 @@ function renderCcBar(){
     el("span",{class:"cc-info",text:`${nf1.format(volLancado(c))}${c.volPrev?` de ${nf1.format(c.volPrev)}`:""} m³ · ${c.cams.length} caminhão(ões)`}));
 }
 
-// --- previsão de chuva na data da concretagem (Open-Meteo, grátis, sem cadastro; Uberaba/MG) ---
+// --- previsão de chuva na data da concretagem (Open-Meteo, grátis, sem cadastro; no local da obra: OBRA_LAT/OBRA_LON ou a cidade) ---
 // Guarda a previsão por 3 horas no celular; sem internet, mostra a última que tiver (com a hora em que foi pega).
 const PREV={dados:LS.get("previsao"), pedindo:null};
 async function previsaoTempo(){
   if(PREV.dados && Date.now()-PREV.dados.em < 3*3600e3) return PREV.dados;
-  PREV.pedindo ||= fetch("https://api.open-meteo.com/v1/forecast?latitude=-19.75&longitude=-47.93&daily=precipitation_probability_max,precipitation_sum&timezone=America%2FSao_Paulo&forecast_days=16")
+  PREV.pedindo ||= localObra().catch(()=>({lat:-19.75, lon:-47.93})).then(({lat,lon})=>fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=precipitation_probability_max,precipitation_sum&timezone=America%2FSao_Paulo&forecast_days=16`))
     .then(r=>r.ok?r.json():Promise.reject()).then(j=>{ const d={em:Date.now(), dias:{}};
       j.daily.time.forEach((t,i)=>d.dias[t]={p:j.daily.precipitation_probability_max[i], mm:j.daily.precipitation_sum[i]});
       PREV.dados=d; LS.set("previsao",d); return d; }).catch(()=>PREV.dados).finally(()=>{ PREV.pedindo=null; });
@@ -9025,10 +9038,13 @@ function cartaoEquips(){
   const cs=equipCads(); if(!cs.length) return null;
   const R$=v=>"R$ "+v.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}), sem=new Set(semChecklistHoje().map(c=>c.id));
   let tot=0; const linhas=cs.map(c=>{ const s=situacaoEquip(c); if(s.custo) tot+=s.custo;
-    return [c.dados.nome, s.h!=null?nf1.format(s.h)+" h":"–", s.rev ? (s.rev.falta<=0?`vencida há ${nf0.format(-s.rev.falta)} h`:`em ${nf0.format(s.rev.falta)} h`)+(s.rev.cor!=="ok"?" ⚠":"") : "–",
-      s.custo!=null ? R$(s.custo) : "–", sem.has(c.id) ? "⚠ sem checklist" : "ok"]; });
+    const rev=s.rev ? (s.rev.falta<=0 ? `revisão vencida há ${nf0.format(-s.rev.falta)} h` : `revisão em ${nf0.format(s.rev.falta)} h`) : "";
+    return el("div",{class:"ef-lin"}, el("span",{class:"nm",text:c.dados.nome}),
+      el("small",{text:[s.h!=null?`horímetro ${nf1.format(s.h)} h`:"sem horímetro", s.custo!=null?`${R$(s.custo)} no mês`:""].filter(Boolean).join(" · ")}),
+      rev ? el("span",{class:"chip "+s.rev.cor,text:rev}) : null,
+      sem.has(c.id) ? el("span",{class:"chip and",text:"sem checklist hoje"}) : null); });
   return el("details",{class:"card"}, el("summary",{class:"pr-sum",text:`Situação dos equipamentos${tot?` · locação no mês ${R$(tot)}`:""}${sem.size?` · ${sem.size} sem checklist hoje`:""}`}),
-    tabelaSimples(["Equipamento","Horímetro","Revisão","Custo no mês","Checklist hoje"], linhas),
+    ...linhas,
     el("p",{class:"info",text:"Revisão: pelo horímetro do último apontamento. Custo: valor do cadastro × horas (por hora), dias trabalhados (por dia) ou o mês, se houve apontamento."}));
 }
 const equipsCadastrados = () => regs2De("equip","cad").filter(r=>r.status!=="Inativo").map(r=>r.dados.nome).filter(Boolean).sort((a,b)=>a.localeCompare(b,"pt-BR"));
@@ -12597,7 +12613,7 @@ function fontesBusca(){
   if(pode("prod")){ add("Telas","Frentes","Liberações e concretagem",()=>irAco("frentes")); add("Telas","Concreto","Etapas, concretagens e mapas",()=>abrirTela("conc")); }
   add("Telas","Ajustes","Tema, modo em campo, banco e versão do app",()=>irAco("dados"));
   // romaneios de aço
-  if(pode("sup")) for(const R of ROMANEIOS){ const est=REMESSAS_ACO[R.rem]?.est||"";
+  if(pode("sup")) for(const R of (aplicarRomaneiosCfg(), ROMANEIOS)){ const est=REMESSAS_ACO[R.rem]?.est||"";
     add("Romaneios de aço", `Romaneio ${R.n}`, `${est} · remessa ${R.rem} · ${R.desc} · ${t(R.kg)} t`, ()=>{ SUPACO.est=est; abrirTela("supaco"); }, R.els); }
   if(pode("prod")){
     for(const c of concs()) add("Concretagens", `${c.estrutura}${c.local?" · "+c.local:""}`, `${dataBR(c.data)} · ${c.status}`, ()=>{ abrirTela("conc"); setTimeout(()=>abrirConcretagem(c),150); });
@@ -13077,6 +13093,96 @@ function devLgpd(box){
 }; }
 { const o=renderInicio; renderInicio=function(){ o(); setTimeout(conferirTermo, 1400); }; }
 
+
+// ================= Romaneios de aço na planilha (aba Config) e leitura do PDF da Aços Campinas =================
+// ACO_ROMANEIO_<número> = {n, rem, desc, emit, kg, b:{bitola: kg}, els}; ACO_REMESSA_<n> = {est, ini, fim, obs}.
+// Somam-se aos romaneios e remessas que já estão no código (remessas 1 a 6). Valor vazio = apagado.
+const ROM_CFG={sig:"", nRom:new Set(), nRem:new Set(), base:null};
+function aplicarRomaneiosCfg(){
+  const cfg={...S.cfgObra, ...S.pendCfg}, ks=Object.keys(cfg).filter(k=>/^ACO_(ROMANEIO|REMESSA)_/.test(k)).sort(), sig=ks.map(k=>k+"="+cfg[k]).join("|");
+  if(sig===ROM_CFG.sig) return; ROM_CFG.sig=sig;
+  ROM_CFG.base ||= {rem:JSON.parse(JSON.stringify(REMESSAS_ACO))};
+  // desfaz o que veio da planilha antes e aplica de novo
+  for(let i=ROMANEIOS.length-1;i>=0;i--) if(ROM_CFG.nRom.has(ROMANEIOS[i].n) && ROMANEIOS[i].cfg) ROMANEIOS.splice(i,1);
+  for(const n of ROM_CFG.nRem){ if(ROM_CFG.base.rem[n]) REMESSAS_ACO[n]=JSON.parse(JSON.stringify(ROM_CFG.base.rem[n])); else delete REMESSAS_ACO[n]; }
+  ROM_CFG.nRom.clear(); ROM_CFG.nRem.clear();
+  for(const k of ks){ let v; try{ v=cfg[k] ? JSON.parse(cfg[k]) : null; }catch{ v=null; } if(!v) continue;
+    const m=k.match(/^ACO_(ROMANEIO|REMESSA)_(.+)$/);
+    if(m[1]==="REMESSA"){ const n=Number(m[2]); if(!(n>0)) continue; REMESSAS_ACO[n]={...(ROM_CFG.base.rem[n]||{}), ...v}; ROM_CFG.nRem.add(n); }
+    else if(v.n && v.rem && v.b && !ROMANEIOS.some(x=>x.n===v.n)){ ROMANEIOS.push({...v, kg:+v.kg||Object.values(v.b).reduce((s,x)=>s+x,0), cfg:true}); ROM_CFG.nRom.add(v.n); }
+  }
+}
+{ const o=applyServer; applyServer=function(...a){ const r=o.apply(this,a); try{ aplicarRomaneiosCfg(); }catch(e){ guardarErro(e.message,"romaneiosCfg"); } return r; }; }
+{ const o=setCfg; setCfg=function(k,v){ o(k,v); if(/^ACO_(ROMANEIO|REMESSA)_/.test(k)) aplicarRomaneiosCfg(); }; }
+
+// PDF do romaneio (Aços Campinas): número, descrição, data de impressão, peso por bitola (soma das posições) e elementos.
+// Conferido com os 19 romaneios das remessas 1 a 5: peso total e por bitola iguais aos lançados à mão.
+async function lerRomaneioPdf(file){
+  await loadPdfjs();
+  const pdf=await pdfjsLib.getDocument({isEvalSupported:false, data:new Uint8Array(await file.arrayBuffer()), isOffscreenCanvasSupported:false}).promise, partes=[];
+  for(let i=1;i<=pdf.numPages;i++){ const tc=await (await pdf.getPage(i)).getTextContent(); partes.push(tc.items.map(x=>x.str).join("\n")); }
+  pdf.destroy();
+  return lerRomaneioTexto(partes.join("\n"));
+}
+function lerRomaneioTexto(t){
+  const nb=s=>{ s=String(s).trim(); return /,/.test(s) ? +s.replace(/\./g,"").replace(",",".") : +s; };
+  const mN=t.match(/C\.?\s*AGUA\.?\s*0*([\d.]{3,9})/i) || t.match(/Romaneio\s*\n?\s*[A-Z.]*?0*(\d{3,6})\b/);
+  const n=mN ? mN[1].replace(/\./g,"").padStart(6,"0") : "";
+  const desc=(t.match(/Descri[çc][ãa]o:\s*([^\n]+)/i)||[])[1]?.trim()||"";
+  const d=t.match(/Impresso em:\s*(\d{2})\/(\d{2})\/(\d{4})/), emit=d ? `${d[3]}-${d[2]}-${d[1]}` : "";
+  const b={}, re=/(\d+(?:[.,]\d+)?)\s*mm\s*CA\s*-?\d+[\s\S]{0,220}?Peso \(Kg\):\s*([\d.]*\d,\d+|\d+)/g; let m, pos=0;
+  while((m=re.exec(t))){ const bit=String(nb(m[1])), kg=nb(m[2]); if(kg>0){ b[bit]=Math.round(((b[bit]||0)+kg)*100)/100; pos++; } }
+  const els=[...new Set([...t.matchAll(/Elemento:\s*([^\n]+?)\s+Qtd:/g)].map(x=>x[1].trim()))];
+  const kg=Math.round(Object.values(b).reduce((s,x)=>s+x,0)*100)/100;
+  return {n, desc, emit, b, kg, pos, els:els.join(" · ").slice(0,500)};
+}
+function novoRomaneio(){
+  aplicarRomaneiosCfg();
+  const L=remessas(), prox=Math.max(0,...L.map(R=>R.n))+1, BITS=["6.3","8","10","12.5","16","20","25","32"];
+  const iArq=el("input",{type:"file",accept:"application/pdf,.pdf",hidden:true}), msg=el("p",{class:"info full"});
+  const iN=el("input",{type:"text",maxLength:12,placeholder:"Ex.: 004829"}), iDesc=el("input",{type:"text",maxLength:120}), iEmit=el("input",{type:"date"}), iEls=el("input",{type:"text",maxLength:500});
+  const iRem=el("select",{}, ...L.map(R=>el("option",{value:R.n,text:`Remessa ${R.n} · ${R.est}`})), el("option",{value:"nova",text:`Nova remessa (${prox})`}));
+  const iEst=el("input",{type:"text",maxLength:80,placeholder:"Estrutura (ex.: RESERVATÓRIO)"}), iIni=el("input",{type:"date"}), iFim=el("input",{type:"date"});
+  const boxNova=el("div",{class:"full",hidden:true}, campoEf("Estrutura da remessa nova",iEst,true), campoEf("Entrega prevista: de",iIni), campoEf("até",iFim));
+  iRem.value=String(L.filter(R=>!R.rec).at(-1)?.n || "nova"); boxNova.hidden=iRem.value!=="nova"; iRem.onchange=()=>{ boxNova.hidden=iRem.value!=="nova"; };
+  const iB=Object.fromEntries(BITS.map(k=>[k, el("input",{type:"text",inputMode:"decimal","aria-label":`kg da bitola ${k}`})]));
+  const total=el("b"), soma=()=>{ total.textContent=`Total: ${nf1.format(BITS.reduce((s,k)=>s+num(iB[k].value),0))} kg`; };
+  BITS.forEach(k=>iB[k].oninput=soma);
+  iArq.onchange=async()=>{ const f=iArq.files[0]; iArq.value=""; if(!f) return; msg.textContent="Lendo o PDF…";
+    try{ const r=await lerRomaneioPdf(f);
+      if(!r.pos) return msg.textContent="Não achei as posições (bitola e peso) neste PDF. É um romaneio da Aços Campinas? Preencha à mão.";
+      iN.value=r.n; iDesc.value=r.desc; iEmit.value=r.emit; iEls.value=r.els;
+      for(const k of BITS) iB[k].value=r.b[k] ? String(r.b[k]).replace(".",",") : "";
+      const outras=Object.keys(r.b).filter(k=>!BITS.includes(k)); soma();
+      msg.textContent=`Lido: ${r.pos} posições, ${nf1.format(r.kg)} kg${outras.length?` (bitolas fora da lista: ${outras.join(", ")})`:""}. Confira a remessa e salve.`;
+      if(ROMANEIOS.some(x=>x.n===r.n)) msg.textContent+=` Atenção: o romaneio ${r.n} já existe no app.`;
+    }catch(e){ msg.textContent="Não consegui ler o PDF: "+(e.message||e); } };
+  const salvar=()=>{
+    const n=iN.value.replace(/\D/g,"").padStart(6,"0"), b={};
+    for(const k of BITS){ const v=num(iB[k].value); if(v>0) b[k]=Math.round(v*100)/100; }
+    if(!/^\d{3,}$/.test(n) || n==="000000") return toast("Informe o número do romaneio.");
+    if(!Object.keys(b).length) return toast("Informe o peso de pelo menos uma bitola.");
+    if(ROMANEIOS.some(x=>x.n===n && !x.cfg)) return toast(`O romaneio ${n} já está no app.`);
+    let rem=Number(iRem.value);
+    if(iRem.value==="nova"){ if(!iEst.value.trim()) return toast("Informe a estrutura da remessa nova."); rem=prox;
+      setCfg("ACO_REMESSA_"+rem, JSON.stringify({est:iEst.value.trim().toUpperCase(), ini:iIni.value||"", fim:iFim.value||iIni.value||""})); }
+    const kg=Math.round(Object.values(b).reduce((s,x)=>s+x,0)*100)/100;
+    setCfg("ACO_ROMANEIO_"+n, JSON.stringify({n, rem, desc:iDesc.value.trim()||"Romaneio", emit:iEmit.value||hojeISO(), kg, b, els:iEls.value.trim()}));
+    fecharEf(); toast(`Romaneio ${n} incluído na remessa ${rem} (${nf1.format(kg)} kg).`); renderSupAco();
+  };
+  const cad=ROMANEIOS.filter(x=>x.cfg);
+  efModal("Novo romaneio de aço", [
+    el("div",{class:"row full"}, el("button",{class:"btn pri",type:"button",text:"📄 Ler o PDF do romaneio",onclick:()=>iArq.click()}), iArq),
+    msg, campoEf("Número",iN), campoEf("Emitido em",iEmit), campoEf("Descrição",iDesc,true), campoEf("Remessa",iRem,true), boxNova,
+    el("div",{class:"campo full"}, "Peso por bitola (kg)", el("div",{class:"row"}, ...BITS.map(k=>el("label",{class:"campo",style:"max-width:7.5em"}, `Ø ${k.replace(".",",")}`, iB[k]))), total),
+    campoEf("Elementos",iEls,true),
+    cad.length ? el("details",{class:"full"}, el("summary",{text:`Romaneios cadastrados no app · ${cad.length}`}),
+      ...cad.map(x=>el("div",{class:"row"}, el("span",{text:`${x.n} · remessa ${x.rem} · ${nf1.format(x.kg)} kg`}),
+        el("button",{class:"linkbtn",type:"button",text:"Excluir",onclick:()=>{ if(!confirm(`Excluir o romaneio ${x.n} do app?`)) return; setCfg("ACO_ROMANEIO_"+x.n,""); fecharEf(); toast("Romaneio excluído."); renderSupAco(); }})))) : null],
+    [el("button",{class:"btn pri",type:"button",text:"Salvar romaneio",onclick:salvar})]);
+  soma();
+}
+
 // ---------- endereço antigo (junin12.github.io/Wigo) → wiapps.com.br/wigo ----------
 // Só muda depois que a fila do celular estiver vazia (nada a enviar), levando banco, usuário e liberação junto.
 const SITE_NOVO="https://wiapps.com.br/wigo/";
@@ -13124,6 +13230,7 @@ function boot(){
   setInterval(()=>{ if(document.visibilityState==="visible") virouDia(); }, 60000);
   // QR lido com o app já aberto no Safari: o endereço muda só depois do # e a página não recarrega
   addEventListener("hashchange", ()=>{ if(lerLinkCfg()) abrirTela(U?"inicio":"login",false); });
+  faixaTeste(!!LS.get("bancoTeste"));
   medirAbertura(); receberCompartilhado().catch(e=>guardarErro(e.message,"compartilhado"));
   if(LS.get("console")) carregarConsole().catch(()=>{});
   window.__wigoOk=true; // o app iniciou (sem isto, o aviso do <head> mostra o motivo no lugar da tela branca)

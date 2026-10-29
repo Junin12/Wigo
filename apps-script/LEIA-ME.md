@@ -7,6 +7,13 @@ Cópia do script publicado no Apps Script (sem senhas: a senha do app, TOKEN, e 
 ficam nas Propriedades do script). Quando mudar o script aqui, cole no Apps Script e publique:
 **Implantar → Gerenciar implantações → lápis ✏️ → Versão: Nova versão → Implantar** (o endereço /exec não muda).
 
+Versão 39: aba Acessos com as colunas VALIDADE (liberação com prazo: depois do último dia o celular pede acesso de novo) e PIN
+(resumo do PIN pessoal); PIN pedido a cada 6 horas para os cargos escolhidos no Painel Dev › Senhas (Propriedade PIN_CARGOS);
+aceite do termo de uso registrado no Histórico (ação `termo`); planilha com "TESTE" no nome = ambiente de teste (faixa vermelha no app).
+Com o script 38 o app funciona igual, sem esses recursos.
+
+Extras.gs: menu WIGO › "Criar ambiente de teste" (cópia da planilha com o script, na pasta "WIGO - Teste").
+
 Versão 38: a aba Aparelhos ganha a coluna TEMPOS (tempo para abrir o app e para sincronizar, de cada celular), mostrada
 no Painel Dev › Aparelhos. Com o script 37 o app funciona igual, só sem esses tempos.
 

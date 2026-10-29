@@ -6,6 +6,8 @@
  * 2. Menu "WIGO" na planilha:
  *    - Fazer backup agora
  *    - Esquecer a senha do desenvolvedor (o app pede para criar uma nova na próxima entrada como Desenvolvedor)
+ *    - Criar ambiente de teste: cópia da planilha (com o script) chamada "… · TESTE", para testar versões novas
+ *      sem mexer na obra. O app mostra a faixa "AMBIENTE DE TESTE" quando está ligado a ela (script 39+).
  * 3. Vigia diário (instalarVigia): todo dia às 7h confere erros, avisos dos usuários, celulares com envios parados
  *    e o tamanho das abas, e manda e-mail ao desenvolvedor quando algo pede atenção.
  *
@@ -36,7 +38,22 @@ function wigoMenu() {
     .addItem("Fazer backup agora", "wigoBackupAgora")
     .addSeparator()
     .addItem("Esquecer a senha do desenvolvedor", "wigoEsquecerSenhaDev")
+    .addSeparator()
+    .addItem("Criar ambiente de teste", "wigoCriarTeste")
     .addToUi();
+}
+
+// cópia da planilha para testes (o script vai junto). Os dados são os de hoje; o que for lançado na cópia não vai para a obra.
+function wigoCriarTeste() {
+  const ss = SpreadsheetApp.getActive(), it = DriveApp.getFoldersByName("WIGO - Teste");
+  const pasta = it.hasNext() ? it.next() : DriveApp.createFolder("WIGO - Teste");
+  const nome = ss.getName().replace(/\s*·\s*TESTE.*$/i, "") + " · TESTE " + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd");
+  const copia = DriveApp.getFileById(ss.getId()).makeCopy(nome, pasta);
+  wigoAviso_("Cópia criada: \"" + nome + "\" (pasta \"WIGO - Teste\").\n\n" +
+    "1. Abra a cópia › Extensões › Apps Script e rode configurar() (anote a senha nova).\n" +
+    "2. Implantar › Nova implantação › App da Web (Executar como: eu · Quem pode acessar: qualquer pessoa).\n" +
+    "3. Num celular ou navegador só de testes, abra o Wigo › Ajustes › Banco e cole o endereço /exec e a senha da cópia.\n" +
+    "O app mostra a faixa vermelha AMBIENTE DE TESTE. Nada lançado lá entra na planilha da obra.\n\n" + copia.getUrl());
 }
 
 function wigoPastaBackup_() {

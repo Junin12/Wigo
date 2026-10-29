@@ -10,4 +10,11 @@ for (const [arq, lim] of Object.entries(LIMITES)) {
   const kb = v => Math.round(v / 1024) + " KB";
   console.log(`${ok ? "ok  " : "FALHA"} ${arq}: ${kb(b.length)} (limite ${kb(lim.bruto)}) · comprimido ${kb(g)} (limite ${kb(lim.gzip)}) · ${Math.round(b.length / lim.bruto * 100)}% do orçamento`);
 }
+// caractere de controle no código (ex.: um  de expressão regular que virou o caractere 8 ao colar): quebra a busca sem dar erro
+const CTRL = new RegExp("[" + String.fromCharCode(0) + "-" + String.fromCharCode(8) + String.fromCharCode(11, 12) + String.fromCharCode(14) + "-" + String.fromCharCode(31) + "]");
+for (const arq of ["index.html", "painel.html", "sw.js", "apps-script/Code.gs", "apps-script/Extras.gs"]) {
+  const t = fs.readFileSync(path.join(__dirname, "..", arq), "utf8"), m = t.match(CTRL);
+  if (m) { falhou++; console.log("FALHA " + arq + ": caractere de controle (código " + m[0].charCodeAt(0) + ") na linha " + (t.slice(0, m.index).split(String.fromCharCode(10)).length)); }
+  else console.log("ok   " + arq + ": sem caractere de controle");
+}
 if (falhou) { console.log("\nO app passou do orçamento de tamanho. Veja o skill desempenho."); process.exit(1); }

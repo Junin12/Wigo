@@ -250,6 +250,54 @@ const confere = (ok, msg) => { console.log(`${ok ? "ok  " : "FALHA"} ${msg}`); i
     return r.length ? r.join(" · ") : "ok";
   });
   confere(v164 === "ok", `romaneio pelo PDF, romaneios da planilha, concreto em Suprimentos, equipamentos, faltas, SINAPI e LGPD: ${v164}`);
+  // v165: cronograma da obra importado do MS Project (XML) e do Excel, dias úteis, previsão por atividade e equipe necessária
+  const v165 = await p.evaluate(async () => {
+    const r = [], S0 = JSON.stringify({ pendReg2: S.pendReg2, pendReg2Del: S.pendReg2Del, reg2: S.reg2 }), U0 = U;
+    try {
+      U = { nome: "Teste", cargo: "Engenheiro de produção" }; MEMO_EF.clear();
+      // calendário: 2026-11-02 (Finados) e domingo não são úteis; com 6 dias/semana o sábado é
+      if (diaUtil("2026-11-02") || diaUtil("2026-11-01") || !diaUtil("2026-10-31") === (DIAS() >= 6)) r.push("dia útil");
+      if (pascoa(2026) !== "2026-04-05" || !feriadosAno(2026).has("2026-02-17") || !feriadosAno(2026).has("2026-06-04")) r.push("feriados móveis");
+      if (somaUteis("2026-10-29", 3) !== (DIAS() >= 6 ? "2026-10-31" : "2026-11-03")) r.push("soma de dias úteis " + somaUteis("2026-10-29", 3));
+      const xml = `<?xml version="1.0" encoding="UTF-8"?><Project xmlns="http://schemas.microsoft.com/project"><Title>Obra teste</Title><Tasks>
+        <Task><UID>0</UID><ID>0</ID><Name>Obra teste</Name><OutlineLevel>0</OutlineLevel><Summary>1</Summary></Task>
+        <Task><UID>1</UID><ID>1</ID><Name>Fundações</Name><OutlineLevel>1</OutlineLevel><Summary>1</Summary><Start>2026-09-01T08:00:00</Start><Finish>2026-12-30T17:00:00</Finish></Task>
+        <Task><UID>2</UID><ID>2</ID><Name>Escavação das sapatas</Name><OutlineLevel>2</OutlineLevel><Summary>0</Summary><Start>2026-09-01T08:00:00</Start><Finish>2026-09-30T17:00:00</Finish><PercentComplete>100</PercentComplete><Cost>1000</Cost><Work>PT80H0M0S</Work></Task>
+        <Task><UID>3</UID><ID>3</ID><Name>Concreto das sapatas</Name><OutlineLevel>2</OutlineLevel><Summary>0</Summary><Start>2026-10-01T08:00:00</Start><Finish>2026-12-30T17:00:00</Finish><PercentComplete>10</PercentComplete><Cost>3000</Cost>
+          <PredecessorLink><PredecessorUID>2</PredecessorUID></PredecessorLink><Baseline><Number>0</Number><Start>2026-10-01T08:00:00</Start><Finish>2026-12-15T17:00:00</Finish></Baseline></Task>
+        <Task><UID>4</UID><ID>4</ID><Name>Entrega</Name><OutlineLevel>1</OutlineLevel><Summary>0</Summary><Milestone>1</Milestone><Start>2026-12-30T17:00:00</Start><Finish>2026-12-30T17:00:00</Finish></Task>
+      </Tasks></Project>`;
+      const x = lerMsProjectXml(xml), ts = x.tarefas.filter(t => !t.resumo && !t.marco);
+      if (!(x.nome === "Obra teste" && ts.length === 2 && ts[1].grupo === "Fundações" && ts[1].pred === "2" && ts[1].fimBase === "2026-12-15" && ts[0].trabalho === 80)) r.push("XML do Project " + JSON.stringify(ts[1]));
+      gravarCronoImportado(ts, "MS Project", "custo", true, false);
+      let L = regs2De("med", "crono").filter(q => q.dados.origem === "MS Project");
+      const c = L.find(q => q.dados.uid === "3");
+      if (!(L.length === 2 && c && c.dados.real === 10 && c.dados.un === "%" && c.dados.peso === 3000 && c.dados.fimBase === "2026-12-15")) r.push("gravação da importação " + JSON.stringify(c?.dados));
+      // reimportar o mesmo arquivo com % novo: atualiza, não duplica
+      ts[1].pct = 40; gravarCronoImportado(ts, "MS Project", "custo", true, false);
+      L = regs2De("med", "crono").filter(q => q.dados.origem === "MS Project");
+      if (!(L.length === 2 && L.find(q => q.dados.uid === "3").dados.real === 40)) r.push("reimportação");
+      // planilha (exportada do Project ou feita à mão)
+      await loadXLSX();
+      const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["Cronograma da obra"], ["Id", "Nome da tarefa", "Início", "Término", "% concluída", "Quantidade", "Unidade"],
+        [1, "Rede de água", "01/10/2026", "30/11/2026", "", "", ""], [2, "  Assentamento adutora AT-01", "01/10/26", "30/11/26", "25%", 1200, "m"], [3, "  Armação das paredes", 46296, 46356, 0.5, 15000, "kg"]]), "Plan1");
+      const y = lerCronoPlanilha(wb), ty = y.tarefas.filter(t => !t.resumo);
+      if (!(ty.length === 2 && ty[0].grupo === "Rede de água" && ty[0].ini === "2026-10-01" && ty[0].pct === 25 && ty[1].ini === "2026-10-01" && ty[1].pct === 50)) r.push("planilha " + JSON.stringify(ty));
+      const fa = fonteAuto(ty[0]), fb = fonteAuto(ty[1]);
+      if (!(fa?.fonte === "Rede assentada (m)" && fb?.fonte === "Aço armado (t)" && fb.prev === 15)) r.push("ligação ao realizado do Wigo");
+      // previsão no ritmo real e equipe necessária
+      const h = hojeISO(), ini = somaDias(h, -20), fim = somaDias(h, 20), pv = previsaoAtiv({ prev: 100, ini, fim, equipe: 2 }, 20);
+      if (!(pv.fimPrev > fim && pv.atrasoDias > 0 && pv.faltamPessoas > 0)) r.push("previsão " + JSON.stringify(pv));
+      // fim calculado pela produtividade (100 m² ÷ (5 m²/pessoa/dia × 2 pessoas) = 10 dias úteis)
+      const T = MOD2.med.tipos.find(t => t.id === "crono"), d = { prev: 100, equipe: 2, prod: 5, ini: "2026-10-01" }; T.calc(d);
+      if (d.fim !== somaUteis("2026-10-01", 10)) r.push("fim pela produtividade " + d.fim);
+      const R = resumoCrono(regs2De("med", "crono")); if (!(R && R.fimPrev !== undefined && ganttCrono(R).querySelector("svg"))) r.push("resumo/Gantt");
+      if (topoCrono(regs2De("med", "crono")).length < 4) r.push("tela do cronograma");
+    } catch (e) { r.push("erro: " + e.message); }
+    finally { Object.assign(S, JSON.parse(S0)); U = U0; savePendReg2(); MEMO_EF.clear(); }
+    return r.length ? r.join(" · ") : "ok";
+  });
+  confere(v165 === "ok", `cronograma do MS Project/Excel, dias úteis, previsão e equipe necessária: ${v165}`);
   const man = JSON.parse(fs.readFileSync(path.join(RAIZ, "manifest.webmanifest"), "utf8"));
   confere(man.share_target?.method === "POST" && /compartilhar/.test(man.share_target.action) && /compartilhar/.test(fs.readFileSync(path.join(RAIZ, "sw.js"), "utf8")),
     "compartilhar para o WIGO: manifest e sw.js");

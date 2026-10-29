@@ -1744,7 +1744,7 @@ function pendCount(){ let c=Object.keys(S.pendEq).length+S.pendReg.length+S.pend
     +Object.keys(S.pendAt).length+S.pendAtDel.length+Object.keys(S.pendRdo).length
     +Object.keys(S.pendCc).length+S.pendCcDel.length+Object.keys(S.pendTr).length+Object.keys(S.pendReg2).length+S.pendReg2Del.length; for(const p of Object.values(S.pend)){ c+=Object.keys(p.raw||{}).length + (p.arm!=null) + (p.dias!=null) + (p.novo?1:0); } return c; }
 // o cartão "Sincronização" da tela inicial repete o texto do botão de sincronizar
-function setSync(){ pintarSync(); const i=$("#ind-sync"); if(i){ i.textContent=$("#sync").textContent; i.parentElement.dataset.st=($("#sync").className.match(/(ok|warn|bad)/)||[])[1]||""; } }
+function setSync(){ pintarSync(); const i=$("#ind-sync"); if(i){ i.textContent=$("#sync").textContent; i.parentElement.dataset.st=($("#sync").className.match(/\b(ok|warn|bad)\b/)||[])[1]||""; } }
 function pintarSync(){
   const e=$("#sync"), c=pendCount();
   // desde quando há lançamento esperando envio (para o alerta de fila presa e para o desenvolvedor)
@@ -2266,7 +2266,7 @@ function setCampo(on){ LS.set("campo",!!on); if(on) document.documentElement.dat
 $("#campo-modo").addEventListener("click", e=>{ const b=e.target.closest("button[data-c]"); if(b) setCampo(b.dataset.c==="1"); });
 setCampo(!!LS.get("campo"));
 
-const VERSAO_APP = "v164"; // igual ao número em sw.js (armacao-v164)
+const VERSAO_APP = "v165"; // igual ao número em sw.js (armacao-v165)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -4508,7 +4508,7 @@ function renderIndicadores(){
     card(1, "Forma montada", iF, `de ${nf0.format(f.totProj)} m²`+(f.prod?` · ${nf1.format(f.prod)} m²/pessoa·dia`:""), f.totProj?f.avanco/f.totProj:0, vaiProd("forma")),
     card(2, "Concreto", iC, `de ${nf0.format(C.projPrev)} m³ · ${C.feitas} etapas executadas`, fC, vaiProd("conc")),
     card(3, w?`Semana ${w.n} · ${ddmm(w.ini)} a ${ddmm(w.fim)}`:"Semana", i2, meta?`meta ${t(meta)} t · ${pct(w.kg/meta)} atingido`:"informe armadores e dias em Semanas", meta?Math.min(1,w.kg/meta):null, ()=>irAco("coleta"))] : []),
-    el("div",{class:"ind-sync","data-st":($("#sync").className.match(/(ok|warn|bad)/)||[])[1]||""}, el("span",{class:"pt"}), el("b",{id:"ind-sync",text:$("#sync").textContent}),
+    el("div",{class:"ind-sync","data-st":($("#sync").className.match(/\b(ok|warn|bad)\b/)||[])[1]||""}, el("span",{class:"pt"}), el("b",{id:"ind-sync",text:$("#sync").textContent}),
       el("small",{text:S.lastSync?` · última: ${new Date(S.lastSync).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}`:" · ainda não sincronizado"})));
   contar(i1, r.E/1000, v=>`${nf1.format(v)} t · ${pct(r.P?v*1000/r.P:0)}`);
   contar(iF, f.avanco, v=>`${nf0.format(v)} m² · ${pct(f.totProj?v/f.totProj:0)}`);
@@ -8071,7 +8071,7 @@ function editarConc(c, pre){
     boxLaje.hidden=tipo==="par"; boxPar.hidden=tipo==="laje"; boxArr.hidden=tipo!=="fa"; };
   // sem escolha manual, o elemento/lance decide: "laje", "fundo", "passarela"… = forma; "parede", "lance 1/2" = mapa
   let tipoManual=!!c; iLoc.oninput=()=>{ if(tipoManual || tipo==="fa") return; const t=normTxt(iLoc.value);
-    const v=/LAJE|FUNDO|PASSARELA|TAMPA|COBERTURA|SUPERIOR/.test(t) ? "laje" : /PAREDE|PAR|LANCE/.test(t) ? "par" : tipo; if(v!==tipo){ tipo=v; desTipo(); atualizarVol(); } };
+    const v=/LAJE|FUNDO|PASSARELA|TAMPA|COBERTURA|SUPERIOR/.test(t) ? "laje" : /PAREDE|\bPAR\b|LANCE/.test(t) ? "par" : tipo; if(v!==tipo){ tipo=v; desTipo(); atualizarVol(); } };
   // PDF da forma: os que combinam com a estrutura aparecem primeiro
   const busca=el("input",{type:"search",placeholder:"Filtrar PDFs: forma, parede, DE-0…","aria-label":"Filtrar PDFs"});
   const iPdf=el("select",{"aria-label":"PDF da forma"});
@@ -11417,8 +11417,8 @@ async function pdfCrono(R, btn){
     const doc=await novoPdf(`Cronograma — curva S`, `${nomeObra()} · ${dataBR(R.ini)} a ${dataBR(R.fim)} · posição em ${dataBR(hojeISO())}`), M=12;
     doc.addImage(graficoCurvaS(R, 1200, 600).toDataURL("image/jpeg", 0.85), "JPEG", M, 38, 186, 93);
     doc.setFontSize(10); doc.text(`Realizado ${pct(R.real)} · previsto ${pct(R.plan)} · ${R.chuva.c+R.chuva.imp} dias de chuva (${R.chuva.imp} impraticáveis) registrados no RDO`, M, 138);
-    doc.autoTable({startY:143, margin:{left:M,right:M}, head:[["Atividade","Fonte","Início","Fim","Previsto","Realizado","%","Esperado hoje","Dias de chuva"]],
-      body:R.linhas.map(l=>[l.x.d.ativ, l.x.d.fonte.replace(/ \(.*\)/,""), dataBR(l.x.d.ini), dataBR(l.x.d.fim), `${nf1.format(+l.x.d.prev)} ${l.x.d.un||""}`, nf1.format(l.real), pct(l.pr), pct(l.esp), `${l.ch.c+l.ch.imp} (${l.ch.imp} impr.)`]),
+    doc.autoTable({startY:143, margin:{left:M,right:M}, head:[["Atividade","Fonte","Início","Fim","Previsto","Realizado","%","Esperado hoje","Término previsto","Dias de chuva"]],
+      body:R.linhas.map(l=>[l.x.d.ativ, l.x.d.fonte.replace(/ \(.*\)/,""), dataBR(l.x.d.ini), dataBR(l.x.d.fim), `${nf1.format(+l.x.d.prev)} ${l.x.d.un||""}`, nf1.format(l.real), pct(l.pr), pct(l.esp), l.concluida?"concluída":l.fimPrev?dataBR(l.fimPrev)+(l.atrasoDias>0?` (+${l.atrasoDias} d)`:""):"–", `${l.ch.c+l.ch.imp} (${l.ch.imp} impr.)`]),
       styles:{fontSize:8,cellPadding:1.4,textColor:20}, headStyles:{fillColor:PDF_AZ,textColor:255}});
     rodapePdf(doc);
     await entregarPdf(doc, `Curva_S_${arqNome(nomeObra())}_${hojeISO()}.pdf`, "Curva S");
@@ -13182,6 +13182,334 @@ function novoRomaneio(){
     [el("button",{class:"btn pri",type:"button",text:"Salvar romaneio",onclick:salvar})]);
   soma();
 }
+
+// ================= v165: cronograma físico adotado pela obra (MS Project / Excel), dias úteis, produtividade, previsão por atividade =================
+// Ideias do jskmt/planner (cronograma pelo coeficiente de mão de obra da SINAPI) e do ILYrevit/Cronograma-de-obra (prazo = quantidade ÷
+// (produção × equipe), com a jornada). Os coeficientes vêm da SINAPI Analítico importada nas Ferramentas (base pública da Caixa).
+
+// ---------- calendário: dias úteis da obra (DIAS_SEMANA da aba Config: 5 = seg a sex, 6 = seg a sáb) e feriados ----------
+function pascoa(a){ const b=a%19, c=Math.floor(a/100), d=a%100, e=Math.floor(c/4), f=c%4, g=Math.floor((c+8)/25), h=Math.floor((c-g+1)/3),
+  i=(19*b+c-e-h+15)%30, k=Math.floor(d/4), l=d%4, m=(32+2*f+2*k-i-l)%7, n=Math.floor((b+11*i+22*m)/451), mes=Math.floor((i+m-7*n+114)/31), dia=((i+m-7*n+114)%31)+1;
+  return `${a}-${String(mes).padStart(2,"0")}-${String(dia).padStart(2,"0")}`; }
+const FER_ANO=new Map();
+function feriadosAno(a){
+  if(FER_ANO.has(a)) return FER_ANO.get(a);
+  const p=pascoa(a), s=new Set(["01-01","04-21","05-01","09-07","10-12","11-02","11-15","11-20","12-25"].map(x=>`${a}-${x}`));
+  for(const k of [-48,-47,-2,60]) s.add(somaDias(p,k)); // carnaval (seg e ter), sexta-feira santa, Corpus Christi
+  // feriados da obra (municipais etc.): aba Config, FERIADOS = "2026-08-15, 2026-12-08"
+  for(const x of String(cfgv("FERIADOS","")).split(/[\s,;]+/)) if(/^\d{4}-\d{2}-\d{2}$/.test(x) && x.startsWith(a+"-")) s.add(x);
+  FER_ANO.set(a, s); return s;
+}
+function diaUtil(d){ const w=new Date(d+"T12:00").getDay(), n=DIAS(); if(w===0 && n<7) return false; if(w===6 && n<6) return false; return !feriadosAno(+d.slice(0,4)).has(d); }
+// n-ésimo dia útil contando a partir de ini (ini conta se for útil)
+function somaUteis(ini, n){ let d=ini, k=0; for(let g=0; g<4000; g++){ if(diaUtil(d) && ++k>=Math.max(1,n)) return d; d=somaDias(d,1); } return d; }
+function uteisEntre(a, b){ if(!a || !b || b<a) return 0; let k=0; for(let d=a, g=0; d<=b && g<4000; d=somaDias(d,1), g++) if(diaUtil(d)) k++; return k; }
+
+// ---------- SINAPI Analítico (das Ferramentas): horas de mão de obra por unidade de cada composição ----------
+SINAPI.coefBase=undefined;
+function sinapiCoefBase(){
+  if(SINAPI.coefBase!==undefined) return Promise.resolve(SINAPI.coefBase);
+  return new Promise(ok=>{ try{ const q=indexedDB.open("sinapi",1);
+    q.onupgradeneeded=()=>{ q.transaction.abort(); }; q.onerror=q.onblocked=()=>ok(SINAPI.coefBase=null);
+    q.onsuccess=()=>{ const db=q.result; try{ const g=db.transaction("bases").objectStore("bases").getAll();
+      g.onsuccess=()=>{ const bs=(g.result||[]).filter(b=>b.coef).sort((a,b)=>String(b.id).localeCompare(String(a.id))); db.close(); ok(SINAPI.coefBase=bs[0]||null); };
+      g.onerror=()=>{ db.close(); ok(SINAPI.coefBase=null); }; }catch{ db.close(); ok(SINAPI.coefBase=null); } };
+  }catch{ ok(SINAPI.coefBase=null); } });
+}
+const codSinapi = c => String(c||"").replace(/\D/g,"");
+function hhSinapi(cod){ const x=SINAPI.coefBase?.coef?.[codSinapi(cod)]; if(!x) return null;
+  const hh=Object.values(x.mo||{}).reduce((s,v)=>s+v,0); return hh>0 ? {d:x.d, u:x.u, hh, mo:x.mo} : null; }
+// produção por pessoa por dia (na unidade da composição) = jornada ÷ horas de mão de obra por unidade (soma de todos os profissionais)
+const prodSinapi = (cod, jornada=8) => { const h=hhSinapi(cod); return h ? (+jornada||8)/h.hh : null; };
+// referência para os Insights: mediana e faixa (jornada ÷ coeficiente de um profissional) das composições que casam com o texto
+function refSinapi(reDesc, prof, un){
+  const cs=Object.values(SINAPI.coefBase?.coef||{}).filter(x=>reDesc.test(x.d||"") && (!un || normTxt(x.u)===un) && x.mo?.[prof]>0).map(x=>8/x.mo[prof]).sort((a,b)=>a-b);
+  if(cs.length<3) return null; const q=p=>cs[Math.min(cs.length-1, Math.floor(p*(cs.length-1)))];
+  return {med:q(0.5), min:q(0.1), max:q(0.9), n:cs.length};
+}
+
+// ---------- previsão de cada atividade no ritmo real e equipe necessária ----------
+function previsaoAtiv(d, real){
+  const h=hojeISO(), prev=+d.prev||0, falta=Math.max(0, prev-(+real||0)), o={};
+  if(!(prev>0) || !d.ini) return o;
+  if(falta<=0){ o.concluida=true; return o; }
+  if(h<d.ini){ o.aIniciar=true; return o; }
+  const passados=Math.max(1, uteisEntre(d.ini, h)), ritmo=(+real||0)/passados; // por dia útil
+  if(ritmo>0){ o.ritmo=ritmo; o.fimPrev=somaUteis(somaDias(h,1), Math.ceil(falta/ritmo)); }
+  else o.semAvanco=true;
+  if(o.fimPrev && d.fim) o.atrasoDias = o.fimPrev>d.fim ? uteisEntre(somaDias(d.fim,1), o.fimPrev) : -uteisEntre(somaDias(o.fimPrev,1), d.fim);
+  // pessoas para terminar no fim previsto: pela produção real por pessoa (com equipe informada) ou pela planejada
+  const diasAteFim = d.fim>=h ? uteisEntre(somaDias(h,1), d.fim) : 0, porPessoa = (+d.equipe>0 && ritmo>0) ? ritmo/d.equipe : (+d.prod>0 ? +d.prod : null);
+  if(porPessoa && diasAteFim>0){ o.equipeNec=Math.ceil(falta/(porPessoa*diasAteFim)); if(+d.equipe>0) o.faltamPessoas=Math.max(0, o.equipeNec-d.equipe); }
+  if(d.fimBase && d.fim) o.desvioBase = d.fim>d.fimBase ? uteisEntre(somaDias(d.fimBase,1), d.fim) : -uteisEntre(somaDias(d.fim,1), d.fimBase);
+  return o;
+}
+{ const o=resumoCrono; resumoCrono=function(lista){ const R=o(lista); if(!R) return R;
+  for(const l of R.linhas) Object.assign(l, previsaoAtiv(l.x.d, l.real));
+  const fins=R.linhas.map(l=>l.concluida ? null : (l.fimPrev || l.x.d.fim)).filter(Boolean).sort();
+  R.fimPrev=fins.at(-1)||null; R.atrasadas=R.linhas.filter(l=>l.atrasoDias>0 || l.atraso).length;
+  return R; }; }
+
+// ---------- campos novos da atividade (produtividade, SINAPI, importação) e o fim calculado ----------
+{ const T=MOD2.med.tipos.find(t=>t.id==="crono"), i=T.campos.findIndex(c=>c.k==="peso");
+  T.campos.find(c=>c.k==="fim").dica="Ou deixe vazio: com equipe e produção (ou composição SINAPI), o app calcula pelos dias úteis";
+  T.campos.splice(i, 0,
+    {k:"equipe",rot:"Equipe (pessoas)",t:"num",semCard:true},
+    {k:"prod",rot:"Produção por pessoa/dia",t:"num",semCard:true,dica:"Na unidade da atividade (ex.: 25 m²). Vazio: usa a SINAPI"},
+    {k:"jornada",rot:"Horas por dia",t:"num",semCard:true,padrao:8},
+    {k:"sinapi",rot:"Composição SINAPI",t:"txt",semCard:true,dica:"Código (ex.: 92778): sugere a produção pela SINAPI Analítico das Ferramentas"},
+    {k:"grupo",rot:"Etapa / grupo",t:"txt",semCard:true},
+    {k:"pred",rot:"Predecessoras",t:"txt",semCard:true,dica:"Como no MS Project (ex.: 4;7)"},
+    {k:"iniBase",rot:"Início na linha de base",t:"data",semCard:true},{k:"fimBase",rot:"Fim na linha de base",t:"data",semCard:true},
+    {k:"uid",rot:"Código no arquivo importado",t:"txt",semCard:true},{k:"origem",rot:"Origem",t:"txt",semCard:true});
+  const calc0=T.calc;
+  T.calc=d=>{ calc0?.(d);
+    if(+d.prev>0 && +d.equipe>0 && d.ini && !d.fim){
+      let prod=+d.prod; if(!(prod>0) && d.sinapi) prod=prodSinapi(d.sinapi, d.jornada)||0;
+      if(prod>0){ d.fim=somaUteis(d.ini, Math.ceil(d.prev/(prod*d.equipe))); if(!(+d.prod>0)) d.prod=Math.round(prod*100)/100; }
+    } };
+  // abrir o cronograma já carrega a SINAPI do aparelho (para sugerir a produção)
+  const top0=MOD2.med.topo; MOD2.med.topo=(T2,lista)=>{ if(T2.id==="crono" && SINAPI.coefBase===undefined) sinapiCoefBase().then(b=>{ if(b && !$("#tela-reg").hidden) renderReg2(); }); return top0(T2,lista); };
+}
+
+// ---------- Gantt (planejado, linha de base, realizado e término previsto) ----------
+function ganttCrono(R, max=80){
+  // feito para o celular: nome em cima e a barra embaixo, na largura toda (sem rolar para o lado); o SVG escala com a tela
+  const ns="http://www.w3.org/2000/svg", L=R.linhas.slice().sort((a,b)=>String(a.x.d.ini).localeCompare(String(b.x.d.ini)) || String(a.x.d.ativ).localeCompare(String(b.x.d.ativ))).slice(0,max);
+  const ini=[R.ini, ...L.map(l=>l.x.d.iniBase).filter(Boolean)].sort()[0], fim=[R.fim, R.fimPrev, ...L.map(l=>l.x.d.fimBase).filter(Boolean)].filter(Boolean).sort().at(-1);
+  const dias=Math.max(1, diasEntre(ini, fim)+1), W=420, m=6, lh=38, H=L.length*lh+26;
+  const x=t=>m+(W-2*m)*limita(diasEntre(ini,t)/dias), s=document.createElementNS(ns,"svg");
+  s.setAttribute("viewBox",`0 0 ${W} ${H}`); s.setAttribute("role","img"); s.setAttribute("aria-label","Gantt do cronograma"); s.style.cssText="width:100%;height:auto;display:block";
+  const mk=(tag,a,txt)=>{ const e=document.createElementNS(ns,tag); for(const k in a) e.setAttribute(k,a[k]); if(txt!=null) e.textContent=txt; s.append(e); return e; };
+  // meses no topo: mostra um a cada "passo" para não embolar
+  const meses=[]; for(let d=ini.slice(0,8)+"01"; d<=fim; d=somaDias(d.slice(0,8)+"28",5).slice(0,8)+"01") if(d>=ini) meses.push(d);
+  const passo=Math.max(1, Math.ceil(meses.length/6));
+  meses.forEach((d,k)=>{ mk("line",{x1:x(d),x2:x(d),y1:16,y2:H,class:"grid"}); if(k%passo===0 && x(d)<W-36) mk("text",{x:x(d)+2,y:11,"font-size":10},new Date(d+"T12:00").toLocaleDateString("pt-BR",{month:"short",year:"2-digit"}).replace(". de "," ")); });
+  const h=hojeISO(); if(h>=ini && h<=fim){ mk("line",{x1:x(h),x2:x(h),y1:14,y2:H,stroke:"var(--bad)","stroke-dasharray":"4 3"}); }
+  L.forEach((l,k)=>{ const d=l.x.d, y=20+k*lh, cor=l.concluida?"var(--good)":(l.atrasoDias>0||l.atraso)?"var(--bad)":"var(--accent)";
+    mk("text",{x:m,y:y+11,"font-size":11,fill:"currentColor"},`${String(d.ativ).slice(0,52)}${String(d.ativ).length>52?"…":""} · ${pct(l.pr)}`);
+    if(d.iniBase && d.fimBase) mk("rect",{x:x(d.iniBase),y:y+29,width:Math.max(2,x(somaDias(d.fimBase,1))-x(d.iniBase)),height:3,fill:"var(--muted)",opacity:.7});
+    const x0=x(d.ini), w=Math.max(3, x(somaDias(d.fim,1))-x0);
+    mk("rect",{x:x0,y:y+15,width:w,height:12,rx:3,fill:cor,opacity:.22});
+    mk("rect",{x:x0,y:y+15,width:Math.max(0,w*limita(l.pr)),height:12,rx:3,fill:cor});
+    if(l.fimPrev && l.fimPrev!==d.fim){ const xp=x(somaDias(l.fimPrev,1)); mk("line",{x1:x0+w,x2:xp,y1:y+21,y2:y+21,stroke:cor,"stroke-width":1.5,"stroke-dasharray":"3 2"}); mk("circle",{cx:xp,cy:y+21,r:3,fill:cor}); }
+    mk("rect",{x:0,y:y,width:W,height:lh,class:"alvo","data-tip":`${d.ativ}${d.grupo?"\n"+d.grupo:""}\n${dataBR(d.ini)} a ${dataBR(d.fim)} · ${pct(l.pr)} feito`+
+      (l.fimPrev?`\ntérmino no ritmo real: ${dataBR(l.fimPrev)}`:"")+(d.fimBase?`\nlinha de base: ${dataBR(d.fimBase)}`:"")});
+  });
+  return el("div",{class:"gantt-rol",style:"max-height:75vh;overflow-y:auto"}, s);
+}
+
+// ---------- tela do cronograma (substitui a anterior: mesmos números + previsão, equipe, Gantt e importação) ----------
+topoCrono=function(lista){
+  const ed=pode("med-edit"), bts=el("div",{class:"row"},
+    ed ? el("button",{class:"btn pri",type:"button",text:"⬆ Importar cronograma (MS Project / Excel)",onclick:escolherArquivoCrono}) : null,
+    ed ? el("button",{class:"btn",type:"button",text:"🧮 Gerar do orçamento (SINAPI)",onclick:()=>escolherArquivoCrono("orc")}) : null);
+  const R=resumoCrono(lista);
+  if(!R) return [bts, el("p",{class:"info",text:"Importe o cronograma da obra (MS Project salvo em XML ou Excel) ou cadastre as atividades com quantidade, início e fim. O realizado vem sozinho da rede assentada, escavação, concreto, forma e aço (ou você informa), e o app acompanha cada atividade contra o planejado."})];
+  const cg=graficoCurvaS(R); cg.style.cssText="width:100%;height:auto;border-radius:10px";
+  const dv=R.real-R.plan, atrasoObra = R.fimPrev && R.fim && R.fimPrev>R.fim ? uteisEntre(somaDias(R.fim,1), R.fimPrev) : 0;
+  const linhas=R.linhas.slice().sort((a,b)=>(b.atrasoDias||0)-(a.atrasoDias||0) || String(a.x.d.ini).localeCompare(String(b.x.d.ini))).map(l=>{ const d=l.x.d;
+    const chips=[l.concluida ? ["concluída","ok"] : l.aIniciar ? [`começa ${ddmm(d.ini)}`,""] : l.semAvanco ? ["sem avanço","bad"] : null,
+      l.fimPrev ? [`termina ${ddmm(l.fimPrev)}${l.atrasoDias>0?` (+${l.atrasoDias} d úteis)`:l.atrasoDias<0?` (${l.atrasoDias} d)`:""}`, l.atrasoDias>0?"bad":"ok"] : null,
+      l.faltamPessoas>0 ? [`faltam ${l.faltamPessoas} pessoa${l.faltamPessoas>1?"s":""} para o prazo`,"and"] : (l.equipeNec && !(+d.equipe>0) ? [`${l.equipeNec} pessoas para o prazo`,""] : null),
+      l.desvioBase>0 ? [`${l.desvioBase} d úteis além da linha de base`,"and"] : null].filter(Boolean);
+    return el("div",{class:"ef-lin"}, el("span",{class:"nm",text:d.ativ}),
+      el("small",{text:[d.grupo, `${pct(l.pr)} feito · esperado ${pct(l.esp)}`, `${dataBR(d.ini)} a ${dataBR(d.fim)}`].filter(Boolean).join(" · ")}),
+      ...chips.map(([t,c])=>el("span",{class:"chip "+c,text:t}))); });
+  return [bts,
+    el("div",{class:"kpis"}, kpi("Realizado", pct(R.real), `previsto para hoje: ${pct(R.plan)}`), kpi("Desvio", `${dv>=0?"+":""}${nf1.format(dv*100)} p.p.`, dv<-0.05?"atrasado":dv>0.05?"adiantado":"no prazo"),
+      kpi("Término previsto", R.fimPrev?dataBR(R.fimPrev):"–", atrasoObra?`${atrasoObra} dias úteis depois do planejado (${dataBR(R.fim)})`:`planejado: ${dataBR(R.fim)}`),
+      kpi("Atividades atrasadas", nf0.format(R.atrasadas), `${R.linhas.length} no cronograma`), kpi("Dias de chuva", nf0.format(R.chuva.c+R.chuva.imp), `${R.chuva.imp} impraticáveis (pelo RDO)`)),
+    el("div",{class:"card"}, cg),
+    el("details",{class:"card",style:"min-width:0;max-width:100%;overflow:hidden",open:R.linhas.length<=40}, el("summary",{class:"pr-sum",text:`Gantt · ${R.linhas.length} atividades${R.linhas.length>80?" (80 primeiras)":""}`}), ganttCrono(R),
+      el("p",{class:"info",text:"Barra clara: planejado · cheia: realizado · tracejado: término no ritmo real · linha fina: linha de base · vermelho: atrasada. Toque na linha para ver as datas."})),
+    el("div",{class:"card"}, el("h3",{text:"Atividades (as mais atrasadas primeiro)"}), ...linhas),
+    el("div",{class:"row"}, el("button",{class:"btn",type:"button",text:"📄 Curva S em PDF",onclick:e=>pdfCrono(R,e.target)})),
+    el("p",{class:"info",text:`Dias úteis: ${DIAS()===5?"segunda a sexta":DIAS()===6?"segunda a sábado":"todos"}, sem feriados nacionais${cfgv("FERIADOS","")?" e os da obra (Config: FERIADOS)":""}. Término no ritmo real = o que falta ÷ o realizado por dia útil desde o início.`})];
+};
+
+// ---------- importar: MS Project (XML) ou planilha (Excel/CSV exportado do Project ou feito à mão) ----------
+function escolherArquivoCrono(modo){
+  const inp=el("input",{type:"file",accept: modo==="orc" ? ".xlsx,.xls,.csv" : ".xml,.xlsx,.xls,.csv,.mpp"});
+  inp.onchange=async()=>{ const f=inp.files[0]; if(!f) return;
+    if(/\.mpp$/i.test(f.name)) return efModal("Arquivo .mpp", [el("p",{class:"full",text:"O .mpp é um formato fechado do MS Project, que o celular não consegue ler. No Project: Arquivo › Salvar como › escolha “Formato XML (*.xml)” (ou exporte para Excel) e importe esse arquivo aqui."})], [el("button",{class:"btn pri",type:"button",text:"Entendi",onclick:fecharEf})]);
+    try{ if(modo==="orc") await importarOrcamento(f); else await importarCrono(f); }catch(e){ toast("Não consegui ler o arquivo: "+(e.message||e)); } };
+  inp.click();
+}
+const durH = s => { const m=String(s||"").match(/PT(\d+(?:\.\d+)?)H(\d+)M/); return m ? +m[1]+(+m[2])/60 : 0; };
+function lerMsProjectXml(txt){
+  const doc=new DOMParser().parseFromString(txt,"application/xml"); if(doc.querySelector("parsererror")) throw new Error("XML inválido");
+  const q=(n,tag)=>{ for(const c of n.children) if(c.localName===tag) return c.textContent; return ""; };
+  const proj=doc.documentElement; if(proj.localName!=="Project") throw new Error("não é um XML do MS Project");
+  const T=[], pilha=[];
+  for(const t of proj.getElementsByTagName("Task")){
+    const nome=q(t,"Name").trim(); if(!nome || q(t,"IsNull")==="1") continue;
+    const nivel=+q(t,"OutlineLevel")||1, resumo=q(t,"Summary")==="1", uid=q(t,"UID");
+    if(uid==="0" && nivel<=0) continue; // tarefa 0 = resumo do projeto
+    let base=null; for(const b of t.children) if(b.localName==="Baseline" && q(b,"Number")==="0"){ base={ini:q(b,"Start").slice(0,10), fim:q(b,"Finish").slice(0,10)}; break; }
+    const pred=[...t.children].filter(c=>c.localName==="PredecessorLink").map(c=>q(c,"PredecessorUID")).filter(Boolean);
+    pilha.length=Math.max(0,nivel-1); const grupo=pilha.filter(Boolean).join(" › ");
+    if(resumo) pilha[nivel-1]=nome;
+    T.push({uid, id:q(t,"ID"), nome, wbs:q(t,"WBS"), nivel, resumo, marco:q(t,"Milestone")==="1", grupo,
+      ini:q(t,"Start").slice(0,10), fim:q(t,"Finish").slice(0,10), pct:+q(t,"PercentComplete")||0, trabalho:durH(q(t,"Work")), custo:+q(t,"Cost")||0,
+      iniBase:base?.ini||"", fimBase:base?.fim||"", predUid:pred});
+  }
+  // predecessoras como os números (ID) que aparecem no Project
+  const idDe=new Map(T.map(x=>[x.uid,x.id])); for(const x of T) x.pred=x.predUid.map(u=>idDe.get(u)).filter(Boolean).join(";");
+  return {tarefas:T, nome:q(proj,"Title")||q(proj,"Name")||"", fonte:"MS Project"};
+}
+// data de planilha: número do Excel, "03/11/2025", "seg 03/11/25 08:00", "2025-11-03"
+function dataPlan(v){
+  if(typeof v==="number" && v>20000 && v<80000){ const d=new Date(Math.round((v-25569)*864e5)); return d.toISOString().slice(0,10); }
+  if(v instanceof Date && !isNaN(v)) return v.toISOString().slice(0,10);
+  const s=String(v||"").trim(); let m=s.match(/(\d{4})-(\d{2})-(\d{2})/); if(m) return `${m[1]}-${m[2]}-${m[3]}`;
+  m=s.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/); if(m){ const a=m[3].length===2?"20"+m[3]:m[3]; return `${a}-${m[2].padStart(2,"0")}-${m[1].padStart(2,"0")}`; }
+  return "";
+}
+const pctPlan = v => { if(typeof v==="number") return v<=1 && v>0 && !Number.isInteger(v) ? v*100 : v; const n=num(String(v||"").replace("%","")); return n; };
+function lerCronoPlanilha(wb){
+  for(const nome of wb.SheetNames){
+    const L=XLSX.utils.sheet_to_json(wb.Sheets[nome],{header:1, raw:true, defval:""});
+    const hi=L.slice(0,30).findIndex(l=>{ const t=l.map(normTxt); return t.some(c=>/^(NOME|NOME DA TAREFA|TAREFA|ATIVIDADE|SERVICO|DESCRICAO|DISCRIMINACAO|TASK NAME|NAME)$/.test(c)) && t.some(c=>/INICIO|START|COMECO/.test(c)); });
+    if(hi<0) continue;
+    const cab=L[hi].map(normTxt), col=re=>cab.findIndex(c=>re.test(c));
+    const c={nome:col(/^(NOME|NOME DA TAREFA|TAREFA|ATIVIDADE|SERVICO|DESCRICAO|DISCRIMINACAO|TASK NAME|NAME)$/), ini:col(/^(INICIO|DATA DE INICIO|INICIO PREVISTO|COMECO|START)$/),
+      fim:col(/^(TERMINO|FIM|DATA DE TERMINO|TERMINO PREVISTO|FIM PREVISTO|CONCLUSAO|FINISH)$/), pct:col(/% CONCLU|PORCENTAGEM|% COMPLETE|^AVANCO|% EXECUTADO|% REALIZADO/),
+      nivel:col(/NIVEL|OUTLINE/), resumo:col(/^RESUMO|SUMMARY/), wbs:col(/^(EDT|WBS|ITEM)$/), id:col(/^(ID|N|NO|Nº)$/), pred:col(/PREDECESS/),
+      qtd:col(/^(QUANTIDADE|QTD|QUANT)/), un:col(/^(UNIDADE|UN|UND)$/), custo:col(/^(CUSTO|VALOR|CUSTO TOTAL|VALOR TOTAL)$/), trabalho:col(/^(TRABALHO|WORK|HH)$/),
+      iniBase:col(/INICIO DA LINHA DE BASE|INICIO DA LINHA BASE|BASELINE START/), fimBase:col(/TERMINO DA LINHA DE BASE|TERMINO DA LINHA BASE|BASELINE FINISH/),
+      sinapi:col(/SINAPI|COMPOSICAO/), equipe:col(/^EQUIPE/)};
+    if(c.nome<0 || c.ini<0) continue;
+    const linhas=L.slice(hi+1).filter(l=>String(l[c.nome]??"").trim());
+    const T=linhas.map((l,i)=>{ const nomeBruto=String(l[c.nome]); const recuo=(nomeBruto.match(/^\s*/)||[""])[0].length;
+      return {uid:String(c.id>=0?l[c.id]:"")||String(c.wbs>=0?l[c.wbs]:"")||String(i+1), id:String(c.id>=0?l[c.id]:i+1), wbs:c.wbs>=0?String(l[c.wbs]):"", nome:nomeBruto.trim(),
+        nivel:c.nivel>=0 ? (+l[c.nivel]||1) : c.wbs>=0 && /\./.test(String(l[c.wbs])) ? String(l[c.wbs]).split(".").length : 1+Math.floor(recuo/2),
+        resumoCol:c.resumo>=0 ? /^(SIM|S|YES|1|TRUE|VERDADEIRO)$/.test(normTxt(l[c.resumo])) : null,
+        ini:dataPlan(l[c.ini]), fim:dataPlan(c.fim>=0?l[c.fim]:""), pct:c.pct>=0?pctPlan(l[c.pct]):0, pred:c.pred>=0?String(l[c.pred]).replace(/[^\d;,]/g,"").replace(/,/g,";"):"",
+        qtd:c.qtd>=0?num(l[c.qtd]):0, un:c.un>=0?String(l[c.un]).trim():"", custo:c.custo>=0?num(l[c.custo]):0, trabalho:c.trabalho>=0?num(l[c.trabalho]):0,
+        iniBase:c.iniBase>=0?dataPlan(l[c.iniBase]):"", fimBase:c.fimBase>=0?dataPlan(l[c.fimBase]):"", sinapi:c.sinapi>=0?codSinapi(l[c.sinapi]):"", equipe:c.equipe>=0?num(l[c.equipe]):0}; });
+    // resumo (etapa): coluna Resumo, ou a próxima linha é de nível maior
+    const pilha=[];
+    T.forEach((x,i)=>{ x.resumo = x.resumoCol!=null ? x.resumoCol : (T[i+1] && T[i+1].nivel>x.nivel);
+      pilha.length=Math.max(0,x.nivel-1); x.grupo=pilha.filter(Boolean).join(" › "); if(x.resumo) pilha[x.nivel-1]=x.nome; x.marco = !!x.ini && x.ini===x.fim && !x.qtd && /MARCO|ENTREGA|INICIO DA OBRA|FIM DA OBRA/.test(normTxt(x.nome)); });
+    return {tarefas:T, nome:"", fonte:"Excel", aba:nome};
+  }
+  throw new Error("não achei a linha de títulos (Nome/Tarefa/Atividade e Início)");
+}
+// liga a atividade ao realizado do Wigo quando a unidade e o nome batem; senão fica no % informado
+function fonteAuto(t){
+  const n=normTxt(t.nome+" "+(t.grupo||"")), u=normTxt(t.un);
+  if(!(t.qtd>0)) return null;
+  if(/^(KG|T|TON)$/.test(u) && /ARMA(C|D)|ACO\b|CA-?50/.test(n)) return {fonte:"Aço armado (t)", prev:u==="KG"?t.qtd/1000:t.qtd, un:"t"};
+  if(/^M3$/.test(u) && /CONCRET|LANCAMENTO/.test(n)) return {fonte:"Concreto lançado (m³)", prev:t.qtd, un:"m³"};
+  if(/^M2$/.test(u) && /FORMA/.test(n)) return {fonte:"Forma montada (m²)", prev:t.qtd, un:"m²"};
+  if(/^M3$/.test(u) && /ESCAVA/.test(n)) return {fonte:"Escavação (m³)", prev:t.qtd, un:"m³"};
+  if(/^M$/.test(u) && /REDE|ADUTORA|TUBULA|ASSENTAMENTO|EMISSARIO|COLETOR|LINHA/.test(n)) return {fonte:"Rede assentada (m)", prev:t.qtd, un:"m"};
+  return null;
+}
+const idImp = (origem, t) => "crono-" + (origem==="MS Project"?"mpp":"xls") + "-" + String(t.uid||t.wbs||t.nome).replace(/[^\w.-]+/g,"_").slice(0,60);
+async function importarCrono(f){
+  let r;
+  if(/\.xml$/i.test(f.name)) r=lerMsProjectXml(await f.text());
+  else { await loadXLSX(); r=lerCronoPlanilha(XLSX.read(await f.arrayBuffer(), {type:"array", cellDates:false})); }
+  const todas=r.tarefas, tarefas=todas.filter(t=>!t.resumo && !t.marco && t.ini && t.fim), resumos=todas.filter(t=>t.resumo).length, marcos=todas.filter(t=>t.marco).length;
+  if(!tarefas.length) throw new Error("nenhuma tarefa com início e término");
+  const temCusto=tarefas.some(t=>t.custo>0), temTrab=tarefas.some(t=>t.trabalho>0), temBase=tarefas.some(t=>t.fimBase);
+  const ini=tarefas.map(t=>t.ini).sort()[0], fim=tarefas.map(t=>t.fim).sort().at(-1);
+  const iPeso=el("select",{}, ...[["custo","Custo de cada tarefa"],["trabalho","Trabalho (horas)"],["duracao","Duração"],["igual","Todas iguais"]].filter(([v])=>v!=="custo"||temCusto).filter(([v])=>v!=="trabalho"||temTrab).map(([v,t])=>el("option",{value:v,text:t})));
+  const iLigar=el("input",{type:"checkbox",checked:true}), iApagar=el("input",{type:"checkbox"});
+  const origem=r.fonte, existentes=regs2De("med","crono").filter(x=>x.dados?.origem===origem);
+  const ligaveis=tarefas.filter(fonteAuto).length;
+  efModal(`Importar cronograma (${origem})`, [
+    el("div",{class:"full"}, el("b",{text:r.nome||f.name}),
+      el("p",{class:"info",text:`${tarefas.length} tarefas de ${dataBR(ini)} a ${dataBR(fim)}${resumos?` · ${resumos} etapas (resumo) viram o grupo das tarefas`:""}${marcos?` · ${marcos} marcos ignorados`:""}${temBase?" · com linha de base":""}${r.aba?` · aba “${r.aba}”`:""}`})),
+    el("div",{class:"lista full"}, ...tarefas.slice(0,6).map(t=>el("small",{class:"info",text:`${t.grupo?t.grupo+" › ":""}${t.nome} · ${dataBR(t.ini)} a ${dataBR(t.fim)} · ${nf0.format(t.pct||0)}%`})), tarefas.length>6?el("small",{class:"info",text:`… e mais ${tarefas.length-6}`}):null),
+    campoEf("Peso de cada tarefa na curva S", iPeso, true),
+    el("label",{class:"chk full"}, iLigar, ` Ligar ao realizado do Wigo quando a unidade e o nome baterem (aço, concreto, forma, escavação, rede): ${ligaveis} tarefa${ligaveis===1?"":"s"}. As outras ficam no % concluído do arquivo.`),
+    existentes.length ? el("label",{class:"chk full"}, iApagar, ` Apagar as ${existentes.length} atividades importadas antes (${origem}) que não estão neste arquivo`) : null,
+    el("p",{class:"info full",text:"Importar de novo o arquivo atualizado (mesmos códigos das tarefas) só atualiza datas e o % concluído: não duplica. Atividades que você ligou a uma fonte do Wigo continuam ligadas."})],
+    [el("button",{class:"btn pri",type:"button",text:`Importar ${tarefas.length} atividades`,onclick:()=>{ gravarCronoImportado(tarefas, origem, iPeso.value, iLigar.checked, iApagar.checked); fecharEf(); }})]);
+}
+function gravarCronoImportado(tarefas, origem, modoPeso, ligar, apagarOutras){
+  const h=hojeISO(), ids=new Set(), atuais=new Map(regs2De("med","crono").map(x=>[x.id,x])); let novas=0, atual=0;
+  for(const t of tarefas){
+    const id=idImp(origem, t), antes=atuais.get(id)?.dados; ids.add(id);
+    const peso = modoPeso==="custo" ? (t.custo||0) : modoPeso==="trabalho" ? (t.trabalho||0) : modoPeso==="duracao" ? Math.max(1, uteisEntre(t.ini, t.fim)) : 1;
+    let d={ativ:t.nome.slice(0,200), grupo:t.grupo||"", uid:String(t.uid||""), pred:t.pred||"", ini:t.ini, fim:t.fim, iniBase:t.iniBase||"", fimBase:t.fimBase||"",
+      peso:Math.round((peso||1)*100)/100, origem, fonte:"Manual (eu informo)", prev:100, un:"%", real:Math.max(0,Math.min(100,+t.pct||0)), filtro:""};
+    const fa = ligar ? fonteAuto(t) : null; if(fa) Object.assign(d, fa, {real:""});
+    if(t.sinapi) d.sinapi=t.sinapi; if(t.equipe>0) d.equipe=t.equipe;
+    // reimportação: mantém o que a pessoa ligou ou acrescentou no Wigo
+    if(antes){ atual++; if(antes.fonte && antes.fonte!=="Manual (eu informo)") Object.assign(d, {fonte:antes.fonte, filtro:antes.filtro||"", prev:antes.prev, un:antes.un, real:""});
+      for(const k of ["equipe","prod","jornada","sinapi","obs"]) if(antes[k]!=null && antes[k]!=="" && d[k]==null) d[k]=antes[k]; }
+    else novas++;
+    d=Object.fromEntries(Object.entries(d).filter(([,v])=>v!=="" && v!=null));
+    const p=(S.pendReg2[id] ??= {}); Object.assign(p, {modulo:"med", tipo:"crono", data:h, status:"", dados:d}); p.log=`Cronograma importado (${origem})`;
+  }
+  let apag=0; if(apagarOutras) for(const x of atuais.values()) if(x.dados?.origem===origem && !ids.has(x.id)){ delete S.pendReg2[x.id]; if(S.reg2.some(r=>r.id===x.id)) S.pendReg2Del.push(x.id); apag++; }
+  savePendReg2(); scheduleSync(); logDev?.("Cronograma importado", `${origem}: ${novas} novas, ${atual} atualizadas${apag?`, ${apag} apagadas`:""}`);
+  toast(`Cronograma: ${novas} atividade${novas===1?"":"s"} nova${novas===1?"":"s"}${atual?`, ${atual} atualizada${atual===1?"":"s"}`:""}${apag?`, ${apag} apagada${apag===1?"":"s"}`:""}.`);
+  RG.tipo.med="crono"; renderReg2();
+}
+
+// ---------- gerar o cronograma a partir do orçamento (código SINAPI + quantidade), como o planner ----------
+async function importarOrcamento(f){
+  const b=await sinapiCoefBase();
+  await loadXLSX(); const wb=XLSX.read(await f.arrayBuffer(), {type:"array"}); let itens=[];
+  for(const nome of wb.SheetNames){
+    const L=XLSX.utils.sheet_to_json(wb.Sheets[nome],{header:1, raw:true, defval:""});
+    const hi=L.slice(0,30).findIndex(l=>{ const t=l.map(normTxt); return t.some(c=>/CODIGO|SINAPI|COMPOSICAO/.test(c)) && t.some(c=>/QUANT|QTD/.test(c)); }); if(hi<0) continue;
+    const cab=L[hi].map(normTxt), col=re=>cab.findIndex(c=>re.test(c));
+    const cc=col(/SINAPI|^CODIGO|COMPOSICAO/), cq=col(/^(QUANTIDADE|QTD|QUANT)/), cd=col(/DESCRICAO|DISCRIMINACAO|SERVICO/), cu=col(/^(UNIDADE|UN|UND)$/), cg=col(/^(ETAPA|GRUPO|ITEM)$/);
+    let grupo="";
+    for(const l of L.slice(hi+1)){ const cod=codSinapi(l[cc]), q=num(l[cq]), desc=String(cd>=0?l[cd]:"").trim();
+      if(!cod && desc && !q){ grupo=desc; continue; } // linha de etapa
+      if(!cod || !(q>0)) continue;
+      itens.push({cod, qtd:q, desc, un:cu>=0?String(l[cu]).trim():"", grupo:cg>=0&&String(l[cg]).trim()&&!/^\d/.test(String(l[cg]))?String(l[cg]).trim():grupo}); }
+    if(itens.length) break;
+  }
+  if(!itens.length) throw new Error("não achei as colunas de código SINAPI e quantidade");
+  const iIni=el("input",{type:"date",value:hojeISO()}), iEq=el("input",{type:"text",inputMode:"numeric",value:"4"}), iJor=el("input",{type:"text",inputMode:"numeric",value:"8"});
+  const iSeq=el("select",{}, el("option",{value:"seq",text:"Um serviço depois do outro (como o planner)"}), el("option",{value:"grupo",text:"Em sequência dentro de cada etapa; etapas juntas"}), el("option",{value:"par",text:"Todos começam juntos"}));
+  const comCoef=itens.filter(x=>hhSinapi(x.cod)).length;
+  efModal("Gerar cronograma do orçamento", [
+    el("p",{class:"info full",text:`${itens.length} serviços com código SINAPI e quantidade. ${b ? `${comCoef} têm as horas de mão de obra na SINAPI Analítico do aparelho (${b.arq||""}); os outros ficam com 5 dias úteis.` : "Este aparelho ainda não tem a SINAPI Analítico: importe nas Ferramentas › Consulta SINAPI para calcular a duração pelas horas de mão de obra. Sem ela, cada serviço fica com 5 dias úteis."}`}),
+    !b ? el("button",{class:"btn",type:"button",text:"Importar a SINAPI Analítico nas Ferramentas",onclick:()=>{ SINAPI.coefBase=undefined; fecharEf(); abrirFerramentas("/ferramentas/sinapi/?de=wigo"); }}) : null,
+    campoEf("Início", iIni), campoEf("Pessoas por serviço", iEq), campoEf("Horas por dia", iJor), campoEf("Sequência", iSeq, true)],
+    [el("button",{class:"btn pri",type:"button",text:`Gerar ${itens.length} atividades`,onclick:()=>{
+      const eq=Math.max(1,num(iEq.value)), jor=Math.max(1,num(iJor.value)||8), cursor=new Map(); let seq=iIni.value||hojeISO();
+      const tarefas=itens.map((x,i)=>{ const hh=hhSinapi(x.cod), dias=hh ? Math.max(1, Math.ceil(x.qtd*hh.hh/(jor*eq))) : 5;
+        const k=iSeq.value==="grupo" ? x.grupo : iSeq.value==="seq" ? "_" : "_"+i, c0=iSeq.value==="par" ? (iIni.value||hojeISO()) : (cursor.get(k) || iIni.value || hojeISO());
+        const ini=somaUteis(c0,1), fim=somaUteis(ini, dias); cursor.set(k, somaDias(fim,1)); seq=fim;
+        return {uid:`orc-${x.cod}-${i+1}`, nome:(x.desc||hh?.d||`SINAPI ${x.cod}`).slice(0,200), grupo:x.grupo, ini, fim, qtd:x.qtd, un:x.un||hh?.u||"", sinapi:x.cod, equipe:eq, pct:0, trabalho:hh?x.qtd*hh.hh:0}; });
+      gravarCronoImportado(tarefas.map(t=>({...t})), "Orçamento SINAPI", "trabalho", true, false);
+      // atividades do orçamento ficam na quantidade do serviço (não em %): o realizado é informado na unidade
+      for(const t of tarefas){ const id=idImp("Orçamento SINAPI", t), p=S.pendReg2[id]; if(!p) continue; const hh=hhSinapi(t.sinapi); if(hh) p.dados.prod=Math.round(jor/hh.hh*100)/100; p.dados.jornada=jor;
+        if(p.dados.fonte==="Manual (eu informo)") Object.assign(p.dados, {prev:t.qtd, un:t.un, real:0}); }
+      savePendReg2(); fecharEf(); renderReg2(); }})]);
+}
+
+// ---------- produtividade real × referência SINAPI nos Insights (aço e forma) ----------
+{ const oA=insightsAco; insightsAco=function(){ const R=oA(); try{ const ref=refSinapi(/ARMA(Ç|C)(Ã|A)O/i, "ARMADOR", "KG");
+    if(R && ref){ const linha=R.numeros.find(x=>/Produtividade/.test(x[0])), real=linha ? num(String(linha[1]).replace(/[^\d,.]/g,"")) : 0;
+      R.numeros.push(["Referência SINAPI", `${nf0.format(ref.med)} kg`, `por armador/dia (mediana de ${ref.n} composições de armação; de ${nf0.format(ref.min)} a ${nf0.format(ref.max)})${real?` · real: ${pct(real/ref.med)} da referência`:""}`]);
+      if(real && real<0.6*ref.min) R.atencao.push(["medio", `A produtividade da armação (${nf0.format(real)} kg/armador/dia) está abaixo da faixa das composições SINAPI (${nf0.format(ref.min)} a ${nf0.format(ref.max)}). Vale ver frente liberada, material e tamanho da equipe.`]); } }catch(e){ guardarErro(e.message,"refSinapi aço"); }
+    return R; }; }
+{ const oF=insightsForma; insightsForma=function(){ const R=oF(); try{ const ref=refSinapi(/F(Ô|O)RMA/i, "CARPINTEIRO DE FORMAS", "M2") || refSinapi(/F(Ô|O)RMA/i, "CARPINTEIRO DE FÔRMAS", "M2");
+    if(R && ref){ const linha=R.numeros.find(x=>/Produtividade/.test(x[0])), real=linha ? num(String(linha[1]).replace(/[^\d,.]/g,"")) : 0;
+      R.numeros.push(["Referência SINAPI", `${nf1.format(ref.med)} m²`, `por carpinteiro/dia (mediana de ${ref.n} composições de fôrma; de ${nf1.format(ref.min)} a ${nf1.format(ref.max)})${real?` · real: ${pct(real/ref.med)} da referência`:""}`]); } }catch(e){ guardarErro(e.message,"refSinapi forma"); }
+    return R; }; }
+{ const o=abrirTela; abrirTela=function(t, ...a){ if(t==="prod" && SINAPI.coefBase===undefined) sinapiCoefBase().then(b=>{ if(b && !$("#tela-prod").hidden) renderProdMenu(); }); return o(t, ...a); }; }
+
+// ---------- DWG/DXF da pasta Projetos (script 40+): abre no "Ver e medir DWG" das Ferramentas ----------
+async function abrirDwg(f){
+  toast("Baixando a planta…");
+  try{ const buf=await obterPdf(f);
+    await (await caches.open("ferr-wigo")).put("/ferr-wigo/entrada/dwg", new Response(new Blob([buf]),{headers:{"X-Nome":encodeURIComponent(f.nome)}}));
+    abrirFerramentas("/ferramentas/dwg/?de=wigo&doc=wigo"); }
+  catch(e){ toast("Não foi possível abrir a planta: "+(e.message||e)); }
+}
+{ const o=abrirPdf; abrirPdf=function(f, ...a){ if(/\.(dwg|dxf)$/i.test(f?.nome||"")) return abrirDwg(f); return o.call(this, f, ...a); }; }
 
 // ---------- endereço antigo (junin12.github.io/Wigo) → wiapps.com.br/wigo ----------
 // Só muda depois que a fila do celular estiver vazia (nada a enviar), levando banco, usuário e liberação junto.

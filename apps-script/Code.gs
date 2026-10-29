@@ -788,9 +788,11 @@ const PASTAS_PDF = ['Projetos', 'Formas'];
 function listarProjetos(nome) {
   nome = PASTAS_PDF.indexOf(nome) >= 0 ? nome : 'Projetos';
   const arquivos = [];
-  const it = pasta(nome).getFilesByType(MimeType.PDF);
+  // PDF e, a partir do script 40, as plantas DWG/DXF (o app abre no leitor de DWG das Ferramentas)
+  const it = pasta(nome).getFiles();
   while (it.hasNext()) {
     const f = it.next();
+    if (f.getMimeType() !== MimeType.PDF && !/\.(dwg|dxf)$/i.test(f.getName())) continue;
     arquivos.push({ id: f.getId(), nome: f.getName(), tamanho: f.getSize(), atualizado: f.getLastUpdated().toISOString() });
   }
   arquivos.sort((a, b) => a.nome.localeCompare(b.nome));
@@ -808,7 +810,7 @@ function lerPdf(id, parte, ini, tam) {
   // só entrega arquivos que estão na pasta Projetos ou Formas
   let dentro = false;
   for (const p = f.getParents(); p.hasNext();) if (donos.indexOf(p.next().getId()) >= 0) { dentro = true; break; }
-  if (!dentro || f.getMimeType() !== MimeType.PDF) throw new Error('Arquivo fora das pastas Projetos e Formas.');
+  if (!dentro || (f.getMimeType() !== MimeType.PDF && !/\.(dwg|dxf)$/i.test(f.getName()))) throw new Error('Arquivo fora das pastas Projetos e Formas.');
   if (ini != null) return Object.assign(pedacoPdf_(f, Number(ini) || 0, Number(tam) || TAM_PARTE_PDF), { nome: f.getName(), atualizado: f.getLastUpdated().toISOString() });
   const bytes = f.getBlob().getBytes(), base = { nome: f.getName(), atualizado: f.getLastUpdated().toISOString(), total: bytes.length };
   if (parte == null) return Object.assign(base, { b64: Utilities.base64Encode(bytes) });
@@ -858,7 +860,8 @@ function linhas(nome) {
 //     regravada a cada envio), leitura dos traços só das linhas da concretagem e observação da concretagem até 2.000 caracteres.
 // 38: tempo para abrir o app e para sincronizar, por celular (coluna TEMPOS da aba Aparelhos; Painel Dev › Aparelhos).
 // 39: liberação com prazo (VALIDADE), PIN pessoal por cargo (PIN, Propriedade PIN_CARGOS) e aceite do termo de uso (LGPD) no Histórico.
-const VERSAO_SCRIPT = 39;
+// 40: a lista de projetos traz também as plantas DWG/DXF das pastas Projetos e Formas (o app abre no leitor das Ferramentas).
+const VERSAO_SCRIPT = 40;
 
 // Colunas de código que precisam ficar como TEXTO. Sem isso o Planilhas converte
 // "DEC-0001" em data (dez/2001) e o código se perde.

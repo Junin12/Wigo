@@ -2267,7 +2267,7 @@ function setCampo(on){ LS.set("campo",!!on); if(on) document.documentElement.dat
 $("#campo-modo").addEventListener("click", e=>{ const b=e.target.closest("button[data-c]"); if(b) setCampo(b.dataset.c==="1"); });
 setCampo(!!LS.get("campo"));
 
-const VERSAO_APP = "v168"; // igual ao número em sw.js (armacao-v168)
+const VERSAO_APP = "v169"; // igual ao número em sw.js (armacao-v169)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -10433,16 +10433,53 @@ function gravarCt(lidas, arquivo){
     setReg2(id, {modulo:"qual", tipo:"ct", data:i.data, dados:d, status:"Ativo"}, `${a?"Alterou":"Criou"}: controle tecnológico NF ${x.nf} (planilha do laboratório)`); n++; }
   return n;
 }
+// Certificado de compressão de corpos de prova da ARC Engenharia (F05-18, "CONCRETO - ENSAIO DE COMPRESSÃO EM CORPOS DE PROVA"):
+// uma linha por CP — Usina | Nota | Slump | fck | Peça + CP nº | Idade | Data do ensaio | Carga | Resist. — com aspas (") repetindo
+// a linha de cima e uma linha de traços entre as amostras. A amostra continua na folha seguinte. Devolve o mesmo formato de
+// lerPlanilhaLab ({res:[{nf, v:{r7a, r7b…}, ids, info}], idades}) ou null se o PDF não for esse certificado.
+function lerCertificadoCp(linhas){
+  const tudo=linhas.map(l=>l.join(" | ")).join("\n");
+  if(!/ENSAIO DE COMPRESS[ÃA]O EM CORPOS DE PROVA/i.test(tudo)) return null;
+  const br2iso = s => { const m=String(s).match(/(\d{2})\/(\d{2})\/(\d{2,4})/); return m ? `${m[3].length===2?"20"+m[3]:m[3]}-${m[2]}-${m[1]}` : ""; };
+  const moldagem=br2iso((tudo.match(/(\d{2}\/\d{2}\/\d{4})\s*Data da moldagem|Data da moldagem:\s*\|?\s*(\d{2}\/\d{2}\/\d{4})/)||[]).slice(1).find(Boolean)||"");
+  const cert=(tudo.match(/(\d{3,6})\s*\/\s*(\d{2})\s*\|\s*Emiss/)||[]).slice(1,3).join("/");
+  const grupos=[]; let g=null;
+  for(const L of linhas){
+    const s=L.join(" | "), cauda=s.match(/\|\s*(\d{1,3})\s*\|\s*(\d{2}\/\d{2}\/\d{2,4})\s*\|\s*([\d.]+|-)\s*\|\s*(\d+(?:,\d+)?|-)\s*$/);
+    if(/^-(\s*\|\s*-+)+\s*$/.test(s)){ g=null; continue; } // traços: fim da amostra
+    if(!cauda || L.length<5) continue;
+    const [usina, nota, slump, fck]=L.map(x=>x.trim()), meio=s.slice(0, cauda.index).split("|").slice(4).join(" ").replace(/\s+/g," ").trim();
+    if(!g){ g={usina:[], notas:[], slump:"", fck:null, peca:[], cp:"", cps:[]}; grupos.push(g); } // outra nota na mesma amostra (8635 e 8636) fica junto
+    if(usina && usina!=='"' && usina!=="-") g.usina.push(usina);
+    if(/^\d{3,}$/.test(nota) && !g.notas.includes(nota)) g.notas.push(nota);
+    if(/^\d+$/.test(slump) && !g.slump) g.slump=slump;
+    if(g.fck==null && /^\d+(?:,\d+)?$/.test(fck)) g.fck=+fck.replace(",",".");
+    const cpN=meio.match(/(\d{5})"?\s*$/); if(cpN && !g.cp) g.cp=cpN[1];
+    const peca=meio.replace(/\d{5}"?\s*$/,"").replace(/"+\s*$/,"").trim(); if(peca && peca!=='"') g.peca.push(peca);
+    g.cps.push({idade:+cauda[1], data:br2iso(cauda[2]), mpa: cauda[4]==="-" ? null : +cauda[4].replace(",",".")});
+  }
+  const res=[], idades=new Set();
+  for(const x of grupos){ if(!x.notas.length) continue; // sem nota fiscal (traço feito na obra): não há caminhão para ligar
+    const v={}, ids=[...new Set(x.cps.map(c=>c.idade))].filter(i=>CP_TODAS.includes(i));
+    for(const i of ids){ idades.add(i); const r=x.cps.filter(c=>c.idade===i && c.mpa!=null).map(c=>c.mpa); if(r[0]!=null) v["r"+i+"a"]=r[0]; if(r[1]!=null) v["r"+i+"b"]=r[1]; }
+    res.push({nf:x.notas[0], v, ids, info:{data:moldagem, setor:"", local:x.peca.join(" ").replace(/\s+/g," ").trim(), vol:null, fck:x.fck, cim:"",
+      desc:[x.notas.length>1?`notas ${x.notas.join(" e ")}`:"", x.cp?`CP nº ${x.cp}`:"", cert?`certificado ${cert}`:""].filter(Boolean).join(" · "),
+      slT:"", slM:x.slump, forn:x.usina.join(" ")}});
+  }
+  if(!res.length) throw new Error("Este certificado não tem número de nota fiscal (concreto ou argamassa feitos na obra): não há caminhão para ligar os resultados.");
+  return {res, idades:[...idades]};
+}
 async function importarLab(arquivo){
   try{
     // relatório em PDF: a tabela é remontada pela posição do texto (todas as folhas juntas: o cabeçalho da 1ª vale para as outras)
     const pdf=/pdf$/i.test(arquivo.type) || /\.pdf$/i.test(arquivo.name);
     if(pdf) toast("Lendo o PDF do laboratório…"); else await loadXLSX();
     const wb=pdf ? null : XLSX.read(await arquivo.arrayBuffer(), {type:"array"}), lidas=[];
-    const abas=pdf ? [["PDF", await tabelaDoPdf(await arquivo.arrayBuffer())]] : wb.SheetNames.map(nome=>[nome, XLSX.utils.sheet_to_json(wb.Sheets[nome],{header:1, raw:true, defval:""})]);
+    const bufPdf=pdf ? await arquivo.arrayBuffer() : null, cert=pdf ? lerCertificadoCp(await linhasDoPdf(bufPdf.slice(0))) : null;
+    const abas=cert ? [["PDF", cert]] : pdf ? [["PDF", await tabelaDoPdf(bufPdf)]] : wb.SheetNames.map(nome=>[nome, XLSX.utils.sheet_to_json(wb.Sheets[nome],{header:1, raw:true, defval:""})]);
     let idades=[];
     const motivos=[];
-    for(const [nome, linhas] of abas){ try{ const r=lerPlanilhaLab(linhas); lidas.push(...r.res); idades=[...new Set([...idades,...r.idades])];
+    for(const [nome, linhas] of abas){ try{ const r=cert || lerPlanilhaLab(linhas); lidas.push(...r.res); idades=[...new Set([...idades,...r.idades])];
       if(!r.res.length) motivos.push(`${nome}: nenhuma linha com nota abaixo do cabeçalho`); }catch(e){ if(abas.length===1) throw e; motivos.push(`${nome}: ${e.message}`); } }
     // o motivo de cada aba aparece na mensagem (para saber o que a planilha tem de diferente)
     if(!lidas.length) throw new Error(`Não encontrei nenhuma linha com número de nota na planilha (app ${VERSAO_APP}). ${motivos.join(" · ")}`.slice(0,600));

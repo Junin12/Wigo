@@ -80,6 +80,18 @@ const confere = (ok, msg) => { console.log(`${ok ? "ok  " : "FALHA"} ${msg}`); i
       return r.res.length === 3 && a.v.r7a === 22.4 && a.v.r28b === 32 && a.info.data === "2026-10-05" && r.res[2].v.r7b === 24.5;
     } catch (e) { return "erro: " + e.message; }
   }) === true, "resultados do laboratório lidos de um relatório em PDF");
+  // certificado F05-18 da ARC Engenharia: uma linha por CP, aspas repetindo a de cima, amostra continuando na folha seguinte
+  confere(await p.evaluate(() => {
+    const c = (...x) => x, cab = [c("CONCRETO - ENSAIO DE COMPRESSÃO EM CORPOS DE PROVA"), c("00126 /26", "Emissão:", "27/10/2026Certificado nº.:"), c("28/09/2026Data da moldagem:")];
+    const r = lerCertificadoCp([...cab,
+      c("TRAÇO", "8627", "100", "40,0", "ETA -FUNDO E PAREDES20601", "3", "01/10/26", "23320", "29,7"), c("MIX", '"', '"', '"', 'DE ARRANQUE DO FLOCULADOR 1"', "3", "01/10/26", "29940", "38,1"),
+      c('"', '"', '"', '"', '""', "28", "26/10/26", "38600", "49,1"), c("-", "-", "-", "-", "--", "-", "-", "-", "-"),
+      c("TRAÇO", "8635", "110", "40,0", "ETA -FUNDO E PAREDES20606", "7", "05/10/26", "30990", "39,5"), c("MIX", "8636", '"', '"', 'DE ARRANQUE DO FLOCULADOR 1"', "28", "26/10/26", "-", "-"),
+      ...cab, c('"', '"', '"', '"', '""', "7", "05/10/26", "31300", "39,9"), c("-", "-", "-", "-", "--", "-", "-", "-", "-")]);
+    const a = r.res[0], b = r.res[1];
+    return r.res.length === 2 && a.nf === "8627" && a.v.r3a === 29.7 && a.v.r3b === 38.1 && a.v.r28a === 49.1 && a.info.data === "2026-09-28" && a.info.fck === 40
+      && a.info.local === "ETA -FUNDO E PAREDES DE ARRANQUE DO FLOCULADOR 1" && a.info.forn === "TRAÇO MIX" && b.nf === "8635" && b.v.r7b === 39.9 && b.ids.includes(28) && !b.v.r28a;
+  }), "certificado de compressão (PDF da ARC) lido por corpo de prova, com aspas e quebra de folha");
   // campo e saneamento: abas novas nos módulos que já existiam e as contas de referência
   confere(await p.evaluate(() => {
     const tem = (m, t) => MOD2[m].tipos.some(x => x.id === t);

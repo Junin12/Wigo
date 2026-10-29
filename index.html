@@ -1447,7 +1447,7 @@ async function post1(body, prazo, ctl){
   try{
     // text/plain evita a checagem CORS extra que o Apps Script não responde
     r = await fetch(S.cfg.url, {method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, signal:ctl.signal,
-      body: JSON.stringify({token:S.cfg.token, aparelho:APARELHO, usuario:U?{nome:U.nome, cargo:U.cargo}:null, gz:GZ?1:0, ...body})});
+      body: JSON.stringify({token:S.cfg.token, aparelho:APARELHO, usuario:U?{nome:U.nome, cargo:U.cargo}:null, gz:GZ?1:0, sessao:LS.get("pinSessao")||"", ...body})});
     txt = await r.text();
   }catch{ throw new Error(estourou ? "Sem conexão com o Google (demorou demais)." : ctl.signal.aborted ? "Pedido cancelado." : "Sem conexão com o Google."); }
   finally{ clearTimeout(tm); }
@@ -1463,6 +1463,8 @@ async function post1(body, prazo, ctl){
   }
   // o Google diz se este celular está liberado; se deixou de estar, volta para a tela de espera
   if(j.acesso && body.acao!=="acesso" && body.acao!=="dev") acessoMudou(j.acesso);
+  // PIN pessoal (script 39+): o servidor pediu o PIN; abre a janela e este pedido falha (a fila fica guardada)
+  if(!j.ok && j.pin && body.acao!=="pin"){ LS.set("pinSessao", null); if(!(PIN.adiado>Date.now())) setTimeout(()=>pedirPin(j.pin), 0); throw new Error(j.erro||"Digite o seu PIN."); }
   if(!j.ok && SENHA_ERRADA.test(j.erro||"")) throw new Error("Senha do app incorreta: a senha guardada neste celular não é a mesma do Google. Em Armação › Ajustes › Banco no Google Drive, cole a senha atual (Apps Script › Configurações do projeto › Propriedades do script › TOKEN) e toque em Conectar.");
   if(!j.ok) throw new Error(j.erro||"Erro no Google Apps Script.");
   return j;
@@ -6732,10 +6734,10 @@ setInterval(()=>{ if(document.visibilityState==="visible" && !$("#tela-login").h
 
 // ================= Acessos: o desenvolvedor libera ou recusa cada celular =================
 const RECUSANDO=new Set(); // pedidos com o campo de motivo aberto
-async function decidirAcesso(a, status, motivo, botao){
+async function decidirAcesso(a, status, motivo, botao, ate=""){
   if(botao) botao.disabled=true;
   try{
-    const j=await post({acao:"acessoDecidir", alvo:a.aparelho, status, motivo});
+    const j=await post({acao:"acessoDecidir", alvo:a.aparelho, status, motivo, ate});
     S.acessos=j.acessos; LS.set("acessos",j.acessos); RECUSANDO.delete(a.aparelho);
     toast(status==="liberado" ? `${a.nome} liberado como ${a.cargo}.` : status==="recusado" ? `${a.nome}: acesso recusado.` : "Pedido apagado.");
   }catch(e){ toast(e.message); }
@@ -12956,6 +12958,124 @@ async function novidadesDosCommits(){
 { const o=menuMais; menuMais=function(){ o(); const l=$("#ef-m-corpo .lista");
   if(l) l.append(el("button",{class:"card r2-card",type:"button",onclick:()=>{ fecharEf(); abrirTela("inicio"); setTimeout(()=>iniciarTour(true),300); }},
     el("b",{text:"Tour do app"}), el("div",{class:"i-sub",text:"Mostra de novo para que serve cada parte da tela inicial"}))); }; }
+
+
+// ================= v164: acesso com prazo, PIN pessoal por cargo e LGPD (termo de uso, dados de uma pessoa) =================
+// --- PIN pessoal: o script (39+) pede o PIN dos cargos que o Dev escolher; a sessão vale 6 horas ---
+const PIN={abrindo:null};
+function pedirPin(modo){
+  if(PIN.abrindo) return PIN.abrindo;
+  PIN.abrindo=new Promise(ok=>{
+    const criar=modo==="criar", i1=el("input",{type:"password",inputMode:"numeric",autocomplete:criar?"new-password":"current-password",maxLength:8,"aria-label":"PIN"}),
+      i2=criar ? el("input",{type:"password",inputMode:"numeric",autocomplete:"new-password",maxLength:8,"aria-label":"Repita o PIN"}) : null, msg=el("p",{class:"info full"});
+    const ir=async b=>{ const pin=i1.value.trim();
+      if(!/^\d{4,8}$/.test(pin)) return msg.textContent="O PIN tem de 4 a 8 números.";
+      if(criar && pin!==i2.value.trim()) return msg.textContent="Os dois PINs não são iguais.";
+      b.disabled=true; msg.textContent="Conferindo…";
+      try{ const j=await post({acao:"pin", op:criar?"criar":"entrar", pin}); LS.set("pinSessao", j.sessao); fecharEf(); toast(criar?"PIN criado.":"PIN conferido."); ok(true); S.err=""; scheduleSync(300); }
+      catch(e){ msg.textContent=e.message; b.disabled=false; } };
+    efModal(criar ? "Crie o seu PIN" : "Digite o seu PIN", [
+      el("p",{class:"full",text:criar ? "Seu cargo usa um PIN pessoal: ele confirma que é você quem lança. Escolha de 4 a 8 números e não conte para ninguém."
+        : "Por segurança, o app pede o seu PIN a cada 6 horas antes de gravar. Os lançamentos ficam guardados no celular enquanto isso."}),
+      campoEf("PIN", i1), i2 ? campoEf("Repita o PIN", i2) : null, msg],
+      [el("button",{class:"btn pri",type:"button",text:criar?"Criar PIN":"Entrar",onclick:e=>ir(e.currentTarget)}),
+       el("button",{class:"btn",type:"button",text:"Depois",onclick:()=>{ PIN.adiado=Date.now()+10*60e3; fecharEf(); ok(false); }})]);
+  }).finally(()=>{ PIN.abrindo=null; });
+  return PIN.abrindo;
+}
+
+// --- liberação com prazo (script 39+) e celulares sem uso ---
+const PRAZOS_LIB=[["","Sem prazo"],["7","7 dias"],["30","30 dias"],["90","90 dias"]];
+const PRAZO_ESC=new Map(); // aparelho -> dias escolhidos
+const ateDe = dias => dias ? somaDias(hojeISO(), +dias) : "";
+function selPrazo(a){ const s=el("select",{"aria-label":`Prazo da liberação de ${a.nome}`,onchange:()=>PRAZO_ESC.set(a.aparelho, s.value)}, ...PRAZOS_LIB.map(([v,t])=>el("option",{value:v,text:t})));
+  s.value=PRAZO_ESC.get(a.aparelho)||""; return s; }
+const semUso = (a, dias=60) => a.status==="liberado" && a.aparelho!==APARELHO && (!a.ultimaSinc || Date.now()-new Date(a.ultimaSinc) > dias*864e5);
+{ const o=renderAcessos; renderAcessos=function(){ o(); const box=$("#acessos"); if(!box) return;
+  // prazo, vencimento e PIN em cada cartão (os cartões estão na mesma ordem dos grupos)
+  for(const card of box.querySelectorAll(".card")){ const nome=card.querySelector(".i-top b")?.textContent, cargo=card.querySelector(".i-top .chip")?.textContent;
+    const a=(S.acessos||[]).find(x=>x.nome===nome && x.cargo===cargo); if(!a) continue;
+    const lib=[...card.querySelectorAll("button")].find(b=>b.textContent==="Liberar");
+    if(lib){ lib.onclick=e=>decidirAcesso(a,"liberado","",e.currentTarget, ateDe(PRAZO_ESC.get(a.aparelho))); lib.before(selPrazo(a)); }
+    if(a.status==="liberado"){
+      const sub=card.querySelector(".i-sub");
+      if(a.validade && sub) sub.append(a.vencido ? el("b",{style:"color:var(--bad)",text:` · venceu em ${dataBR(a.validade)}`}) : ` · até ${dataBR(a.validade)}`);
+      if(a.aparelho!==APARELHO && !CARGOS[a.cargo]?.dev){ const row=el("div",{class:"row"}), s=selPrazo(a);
+        row.append(el("small",{class:"info",text:"Prazo:"}), s, el("button",{class:"btn",type:"button",text:"Salvar prazo",onclick:e=>decidirAcesso(a,"liberado","",e.currentTarget, ateDe(s.value))}));
+        if(a.temPin) row.append(el("button",{class:"btn",type:"button",text:"Zerar PIN",onclick:async e=>{ if(!confirm(`Zerar o PIN de ${a.nome}? Ele cria outro no próximo uso.`)) return;
+          e.currentTarget.disabled=true; try{ const j=await post({acao:"pinZerar", alvo:a.aparelho}); S.acessos=j.acessos; LS.set("acessos",j.acessos); toast("PIN zerado."); }catch(err){ toast(err.message); } renderAcessos(); }}));
+        card.append(row); }
+    }
+  }
+  const parados=(S.acessos||[]).filter(a=>semUso(a));
+  if(parados.length) box.querySelector(".saud")?.after(el("div",{class:"card"}, el("b",{text:`${parados.length} celular${parados.length>1?"es":""} liberado${parados.length>1?"s":""} sem uso há 60 dias ou mais`}),
+    el("p",{class:"i-sub",text:parados.map(a=>`${a.nome} (${a.cargo}) · ${a.ultimaSinc?"última vez "+dataBR(a.ultimaSinc.slice(0,10)):"nunca sincronizou"}`).join(" · ")}),
+    el("p",{class:"info",text:"Quem saiu da obra: toque em Bloquear no cartão da pessoa, abaixo."})));
+}; }
+
+// --- LGPD: termo de uso e privacidade (aceite no primeiro acesso, registrado no Histórico) ---
+const TERMO_VER="1";
+function textoTermo(){ return [
+  ["Para que serve o WIGO", `Gestão da obra ${nomeObra()}: produção, presença, segurança, qualidade, suprimentos e relatórios. O app é ferramenta de trabalho da obra.`],
+  ["O que é guardado", "Nome e cargo de quem usa, o que cada pessoa lança e quando (histórico), presença dos trabalhadores (sem CPF), fotos da obra com data, hora e local (GPS), e o estado deste celular (versão do app e envios pendentes)."],
+  ["Onde fica", "Na planilha e na pasta do Google Drive da obra, com acesso só da equipe autorizada. Neste celular fica uma cópia para funcionar sem internet."],
+  ["Quem vê", "Cada cargo vê só o que é da sua função. O painel de acompanhamento externo não mostra nomes de pessoas."],
+  ["Seus direitos", "Você pode pedir para ver, corrigir ou apagar os seus dados ao responsável pela obra ou ao desenvolvedor do app. Dados de quem sai da obra podem ser anonimizados depois do prazo legal."],
+  ["Seus deveres", "Lançar com verdade, não compartilhar o celular liberado nem o PIN, e não fotografar pessoas sem necessidade."]]; }
+function mostrarTermo(obrigatorio){
+  efModal("Termo de uso e privacidade", [
+    ...textoTermo().map(([t,x])=>el("div",{class:"full"}, el("b",{text:t}), el("p",{class:"info",text:x}))),
+    el("p",{class:"info full",text:`Versão ${TERMO_VER} do termo.${LS.get("termoAceito")?` Aceito neste celular em ${dataBR(String(LS.get("termoAceito")).slice(0,10))}.`:""}`})],
+    obrigatorio ? [el("button",{class:"btn pri",type:"button",text:"Li e aceito",onclick:async e=>{ e.currentTarget.disabled=true;
+      LS.set("termoAceito", new Date().toISOString()); LS.set("termoVer", TERMO_VER); fecharEf();
+      try{ await post({acao:"termo", versao:TERMO_VER}); }catch{ LS.set("termoPendente", true); } }})]
+      : [el("button",{class:"btn pri",type:"button",text:"Fechar",onclick:fecharEf})]);
+}
+function conferirTermo(){
+  if(!liberado() || souDev() || !$("#ef-modal").hidden) return;
+  if(LS.get("termoVer")!==TERMO_VER) return mostrarTermo(true);
+  if(LS.get("termoPendente") && S.cfg?.url) post({acao:"termo", versao:TERMO_VER}).then(()=>LS.set("termoPendente", null)).catch(()=>{});
+}
+{ const o=menuMais; menuMais=function(){ o(); const l=$("#ef-m-corpo .lista");
+  if(l) l.append(el("button",{class:"card r2-card",type:"button",onclick:()=>{ fecharEf(); mostrarTermo(false); }},
+    el("b",{text:"Privacidade e termo de uso"}), el("div",{class:"i-sub",text:"O que o app guarda, quem vê e os seus direitos (LGPD)"}))); }; }
+
+// --- LGPD no Painel Dev: dados de uma pessoa (exportar) e anonimizar quem saiu da obra ---
+function dadosDaPessoa(p){
+  const pres=[]; for(const d of new Set([...Object.keys(S.presEf||{}), ...Object.keys(S.pendEf.pres||{}).map(k=>k.split("|")[0])])){ const v=presDia(d)[p.id]; if(v) pres.push({data:d, marca:v}); }
+  const ativ=ativs().filter(a=>Object.values(a.equipes||{}).some(ids=>ids.includes(p.id))).map(a=>({atividade:a.atividade, local:a.local, dias:Object.entries(a.equipes||{}).filter(([,ids])=>ids.includes(p.id)).map(([d])=>d)}));
+  const regs=regs2().filter(r=>JSON.stringify(r.dados||{}).includes(p.nome)).map(r=>({modulo:r.modulo, tipo:r.tipo, data:r.data, status:r.status, dados:r.dados}));
+  const f=funcoes().find(x=>x.id===p.fid);
+  return {pessoa:{id:p.id, nome:p.nome, funcao:f?.funcao||"", empresa:f?.empresa||""}, presencas:pres.sort((a,b)=>a.data.localeCompare(b.data)), atividades:ativ, registros:regs, geradoEm:new Date().toISOString(), obra:nomeObra()};
+}
+function devLgpd(box){
+  const ps=pessoas(), sel=el("select",{"aria-label":"Pessoa"}, el("option",{value:"",text:"Escolha a pessoa…"}), ...ps.map(p=>el("option",{value:p.id,text:p.nome})));
+  const pessoa=()=>ps.find(p=>p.id===sel.value);
+  box.append(el("h3",{text:"🔒 Dados de uma pessoa (LGPD)"}),
+    linhaInfo("Pedido de acesso aos dados: gere o arquivo com tudo o que o app tem da pessoa (presenças, atividades e registros em que o nome aparece). Quem saiu da obra e pediu: anonimize (o nome some, as contagens continuam)."),
+    campoEf("Pessoa", sel),
+    el("div",{class:"row"},
+      el("button",{class:"btn",type:"button",text:"⬇ Exportar dados (JSON)",onclick:()=>{ const p=pessoa(); if(!p) return toast("Escolha a pessoa.");
+        baixar(`dados_${arqNome(p.nome)}_${hojeISO()}.json`, new Blob([JSON.stringify(dadosDaPessoa(p),null,2)],{type:"application/json"})); logDev("LGPD: exportou os dados de uma pessoa", p.nome); }}),
+      el("button",{class:"btn",type:"button",style:"color:var(--bad)",text:"Anonimizar",onclick:()=>{ const p=pessoa(); if(!p) return toast("Escolha a pessoa.");
+        if(!confirm(`Anonimizar ${p.nome}? O nome vira um código e não dá para voltar. Presenças e contagens continuam.`)) return;
+        const novo=`Pessoa removida ${String(p.id).slice(-5)}`; setPes(p.id, {nome:novo}); logDev("LGPD: anonimizou uma pessoa", `${String(p.id).slice(-5)}`); toast("Nome trocado. Sincroniza em seguida."); renderReg2(); }})),
+    el("button",{class:"btn",type:"button",text:"Ver o termo de uso",onclick:()=>mostrarTermo(false)}));
+}
+{ const o=devSenhas; devSenhas=function(box){ o(box);
+  const cargos=Object.keys(CARGOS_PADRAO).filter(c=>!CARGOS_PADRAO[c].dev), atual=new Set(LS.get("pinCargos")||[]);
+  const chks=cargos.map(c=>{ const i=el("input",{type:"checkbox",value:c}); i.checked=atual.has(c); return el("label",{class:"chk"}, i, " "+c); });
+  const info=linhaInfo("Os cargos marcados criam um PIN de 4 a 8 números no primeiro uso; depois o app pede o PIN a cada 6 horas antes de gravar (conferido no script 39+). Esqueceu? Zere o PIN na tela de Acessos.");
+  box.append(cartaoDev(el("h3",{text:"PIN pessoal por cargo"}), info, el("div",{class:"lista"}, ...chks),
+    el("div",{class:"row"},
+      el("button",{class:"btn pri",type:"button",text:"Salvar cargos com PIN",onclick:async e=>{ e.currentTarget.disabled=true;
+        try{ const sel=chks.map(l=>l.querySelector("input")).filter(i=>i.checked).map(i=>i.value), j=await post({acao:"pinCargos", cargos:sel});
+          LS.set("pinCargos", j.pinCargos); toast(j.pinCargos.length ? `PIN pedido para: ${j.pinCargos.join(", ")}.` : "Nenhum cargo usa PIN."); }
+        catch(err){ toast(err.message); } renderReg2(); }}),
+      el("button",{class:"btn",type:"button",text:"Ler do script",onclick:async ()=>{ try{ const j=await post({acao:"pinCargos"}); LS.set("pinCargos", j.pinCargos); renderReg2(); }catch(err){ toast(err.message); } }}))));
+  devLgpd(box);
+}; }
+{ const o=renderInicio; renderInicio=function(){ o(); setTimeout(conferirTermo, 1400); }; }
 
 // ---------- endereço antigo (junin12.github.io/Wigo) → wiapps.com.br/wigo ----------
 // Só muda depois que a fila do celular estiver vazia (nada a enviar), levando banco, usuário e liberação junto.

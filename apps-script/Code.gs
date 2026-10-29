@@ -61,7 +61,8 @@ const ABAS = {
   // motor genérico dos módulos novos: DADOS = JSON com os campos do registro (o app define os campos de cada MODULO/TIPO)
   Registros2: ['ID', 'MODULO', 'DATA', 'TIPO', 'DADOS', 'STATUS', 'CRIADO_POR', 'CRIADO_EM', 'ATUALIZADO_POR', 'ATUALIZADO_EM'],
   // APARELHO = código aleatório criado no celular; STATUS = pendente, liberado ou recusado
-  Acessos: ['APARELHO', 'NOME', 'CARGO', 'STATUS', 'PEDIDO_EM', 'DECIDIDO_POR', 'DECIDIDO_EM', 'MOTIVO'],
+  // VALIDADE (39) = último dia da liberação (vazio = sem prazo); PIN (39) = resumo do PIN pessoal (só cargos que exigem PIN)
+  Acessos: ['APARELHO', 'NOME', 'CARGO', 'STATUS', 'PEDIDO_EM', 'DECIDIDO_POR', 'DECIDIDO_EM', 'MOTIVO', 'VALIDADE', 'PIN'],
   // erros de JavaScript dos celulares (o app manda junto com a sincronização): para o desenvolvedor achar problemas
   Erros: ['DATA_HORA', 'APARELHO', 'USUARIO', 'VERSAO_APP', 'MENSAGEM', 'ONDE', 'NAVEGADOR'],
   // estado de cada celular na última sincronização: versão do app e lançamentos ainda não enviados
@@ -165,7 +166,8 @@ function chaveLeitura() {
 // O pedido vale para aquele celular com aquele nome e cargo; mudar o nome ou o cargo faz um pedido novo.
 // A senha do desenvolvedor é criada uma única vez, no app (aqui fica só o resumo dela). Esqueceu? Rode zerarSenhaDev().
 const MSG_RECUSA = 'Você precisa entrar na sua função específica na obra.';
-const TXT_ACESSO = { pendente: 'Aguardando liberação do desenvolvedor.', novo: 'Este celular ainda não pediu acesso.' };
+const TXT_ACESSO = { pendente: 'Aguardando liberação do desenvolvedor.', novo: 'Este celular ainda não pediu acesso.',
+  vencido: 'A liberação deste celular venceu. Peça ao desenvolvedor para liberar de novo.' };
 
 function zerarSenhaDev() {
   PropertiesService.getScriptProperties().deleteProperty('DEV_SENHA');
@@ -183,12 +185,21 @@ function comLock_(fn) {
   try { return fn(); } finally { lock.releaseLock(); }
 }
 const acessoDe_ = ap => { ap = String(ap || ''); return ap ? linhas('Acessos').find(r => String(r[0]) === ap) || null : null; };
-const statusAcesso_ = r => r ? { status: String(r[3]), nome: String(r[1]), cargo: String(r[2]), motivo: String(r[7] || '') } : { status: 'novo' };
+// liberação com prazo: depois do último dia (VALIDADE, fuso do script) o status vira "vencido"
+const hojeScript_ = () => Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+const venceu_ = r => !!r && String(r[3]) === 'liberado' && /^\d{4}-\d{2}-\d{2}$/.test(String(r[8] || '')) && String(r[8]) < hojeScript_();
+const statusAcesso_ = r => r ? { status: venceu_(r) ? 'vencido' : String(r[3]), nome: String(r[1]), cargo: String(r[2]), motivo: String(r[7] || ''), validade: String(r[8] || '') } : { status: 'novo' };
+// linhas da aba Acessos sempre com todas as colunas (a aba antiga tinha 8) e o cabeçalho completo
+function acessosCompletos_(L) {
+  const sh = aba('Acessos'), n = ABAS.Acessos.length;
+  if (sh.getLastColumn() < n) sh.getRange(1, 1, 1, n).setValues([ABAS.Acessos]);
+  return L.map(r => { r = r.slice(0, n); while (r.length < n) r.push(''); return r; });
+}
 const ehDevLiberado_ = r => !!r && String(r[2]) === 'Desenvolvedor' && String(r[3]) === 'liberado';
 function gravarAcesso_(linha) {
   const L = linhas('Acessos'), k = L.findIndex(r => String(r[0]) === String(linha[0]));
   if (k >= 0) L[k] = linha; else L.push(linha);
-  regravar(aba('Acessos'), ABAS.Acessos.length, L);
+  regravar(aba('Acessos'), ABAS.Acessos.length, acessosCompletos_(L));
 }
 function logAcesso_(nome, cargo, acao, det) {
   const sh = aba('Historico'), ini = sh.getLastRow() + 1;
@@ -206,7 +217,8 @@ function pedirAcesso_(corpo) {
   if (q.cargo === 'Desenvolvedor') throw new Error('Para entrar como Desenvolvedor, use a senha.');
   const r = acessoDe_(q.ap);
   const mesmo = r && String(r[1]) === q.nome && String(r[2]) === q.cargo;
-  if (mesmo && (String(r[3]) !== 'recusado' || !corpo.pedirDeNovo)) return { acesso: statusAcesso_(r) };
+  // liberação vencida: vira pedido novo (o desenvolvedor vê e libera de novo)
+  if (mesmo && !venceu_(r) && (String(r[3]) !== 'recusado' || !corpo.pedirDeNovo)) return { acesso: statusAcesso_(r) };
   const nova = [q.ap, q.nome, q.cargo, 'pendente', new Date(), '', '', ''];
   gravarAcesso_(nova);
   logAcesso_(q.nome, q.cargo, 'Pedido de acesso', q.cargo);
@@ -289,7 +301,7 @@ function trocarSenha_(corpo, eu) {
 // celular liberado? Se não, o erro leva a situação (o app mostra a tela de espera ou de recusa)
 function conferirAcesso_(corpo) {
   const r = acessoDe_(corpo.aparelho);
-  if (r && String(r[3]) === 'liberado') return r;
+  if (r && String(r[3]) === 'liberado' && !venceu_(r)) return r;
   const st = statusAcesso_(r), err = new Error(st.status === 'recusado' ? (st.motivo || MSG_RECUSA) : (TXT_ACESSO[st.status] || TXT_ACESSO.novo));
   err.acesso = st;
   throw err;
@@ -371,6 +383,7 @@ function listaAcessos_() {
   return linhas('Acessos').map(r => { const e = est.get(String(r[0])) || [];
     return { aparelho: String(r[0]), nome: String(r[1]), cargo: String(r[2]), status: String(r[3]),
       pedidoEm: iso(r[4]), decididoPor: String(r[5] || ''), decididoEm: iso(r[6]), motivo: String(r[7] || ''),
+      validade: String(r[8] || ''), vencido: venceu_(r), temPin: !!String(r[9] || ''),
       versaoApp: String(e[3] || ''), pendentes: Number(e[4]) || 0, pendenteDesde: String(e[5] || ''), ultimaSinc: iso(e[6]),
       tempos: (() => { try { return e[7] ? JSON.parse(e[7]) : null; } catch (x) { return null; } })() }; });
 }
@@ -410,9 +423,56 @@ function decidirAcesso_(corpo, dev) {
   if (k < 0) throw new Error('Pedido não encontrado. Atualize a lista.');
   const r = L[k], txt = st === 'liberado' ? 'Acesso liberado' : st === 'recusado' ? 'Acesso recusado' : 'Pedido de acesso apagado';
   if (st === 'apagar') L.splice(k, 1);
-  else { r[3] = st; r[5] = String(dev[1]); r[6] = new Date(); r[7] = st === 'recusado' ? (String(corpo.motivo || '').trim().slice(0, 200) || MSG_RECUSA) : ''; }
-  regravar(aba('Acessos'), ABAS.Acessos.length, L);
-  logAcesso_(String(dev[1]), 'Desenvolvedor', txt, r[1] + ' (' + r[2] + ')');
+  else { r[3] = st; r[5] = String(dev[1]); r[6] = new Date(); r[7] = st === 'recusado' ? (String(corpo.motivo || '').trim().slice(0, 200) || MSG_RECUSA) : '';
+    // prazo da liberação (AAAA-MM-DD) ou vazio = sem prazo
+    if (st === 'liberado') r[8] = /^\d{4}-\d{2}-\d{2}$/.test(String(corpo.ate || '')) ? String(corpo.ate) : ''; }
+  regravar(aba('Acessos'), ABAS.Acessos.length, acessosCompletos_(L));
+  logAcesso_(String(dev[1]), 'Desenvolvedor', txt, r[1] + ' (' + r[2] + ')' + (st === 'liberado' && r[8] ? ' até ' + r[8] : ''));
+}
+
+// ---------- PIN pessoal (39) ----------
+// O Dev escolhe os cargos que precisam de PIN (Propriedade PIN_CARGOS). Quem é desses cargos cria um PIN de 4 a 8 números
+// no próprio celular; depois, a cada 6 horas (sessão no CacheService), o app pede o PIN antes de gravar.
+// Só o resumo (SHA-256 com sal) fica na aba Acessos. 5 erros seguidos bloqueiam o celular por 15 minutos.
+const pinCargos_ = () => { try { return JSON.parse(PropertiesService.getScriptProperties().getProperty('PIN_CARGOS') || '[]'); } catch (e) { return []; } };
+const pinExigido_ = eu => pinCargos_().includes(String(eu[2]));
+const resumoPin_ = (ap, pin) => resumoSenha_('PIN|' + ap + '|' + pin);
+function sessaoPinOk_(eu, sessao) { return !!sessao && CacheService.getScriptCache().get('PINSES_' + String(eu[0])) === String(sessao); }
+function pin_(corpo, eu) {
+  const ap = String(eu[0]), exige = pinExigido_(eu), tem = !!String(eu[9] || '');
+  if (corpo.op === 'status') return { pin: { exige, tem } };
+  const pin = String(corpo.pin || '');
+  if (!/^\d{4,8}$/.test(pin)) throw new Error('O PIN tem de 4 a 8 números.');
+  const cache = CacheService.getScriptCache(), chErro = 'PINERR_' + ap, erros = Number(cache.get(chErro) || 0);
+  if (erros >= 5) throw new Error('Muitas tentativas erradas. Espere 15 minutos.');
+  const L = linhas('Acessos'), k = L.findIndex(r => String(r[0]) === ap);
+  if (k < 0) throw new Error('Celular não encontrado. Atualize.');
+  if (corpo.op === 'criar') {
+    if (tem) throw new Error('Este celular já tem PIN. Para trocar, peça ao desenvolvedor para zerar.');
+    L[k][9] = resumoPin_(ap, pin); regravar(aba('Acessos'), ABAS.Acessos.length, acessosCompletos_(L));
+    logAcesso_(String(eu[1]), String(eu[2]), 'PIN pessoal criado', '');
+  } else if (corpo.op === 'entrar') {
+    if (!tem) throw new Error('Crie o seu PIN primeiro.');
+    if (resumoPin_(ap, pin) !== String(eu[9])) { cache.put(chErro, String(erros + 1), 900); throw new Error('PIN incorreto.'); }
+  } else throw new Error('Pedido de PIN inválido.');
+  cache.remove(chErro);
+  const sessao = Utilities.getUuid(); cache.put('PINSES_' + ap, sessao, 21600);
+  return { sessao };
+}
+function pinDev_(corpo, dev) {
+  if (corpo.acao === 'pinCargos' && !Array.isArray(corpo.cargos)) { /* só lê a lista */ }
+  else if (corpo.acao === 'pinCargos') {
+    const cs = (Array.isArray(corpo.cargos) ? corpo.cargos : []).map(String).filter(c => c && c !== 'Desenvolvedor').slice(0, 30);
+    PropertiesService.getScriptProperties().setProperty('PIN_CARGOS', JSON.stringify(cs));
+    logAcesso_(String(dev[1]), 'Desenvolvedor', 'Cargos com PIN', cs.join(', ') || 'nenhum');
+  } else {
+    const L = linhas('Acessos'), k = L.findIndex(r => String(r[0]) === String(corpo.alvo || ''));
+    if (k < 0) throw new Error('Celular não encontrado. Atualize a lista.');
+    L[k][9] = ''; regravar(aba('Acessos'), ABAS.Acessos.length, acessosCompletos_(L));
+    CacheService.getScriptCache().remove('PINSES_' + String(corpo.alvo));
+    logAcesso_(String(dev[1]), 'Desenvolvedor', 'PIN zerado', L[k][1] + ' (' + L[k][2] + ')');
+  }
+  return { pinCargos: pinCargos_(), acessos: listaAcessos_() };
 }
 
 // ---------- entrada HTTP ----------
@@ -463,10 +523,18 @@ function doPost(e) {
     }
     // daqui para baixo, só celular liberado; o nome e o cargo gravados no histórico são os liberados
     const eu = conferirAcesso_(corpo), dev = ehDevLiberado_(eu);
+    // PIN pessoal (cargos escolhidos pelo Dev): criar/entrar não pedem sessão; o resto pede
+    if (corpo.acao === 'pin') return comLock_(() => pin_(corpo, eu));
+    if (!dev && pinExigido_(eu) && !sessaoPinOk_(eu, corpo.sessao)) { const e = new Error('Digite o seu PIN para continuar.'); e.pin = String(eu[9] || '') ? 'entrar' : 'criar'; throw e; }
+    if (corpo.acao === 'termo') { logAcesso_(String(eu[1]), String(eu[2]), 'Aceitou o termo de uso e privacidade', String(corpo.versao || '').slice(0, 20)); return {}; }
     const usuario = { nome: String(eu[1]), cargo: String(eu[2]) };
     // erros e estado do celular vêm junto com qualquer pedido; uma falha aqui não atrapalha o resto
     try { if (Array.isArray(corpo.erros) && corpo.erros.length) gravarErros_(eu, corpo.erros); } catch (e) { /* segue */ }
     try { if (corpo.estado) gravarEstado_(eu, corpo.estado); } catch (e) { /* segue */ }
+    if (corpo.acao === 'pinCargos' || corpo.acao === 'pinZerar') {
+      if (!dev) throw new Error('Só o desenvolvedor muda o PIN.');
+      return comLock_(() => pinDev_(corpo, eu));
+    }
     if (corpo.acao === 'acessos' || corpo.acao === 'acessoDecidir') {
       if (!dev) throw new Error('Só o desenvolvedor libera acessos.');
       if (corpo.acao === 'acessoDecidir') comLock_(() => decidirAcesso_(corpo, eu));
@@ -501,7 +569,7 @@ const GZ_MIN = 20000;
 function responder(fn, querGz) {
   let saida;
   try { saida = Object.assign({ ok: true }, fn()); }
-  catch (err) { saida = { ok: false, erro: String(err && err.message || err) }; if (err && err.acesso) saida.acesso = err.acesso; }
+  catch (err) { saida = { ok: false, erro: String(err && err.message || err) }; if (err && err.acesso) saida.acesso = err.acesso; if (err && err.pin) saida.pin = err.pin; }
   let txt = JSON.stringify(saida);
   if (querGz && querGz() && txt.length > GZ_MIN)
     txt = JSON.stringify({ ok: saida.ok, gz: Utilities.base64Encode(Utilities.gzip(Utilities.newBlob(txt, 'application/json')).getBytes()) });
@@ -789,7 +857,8 @@ function linhas(nome) {
 // 32: sincronização mais rápida: área pintada nova vai no fim da aba ConcretagemTracos (antes a aba inteira era lida e
 //     regravada a cada envio), leitura dos traços só das linhas da concretagem e observação da concretagem até 2.000 caracteres.
 // 38: tempo para abrir o app e para sincronizar, por celular (coluna TEMPOS da aba Aparelhos; Painel Dev › Aparelhos).
-const VERSAO_SCRIPT = 38;
+// 39: liberação com prazo (VALIDADE), PIN pessoal por cargo (PIN, Propriedade PIN_CARGOS) e aceite do termo de uso (LGPD) no Histórico.
+const VERSAO_SCRIPT = 39;
 
 // Colunas de código que precisam ficar como TEXTO. Sem isso o Planilhas converte
 // "DEC-0001" em data (dez/2001) e o código se perde.
@@ -797,7 +866,7 @@ const COLS_TEXTO = { Itens: [0, 3, 6, 12], Lancamentos: [1], Registros: [0, 5], 
   Efetivo: [0, 1, 2], EfetivoDia: [0, 1, 2, 3], Pessoas: [0, 1, 2, 3], Presencas: [0, 1, 2, 3, 4, 6],
   Atividades: [0, 1, 2, 3, 4, 6, 7, 9, 11, 12], Historico: [1, 2, 3, 4], RDO: [0, 1, 2, 3, 5, 7],
   Concretagens: [0, 1, 2, 3, 4, 5, 6, 8, 9, 10, 12], ConcretagemTracos: [0, 1, 5, 6], Registros2: [0, 1, 2, 3, 4, 5, 6, 8],
-  Erros: [1, 2, 3, 4, 5, 6], Aparelhos: [0, 1, 2, 3, 5, 7] };
+  Erros: [1, 2, 3, 4, 5, 6], Aparelhos: [0, 1, 2, 3, 5, 7], Acessos: [0, 8, 9] };
 const COLS_CODIGO = { Itens: [0], Lancamentos: [1], Registros: [5], Equipes: [], Elementos: [], Config: [] };
 
 // Desfaz a conversão automática: data dez/2001 -> "DEC-0001", dez/1935 -> "DEC-0035"

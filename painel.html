@@ -571,7 +571,8 @@ function grafCp(L){
   const fck=Math.max(0,...L.map(x=>x.fck)), ser=L.map((x,k)=>({nome:(x.cam||"").split(" ")[0]||"?", cor:CORES_CP[k%CORES_CP.length],
     pts:IDADES.filter(i=>x.res[i]>0).map(i=>[i,x.res[i]])})).filter(x=>x.pts.length);
   if(!ser.length) return vazio("Sem resultados ainda.");
-  const W=640,H=230,P={l:40,r:16,t:14,b:26}, s=svg(W,H), top=Math.max(fck*1.25,...ser.flatMap(x=>x.pts.map(p=>p[1])))*1.05;
+  const fs=matchMedia("(max-width:620px)").matches ? 19 : 12; // rótulo dos valores: no celular o gráfico encolhe à metade, letra maior
+  const W=640,H=Math.max(230, ser.length*(fs+1)+60),P={l:40,r:16,t:14,b:26}, s=svg(W,H), top=Math.max(fck*1.25,...ser.flatMap(x=>x.pts.map(p=>p[1])))*1.05;
   const X=i=>P.l+(Math.sqrt(i)-Math.sqrt(3))/(Math.sqrt(28)-Math.sqrt(3))*(W-P.l-P.r), Y=v=>H-P.b-v/top*(H-P.t-P.b);
   s.setAttribute("aria-label",`Resistência por idade de ${ser.length} caminhões`);
   for(let v=0; v<=top; v+=10){ s.mk("line",{x1:P.l,x2:W-P.r,y1:Y(v),y2:Y(v),class:"grade"}); s.mk("text",{x:P.l-6,y:Y(v)+4,"text-anchor":"end"},String(v)); }
@@ -579,6 +580,15 @@ function grafCp(L){
   if(fck) s.mk("polyline",{points:IDADES.map(i=>`${X(i)},${Y(fck*ESPERADO[i])}`).join(" "),fill:"none",stroke:"currentColor","stroke-opacity":0.45,"stroke-width":1.5,"stroke-dasharray":"5 4"});
   for(const x of ser){ s.mk("polyline",{points:x.pts.map(p=>`${X(p[0])},${Y(p[1])}`).join(" "),fill:"none",stroke:x.cor,"stroke-width":2});
     for(const [i,v] of x.pts) titulo(s.mk("circle",{cx:X(i),cy:Y(v),r:4,fill:x.cor,stroke:"#fff","stroke-width":1.2}),`${x.nome}: ${i} dias, ${nf1.format(v)} MPa`); }
+  // valor escrito ao lado de cada ponto ("38,8 MPa"), na cor do caminhão; na mesma idade os rótulos se afastam para não ficar um em cima do outro.
+  // Os de 21 e 28 dias ficam à esquerda do ponto (28 sairia do gráfico; 21 bateria nos de 28, que estão perto).
+  for(const i of IDADES){
+    const its=ser.flatMap(x=>x.pts.filter(p=>p[0]===i).map(p=>({x, v:p[1], y:Y(p[1])}))).sort((a,b)=>a.y-b.y), dy=fs+1;
+    its.forEach((t,k)=>{ t.ly=Math.max(t.y+4, k ? its[k-1].ly+dy : P.t+9); });
+    const sobra=its.length ? its.at(-1).ly-(H-P.b-2) : 0; if(sobra>0) its.forEach(t=>{ t.ly-=sobra; }); // não passa do eixo de baixo
+    const esq=i>=21;
+    for(const t of its) s.mk("text",{x:X(i)+(esq?-8:8),y:t.ly,"text-anchor":esq?"end":"start","font-size":fs,"font-weight":600,fill:t.x.cor,class:"val-cp"},`${nf1.format(t.v)} MPa`);
+  }
   return el("div",{}, s, el("div",{class:"leg-cp"}, ...ser.map(x=>el("span",{}, el("i",{style:`background:${x.cor}`}), x.nome))));
 }
 function renderCp(C){

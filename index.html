@@ -2269,7 +2269,7 @@ function setCampo(on){ LS.set("campo",!!on); if(on) document.documentElement.dat
 $("#campo-modo").addEventListener("click", e=>{ const b=e.target.closest("button[data-c]"); if(b) setCampo(b.dataset.c==="1"); });
 setCampo(!!LS.get("campo"));
 
-const VERSAO_APP = "v172"; // igual ao número em sw.js (armacao-v172)
+const VERSAO_APP = "v173"; // igual ao número em sw.js (armacao-v173)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -11420,7 +11420,10 @@ function realCrono(d, ate){
   // manual: o valor de hoje, distribuído no tempo desde o início (para a curva)
   return (+d.real||0) * (ate>=h ? 1 : limita(diasEntre(d.ini, ate)/Math.max(1, diasEntre(d.ini, h))));
 }
-const planCrono = (d, ate) => limita((diasEntre(d.ini, ate)+1)/(diasEntre(d.ini, d.fim)+1));
+// cronograma master (físico-financeiro): d.dist = {"2026-10": fração do item no mês}; o mês corrente conta pela fração de dias passados
+const planDist = (dist, ate) => { const m=ate.slice(0,7), dm=new Date(+m.slice(0,4), +m.slice(5,7), 0).getDate();
+  return limita(Object.entries(dist).reduce((s,[k,v])=>s + (k<m ? +v : k===m ? +v*(+ate.slice(8,10))/dm : 0), 0)); };
+const planCrono = (d, ate) => d.dist ? planDist(d.dist, ate) : limita((diasEntre(d.ini, ate)+1)/(diasEntre(d.ini, d.fim)+1));
 function chuvaPeriodo(ini, fim){
   const ate=fim<hojeISO()?fim:hojeISO(); let c=0, imp=0;
   for(let d=ini; d<=ate; d=somaDias(d,1)){ const cl=Object.values(rdoDe(d)?.dados?.clima||{}); if(cl.includes("Impraticável")) imp++; else if(cl.includes("Chuva")) c++; }
@@ -13201,6 +13204,271 @@ function abrirEnviar(){ if(location.hash!=="#enviar") return; history.replaceSta
 setTimeout(abrirEnviar, 1200);
 window.addEventListener("hashchange", abrirEnviar);
 
+// ---------- 25. Cronograma master × planejamento semanal (Medições › Cronograma e › Planejamento semanal) ----------
+// Master = cronograma físico-financeiro do contrato: uma linha por item da EAP (C.1.1, F.15…) com o valor e o % do item
+// em cada mês (colunas Jun-26, Jul-26… e a linha BM 01, BM 02…). Cada item vira uma atividade do Cronograma com peso = valor
+// e d.dist = {"2026-10": fração do mês}, que a curva S usa no lugar da reta entre início e fim (planDist).
+const MESES_ABR={JAN:1,FEV:2,FEB:2,MAR:3,ABR:4,APR:4,MAI:5,MAY:5,JUN:6,JUL:7,AGO:8,AUG:8,SET:9,SEP:9,OUT:10,OCT:10,NOV:11,DEZ:12,DEC:12};
+function mesDe(v){
+  if(typeof v==="number" && v>40000 && v<60000) return dataPlan(v).slice(0,7);
+  const m=normTxt(v).match(/^([A-Z]{3})[A-Z]*[\s\-/.]*(\d{2}|\d{4})$/); if(!m || !MESES_ABR[m[1]]) return "";
+  return `${m[2].length===2?"20"+m[2]:m[2]}-${String(MESES_ABR[m[1]]).padStart(2,"0")}`;
+}
+const fimDoMes = m => `${m}-${String(new Date(+m.slice(0,4), +m.slice(5,7), 0).getDate()).padStart(2,"0")}`;
+function lerCronoMaster(wb){
+  for(const nome of wb.SheetNames){
+    const L=XLSX.utils.sheet_to_json(wb.Sheets[nome],{header:1, raw:true, defval:""});
+    const hi=L.slice(0,40).findIndex(l=>{ const t=l.map(normTxt); return t.includes("ITEM") && t.some(c=>/^DESCRICAO/.test(c)) && l.filter(v=>mesDe(v)).length>=3; });
+    if(hi<0) continue;
+    const cab=L[hi].map(normTxt), cI=cab.indexOf("ITEM"), cD=cab.findIndex(c=>/^DESCRICAO/.test(c)), cV=cab.findIndex(c=>/PRECO|^VALOR|^TOTAL/.test(c));
+    const meses=L[hi].map((v,j)=>[j, mesDe(v)]).filter(([,m])=>m);
+    const T=[]; let grupo="";
+    for(const r of L.slice(hi+1)){
+      const cod=String(r[cI]??"").trim(), desc=String(r[cD]??"").replace(/\s+/g," ").trim(); if(!cod || !desc) continue;
+      const fr=meses.map(([j,m])=>{ let v=typeof r[j]==="number" ? r[j] : num(String(r[j]).replace("%","")); if(typeof r[j]!=="number" && /%/.test(String(r[j]))) v/=100; return [m, v>0 ? v : 0]; }).filter(([,v])=>v>0);
+      if(/^[A-Z]$/.test(cod) || !fr.length){ if(/^[A-Z]$/.test(cod)) grupo=desc; continue; } // etapa (letra) ou item sem % em nenhum mês
+      const soma=fr.reduce((s,[,v])=>s+v,0), dist=Object.fromEntries(fr.map(([m,v])=>[m, Math.round(v/(soma>1.001?soma:1)*1e6)/1e6]));
+      T.push({uid:`${cod}-${normTxt(desc).replace(/[^A-Z0-9]+/g,"_").slice(0,30)}`, wbs:cod, nome:`${cod} ${desc}`, grupo, nivel:2, resumo:false,
+        ini:`${fr[0][0]}-01`, fim:fimDoMes(fr.at(-1)[0]), custo:cV>=0 ? num(r[cV]) : 0, dist});
+    }
+    if(T.length) return {tarefas:T, nome:"Cronograma master (físico-financeiro)", fonte:"Cronograma master", aba:nome};
+  }
+  return null;
+}
+{ const o=lerCronoPlanilha; lerCronoPlanilha=function(wb){ return lerCronoMaster(wb) || o(wb); }; }
+const tarefasMaster = () => regs2De("med","crono").filter(r=>r.dados?.origem==="Cronograma master" && r.dados.dist);
+
+// Programação semanal (planilha "BD_PROGRAMACAO_SEMANAL" da obra, .xlsm): uma linha por atividade e por dia programado,
+// com Semana, Frente de Serviço, Eng./Enc./Emp. Resp., Atividade, Status (OK / Não) e Causa Imediata. Cada arquivo traz o
+// histórico e as semanas à frente; a mesma semana muda de um arquivo para o outro (o que foi adiantado ou adiado).
+// No app: um registro med/ps por atividade (frente + atividade), com sem = {nº da semana: [dias programados, OK, Não]},
+// orig = semanas da primeira vez que apareceu e mov = os adiamentos/adiantamentos entre os arquivos.
+const PS_COLS={sem:/^SEMANA$/, ini:/^INICIO DA SEMANA/, frente:/^FRENTE/, eng:/^ENG/, enc:/^ENC/, emp:/^EMP/, ativ:/^ATIVIDADE$/, st:/^STATUS$/, causa:/^CAUSA/, desc:/^DESCRICAO$/, restr:/^RESTRIC/};
+const PS_CAUSAS=["Mão de Obra","Projetos","Suprimentos","Equipamentos","Clima","Frente não liberada","Planejamento","Outros"];
+const segundaDe = iso => somaDias(iso, -((new Date(iso+"T12:00").getDay()+6)%7));
+const psS0 = () => regs2De("med","ps").find(r=>r.dados?.s0)?.dados.s0 || "";
+const psIniSem = (n, s0=psS0()) => s0 ? somaDias(s0, 7*(n-1)) : "";
+const psSemanaDe = (iso, s0=psS0()) => s0 ? Math.floor(diasEntre(s0, iso)/7)+1 : 0;
+const psAtivTxt = v => String(v??"").split("\n")[0].replace(/\s+/g," ").trim().slice(0,160);
+function lerProgSemanal(wb, nomeArq){
+  const aba=wb.SheetNames.find(n=>normTxt(n)==="BD_PROGRAMACAO_SEMANAL") || wb.SheetNames.find(n=>/PROGRAMACAO/.test(normTxt(n)));
+  if(!aba) return null;
+  const L=XLSX.utils.sheet_to_json(wb.Sheets[aba],{header:1, raw:true, defval:""});
+  const hi=L.slice(0,30).findIndex(l=>{ const t=l.map(normTxt); return t.includes("SEMANA") && t.includes("ATIVIDADE"); }); if(hi<0) return null;
+  const cab=L[hi].map(normTxt), c=Object.fromEntries(Object.entries(PS_COLS).map(([k,re])=>[k, cab.findIndex(x=>re.test(x))]));
+  // início da obra (data no topo): a semana 1 começa na segunda-feira da semana dele
+  let obra=""; for(const l of L.slice(0,hi)) for(const v of l) if(!obra && typeof v==="number" && v>40000 && v<60000) obra=dataPlan(v);
+  const pares=[], linhas=L.slice(hi+1).filter(r=>psAtivTxt(r[c.ativ]));
+  for(const r of linhas) if(typeof r[c.ini]==="number" && r[c.ini]>40000 && +r[c.sem]>0 && +r[c.sem]<1000) pares.push([+r[c.sem], dataPlan(r[c.ini])]);
+  const s0 = pares.length ? somaDias(segundaDe(pares[0][1]), -7*(pares[0][0]-1)) : obra ? segundaDe(obra) : "";
+  const map=new Map();
+  for(const r of linhas){
+    let s=r[c.sem]; if(typeof s==="number" && s>40000 && s0) s=psSemanaDe(dataPlan(s), s0); // arquivo antigo: a data no lugar do número
+    s=Math.round(+s); if(!(s>0 && s<1000)) continue;
+    const frente=String(r[c.frente]??"").replace(/\s+/g," ").trim(), ativ=psAtivTxt(r[c.ativ]), k=normTxt(frente)+"|"+normTxt(ativ);
+    let a=map.get(k); if(!a){ a={frente, ativ, emp:"", eng:"", enc:"", sem:{}, causas:{}, desc:"", restr:""}; map.set(k,a); }
+    for(const f of ["emp","eng","enc"]) if(!a[f] && c[f]>=0) a[f]=String(r[c[f]]??"").trim();
+    const x=(a.sem[s] ??= [0,0,0]), st=normTxt(r[c.st]); x[0]++; if(st==="OK") x[1]++; else if(/^NAO/.test(st)) x[2]++;
+    const ca=c.causa>=0 ? String(r[c.causa]??"").trim() : ""; if(ca){ const q=(a.causas[s] ??= {}); q[ca]=(q[ca]||0)+1; } // causas por semana: {semana: {causa: linhas}}
+    for(const f of ["desc","restr"]){ const v=c[f]>=0 ? String(r[c[f]]??"").replace(/\s+/g," ").trim() : ""; if(v && !a[f].includes(v)) a[f]=(a[f]?a[f]+" · ":"")+v.slice(0,300); }
+  }
+  if(!map.size) return null;
+  const ns=[...map.values()].flatMap(a=>Object.keys(a.sem).map(Number));
+  const versao=+(String(nomeArq).match(/SEMANA\s*(\d+)/i)||[])[1] || Math.max(...ns);
+  return {ativs:[...map.values()], s0, versao, nome:nomeArq, de:Math.min(...ns), ate:Math.max(...ns)};
+}
+// semana com apontamento: alguma linha com Status preenchido
+const psApont = x => x && (x[1]+x[2])>0;
+const psPend = (sem, desde) => Object.entries(sem).filter(([n,x])=>+n>=desde && !(x[1]>=x[0])).map(([n])=>+n).sort((a,b)=>a-b);
+async function importarProgSemanal(files){
+  await loadXLSX();
+  const lidos=[];
+  for(const f of files){ try{ const r=lerProgSemanal(XLSX.read(await f.arrayBuffer(), {type:"array"}), f.name); if(r) lidos.push(r); else toast(`${f.name}: não achei a aba da programação semanal (Semana, Frente de Serviço, Atividade).`); }
+    catch(e){ toast(`${f.name}: ${e.message||e}`); } }
+  if(!lidos.length) return;
+  lidos.sort((a,b)=>a.versao-b.versao); // do mais antigo para o mais novo: guarda o histórico dos adiamentos
+  const s0=lidos.at(-1).s0 || psS0(), atual=psSemanaDe(hojeISO(), s0), mestre=tarefasMaster();
+  const recs=new Map(regs2De("med","ps").map(r=>[r.id, {...r.dados}])), novos=new Set(), mudou=new Set(); let adi=0, ant=0;
+  const idPs = a => "ps-"+cyrb53(normTxt(a.frente)+"|"+normTxt(a.ativ)).slice(0,12);
+  for(const L of lidos){
+  const noArq=new Set(L.ativs.map(idPs));
+  // o arquivo vale para as semanas que ele cobre: atividade que sumiu dele (renomeada, trocada de frente ou tirada) perde essas semanas
+  for(const [id,d] of recs){ if(noArq.has(id) || !d.sem) continue;
+    const corte=Math.min(L.versao, atual), tirou=Object.keys(d.sem).map(Number).filter(n=>n>=L.de && n<=L.ate); if(!tirou.length) continue;
+    const pend=psPend(d.sem, corte).filter(n=>tirou.includes(n)); for(const n of tirou){ delete d.sem[n]; if(d.causas) delete d.causas[n]; }
+    if(pend.length && !psPend(d.sem, corte).length){ d.fora=true; d.saiu=L.versao; } mudou.add(id); }
+  for(const a of L.ativs){
+    const id=idPs(a); let d=recs.get(id);
+    if(!d){ d={frente:a.frente, ativ:a.ativ, orig:Object.keys(a.sem).map(Number), prim:L.versao, item:"", mov:[]}; recs.set(id,d); novos.add(id); }
+    // semanas: vale o arquivo, mas o apontamento feito no app fica quando o arquivo vem sem Status nessa semana
+    const sem={}, causas={...a.causas};
+    for(const [n,x] of Object.entries(a.sem)){ const y=d.sem?.[n], doApp=!psApont(x) && psApont(y) && y[0]===x[0]; sem[n] = doApp ? y : x; if(doApp && d.causas?.[n]) causas[n]=d.causas[n]; }
+    // adiado/adiantado: a primeira semana ainda por fazer mudou entre os arquivos
+    const corte=Math.min(L.versao, atual), antes=d.sem ? psPend(d.sem, corte)[0] : null, agora=psPend(sem, corte)[0];
+    if(antes && agora && antes!==agora){ d.mov=[...(d.mov||[]), [L.versao, antes, agora]].slice(-12); agora>antes ? adi++ : ant++; }
+    Object.assign(d, {sem:{...Object.fromEntries(Object.entries(d.sem||{}).filter(([n])=>+n<L.de || +n>L.ate)), ...sem}, emp:a.emp||d.emp||"", eng:a.eng||d.eng||"", enc:a.enc||d.enc||"",
+      desc:a.desc||"", restr:a.restr||"", causas:{...Object.fromEntries(Object.entries(d.causas||{}).filter(([n])=>+n<L.de || +n>L.ate)), ...causas}, s0, vers:L.versao, fora:false, saiu:null});
+    mudou.add(id);
+  } }
+  const ult=lidos.at(-1);
+  const semanas=new Set(lidos.flatMap(L=>L.ativs.flatMap(a=>Object.keys(a.sem)))).size;
+  efModal("Importar programação semanal", [
+    el("div",{class:"full"}, el("b",{text:lidos.length>1 ? `${lidos.length} arquivos (semana ${lidos[0].versao} a ${ult.versao})` : ult.nome}),
+      el("p",{class:"info",text:`${ult.ativs.length} atividades na programação mais nova · semanas ${ult.de} a ${ult.ate} (${semanas} no total) · semana atual: ${atual} (${dataBR(psIniSem(atual, s0))})`})),
+    el("p",{class:"info full",text:`${novos.size} atividade${novos.size===1?" nova":"s novas"} no app · ${mudou.size-novos.size} atualizada${mudou.size-novos.size===1?"":"s"}${adi?` · ${adi} adiamento${adi>1?"s":""}`:""}${ant?` · ${ant} adiantamento${ant>1?"s":""}`:""} entre os arquivos.`}),
+    mestre.length ? null : el("p",{class:"aviso full",text:"Ainda não há cronograma master no app: importe-o em Medições › Cronograma para comparar a programação com o master."}),
+    el("p",{class:"info full",text:"Importar de novo (ou o arquivo da semana seguinte) atualiza sem duplicar. Suba os arquivos em ordem ou todos juntos: o app guarda o que foi adiado ou adiantado de um para o outro."})],
+    [el("button",{class:"btn pri",type:"button",text:`Importar ${mudou.size} atividades`,onclick:()=>{
+      const h=hojeISO();
+      for(const id of mudou){ const d=recs.get(id), ns=Object.keys(d.sem||{}).map(Number), ini=ns.length ? psIniSem(Math.min(...ns), d.s0) : h;
+        const p=(S.pendReg2[id] ??= {}); Object.assign(p, {modulo:"med", tipo:"ps", data:ini||h, status:d.fora?"Fora da programação":"", dados:Object.fromEntries(Object.entries(d).filter(([,v])=>v!=null && v!==""))}); p.log=`Programação semanal importada (semana ${ult.versao})`; }
+      savePendReg2(); scheduleSync(); fecharEf(); toast(`Programação semanal: ${mudou.size} atividades.`); RG.tipo.med="ps"; renderReg2(); }})]);
+}
+
+// frente de serviço → item ou etapa do master: pelas palavras do nome (aceita erro de digitação: "Dercantador" ≈ "Decantadores")
+const PS_STOP=new Set(["DE","DA","DO","DAS","DOS","COM","PARA","AGUA","TIPO","OBRA","AREA","LOCAL","ETA","GERAL","SERVICOS"]);
+// palavras sem o plural (DECANTADORES → DECANTADOR); "elevatória … água tratada" ganha a sigla EEAT do master
+const psPalavras = s => { const t=normTxt(s), w=t.split(/[^A-Z0-9]+/).filter(x=>x.length>=3 && !PS_STOP.has(x) && !/^\d+$/.test(x)).map(x=>x.length>5 ? x.replace(/(ES|S)$/,"") : x);
+  if(/ELEV/.test(t) && /TRATADA/.test(t) && !w.includes("EEAT")) w.push("EEAT"); return w; };
+function levenshtein(a, b){ const m=a.length, n=b.length, d=Array.from({length:n+1},(_,j)=>j); for(let i=1;i<=m;i++){ let p=d[0]; d[0]=i;
+  for(let j=1;j<=n;j++){ const t=d[j]; d[j]=Math.min(d[j]+1, d[j-1]+1, p+(a[i-1]===b[j-1]?0:1)); p=t; } } return d[n]; }
+const psParece = (a, b) => a===b || (a.length>=5 && b.length>=5 && a.slice(0,5)===b.slice(0,5)) || (Math.min(a.length,b.length)>=6 && levenshtein(a,b)<=2);
+const PS_INDIRETOS=/ADMINISTRA[CÇ][AÃ]O LOCAL|LICENCIAMENTO|COMUNICA[CÇ][AÃ]O SOCIAL/i;
+function psAlvoAuto(frente, mestre){
+  const fw=psPalavras(frente), eta=/\bETA\b/.test(normTxt(frente)); if(!fw.length || !mestre.length) return "";
+  // nota = palavras da frente achadas no nome + a fração do nome do item que bateu (F.16 DECANTADORES ganha de F.12 TANQUE … DOS DECANTADORES)
+  const nota = txt => { const w=psPalavras(txt), n=fw.filter(x=>w.some(y=>psParece(x,y))).length; return n ? n + 0.4*w.filter(y=>fw.some(x=>psParece(x,y))).length/w.length : 0; };
+  let melhor=["",0];
+  for(const r of mestre){ const d=r.dados; if(PS_INDIRETOS.test(d.ativ)) continue;
+    const base=nota(d.ativ.replace(/^\S+\s/,"")), s=base + (base>0 && eta && /\bETA\b/.test(normTxt(d.grupo)) ? 0.5 : 0); // frente da ETA: prefere os itens da etapa ETA
+    if(s>melhor[1]) melhor=[r.id, s]; }
+  for(const g of new Set(mestre.map(r=>r.dados.grupo).filter(Boolean))){ const s=nota(g); if(s>melhor[1]) melhor=["g:"+g, s]; }
+  return melhor[1]>=1 ? melhor[0] : "";
+}
+// alvo (item ou etapa) → distribuição mensal ponderada pelo valor, início, fim e nome
+function psAlvo(alvo, mestre=tarefasMaster()){
+  if(!alvo) return null;
+  const rs = alvo.startsWith("g:") ? mestre.filter(r=>r.dados.grupo===alvo.slice(2) && !PS_INDIRETOS.test(r.dados.ativ)) : mestre.filter(r=>r.id===alvo);
+  if(!rs.length) return null;
+  const W=rs.reduce((s,r)=>s+(+r.dados.peso||1),0), dist={};
+  for(const r of rs) for(const [m,v] of Object.entries(r.dados.dist)) dist[m]=(dist[m]||0)+v*(+r.dados.peso||1)/W;
+  return {nome: alvo.startsWith("g:") ? "Etapa: "+alvo.slice(2) : rs[0].dados.ativ, dist, ini:rs.map(r=>r.dados.ini).sort()[0], fim:rs.map(r=>r.dados.fim).sort().at(-1), valor:W, rs};
+}
+
+// análise: PPC por semana, causas, frentes, adiamentos e previsões
+function analisePS(todos){
+  const s0=psS0(), atual=psSemanaDe(hojeISO(), s0), sem=new Map(), causas={}, frentes=new Map();
+  for(const r of todos){ const d=r.dados;
+    for(const q of Object.values(d.causas||{})) for(const [c,n] of Object.entries(q||{})) causas[c]=(causas[c]||0)+n;
+    if(!Object.keys(d.sem||{}).length) continue; // atividade que saiu de toda a programação
+    const F=frentes.get(d.frente) || frentes.set(d.frente, {frente:d.frente, alvo:d.item||"", item:d.item||"", ativs:[], sem:new Map()}).get(d.frente);
+    if(d.item && !F.item) F.alvo=F.item=d.item; F.ativs.push(r);
+    for(const [n,x] of Object.entries(d.sem||{})){ for(const M of [sem, F.sem]){ const y=M.get(+n) || M.set(+n, {n:+n, dias:0, ok:0, nao:0}).get(+n); y.dias+=x[0]; y.ok+=x[1]; y.nao+=x[2]; } } }
+  const mestre=tarefasMaster();
+  // sem ligação gravada: liga pelo nome agora (ex.: master importado depois da programação); "-" = sem ligação de propósito
+  for(const F of frentes.values()) F.alvo = F.alvo==="-" ? "" : F.alvo || psAlvoAuto(F.frente, mestre);
+  // semana apontada = pelo menos metade das atividades-dia com Status; Status em branco é "não apontado", não "não cumprido"
+  const apontada = x => x.dias>0 && (x.ok+x.nao)/x.dias>=0.5;
+  const ppcDe = M => { const ap=[...M.values()].filter(x=>x.n<=atual && apontada(x)).sort((a,b)=>a.n-b.n), u=ap.slice(-4);
+    return {ap, ult:ap.at(-1), media: u.length ? u.reduce((s,x)=>s+x.ok,0)/Math.max(1,u.reduce((s,x)=>s+x.dias,0)) : null}; };
+  const geral=ppcDe(sem), semAp=[...sem.values()].filter(x=>x.n<atual && x.dias && !apontada(x)).map(x=>x.n).sort((a,b)=>a-b);
+  // previsão por frente: o que está programado da semana atual em diante, no ritmo de cumprimento (PPC) das últimas semanas apontadas
+  const prevs=[...frentes.values()].map(F=>{ const fut=[...F.sem.values()].filter(x=>x.n>=atual && x.dias).map(x=>x.n).sort((a,b)=>a-b), p=ppcDe(F.sem).media ?? geral.media;
+    const ultSem=fut.at(-1), semanasProg=fut.length ? ultSem-atual+1 : 0, k=p>0 ? Math.ceil(semanasProg/Math.min(1,p)) : null;
+    const A=psAlvo(F.alvo, mestre), fimPrev = k ? somaDias(psIniSem(atual+k-1, s0), 6) : "";
+    return {F, ppc:p, fut, ultSem, fimProg: ultSem ? somaDias(psIniSem(ultSem, s0), 6) : "", fimPrev, A, atrasoMaster: A && fimPrev && fimPrev>A.fim ? Math.ceil(diasEntre(A.fim, fimPrev)/7) : 0}; });
+  // master × programação no mês: itens/etapas ligados às frentes e os itens que o master prevê no mês
+  const mes=hojeISO().slice(0,7), prox=somaDias(fimDoMes(mes),1).slice(0,7);
+  const comp=[mes, prox].map(m=>{ const ini=`${m}-01`, fim=fimDoMes(m), linhas=[], vistos=new Set();
+    const diasNoMes = F => [...F.sem.values()].filter(x=>psIniSem(x.n, s0).slice(0,7)===m).reduce((s,x)=>s+x.dias,0); // a semana conta no mês da segunda-feira dela
+    for(const F of frentes.values()){ const A=psAlvo(F.alvo, mestre), dias=diasNoMes(F); if(!dias) continue; if(A) A.rs.forEach(r=>vistos.add(r.id));
+      const v=A?.dist[m]||0, sit=!A ? ["sem ligação ao master",""] : v>0 ? ["previsto e programado","ok"] : A.ini>fim ? [`adiantado: master começa ${mesCurto(A.ini.slice(0,7))}`,"ok"]
+        : A.fim<ini ? [`atrasado: master terminava ${mesCurto(A.fim.slice(0,7))}`,"bad"] : ["programado (sem % no master neste mês)",""];
+      linhas.push({nome:F.frente, alvo:A?.nome||"", prev:v, valor:A ? A.valor*v : 0, dias, sit}); }
+    for(const r of mestre){ const v=r.dados.dist[m]||0; if(!v || vistos.has(r.id) || PS_INDIRETOS.test(r.dados.ativ)) continue;
+      linhas.push({nome:r.dados.ativ, alvo:r.dados.grupo||"", prev:v, valor:(+r.dados.peso||0)*v, dias:0, sit:["previsto no master, sem programação","bad"]}); }
+    linhas.sort((a,b)=>(a.sit[1]==="bad"?0:1)-(b.sit[1]==="bad"?0:1) || b.valor-a.valor);
+    return {m, linhas}; });
+  const movs=todos.flatMap(r=>(r.dados.mov||[]).length ? [{r, d:r.dados, tot:(r.dados.mov||[]).reduce((s,[,a,b])=>s+(b-a),0)}] : []).sort((a,b)=>b.tot-a.tot);
+  return {s0, atual, sem, causas, frentes, geral, semAp, prevs, comp, movs, mestre, apontada};
+}
+function psApontar(r){
+  const d=r.dados, A=analisePS([r]), ns=Object.keys(d.sem||{}).map(Number).sort((a,b)=>a-b);
+  let n=ns.filter(x=>x<=A.atual).at(-1) ?? ns[0];
+  const sel=el("select",{onchange:()=>{ n=+sel.value; }}, ...ns.map(x=>el("option",{value:x,text:`Semana ${x} (${ddmm(psIniSem(x, d.s0))}) · ${d.sem[x][0]} dia${d.sem[x][0]>1?"s":""}`,selected:x===n})));
+  const iC=el("select",{}, el("option",{value:"",text:"(causa, se não cumpriu)"}), ...PS_CAUSAS.map(c=>el("option",{value:c,text:c})));
+  const grava=st=>{ const x=[...(d.sem[n]||[1,0,0])], c=iC.value; x[1]= st==="ok" ? x[0] : 0; x[2]= st==="nao" ? x[0] : 0;
+    const causas={...(d.causas||{}), [n]:st==="nao" && c ? {[c]:x[0]} : {}};
+    setReg2(r.id, {dados:{...d, sem:{...d.sem, [n]:x}, causas}}, `Apontou semana ${n}: ${st==="ok"?"cumprida":st==="nao"?"não cumprida":"sem apontamento"} · ${d.ativ}`); fecharEf(); renderReg2(); };
+  efModal(d.ativ, [el("p",{class:"info full",text:[d.frente, d.emp, d.enc?`enc. ${d.enc}`:"", d.restr?`restrições: ${d.restr}`:""].filter(Boolean).join(" · ")}), campoEf("Semana", sel, true), campoEf("Causa", iC, true)],
+    [el("button",{class:"btn pri",type:"button",text:"✔ Cumprida (OK)",onclick:()=>grava("ok")}), el("button",{class:"btn",type:"button",text:"✖ Não cumprida",onclick:()=>grava("nao")}),
+     el("button",{class:"btn",type:"button",text:"Limpar",onclick:()=>grava("")})]);
+}
+function psLigar(frente, alvo){
+  for(const r of regs2De("med","ps").filter(x=>x.dados.frente===frente)){ const p=(S.pendReg2[r.id] ??= {}); Object.assign(p, {modulo:"med", tipo:"ps", data:r.data, dados:{...r.dados, item:alvo}}); p.log=`Ligou a frente ${frente} ao master`; }
+  savePendReg2(); scheduleSync(); renderReg2();
+}
+const barraPct = v => el("div",{class:"env-barra",style:"height:8px"}, el("i",{style:`width:${Math.round(limita(v)*100)}%;background:${v>=0.8?"var(--good)":v>=0.6?"var(--warn)":"var(--bad)"}`}));
+function painelPS(){
+  const ed=pode("med-edit"), todos=regs2De("med","ps");
+  const inp=el("input",{type:"file",accept:".xlsm,.xlsx,.xls",multiple:true,hidden:true,onchange:e=>{ const fs=[...e.target.files]; e.target.value=""; if(fs.length) importarProgSemanal(fs).catch(x=>toast(x.message||String(x))); }});
+  const bts=ed ? el("div",{class:"row"}, el("button",{class:"btn pri",type:"button",text:"⬆ Importar programação semanal (Excel)",
+    onclick:()=>escolherArquivoDe("Programação semanal", ["xlsm","xlsx","xls"], fs=>importarProgSemanal(fs).catch(x=>toast(x.message||String(x))), inp)}), inp) : null;
+  if(!todos.length) return [bts, el("p",{class:"info",text:"Suba a planilha da programação semanal da obra (aba BD_PROGRAMACAO_SEMANAL, .xlsm). Pode escolher vários arquivos de uma vez (ex.: as semanas 14 a 20): o app guarda o que foi adiado ou adiantado entre eles, compara com o cronograma master (importado em Medições › Cronograma) e prevê o andamento de cada frente."})];
+  const A=analisePS(todos), G=A.geral, mestre=A.mestre, semTxt = n => `S${n} · ${ddmm(psIniSem(n, A.s0))}`;
+  const ativSem=todos.filter(r=>r.dados.sem?.[A.atual]), pAtual=ativSem.reduce((s,r)=>s+r.dados.sem[A.atual][0],0);
+  const adi=A.movs.filter(x=>x.tot>0).length, ant=A.movs.filter(x=>x.tot<0).length;
+  const semanas=[...A.sem.values()].filter(x=>x.n>=A.atual-8 && x.n<=A.atual+5).sort((a,b)=>a.n-b.n);
+  const tabSem=el("div",{class:"card"}, el("h3",{text:"PPC por semana (atividades-dia cumpridas ÷ programadas)"}),
+    ...semanas.map(x=>{ const ap=A.apontada(x), parc=!ap && (x.ok+x.nao)>0, v=x.dias ? x.ok/x.dias : 0;
+      return el("div",{class:"ef-lin"}, el("span",{class:"nm",text:semTxt(x.n)+(x.n===A.atual?" (atual)":"")}),
+        el("small",{text:`${x.dias} programadas${ap?` · ${x.ok} OK · ${x.nao} não`:parc?` · apontamento parcial (${x.ok+x.nao} de ${x.dias})`:x.n<A.atual?" · sem apontamento":" · a fazer"}`}),
+        ap ? el("span",{class:"chip "+(v>=0.8?"ok":v>=0.6?"and":"bad"),text:pct(v)}) : null, ap ? barraPct(v) : null); }));
+  const causas=Object.entries(A.causas).sort((a,b)=>b[1]-a[1]), totC=causas.reduce((s,[,n])=>s+n,0);
+  const blocoCausas=causas.length ? el("div",{class:"card"}, el("h3",{text:"Causas do não cumprimento (Pareto)"}),
+    ...causas.map(([c,n])=>el("div",{class:"ef-lin"}, el("span",{class:"nm",text:c}), el("small",{text:`${n} · ${pct(n/totC)}`}), barraPct(n/causas[0][1])))) : null;
+  // master × programação
+  const blocoComp=el("div",{class:"card"}, el("h3",{text:"Cronograma master × programação"}),
+    !mestre.length ? el("p",{class:"aviso",text:"Importe o cronograma master em Medições › Cronograma (a mesma planilha do físico-financeiro): o app compara mês a mês o que o master prevê com o que está programado."}) : null,
+    ...(mestre.length ? A.comp.map(C=>el("details",{class:"pj-sec",open:C.m===hojeISO().slice(0,7)}, el("summary",{}, el("b",{text:`${mesCurto(C.m)}`}),
+        el("span",{class:"chip",text:`${C.linhas.filter(l=>l.sit[1]==="bad").length} alerta(s)`})),
+      ...C.linhas.slice(0,40).map(l=>el("div",{class:"ef-lin"}, el("span",{class:"nm",text:l.nome}),
+        el("small",{text:[l.alvo && l.alvo!==l.nome ? l.alvo : "", l.prev ? `master: ${pct(l.prev)} do item no mês${l.valor?` (R$ ${nf0.format(l.valor)})`:""}` : "", l.dias ? `${l.dias} atividades-dia programadas` : ""].filter(Boolean).join(" · ")}),
+        el("span",{class:"chip "+(l.sit[1]==="bad"?"bad":l.sit[1]),text:l.sit[0]}))))) : []));
+  // previsões por frente
+  const blocoPrev=el("div",{class:"card"}, el("h3",{text:"Previsão por frente (no ritmo de cumprimento atual)"}),
+    ...A.prevs.filter(p=>p.fut.length || p.ppc!=null).sort((a,b)=>b.atrasoMaster-a.atrasoMaster || (a.ppc??1)-(b.ppc??1)).map(p=>el("div",{class:"ef-lin"},
+      el("span",{class:"nm",text:p.F.frente||"(sem frente)"}),
+      el("small",{text:[p.ppc!=null ? `PPC ${pct(p.ppc)}` : "sem apontamento", p.ultSem ? `programado até ${semTxt(p.ultSem)}` : "nada programado à frente",
+        p.fimPrev && p.ultSem ? `no ritmo atual termina ~${dataBR(p.fimPrev)}` : "", p.A ? `master: ${p.A.nome} até ${mesCurto(p.A.fim.slice(0,7))}` : ""].filter(Boolean).join(" · ")}),
+      p.atrasoMaster>0 ? el("span",{class:"chip bad",text:`~${p.atrasoMaster} sem. depois do master`}) : p.fimPrev && p.fimProg && p.fimPrev>p.fimProg ? el("span",{class:"chip and",text:`+${Math.ceil(diasEntre(p.fimProg,p.fimPrev)/7)} sem. além do programado`}) : null)),
+    el("p",{class:"info",text:"Previsão = semanas programadas da atual em diante ÷ PPC das 4 últimas semanas apontadas da frente (sem apontamento, o PPC geral). Com 80% de cumprimento, 4 semanas de programação levam ~5."}));
+  // adiamentos / adiantamentos entre os arquivos
+  const blocoMov=A.movs.length ? el("details",{class:"card"}, el("summary",{class:"pr-sum",text:`Reprogramações entre os arquivos · ${adi} adiada${adi===1?"":"s"}, ${ant} adiantada${ant===1?"":"s"}`}),
+    ...A.movs.slice(0,60).map(x=>el("div",{class:"ef-lin"}, el("span",{class:"nm",text:x.d.ativ}), el("small",{text:`${x.d.frente} · ${(x.d.mov||[]).map(([v,a,b])=>`no arquivo da S${v}: S${a} → S${b}`).join(" · ")}`}),
+      el("span",{class:"chip "+(x.tot>0?"bad":"ok"),text:x.tot>0?`adiada ${x.tot} sem.`:`adiantada ${-x.tot} sem.`})))) : null;
+  // ligação frente → master
+  const opts=[["","(automática, pelo nome)"],["-","(sem ligação)"], ...[...new Set(mestre.map(r=>r.dados.grupo).filter(Boolean))].map(g=>["g:"+g, "Etapa: "+g]), ...mestre.map(r=>[r.id, r.dados.ativ])];
+  const blocoLig=mestre.length ? el("details",{class:"card"}, el("summary",{class:"pr-sum",text:"Ligação das frentes de serviço ao master"}),
+    el("p",{class:"info",text:"O app liga pelo nome (Floculador → F.15 Floculadores). Corrija aqui o que não bater; vale para todas as atividades da frente."}),
+    ...[...A.frentes.values()].map(F=>el("label",{class:"campo"}, (F.frente||"(sem frente)")+(F.item ? "" : F.alvo ? ` → ${psAlvo(F.alvo, mestre)?.nome||""}` : " → sem ligação"),
+      el("select",{disabled:!ed,onchange:e=>psLigar(F.frente, e.target.value)}, ...opts.map(([v,t])=>el("option",{value:v,text:t.slice(0,80),selected:v===F.item})))))) : null;
+  // atividades da semana atual por frente (toque: apontar OK / Não)
+  const blocoSem=el("div",{class:"card"}, el("h3",{text:`Semana atual: ${semTxt(A.atual)} · ${pAtual} atividades-dia`}),
+    ...(ativSem.length ? ativSem.sort((a,b)=>a.dados.frente.localeCompare(b.dados.frente,"pt-BR")).map(r=>{ const x=r.dados.sem[A.atual];
+      return el("button",{class:"ef-lin",type:"button",style:"width:100%;text-align:left;background:none;border:0;padding:6px 0",onclick:()=>ed ? psApontar(r) : null},
+        el("span",{class:"nm",text:r.dados.ativ}), el("small",{text:`${r.dados.frente} · ${x[0]} dia${x[0]>1?"s":""}${r.dados.emp?` · ${r.dados.emp}`:""}${r.dados.restr?` · restrições: ${r.dados.restr}`:""}`}),
+        el("span",{class:"chip "+(x[1]>=x[0]?"ok":x[2]?"bad":""),text:x[1]>=x[0]?"OK":x[2]?"não":"a apontar"})); }) : [el("p",{class:"info",text:"Nada programado na semana atual."})]),
+    ed ? el("p",{class:"info",text:"Toque numa atividade para apontar se foi cumprida (e a causa, se não foi). Vale também para semanas anteriores."}) : null);
+  return [bts,
+    el("div",{class:"kpis"}, kpi("PPC da última semana", G.ult ? pct(G.ult.ok/G.ult.dias) : "–", G.ult ? semTxt(G.ult.n) : "sem apontamento"),
+      kpi("PPC (4 semanas)", G.media!=null ? pct(G.media) : "–", "meta usual: 80%"), kpi("Semana atual", `S${A.atual}`, `${pAtual} atividades-dia programadas`),
+      kpi("Reprogramações", `${adi} / ${ant}`, "adiadas / adiantadas")),
+    A.semAp.length ? el("p",{class:"aviso",text:`Semanas passadas sem Status (OK/Não): ${A.semAp.map(n=>"S"+n).join(", ")}. Sem esse apontamento o PPC e as previsões ficam com menos dados: preencha na planilha ou toque nas atividades.`}) : null,
+    blocoSem, tabSem, blocoComp, blocoPrev, blocoCausas, blocoMov, blocoLig];
+}
+MOD2.med.tipos.push({id:"ps", nome:"Planejamento semanal", semNovo:true, semData:true, campos:[], painel:()=>painelPS()});
+
 // ---------- 17. Console no celular (eruda), para achar erro no aparelho de quem usa ----------
 // Liga em Ajustes tocando 7 vezes no número da versão (vale só para este celular); o Painel Dev › Diagnóstico também liga.
 const ERUDA_URL="https://cdn.jsdelivr.net/npm/eruda@3.4.1/eruda.min.js";
@@ -13733,7 +14001,8 @@ function gravarCronoImportado(tarefas, origem, modoPeso, ligar, apagarOutras){
     let d={ativ:t.nome.slice(0,200), grupo:t.grupo||"", uid:String(t.uid||""), pred:t.pred||"", ini:t.ini, fim:t.fim, iniBase:t.iniBase||"", fimBase:t.fimBase||"",
       peso:Math.round((peso||1)*100)/100, origem, fonte:"Manual (eu informo)", prev:100, un:"%", real:Math.max(0,Math.min(100,+t.pct||0)), filtro:""};
     const fa = ligar ? fonteAuto(t) : null; if(fa) Object.assign(d, fa, {real:""});
-    if(t.sinapi) d.sinapi=t.sinapi; if(t.equipe>0) d.equipe=t.equipe;
+    if(t.sinapi) d.sinapi=t.sinapi; if(t.equipe>0) d.equipe=t.equipe; if(t.dist) d.dist=t.dist;
+    if(t.pct==null && antes?.real!=null) d.real=antes.real; // master não traz realizado: fica o que foi informado no app
     // reimportação: mantém o que a pessoa ligou ou acrescentou no Wigo
     if(antes){ atual++; if(antes.fonte && antes.fonte!=="Manual (eu informo)") Object.assign(d, {fonte:antes.fonte, filtro:antes.filtro||"", prev:antes.prev, un:antes.un, real:""});
       for(const k of ["equipe","prod","jornada","sinapi","obs"]) if(antes[k]!=null && antes[k]!=="" && d[k]==null) d[k]=antes[k]; }

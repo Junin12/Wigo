@@ -2267,7 +2267,7 @@ function setCampo(on){ LS.set("campo",!!on); if(on) document.documentElement.dat
 $("#campo-modo").addEventListener("click", e=>{ const b=e.target.closest("button[data-c]"); if(b) setCampo(b.dataset.c==="1"); });
 setCampo(!!LS.get("campo"));
 
-const VERSAO_APP = "v169"; // igual ao número em sw.js (armacao-v169)
+const VERSAO_APP = "v170"; // igual ao número em sw.js (armacao-v170)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -10053,7 +10053,7 @@ const tipoCt={id:"ct", nome:"Controle tecnológico", novo:"Novo caminhão", semN
     {k:"slM",rot:"Slump medido",t:"txt",semCard:true},{k:"forn",rot:"Concreteira",t:"txt",semCard:true},{k:"ids",rot:"Idades com CP (dias)",t:"txt",semCard:true,semPdf:true},
     ...CP_TODAS.flatMap(i=>["a","b"].map((l,k)=>({k:`r${i}${l}`,rot:`${i} dias · CP ${k+1}`,t:"num",un:"MPa",semCard:true,semPdf:true})))],
   ordem:(a,b)=>String(b.data).localeCompare(String(a.data)),
-  titulo:d=>`NF ${d.nf} · ${d.setor||""}${d.local?" · "+d.local:""}`.slice(0,110)};
+  titulo:d=>[`${/^\d/.test(d.nf||"")?"NF ":""}${d.nf}`, d.setor, d.local].filter(Boolean).join(" · ").slice(0,110)}; // "Obra · CP 20623": feito na obra, sem nota
 
 // solo: ensaios de compactação (grau de compactação e umidade) e outros; fora do especificado vira não conformidade
 const soloRuim = d => [d.gc!=null && +d.gcMin && +d.gc<+d.gcMin ? `GC ${nf1.format(d.gc)}% (mín. ${nf1.format(d.gcMin)}%)` : "",
@@ -10459,14 +10459,16 @@ function lerCertificadoCp(linhas){
     g.cps.push({idade:+cauda[1], data:br2iso(cauda[2]), mpa: cauda[4]==="-" ? null : +cauda[4].replace(",",".")});
   }
   const res=[], idades=new Set();
-  for(const x of grupos){ if(!x.notas.length) continue; // sem nota fiscal (traço feito na obra): não há caminhão para ligar
+  for(const x of grupos){
+    // sem nota fiscal (concreto ou argamassa feitos na obra): não tem caminhão, vai só para o Controle tecnológico, pelo nº do CP
+    const semNota=!x.notas.length; if(semNota && !x.cp) continue;
     const v={}, ids=[...new Set(x.cps.map(c=>c.idade))].filter(i=>CP_TODAS.includes(i));
     for(const i of ids){ idades.add(i); const r=x.cps.filter(c=>c.idade===i && c.mpa!=null).map(c=>c.mpa); if(r[0]!=null) v["r"+i+"a"]=r[0]; if(r[1]!=null) v["r"+i+"b"]=r[1]; }
-    res.push({nf:x.notas[0], v, ids, info:{data:moldagem, setor:"", local:x.peca.join(" ").replace(/\s+/g," ").trim(), vol:null, fck:x.fck, cim:"",
-      desc:[x.notas.length>1?`notas ${x.notas.join(" e ")}`:"", x.cp?`CP nº ${x.cp}`:"", cert?`certificado ${cert}`:""].filter(Boolean).join(" · "),
-      slT:"", slM:x.slump, forn:x.usina.join(" ")}});
+    res.push({nf:semNota ? `Obra · CP ${x.cp}` : x.notas[0], semNota, v, ids, info:{data:moldagem, setor:"", local:x.peca.join(" ").replace(/\s+/g," ").trim(), vol:null, fck:x.fck, cim:"",
+      desc:[semNota?"feito na obra (sem nota fiscal)":"", x.notas.length>1?`notas ${x.notas.join(" e ")}`:"", x.cp?`CP nº ${x.cp}`:"", cert?`certificado ${cert}`:""].filter(Boolean).join(" · "),
+      slT:"", slM:x.slump, forn:semNota ? "" : x.usina.join(" ")}});
   }
-  if(!res.length) throw new Error("Este certificado não tem número de nota fiscal (concreto ou argamassa feitos na obra): não há caminhão para ligar os resultados.");
+  if(!res.length) throw new Error("Não achei nenhum corpo de prova com resultado neste certificado.");
   return {res, idades:[...idades]};
 }
 async function importarLab(arquivo){
@@ -10485,10 +10487,11 @@ async function importarLab(arquivo){
     if(!lidas.length) throw new Error(`Não encontrei nenhuma linha com número de nota na planilha (app ${VERSAO_APP}). ${motivos.join(" · ")}`.slice(0,600));
     // nota → caminhão da concretagem
     const porNf=new Map(); for(const c of concs()) for(const k of c.cams||[]) if(k.nf) porNf.set(nfChave(k.nf), {c, k});
-    const ok=[], semCam=[], semRes=[];
+    const ok=[], semCam=[], semRes=[], obra=lidas.filter(x=>x.semNota);
     // concreto magro: sem corpo de prova (entra só no controle do volume usado)
     const magro=x=>/MAGRO/.test(normTxt(`${x.info?.local||""} ${x.info?.desc||""}`));
-    for(const x of lidas){ if(magro(x)) continue; const a=porNf.get(x.nf); if(!Object.keys(x.v).length){ semRes.push(x.nf); continue; } if(!a){ semCam.push(x.nf); continue; } ok.push({...x, ...a}); }
+    const resTxt = x => CP_TODAS.filter(i=>x.v["r"+i+"a"]!=null||x.v["r"+i+"b"]!=null).map(i=>`${i}d ${[x.v["r"+i+"a"],x.v["r"+i+"b"]].filter(v=>v!=null).map(v=>nf1.format(v)).join(" / ")}`).join(" · ");
+    for(const x of lidas){ if(magro(x) || x.semNota) continue; const a=porNf.get(x.nf); if(!Object.keys(x.v).length){ semRes.push(x.nf); continue; } if(!a){ semCam.push(x.nf); continue; } ok.push({...x, ...a}); }
     const lancar=()=>{
       let novas=0, alteradas=0, nc="";
       for(const x of ok){ const {c,k}=x, ex=cpsDoCam(c,k.n)[0];
@@ -10498,16 +10501,18 @@ async function importarLab(arquivo){
         setReg2(id, {modulo:"qual", tipo:"cp", data:ex?.data||c.data, dados:d, status:st}, `${ex?"Alterou":"Criou"}: ${tituloReg2(tipoCp,{dados:d})} (planilha do laboratório)`);
         ex ? alteradas++ : novas++; nc += tipoCp.aoSalvar(id, d, st) || ""; }
       const nct=gravarCt(lidas, arquivo.name.replace(/\.[^.]+$/,""));
-      toast(`Planilha lançada: ${alteradas} moldage${alteradas===1?"m atualizada":"ns atualizadas"}, ${novas} nova${novas===1?"":"s"}${nct?`, ${nct} caminh${nct===1?"ão":"ões"} no controle tecnológico`:""}.${nc}`); fecharEf(); };
+      toast(`Planilha lançada: ${alteradas} moldage${alteradas===1?"m atualizada":"ns atualizadas"}, ${novas} nova${novas===1?"":"s"}${nct?`, ${nct} registro${nct===1?"":"s"} no Controle tecnológico`:""}.${nc}`); fecharEf(); };
     const comData=lidas.filter(x=>x.info?.data).length;
     efModal("Importar resultados do laboratório", [
-      el("p",{class:"info full",text:`${lidas.length} nota${lidas.length===1?"":"s"} lida${lidas.length===1?"":"s"} · idades: ${idades.sort((a,b)=>a-b).map(i=>i+" dias").join(", ")}.`}),
-      ok.length ? el("div",{class:"full"}, tabelaSimples(["NF","Concretagem","Caminhão","Resultados (MPa)"], ok.map(x=>[x.nf, `${x.c.estrutura}${x.c.local?" · "+x.c.local:""} · ${ddmm(x.c.data)}`, `C${x.k.n}`,
-        CP_TODAS.filter(i=>x.v["r"+i+"a"]!=null||x.v["r"+i+"b"]!=null).map(i=>`${i}d ${[x.v["r"+i+"a"],x.v["r"+i+"b"]].filter(v=>v!=null).map(v=>nf1.format(v)).join(" / ")}`).join(" · ")]))) : null,
+      el("p",{class:"info full",text:`${[lidas.length-obra.length ? `${lidas.length-obra.length} nota${lidas.length-obra.length===1?"":"s"} lida${lidas.length-obra.length===1?"":"s"}` : "",
+        obra.length ? `${obra.length} amostra${obra.length>1?"s":""} feita${obra.length>1?"s":""} na obra (sem nota)` : ""].filter(Boolean).join(" e ")} · idades: ${idades.sort((a,b)=>a-b).map(i=>i+" dias").join(", ")}.`}),
+      ok.length ? el("div",{class:"full"}, tabelaSimples(["NF","Concretagem","Caminhão","Resultados (MPa)"], ok.map(x=>[x.nf, `${x.c.estrutura}${x.c.local?" · "+x.c.local:""} · ${ddmm(x.c.data)}`, `C${x.k.n}`, resTxt(x)]))) : null,
+      obra.length ? el("div",{class:"full"}, el("p",{class:"info",text:"Feitos na obra, sem nota fiscal: não têm caminhão, vão só para o Controle tecnológico pelo nº do CP."}),
+        tabelaSimples(["Amostra","Peça","Resultados (MPa)"], obra.map(x=>[x.nf, x.info.local||"—", resTxt(x) || "aguardando rompimento"]))) : null,
       semCam.length ? el("p",{class:"aviso full",text:`Sem caminhão no app com estas notas (não entram nas moldagens): ${semCam.join(", ")}. Lance os caminhões na concretagem e importe de novo.`}) : null,
       semRes.length ? el("p",{class:"info full",text:`Sem resultado na planilha: ${semRes.join(", ")}.`}) : null,
-      comData ? el("p",{class:"info full",text:`${comData} caminh${comData===1?"ão vai":"ões vão"} para o Controle tecnológico (Qualidade › Concreto), com setor, local, volume e resultados: é o que monta o Dashboard, inclusive das concretagens que não estão no app.`}) : null],
-      ok.length || comData ? [el("button",{class:"btn pri",type:"button",text:ok.length ? `Lançar ${ok.length} resultado${ok.length===1?"":"s"}${comData?" e o controle":""}` : `Lançar ${comData} caminhões no controle`,onclick:lancar})] : []);
+      comData ? el("p",{class:"info full",text:`${comData} registro${comData===1?" vai":"s vão"} para o Controle tecnológico (Qualidade › Concreto), com setor, local, volume e resultados: é o que monta o Dashboard, inclusive das concretagens que não estão no app.`}) : null],
+      ok.length || comData ? [el("button",{class:"btn pri",type:"button",text:ok.length ? `Lançar ${ok.length} resultado${ok.length===1?"":"s"}${comData?" e o controle":""}` : `Lançar ${comData} registro${comData===1?"":"s"} no Controle tecnológico`,onclick:lancar})] : []);
   }catch(e){ const m=e.message||"Não foi possível ler a planilha.";
     if(m.length>120) efModal("Importar resultados do laboratório", [el("p",{class:"aviso full",text:m})], []); else toast(m); }
 }

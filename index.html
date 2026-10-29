@@ -1209,6 +1209,7 @@ svg .alvo.on{fill:var(--accent);fill-opacity:.13}
     <button id="v-ajustar" type="button">Ajustar</button>
     <button id="v-pend" type="button" title="Marcar uma pendência (não conformidade) na prancha">📍 Pendência</button>
     <button id="v-fora" type="button" title="Abrir no leitor de PDF do celular" hidden>⤓ Abrir fora</button>
+    <button id="v-medir" type="button" title="Medir comprimento, área e contagem nesta prancha (Ferramentas)" hidden>📏 Medir</button>
     <span id="v-alvo" class="v-alvo" hidden>
       <button id="v-mk-ant" type="button" aria-label="Marcação anterior">‹</button>
       <b id="v-mk-txt"></b>
@@ -4016,6 +4017,11 @@ const stage=$("#v-stage"), vmsg=t=>{ $("#v-msg").textContent=t; $("#v-msg").hidd
 const DICA_FORA=" Toque em ⤓ Abrir fora para ver no leitor de PDF do celular.";
 // plano B: entrega o PDF (já no celular) para o leitor de PDF do aparelho
 $("#v-fora").addEventListener("click", ()=>{ if(V.buf) baixar(V.nome||"projeto.pdf", new Blob([V.buf],{type:"application/pdf"})); });
+// 📏 Medir: a prancha aberta vai para o "Medir na prancha" das Ferramentas (mesmo endereço: Cache "ferr-wigo", chave a partir da raiz)
+$("#v-medir").addEventListener("click", async ()=>{ if(!V.buf) return;
+  try{ await (await caches.open("ferr-wigo")).put("/ferr-wigo/entrada/pdf", new Response(new Blob([V.buf],{type:"application/pdf"}),{headers:{"X-Nome":encodeURIComponent(V.nome||"projeto.pdf")}})); }
+  catch{ return toast("Não foi possível passar a prancha para as Ferramentas."); }
+  abrirFerramentas(`/ferramentas/medir-pdf/?de=wigo&doc=wigo&folha=${V.n||1}`); });
 async function abrirPdf(f, pag, alvo, conc){
   MK.alvo=alvo||null; MK.marcando=false; stage.classList.remove("marcando");
   CC.conc=conc||null; CC.atual=null; renderCcBar(); // concretagem: barra de pintura só quando aberto por uma concretagem
@@ -4025,10 +4031,10 @@ async function abrirPdf(f, pag, alvo, conc){
   $("#v-tit").textContent=pjTitulo(f.nome);
   try{
     if(V.fid!==f.id){
-      vmsg("Carregando projeto…"); V.canvas?.remove(); V.canvas=null; V.Rn=null; V.buf=null; $("#v-fora").hidden=true;
+      vmsg("Carregando projeto…"); V.canvas?.remove(); V.canvas=null; V.Rn=null; V.buf=null; $("#v-fora").hidden=$("#v-medir").hidden=true;
       const leitor=loadPdfjs(); leitor.catch(()=>{}); // o leitor de PDF carrega ao mesmo tempo que o arquivo (antes era um depois do outro)
       const buf=await obterPdf(f, (feito,total,nota)=>vmsg(`Baixando projeto (${mb(f.tamanho||0)})… ${total?Math.min(99,Math.round(feito*100/total)):0}%${nota?` · ${nota}`:""}`));
-      V.buf=buf.slice(0); V.nome=f.nome; $("#v-fora").hidden=false; // cópia: o leitor do app consome o original
+      V.buf=buf.slice(0); V.nome=f.nome; $("#v-fora").hidden=$("#v-medir").hidden=false; // cópia: o leitor do app consome o original
       vmsg("Abrindo projeto…");
       await leitor;
       V.doc?.destroy(); V.doc=await pdfjsLib.getDocument({isEvalSupported:false, data:new Uint8Array(buf), isOffscreenCanvasSupported:false}).promise; V.fid=f.id;
@@ -4435,6 +4441,7 @@ function fecharFerramentas(peloVoltar){
   if(sujo && !confirm("Há edições não salvas no PDF. Fechar mesmo assim?")){ if(peloVoltar) history.pushState({ferr:1},""); return; }
   f?.remove(); $("#ferr").hidden=true;
   importarArquivo(); // o que a Calculadora de obra guardou para o Arquivo da obra
+  receberDasFerramentas().catch(()=>{}); // documentos do Escanear/Assinar que ainda não entraram
   if(!peloVoltar) history.back();
 }
 $("#ferr-fechar").addEventListener("click", ()=>fecharFerramentas(false));
@@ -5746,6 +5753,14 @@ function doDia(base, pend, d){
 }
 const diaVals = d => memoEf("dia|"+d, ()=>doDia(S.efDia, S.pendEf.dia, d));
 const presDia = d => memoEf("pres|"+d, ()=>doDia(S.presEf, S.pendEf.pres, d));
+// faltas (F; não conta atestado nem folga) de cada pessoa no mês até hoje: [{p, n, dias}] com n ≥ min, mais faltas primeiro
+function faltasRepetidas(min=3, ym=hojeISO().slice(0,7)){
+  const h=hojeISO(), cont=new Map();
+  for(let d=ym+"-01"; d<=h && d.startsWith(ym); d=somaDias(d,1))
+    for(const [id,v] of Object.entries(presDia(d))) if(String(v).split(" ")[0]==="F"){ const x=cont.get(id)||[]; x.push(d); cont.set(id,x); }
+  const ps=new Map(pessoas().map(p=>[p.id,p]));
+  return [...cont].filter(([id,ds])=>ds.length>=min && ps.has(id)).map(([id,ds])=>({p:ps.get(id), n:ds.length, dias:ds})).sort((a,b)=>b.n-a.n);
+}
 const diaAberto = d => Object.keys(diaVals(d)).length>0;
 const datasEf = () => [...new Set([...Object.keys(S.efDia), ...Object.keys(S.pendEf.dia).map(k=>k.split("|")[0])])].filter(diaAberto).sort();
 const nomesDa = fid => memoEf("porFun", ()=>{ const m=new Map(); for(const p of pessoas()) if(p.ativo) (m.get(p.fid)||m.set(p.fid,[]).get(p.fid)).push(p); return m; }).get(fid) || [];
@@ -7659,6 +7674,19 @@ const concDe = id => concs().find(c=>c.id===id);
 function setConc(id, campos, log){
   const p=(S.pendCc[id] ??= {}); Object.assign(p, campos); if(log) p.log=log;
   savePendCc(); scheduleSync();
+  if(campos.cams) try{ recebimentosDaConc(id); }catch(e){ guardarErro(e.message,"recebimentosDaConc"); }
+}
+// cada caminhão da concretagem vira (e acompanha) um recebimento em Suprimentos › Concreto: não precisa lançar duas vezes.
+// id fixo "rcc-<concretagem>-<caminhão>": editar o caminhão atualiza o recebimento; excluir o caminhão tira o recebimento.
+function recebimentosDaConc(id){
+  if(!pode("sup-edit")) return; // quem não lança em Suprimentos não grava lá (o servidor recusaria)
+  const c=concDe(id); if(!c) return;
+  const pre=`rcc-${id}-`, tem=new Set(regs2De("sup","conc").filter(r=>r.id.startsWith(pre)).map(r=>r.id));
+  for(const k of c.cams||[]){ const rid=pre+k.n; tem.delete(rid);
+    const dados={forn:k.usina||"Concreteira", nf:k.nf||"", qtd:+k.vol||0, un:"m³", placa:k.placa||"", obs:`Concretagem ${c.estrutura}${c.local?" · "+c.local:""} · caminhão C${k.n}`, origem:"concretagem", conc:id};
+    const r=regs2().find(x=>x.id===rid);
+    if(!r || JSON.stringify(r.dados)!==JSON.stringify(dados) || r.data!==c.data) setReg2(rid, {modulo:"sup", tipo:"conc", data:c.data||hojeISO(), status:"", dados}, `Recebimento do caminhão C${k.n} (concretagem)`); }
+  for(const rid of tem) delReg2(rid);
 }
 function limparPendCc(snap, snapDel, snapTr, j){
   if(!(j.script>=15) || !j.concretagens) return; // Code.gs antigo: fica tudo na fila
@@ -8164,7 +8192,7 @@ function editarConc(c, pre){
      nova ? null : el("button",{class:"btn",type:"button",text:"Excluir",style:"color:var(--bad);margin-left:auto",onclick:()=>{
        if(!confirm(`Excluir a concretagem ${c.estrutura}${c.local?" · "+c.local:""}? Os caminhões e as áreas pintadas também somem.`)) return;
        delete S.pendCc[c.id]; for(const [id,x] of Object.entries(S.pendTr)) if(x.conc===c.id) delete S.pendTr[id];
-       if(S.cc.some(x=>x.id===c.id)) S.pendCcDel.push(c.id); savePendCc(); scheduleSync(); toast("Concretagem excluída."); fecharEf(); }})]);
+       if(S.cc.some(x=>x.id===c.id)) S.pendCcDel.push(c.id); savePendCc(); if(pode("sup-edit")) regs2De("sup","conc").filter(r=>r.id.startsWith(`rcc-${c.id}-`)).forEach(r=>delReg2(r.id)); scheduleSync(); toast("Concretagem excluída."); fecharEf(); }})]);
   boxEstO.hidden=iEst.value!=="__outro"; montarPdfs(); montarConj(false); desTipo();
   if(m0?.forma) volAuto=false;
   if(trava){ boxTipo.hidden=boxPar.hidden=boxLaje.hidden=boxArr.hidden=true;
@@ -8973,6 +9001,34 @@ async function fotoReg2(id, legenda, input){
 // --- campos do formulário: t = txt, area, num (un), data, hora, sel (ops), pessoa, pessoas, est, equip, check (itens), itens ---
 const CK_VALS=[["C","Conforme","ok"],["NC","Não conforme","bad"],["NA","Não se aplica",""]];
 const nomesPessoas = () => pessoas().filter(p=>p.ativo).map(p=>p.nome);
+// --- equipamentos: horímetro atual, revisão, custo do mês dos locados e checklist do dia ---
+const equipCads = () => regs2De("equip","cad").filter(r=>r.status!=="Inativo" && r.dados.nome);
+const apontsDe = nome => regs2De("equip","apont").filter(r=>r.dados.equip===nome);
+const horimetro = nome => apontsDe(nome).reduce((m,r)=>Math.max(m, +r.dados.hf||0, +r.dados.hi||0), 0) || null;
+function situacaoEquip(cad, ym=hojeISO().slice(0,7)){
+  const d=cad.dados, h=horimetro(d.nome), mes=apontsDe(d.nome).filter(r=>r.data.startsWith(ym));
+  const horas=mes.reduce((s,r)=>s+(+r.dados.horas||0),0), dias=new Set(mes.filter(r=>r.status!=="Parado" && r.status!=="Em manutenção").map(r=>r.data)).size;
+  let rev=null; if(+d.rev>0 && h!=null){ const falta=(+d.hRev||0)+(+d.rev)-h; rev={falta, cor: falta<=0?"bad": falta<=+d.rev*0.1?"and":"ok"}; }
+  const custo = d.posse==="Locado" && +d.valor>0 ? (d.valorUn==="hora" ? horas*d.valor : d.valorUn==="mês" ? (mes.length?+d.valor:0) : dias*d.valor) : null;
+  return {h, horas, dias, rev, custo};
+}
+// apontado hoje (trabalhando) e sem checklist de máquina hoje: compara a identificação (placa/frota) ou o nome
+function semChecklistHoje(){
+  const h=hojeISO(), ck=regs2De("seg","maq").filter(r=>r.data===h), n=s=>semAcento(s).replace(/[^a-z0-9]/g,"");
+  const tem=cad=>ck.some(r=>{ const id=n(r.dados.ident), nm=n((maqDe(r.dados.maq)?.nome||"")+" "+(r.dados.ident||"")); return (cad.dados.ident && id && id===n(cad.dados.ident)) || (n(cad.dados.nome) && nm.includes(n(cad.dados.nome))); });
+  const hoje=new Set(regs2De("equip","apont").filter(r=>r.data===h && r.status==="Trabalhando").map(r=>r.dados.equip));
+  return equipCads().filter(c=>hoje.has(c.dados.nome) && !tem(c));
+}
+function cartaoEquips(){
+  const cs=equipCads(); if(!cs.length) return null;
+  const R$=v=>"R$ "+v.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}), sem=new Set(semChecklistHoje().map(c=>c.id));
+  let tot=0; const linhas=cs.map(c=>{ const s=situacaoEquip(c); if(s.custo) tot+=s.custo;
+    return [c.dados.nome, s.h!=null?nf1.format(s.h)+" h":"–", s.rev ? (s.rev.falta<=0?`vencida há ${nf0.format(-s.rev.falta)} h`:`em ${nf0.format(s.rev.falta)} h`)+(s.rev.cor!=="ok"?" ⚠":"") : "–",
+      s.custo!=null ? R$(s.custo) : "–", sem.has(c.id) ? "⚠ sem checklist" : "ok"]; });
+  return el("details",{class:"card"}, el("summary",{class:"pr-sum",text:`Situação dos equipamentos${tot?` · locação no mês ${R$(tot)}`:""}${sem.size?` · ${sem.size} sem checklist hoje`:""}`}),
+    tabelaSimples(["Equipamento","Horímetro","Revisão","Custo no mês","Checklist hoje"], linhas),
+    el("p",{class:"info",text:"Revisão: pelo horímetro do último apontamento. Custo: valor do cadastro × horas (por hora), dias trabalhados (por dia) ou o mês, se houve apontamento."}));
+}
 const equipsCadastrados = () => regs2De("equip","cad").filter(r=>r.status!=="Inativo").map(r=>r.dados.nome).filter(Boolean).sort((a,b)=>a.localeCompare(b,"pt-BR"));
 function campoReg2(c, v, ctx){
   if(c.t==="custom") return c.render(v, ctx); // campo próprio do módulo (ex.: montagem da forma por peças, m² ou %)
@@ -9013,11 +9069,44 @@ function campoReg2(c, v, ctx){
     const desenhar=()=>repor(box, ...linhas.map((x,k)=>{ const f=(cp,ph,w,dec)=>{ const i=el("input",{type:"text",value:x[cp]!=null?String(x[cp]).replace(".",","):"",placeholder:ph,style:`width:${w}`,inputMode:dec?"decimal":"text"}); i.oninput=()=>{ x[cp]=dec?num(i.value):i.value; }; return i; };
       return el("div",{class:"row r2-item"}, f("serv","Serviço","100%"), f("un","Un.","4.5em"), f("qtd","Qtd.","5em",true), f("vu","R$ unit.","6em",true),
         el("button",{class:"linkbtn del",type:"button",text:"✕","aria-label":"Tirar item",onclick:()=>{ linhas.splice(k,1); desenhar(); }})); }),
-      el("button",{class:"btn",type:"button",text:"+ Item",onclick:()=>{ linhas.push({serv:"",un:"",qtd:"",vu:""}); desenhar(); }}));
+      el("button",{class:"btn",type:"button",text:"+ Item",onclick:()=>{ linhas.push({serv:"",un:"",qtd:"",vu:""}); desenhar(); }}),
+      c.sinapi ? buscaSinapi(it=>{ linhas.push({serv:`${it.c} · ${it.d}`.slice(0,300), un:it.u||"", qtd:"", vu:it.preco??""}); desenhar(); }) : null);
     desenhar();
     return {elm:el("div",{class:"campo full"}, c.rot, box), ler:()=>linhas.filter(x=>String(x.serv||"").trim()).map(x=>({serv:String(x.serv).trim(), un:String(x.un||"").trim(), qtd:num(x.qtd), vu:num(x.vu)}))}; }
   const i=el("input",{type:"text",maxLength:c.max||200,value:v??"",placeholder:c.dica||""}); if(ops.length){ const id="dl-"+uid().slice(0,6); i.setAttribute("list",id); return {elm:el("div",{class:"campo"+(c.full?" full":"")}, campoEf(c.rot,i), listaDatalist(id,ops)), ler:()=>i.value.trim()}; }
   return {elm:campoEf(c.rot,i,c.full), ler:()=>i.value.trim()};
+}
+// SINAPI: a tabela importada nas Ferramentas › Consulta SINAPI fica no IndexedDB "sinapi" deste aparelho (mesmo endereço: wiapps.com.br).
+// Item: {c: código, d: descrição, u: unidade, t: Composição/Insumo, p: preço ou pu: {UF: preço}}. Vale a base importada mais recente.
+const SINAPI={base:undefined};
+function sinapiBase(){
+  if(SINAPI.base!==undefined) return Promise.resolve(SINAPI.base);
+  return new Promise(ok=>{ try{ const q=indexedDB.open("sinapi",1);
+    q.onupgradeneeded=()=>{ q.transaction.abort(); }; // não existe: não cria a base no lugar das Ferramentas
+    q.onerror=q.onblocked=()=>ok(SINAPI.base=null);
+    q.onsuccess=()=>{ const db=q.result; try{ const g=db.transaction("bases").objectStore("bases").getAll();
+      g.onsuccess=()=>{ const bs=(g.result||[]).sort((a,b)=>String(b.id).localeCompare(String(a.id))); db.close(); ok(SINAPI.base=bs[0]||null); };
+      g.onerror=()=>{ db.close(); ok(SINAPI.base=null); }; }catch{ db.close(); ok(SINAPI.base=null); } };
+  }catch{ ok(SINAPI.base=null); } });
+}
+function precoSinapi(it, uf){ return it.p!=null ? it.p : it.pu ? (it.pu[uf] ?? Object.values(it.pu)[0] ?? null) : null; }
+function buscaSinapi(aoEscolher){
+  const inp=el("input",{type:"search",placeholder:"Buscar na SINAPI: código ou palavras (ex.: concreto fck 30)","aria-label":"Buscar na SINAPI"}), res=el("div",{class:"lista"}), info=el("small",{class:"info"});
+  const box=el("details",{class:"card"}, el("summary",{text:"🔎 Item da SINAPI (preço da tabela importada nas Ferramentas)"}), info, inp, res);
+  let tm;
+  const buscar=async()=>{ const b=await sinapiBase();
+    if(!b){ repor(info, "Este celular ainda não tem a tabela SINAPI. ", el("button",{class:"linkbtn",type:"button",text:"Importar nas Ferramentas",onclick:()=>{ SINAPI.base=undefined; abrirFerramentas("/ferramentas/sinapi/?de=wigo"); }})); inp.hidden=true; return; }
+    const uf=localStorage.getItem("sinapi-uf")||b.uf||"MG"; info.textContent=`${b.arq||"SINAPI"}${b.mes?" · "+b.mes:""} · ${uf}${b.des?" · "+b.des:""}`; inp.hidden=false;
+    const q=semAcento(inp.value.trim()); if(q.length<2) return repor(res);
+    const ps=q.split(/\s+/), achou=[];
+    for(const it of b.itens){ const t=semAcento(it.c+" "+it.d); if(ps.every(p=>t.includes(p))){ achou.push(it); if(achou.length>=12) break; } }
+    repor(res, ...(achou.length ? achou.map(it=>{ const pr=precoSinapi(it, uf);
+      return el("button",{class:"bg-item",type:"button",onclick:()=>{ aoEscolher({...it, preco:pr}); inp.value=""; repor(res); toast("Item da SINAPI incluído: confira a quantidade."); }},
+        el("b",{text:`${it.c} · ${it.u||""}${pr!=null?" · R$ "+pr.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}):""}`}), el("small",{text:it.d.slice(0,160)})); })
+      : [el("p",{class:"info",text:"Nada encontrado com essas palavras."})])); };
+  inp.oninput=()=>{ clearTimeout(tm); tm=setTimeout(buscar,150); };
+  box.addEventListener("toggle", ()=>{ if(!box.open) return; if(SINAPI.base===null) SINAPI.base=undefined; buscar(); }); // importou depois: lê de novo
+  return box;
 }
 // valor de um campo em texto curto (cartões e PDF)
 function fmtVal(c, v){
@@ -10382,6 +10471,10 @@ function pendInicio(){
     bts.push(el("button",{class:"btn",type:"button",style:"color:var(--bad);font-weight:700",
       text:`⚠ ${c} lançamento${c>1?"s":""} deste celular sem enviar desde ${new Date(desde).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}${S.err?` · ${S.err.slice(0,80)}`:""}. Toque para tentar de novo; se continuar, avise o desenvolvedor.`,
       onclick:()=>{ S.err=""; sync(); }}));
+  if(pode("pontoger")){ const fr=faltasRepetidas();
+    if(fr.length) bts.push(el("button",{class:"btn",type:"button",text:`⚠ ${fr.length} pessoa${fr.length>1?"s":""} com 3 faltas ou mais no mês: ${fr.slice(0,3).map(x=>`${primeiroNome(x.p.nome)} (${x.n})`).join(", ")}${fr.length>3?"…":""}`,
+      onclick:()=>efModal(`Faltas no mês (${mesTxt(hojeISO().slice(0,7))})`, [el("div",{class:"full"}, tabelaSimples(["Pessoa","Faltas","Dias"], fr.map(x=>[x.p.nome, x.n, x.dias.map(ddmm).join(", ")]))),
+        el("p",{class:"info full",text:"Conta só as faltas (F). Atestado e folga não entram. Para o RH e a assistente social acompanharem."})], [el("button",{class:"btn pri",type:"button",text:"Fechar",onclick:fecharEf})])})); }
   const ab=pode("qual") ? regs2De("qual","cp").filter(r=>r.status==="Aguardando" && cpAbaixo(r.dados).length).length : 0;
   if(ab) bts.push(el("button",{class:"btn",type:"button",style:"color:var(--bad)",text:`⚠ ${ab} moldage${ab>1?"ns":"m"} de concreto abaixo da resistência esperada para a idade`,onclick:()=>{ RG.tipo.qual="cp"; abrirModulo("qual"); }}));
   const n=pode("qual") ? cpPendentes().filter(x=>x.data<=hojeISO()).length : 0;
@@ -10401,8 +10494,10 @@ const MOD2={
       titulo:d=>d.equip||"Equipamento"},
     {id:"cad", nome:"Cadastro", novo:"Novo equipamento", semData:true, status:["Ativo","Inativo"],
       campos:[{k:"nome",rot:"Nome",t:"txt",obrig:true,dica:"Ex.: Escavadeira 01"},{k:"tipo",rot:"Tipo",t:"txt",ops:EQUIP_PADRAO},{k:"ident",rot:"Identificação / placa",t:"txt"},
-        {k:"posse",rot:"Próprio ou locado",t:"sel",ops:["Próprio","Locado"]},{k:"empresa",rot:"Empresa",t:"txt"}]}],
-    topo:(T)=>T.id==="apont" && !equipsCadastrados().length ? [el("p",{class:"aviso",text:"Cadastre os equipamentos primeiro (aba Cadastro)."})] : []},
+        {k:"posse",rot:"Próprio ou locado",t:"sel",ops:["Próprio","Locado"]},{k:"empresa",rot:"Empresa",t:"txt"},
+        {k:"rev",rot:"Revisão a cada",t:"num",un:"h",dica:"Ex.: 250 (vazio = não controla)"},{k:"hRev",rot:"Horímetro na última revisão",t:"num",un:"h"},
+        {k:"valor",rot:"Valor da locação (R$)",t:"num",dica:"Só para locados"},{k:"valorUn",rot:"Valor por",t:"sel",ops:["hora","dia","mês"],padrao:"dia"}]}],
+    topo:(T)=>T.id==="apont" && !equipsCadastrados().length ? [el("p",{class:"aviso",text:"Cadastre os equipamentos primeiro (aba Cadastro)."})] : [cartaoEquips()]},
   seg:{nome:"Segurança", desc:"DDS, inspeções, escavações, treinamentos e ASO, permissão de trabalho, EPI, máquinas e ocorrências", edit:"seg-edit", tipos:[
     {id:"dds", nome:"DDS", novo:"Novo DDS", fotos:"Foto do DDS",
       campos:[{k:"tema",rot:"Tema",t:"txt",obrig:true,full:true},{k:"part",rot:"Participantes",t:"pessoas"},{k:"resp",rot:"Quem conduziu",t:"pessoa",padrao:()=>nomeRel(U?.nome)},{k:"obs",rot:"Observação",t:"area"}],
@@ -10447,7 +10542,7 @@ const MOD2={
   med:{nome:"Medições", desc:"Boletins, rede assentada (GPS ou trena) e cronograma com curva S", edit:"med-edit", tipos:[
     {id:"bol", nome:"Boletins", novo:"Novo boletim", status:["Rascunho","Fechado"],
       campos:[{k:"num",rot:"Número",t:"txt",obrig:true,padrao:()=>String(regs2De("med","bol").length+1)},{k:"ini",rot:"Período: de",t:"data",obrig:true},{k:"fim",rot:"até",t:"data",obrig:true,padrao:()=>hojeISO()},
-        {k:"itens",rot:"Itens medidos (manuais)",t:"itens",semCard:false},{k:"obs",rot:"Observação",t:"area"}],
+        {k:"itens",rot:"Itens medidos (manuais)",t:"itens",semCard:false,sinapi:true},{k:"obs",rot:"Observação",t:"area"}],
       titulo:d=>`Boletim nº ${d.num||"?"} · ${d.ini?ddmm(d.ini):"?"} a ${d.fim?ddmm(d.fim):"?"}`}],
     topo:()=>[el("div",{class:"row"}, el("button",{class:"btn",type:"button",text:"Planilha de medição do aço (Ajustes)",onclick:()=>{ abrirTela("aco"); show("dados"); setTimeout(()=>$("#med-fechadas")?.scrollIntoView({behavior:"smooth"}),200); }}))],
     rodape:(T, lista)=>lista.length ? [el("p",{class:"info",text:"No PDF de cada boletim sai também o avanço físico do aço por estrutura até a data final."}),
@@ -10521,8 +10616,36 @@ function importarArquivo(){
   return fila.length;
 }
 window.wigoArquivo = importarArquivo;
-setTimeout(importarArquivo, 1500); // o que ficou na fila enquanto o app estava fechado
-document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="visible") importarArquivo(); });
+// Escanear e Assinar das Ferramentas → Fotos da obra (Cache "ferr-wigo", /ferr-wigo/saida/…). Imagem vira foto; PDF vira uma foto por página.
+async function receberDasFerramentas(){
+  if(!("caches" in window) || receberDasFerramentas.ocupado) return 0;
+  const c=await caches.open("ferr-wigo"), ks=(await c.keys()).filter(k=>new URL(k.url).pathname.startsWith("/ferr-wigo/saida/"));
+  if(!ks.length) return 0;
+  if(!pode("fotos-edit")){ toast("Seu cargo não guarda fotos: os documentos das Ferramentas ficaram esperando."); return 0; }
+  receberDasFerramentas.ocupado=true; let n=0; const leg0=FT.legenda;
+  try{
+    for(const k of ks){ const r=await c.match(k); if(!r){ continue; }
+      const b=await r.blob(), nome=decodeURIComponent(r.headers.get("X-Nome")||"documento"), leg=decodeURIComponent(r.headers.get("X-Legenda")||nome).slice(0,120);
+      const fotos=[];
+      if(b.type==="application/pdf" || /\.pdf$/i.test(nome)){
+        await loadPdfjs(); const pdf=await pdfjsLib.getDocument({isEvalSupported:false, data:new Uint8Array(await b.arrayBuffer()), isOffscreenCanvasSupported:false}).promise;
+        for(let i=1;i<=Math.min(pdf.numPages,20);i++){ const pg=await pdf.getPage(i), vp=pg.getViewport({scale:Math.min(2, 1600/pg.getViewport({scale:1}).width)});
+          const cv=el("canvas",{width:Math.round(vp.width),height:Math.round(vp.height)}), cx=cv.getContext("2d"); cx.fillStyle="#fff"; cx.fillRect(0,0,cv.width,cv.height);
+          await pg.render({canvasContext:cx, viewport:vp}).promise;
+          fotos.push([new File([await new Promise(ok=>cv.toBlob(ok,"image/jpeg",0.86))], `${nome}_p${i}.jpg`, {type:"image/jpeg"}), pdf.numPages>1?`${leg} · p. ${i}`:leg]); }
+        pdf.destroy();
+      } else fotos.push([new File([b], nome, {type:b.type||"image/jpeg"}), leg]);
+      for(const [f,l] of fotos){ FT.legenda=l; if(await guardarFoto(f)) n++; }
+      await c.delete(k);
+    }
+  }catch(e){ toast("Não foi possível guardar um documento das Ferramentas: "+(e.message||e)); }
+  finally{ FT.legenda=leg0; receberDasFerramentas.ocupado=false; }
+  if(n){ toast(`${n} página${n>1?"s":""} guardada${n>1?"s":""} em Fotos da obra.`); if(!$("#tela-fotos").hidden) renderFotos(); }
+  return n;
+}
+window.wigoReceber = receberDasFerramentas;
+setTimeout(()=>{ importarArquivo(); receberDasFerramentas().catch(()=>{}); }, 1500); // o que ficou na fila enquanto o app estava fechado
+document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="visible"){ importarArquivo(); receberDasFerramentas().catch(()=>{}); } });
 const corArq = r => r.status==="Conforme" ? "ok" : r.status==="Divergente" ? "bad" : "";
 // filtros do Arquivo: obra e material (recebimentos) ou tipo de cálculo
 function topoArquivo(T, lista){
@@ -11441,6 +11564,10 @@ function checagemObra(){
   if(cr) item(atr.length?"and":"ok", atr.length ? `${atr.length} atividade(s) do cronograma atrasada(s)` : "Cronograma sem atividade atrasada", atr.map(l=>`${l.x.d.ativ}: ${pct(l.pr)} de ${pct(l.esp)} esperado`), ()=>{ RG.tipo.med="crono"; abrirModulo("med"); });
   if(pode("prod") && prevFresca()){ const cc=concComChuva();
     item(cc.length?"and":"ok", cc.length ? `${cc.length} concretagem(ns) programada(s) com chuva prevista nos próximos 7 dias` : "Sem chuva prevista nas concretagens dos próximos 7 dias", cc.map(txtChuva), ()=>abrirTela("conc")); }
+  if(pode("equip")){ const cs=equipCads(), rv=cs.map(c=>[c, situacaoEquip(c).rev]).filter(([,r])=>r && r.cor!=="ok"), sc=semChecklistHoje();
+    if(cs.some(c=>+c.dados.rev>0)) item(rv.some(([,r])=>r.cor==="bad")?"bad":rv.length?"and":"ok", rv.length ? `${rv.length} equipamento(s) com revisão vencida ou próxima` : "Revisões dos equipamentos em dia",
+      rv.map(([c,r])=>`${c.dados.nome}: ${r.falta<=0?`vencida há ${nf0.format(-r.falta)} h`:`faltam ${nf0.format(r.falta)} h`}`), ()=>{ RG.tipo.equip="apont"; abrirModulo("equip"); });
+    if(sc.length) item("and", `${sc.length} equipamento(s) trabalhando hoje sem checklist de máquina`, sc.map(c=>c.dados.nome), ()=>{ RG.tipo.seg="maq"; abrirModulo("seg"); }); }
   const ordem={bad:0, and:1, ok:2}; return R.sort((a,b)=>ordem[a.cor]-ordem[b.cor]);
 }
 const COR_SEM={bad:"🔴", and:"🟡", ok:"🟢"};

@@ -22,7 +22,8 @@
  *                  1 linha por registro; MODULO + TIPO dizem o que é e DADOS (JSON) guarda os campos
  *   Acessos      — 1 linha por celular: quem pediu (nome e cargo) e se o desenvolvedor liberou ou recusou
  *
- * Pastas ao lado da planilha: "Projetos" (PDFs da armação), "Formas" (PDFs da forma) e "Fotos" (fotos tiradas no app).
+ * Pastas ao lado da planilha: "Projetos" (PDFs da armação), "Formas" (PDFs da forma), "Fotos" (fotos tiradas no app)
+ * e "Arquivos" (enviados pelo app em Arquivo da obra › Enviados).
  *
  * Instalação: veja LEIA-ME.md. Resumo:
  *   1. Rode a função configurar() e copie a senha do registro.
@@ -554,6 +555,7 @@ function doPost(e) {
     if (corpo.acao === 'miniatura') return miniatura(String(corpo.url || ''));
     if (corpo.acao === 'rdoVoz') return organizarRdo(corpo);
     if (corpo.acao === 'ccTracos') return { tracos: lerTracos(String(corpo.conc || '')) };
+    if (corpo.acao === 'arqEnviar') return enviarArquivo_(corpo, usuario);
     const recusadas = comLock_(() => aplicar(corpo.ops || [], Object.assign({ dev: dev }, usuario)));
     const out = carregar(corpo.v || '');
     if (recusadas.length) out.recusadas = recusadas;
@@ -804,13 +806,13 @@ function listarProjetos(nome) {
 // falhar, pede menor. "parte" (pedaços fixos de 2 MB) fica para o app v58; sem nada (app antigo), vai o arquivo inteiro.
 const TAM_PARTE_PDF = 2 * 1024 * 1024;
 function lerPdf(id, parte, ini, tam) {
-  const donos = PASTAS_PDF.map(n => pasta(n).getId());
+  const donos = PASTAS_PDF.map(n => pasta(n).getId()), arqs = pasta('Arquivos').getId();
   let f;
   try { f = DriveApp.getFileById(id); } catch (e) { throw new Error('Arquivo não encontrado.'); }
-  // só entrega arquivos que estão na pasta Projetos ou Formas
-  let dentro = false;
-  for (const p = f.getParents(); p.hasNext();) if (donos.indexOf(p.next().getId()) >= 0) { dentro = true; break; }
-  if (!dentro || (f.getMimeType() !== MimeType.PDF && !/\.(dwg|dxf)$/i.test(f.getName()))) throw new Error('Arquivo fora das pastas Projetos e Formas.');
+  // só entrega o que está na pasta Projetos ou Formas (PDF e DWG/DXF) ou na pasta Arquivos (enviados pelo app, de qualquer tipo)
+  let dentro = false, livre = false;
+  for (const p = f.getParents(); p.hasNext();) { const pid = p.next().getId(); if (pid === arqs) { dentro = livre = true; break; } if (donos.indexOf(pid) >= 0) dentro = true; }
+  if (!dentro || (!livre && f.getMimeType() !== MimeType.PDF && !/\.(dwg|dxf)$/i.test(f.getName()))) throw new Error('Arquivo fora das pastas Projetos, Formas e Arquivos.');
   if (ini != null) return Object.assign(pedacoPdf_(f, Number(ini) || 0, Number(tam) || TAM_PARTE_PDF), { nome: f.getName(), atualizado: f.getLastUpdated().toISOString() });
   const bytes = f.getBlob().getBytes(), base = { nome: f.getName(), atualizado: f.getLastUpdated().toISOString(), total: bytes.length };
   if (parte == null) return Object.assign(base, { b64: Utilities.base64Encode(bytes) });
@@ -832,6 +834,54 @@ function pedacoPdf_(f, ini, tam) {
   } catch (e) { /* sem acesso à API do Drive: usa o jeito antigo */ }
   if (!pedaco || pedaco.length !== fim - a) pedaco = f.getBlob().getBytes().slice(a, fim);
   return { total: total, ini: a, b64: Utilities.base64Encode(pedaco) };
+}
+
+// ---------- arquivos enviados pelo app (script 41): do computador da obra para os celulares, sem WhatsApp ----------
+// O app manda o arquivo em pedaços de 2 MB (o pedido não pode ser grande) para a pasta "Arquivos" ao lado da planilha,
+// pelo envio retomável da API do Drive. Depois o app grava o registro arquivo/env (Registros2) e os celulares baixam
+// pelo acao 'pdf', em pedaços, como os projetos. Apagar o registro manda o arquivo para a lixeira do Drive.
+const ARQ_MAX = 60 * 1024 * 1024, ARQ_PARTE = 2 * 1024 * 1024;
+function enviarArquivo_(corpo, usuario) {
+  const cache = CacheService.getScriptCache();
+  if (corpo.op === 'ini') {
+    const nome = String(corpo.nome || '').replace(/[\\/:*?"<>|]/g, '_').replace(/\s+/g, ' ').trim().slice(0, 150) || 'arquivo';
+    const total = Number(corpo.tamanho) || 0;
+    if (total <= 0 || total > ARQ_MAX) throw new Error('O arquivo precisa ter até 60 MB.');
+    const tipo = /^[\w.+-]+\/[\w.+-]+$/.test(String(corpo.tipo || '')) ? String(corpo.tipo) : 'application/octet-stream';
+    const r = UrlFetchApp.fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&supportsAllDrives=true&fields=id', {
+      method: 'post', contentType: 'application/json; charset=UTF-8', muteHttpExceptions: true,
+      headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken(), 'X-Upload-Content-Type': tipo, 'X-Upload-Content-Length': String(total) },
+      payload: JSON.stringify({ name: nome, parents: [pasta('Arquivos').getId()], mimeType: tipo, description: 'Enviado pelo WIGO por ' + usuario.nome + ' (' + usuario.cargo + ')' }) });
+    const h = r.getHeaders(), loc = h.Location || h.location;
+    if (r.getResponseCode() !== 200 || !loc) throw new Error('O Drive não aceitou o envio (' + r.getResponseCode() + '). Tente de novo.');
+    const up = Utilities.getUuid();
+    cache.put('UP_' + up, JSON.stringify({ loc: loc, total: total }), 21600);
+    return { up: up, parte: ARQ_PARTE };
+  }
+  if (corpo.op === 'parte') {
+    const s = JSON.parse(cache.get('UP_' + String(corpo.up || '')) || 'null');
+    if (!s) throw new Error('O envio expirou. Mande o arquivo de novo.');
+    const ini = Number(corpo.ini) || 0, bytes = Utilities.base64Decode(String(corpo.b64 || '')), fim = ini + bytes.length;
+    // pedaços do meio em múltiplos de 256 KB (regra do Drive); só o último pode ser menor
+    if (!bytes.length || fim > s.total || (fim < s.total && bytes.length % 262144)) throw new Error('Pedaço do arquivo inválido.');
+    const r = UrlFetchApp.fetch(s.loc, { method: 'put', payload: bytes, contentType: 'application/octet-stream', muteHttpExceptions: true, followRedirects: false,
+      headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken(), 'Content-Range': 'bytes ' + ini + '-' + (fim - 1) + '/' + s.total } });
+    const cod = r.getResponseCode();
+    if (cod === 308) { const h = r.getHeaders(), m = String(h.Range || h.range || '').match(/-(\d+)$/); return { recebido: m ? Number(m[1]) + 1 : 0 }; }
+    if (cod !== 200 && cod !== 201) throw new Error('O Drive recusou um pedaço do arquivo (' + cod + '). Mande de novo.');
+    cache.remove('UP_' + String(corpo.up));
+    const f = DriveApp.getFileById(JSON.parse(r.getContentText()).id);
+    logAcesso_(usuario.nome, usuario.cargo, 'Arquivo enviado', f.getName() + ' · ' + Math.round(f.getSize() / 1024) + ' KB');
+    return { fim: true, arquivo: { id: f.getId(), nome: f.getName(), tamanho: f.getSize(), atualizado: f.getLastUpdated().toISOString() } };
+  }
+  throw new Error('Pedido de envio inválido.');
+}
+// lixeira do Drive para o arquivo de um registro arquivo/env apagado (só se estiver na pasta Arquivos)
+function lixeiraArquivo_(dadosTxt) {
+  try {
+    const f = DriveApp.getFileById(String(JSON.parse(dadosTxt || '{}').id || '')), arqs = pasta('Arquivos').getId();
+    for (const p = f.getParents(); p.hasNext();) if (p.next().getId() === arqs) { f.setTrashed(true); return; }
+  } catch (e) { /* já apagado */ }
 }
 
 // ---------- leitura ----------
@@ -861,7 +911,8 @@ function linhas(nome) {
 // 38: tempo para abrir o app e para sincronizar, por celular (coluna TEMPOS da aba Aparelhos; Painel Dev › Aparelhos).
 // 39: liberação com prazo (VALIDADE), PIN pessoal por cargo (PIN, Propriedade PIN_CARGOS) e aceite do termo de uso (LGPD) no Histórico.
 // 40: a lista de projetos traz também as plantas DWG/DXF das pastas Projetos e Formas (o app abre no leitor das Ferramentas).
-const VERSAO_SCRIPT = 40;
+// 41: arquivos enviados pelo app (acao 'arqEnviar', pasta Arquivos): do computador da obra para o celular, sem WhatsApp.
+const VERSAO_SCRIPT = 41;
 
 // Colunas de código que precisam ficar como TEXTO. Sem isso o Planilhas converte
 // "DEC-0001" em data (dez/2001) e o código se perde.
@@ -1363,6 +1414,7 @@ function aplicar(ops, usuario) {
       mudou.R2 = true;
     } else if (op.t === 'reg2Del') {
       const id = String(op.id || ''); if (!iR2.has(id)) continue;
+      const at = R2[iR2.get(id)]; if (at[1] === 'arquivo' && at[3] === 'env') lixeiraArquivo_(at[4]);
       R2 = R2.filter(r => String(r[0]) !== id); iR2 = indice(R2, r => String(r[0]));
       mudou.R2 = true;
     } else if (op.t === 'ativDel') {

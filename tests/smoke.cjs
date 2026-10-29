@@ -41,6 +41,18 @@ const confere = (ok, msg) => { console.log(`${ok ? "ok  " : "FALHA"} ${msg}`); i
     "botão Ferramentas disponível para todos os cargos");
   confere(await p.evaluate(() => MODULOS.some(m => m.id === "arquivo" && m.todos) && !!MOD2.arquivo && typeof importarArquivo === "function" && window.wigoArquivo === importarArquivo),
     "Arquivo da obra disponível e recebendo a fila da Calculadora de obra");
+  // Enviados: do computador para o celular, em pedaços (múltiplos de 256 KB) para a pasta Arquivos do Drive
+  confere(await p.evaluate(async () => {
+    const po = post, ped = [], sv = S.scriptVer; S.scriptVer = 41;
+    post = async b => { ped.push(b); if (b.op === "ini") return { up: "u1", parte: 262144 }; const n = b64Bytes(b.b64).length;
+      return b.ini + n >= 600000 ? { fim: true, arquivo: { id: "drv1", nome: "planta.dwg", tamanho: 600000, atualizado: "2026-10-29T10:00:00.000Z" } } : { recebido: b.ini + n }; };
+    try { await enviarArquivoObra(new File([new Uint8Array(600000).fill(7)], "planta.dwg")); } finally { post = po; S.scriptVer = sv; }
+    const r = regs2De("arquivo", "env").find(x => x.dados.id === "drv1"), box = painelEnviados();
+    const ok = ped.length === 4 && ped[0].tipo === "application/acad" && ped[2].ini === 262144 && b64Bytes(ped[3].b64).length === 600000 - 2 * 262144
+      && b64Bytes(ped[1].b64)[0] === 7 && !!r && r.dados.de === "computador" && box.length >= 4 && (LS.get("envVistos") || []).includes(r.id);
+    if (r) delReg2(r.id);
+    return ok;
+  }), "Arquivo da obra › Enviados manda o arquivo em pedaços e cria o registro para os celulares");
   // campo e saneamento: abas novas nos módulos que já existiam e as contas de referência
   confere(await p.evaluate(() => {
     const tem = (m, t) => MOD2[m].tipos.some(x => x.id === t);

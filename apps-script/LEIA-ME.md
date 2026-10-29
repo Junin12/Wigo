@@ -7,6 +7,10 @@ Cópia do script publicado no Apps Script (sem senhas: a senha do app, TOKEN, e 
 ficam nas Propriedades do script). Quando mudar o script aqui, cole no Apps Script e publique:
 **Implantar → Gerenciar implantações → lápis ✏️ → Versão: Nova versão → Implantar** (o endereço /exec não muda).
 
+Versão 41: Arquivo da obra › Enviados. O app (no computador ou no celular) manda qualquer arquivo de até 60 MB em pedaços
+para a pasta **Arquivos** ao lado da planilha (envio retomável da API do Drive) e os celulares baixam de lá. Apagar o
+registro no app manda o arquivo para a lixeira do Drive. Com o script 40 o resto do app funciona igual, só sem enviar arquivos.
+
 Versão 40: a lista de projetos (pastas Projetos e Formas) traz também as plantas DWG/DXF; no app, tocar numa delas abre o
 leitor de DWG das Ferramentas (medir, camadas, exportar em PDF/HTML). Com o script 39 o app funciona igual, só sem as plantas DWG na lista.
 

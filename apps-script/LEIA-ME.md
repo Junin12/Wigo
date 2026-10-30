@@ -7,6 +7,10 @@ Cópia do script publicado no Apps Script (sem senhas: a senha do app, TOKEN, e 
 ficam nas Propriedades do script). Quando mudar o script aqui, cole no Apps Script e publique:
 **Implantar → Gerenciar implantações → lápis ✏️ → Versão: Nova versão → Implantar** (o endereço /exec não muda).
 
+Versão 42: formas dos floculadores. A 1ª etapa usa a área medida na obra (Floculador A 55,99 m², C 55,64 m²: painéis ULMA
+da Águia + laje de fundo do consórcio) e a tabela forma_etapas traz, por floculador, projeto, Águia e consórcio. Com o script 41
+o app funciona igual; só o Power BI segue com 17,36 m² na 1ª etapa.
+
 Versão 41: Arquivo da obra › Enviados. O app (no computador ou no celular) manda qualquer arquivo de até 60 MB em pedaços
 para a pasta **Arquivos** ao lado da planilha (envio retomável da API do Drive) e os celulares baixam de lá. Apagar o
 registro no app manda o arquivo para a lixeira do Drive. Com o script 40 o resto do app funciona igual, só sem enviar arquivos.

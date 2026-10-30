@@ -701,6 +701,8 @@ function concretoResumo_() {
 // ---------- formas (ULMA COMAIN, paredes dos floculadores): produtividade para o painel e o Power BI ----------
 // m² de forma de cada etapa no projeto B291468-R00-001 (o app calcula o mesmo pela tabela de peças: fmM2Etapa).
 const FORMA_ETAPAS_M2 = [['1ª etapa', 17.36], ['2ª etapa', 205.04], ['3ª etapa', 249.08], ['4ª etapa', 82.44]];
+// 1ª etapa medida na obra (m²): painéis ULMA da Águia + laje de fundo feita pelo consórcio (mesma tabela do app: FORMA_ET1_FLOC)
+const FORMA_ET1_FLOC_ = { 'Floculador A': 55.99, 'Floculador C': 55.64 };
 // lançamentos do módulo Forma, sem nomes de pessoas nem observações (a chave de leitura é compartilhada).
 // Desde o app v84 o lançamento é semanal: data = segunda-feira da semana e "dias" = dias trabalhados; os antigos (sem "dias") são diários.
 function formaDias_() {
@@ -719,13 +721,15 @@ const FLOCS_ = ['Floculador A', 'Floculador B', 'Floculador C'];
 function formaEtapas_(config, dias) {
   const conc = String(config.FORMA_CONCLUIDAS != null ? config.FORMA_CONCLUIDAS : 'Floculador A:1ª etapa').split('|')
     .map(x => x.indexOf(':') >= 0 ? x : 'Floculador A:' + x);
-  return FORMA_ETAPAS_M2.map(([etapa, proj]) => {
+  return FORMA_ETAPAS_M2.map(([etapa, proj], k) => {
     const lanc = dias.filter(x => x.etapa === etapa).reduce((s, x) => s + x.mont, 0);
     const porFloc = FLOCS_.map(f => {
+      const pj = k === 0 && FORMA_ET1_FLOC_[f] ? Math.max(proj, FORMA_ET1_FLOC_[f]) : proj;
       const c = conc.indexOf(f + ':' + etapa) >= 0, l = dias.filter(x => x.etapa === etapa && x.obra === f).reduce((s, x) => s + x.mont, 0);
-      return { obra: f, concluida: c, lancado: l, avanco: c ? proj : Math.min(proj, l) };
+      const avanco = c ? pj : Math.min(pj, l), aguia = Math.min(avanco, proj);
+      return { obra: f, projeto: pj, concluida: c, lancado: l, avanco: avanco, aguia: aguia, consorcio: avanco - aguia };
     });
-    const av = porFloc.reduce((s, x) => s + x.avanco, 0), tot = proj * FLOCS_.length;
+    const av = porFloc.reduce((s, x) => s + x.avanco, 0), tot = porFloc.reduce((s, x) => s + x.projeto, 0);
     return { etapa: etapa, projeto: tot, projetoFloc: proj, lancado: lanc, concluida: porFloc.filter(x => x.concluida).map(x => x.obra.slice(-1)).join(', '),
       avanco: av, pct: tot ? av / tot : 0, porFloc: porFloc };
   });
@@ -912,7 +916,7 @@ function linhas(nome) {
 // 39: liberação com prazo (VALIDADE), PIN pessoal por cargo (PIN, Propriedade PIN_CARGOS) e aceite do termo de uso (LGPD) no Histórico.
 // 40: a lista de projetos traz também as plantas DWG/DXF das pastas Projetos e Formas (o app abre no leitor das Ferramentas).
 // 41: arquivos enviados pelo app (acao 'arqEnviar', pasta Arquivos): do computador da obra para o celular, sem WhatsApp.
-const VERSAO_SCRIPT = 41;
+const VERSAO_SCRIPT = 42;
 
 // Colunas de código que precisam ficar como TEXTO. Sem isso o Planilhas converte
 // "DEC-0001" em data (dez/2001) e o código se perde.

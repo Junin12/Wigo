@@ -2269,7 +2269,7 @@ function setCampo(on){ LS.set("campo",!!on); if(on) document.documentElement.dat
 $("#campo-modo").addEventListener("click", e=>{ const b=e.target.closest("button[data-c]"); if(b) setCampo(b.dataset.c==="1"); });
 setCampo(!!LS.get("campo"));
 
-const VERSAO_APP = "v173"; // igual ao número em sw.js (armacao-v173)
+const VERSAO_APP = "v174"; // igual ao número em sw.js (armacao-v174)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -4741,7 +4741,7 @@ function insightsForma(){
   const ult=s.at(-1), dias=ult?Math.round((new Date(hojeISO())-new Date(ult.seg))/864e5):null;
   R.numeros.push(["Avanço", pct(c.totProj?c.avanco/c.totProj:0), `${nf0.format(c.avanco)} de ${nf0.format(c.totProj)} m²`], ["Ritmo", c.porSem?`${nf0.format(c.porSem)} m²/sem`:"–", `${c.semanas} semana(s) com montagem`],
     ["Produtividade", c.prod?`${nf1.format(c.prod)} m²`:"–", "por pessoa/dia"], ["Término previsto", c.fim?dataBR(c.fim):"–", c.fim?`faltam ${nf0.format(c.falta)} m²`:"depende do ritmo"]);
-  R.resumo.push(`As formas estão em ${pct(c.totProj?c.avanco/c.totProj:0)} da meta (${nf0.format(c.avanco)} de ${nf0.format(c.totProj)} m², comparativo maior). Montagem pela ${FORMA_MONTADORA}.`);
+  R.resumo.push(`As formas estão em ${pct(c.totProj?c.avanco/c.totProj:0)} da meta (${nf0.format(c.avanco)} de ${nf0.format(c.totProj)} m², comparativo maior). Montagem pela ${FORMA_MONTADORA}: ${nf0.format(c.aguia)} m² com os painéis ULMA; consórcio: ${nf0.format(c.cons)} m² (laje de fundo).`);
   if(c.porSem) R.resumo.push(`Ritmo médio de ${nf0.format(c.porSem)} m²/semana; nesse ritmo o restante (${nf0.format(c.falta)} m²) leva ~${c.semFalta} semanas${c.fim?`, até ${dataBR(c.fim)}`:""}.`);
   if(c.porSem && c.semFalta>52) R.atencao.push(["alto", `No ritmo atual as formas levariam ${c.semFalta} semanas (~${nf1.format(c.semFalta/52)} anos). O ritmo de hoje vem só dos floculadores; as demais obras (${nf0.format(c.falta)} m²) exigem frentes simultâneas.`]);
   if(pU && pA){ const d=(pU-pA)/pA; R.resumo.push(`Produtividade nas 2 últimas semanas: ${nf1.format(pU)} m²/pessoa·dia (${sinal(d)} sobre as anteriores).`);
@@ -4750,11 +4750,11 @@ function insightsForma(){
   if(c.m2>0 && !c.desm) R.acoes.push("Lançar também a desforma: com montagem e desforma o app mede o ciclo da forma ULMA (montar → concretar → desformar) e o tempo parado entre etapas.");
   // sequência da forma ULMA: o mesmo jogo serve os três floculadores; o próximo passo depende do concreto
   const prox=[];
-  for(const x of c.etObra){ const k=x.ck.findIndex((ok,i)=>!(ok || x.av[i]>=c.proj[i]*0.999)); if(k<0){ prox.push(`${x.obra}: forma concluída`); continue; }
+  for(const x of c.etObra){ const k=x.ck.findIndex((ok,i)=>!(ok || x.av[i]>=x.proj[i]*0.999)); if(k<0){ prox.push(`${x.obra}: forma concluída`); continue; }
     const concAnt=ceDe(x.obra,k)?.status; // etapa de concreto que libera esta forma (magro libera o fundo; o fundo libera o lance 1…)
     prox.push(`${x.obra}: próxima forma = ${FORMA.etapas[k]}${k===0 ? (concAnt==="Executada"?" (magro pronto: pode montar)":" (aguarda o magro)") : concAnt==="Executada" ? " (o concreto da etapa anterior já foi feito: pode desformar e subir)" : " (aguarda a concretagem da etapa anterior)"}`); }
   if(prox.length) R.resumo.push("Sequência da forma ULMA: "+prox.join("; ")+".");
-  const prontos=c.etObra.filter(x=>{ const k=x.ck.findIndex((ok,i)=>!(ok||x.av[i]>=c.proj[i]*0.999)); return k>=0 && ceDe(x.obra,k)?.status==="Executada"; });
+  const prontos=c.etObra.filter(x=>{ const k=x.ck.findIndex((ok,i)=>!(ok||x.av[i]>=x.proj[i]*0.999)); return k>=0 && ceDe(x.obra,k)?.status==="Executada"; });
   const lista=n=>n.length>1 ? n.slice(0,-1).join(", ")+" e "+n.at(-1) : n[0]||"";
   if(prontos.length) R.acoes.push(`Forma liberada para subir em: ${lista(prontos.map(x=>x.obra))} (o concreto da etapa anterior já foi feito). Como o jogo ULMA é um só, alterne: monte num floculador enquanto o outro concreta, para a equipe da ${FORMA_MONTADORA} não parar esperando concreto.`);
   if(c.semanas && c.semanas<3) R.atencao.push(["info", `Ritmo e término calculados com só ${c.semanas} semana(s) de montagem: a projeção ainda é fraca e melhora a cada semana lançada.`]);
@@ -9568,6 +9568,12 @@ const brl = v => (v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"}
 const fmItens = () => FORMA.itens.map(([cod,desc,m2,ped,c1,c2,vu,et])=>{ const rec=c1+c2, nec=Math.max(...et);
   return {cod,desc,m2,ped,c1,c2,rec,vu,et,nec,saldo:rec-nec, grupo: m2>0 ? "Painéis, cantos e compensadores" : nec>0 ? "Acessórios do projeto" : "Fora do projeto das paredes"}; });
 const fmM2Etapa = () => FORMA.etapas.map((_,k)=>FORMA.itens.reduce((s,i)=>s+i[2]*i[7][k],0));
+// 1ª etapa medida na obra (m²): os painéis ULMA montados pela Águia (17,36 m² do projeto) + a forma da laje de fundo, feita
+// pelo consórcio. Floculador sem medição (B) fica só com o projeto ULMA. Mesma tabela no Code.gs (FORMA_ET1_FLOC_).
+const FORMA_ET1_FLOC = {"Floculador A":55.99, "Floculador C":55.64};
+const FORMA_CONSORCIO = "Consórcio";
+const fmProjFloc = o => fmM2Etapa().map((v,k)=>k===0 && FORMA_ET1_FLOC[o] ? Math.max(v, FORMA_ET1_FLOC[o]) : v);
+const ehConsorcio = emp => /cons[oó]rcio/i.test(emp||"");
 const fmPar = () => ({ equipe:Math.round(num(cfgv("FORMA_EQUIPE","6")))||0 });
 // Quantitativos de forma de cada obra da ETA (Comparativo Levantamento de Quantidades.xlsx, aba RESUMO F).
 // Referência do contrato do cliente = planilha contratual CODAU; a nossa (o que ficou determinado) = COMPARATIVO MAIOR.
@@ -9616,12 +9622,15 @@ function fmCalc(){
   const L=regs2De("forma","apont"), par=fmPar(), proj=fmM2Etapa(), totProj=proj.reduce((s,x)=>s+x,0), conc=fmConcluidas();
   const porEt=FORMA.etapas.map(()=>({mont:0,desm:0})), sems=new Map(), porObra=new Map(); // segunda-feira -> semana; obra -> m² lançado
   const porEtObra=new Map(FLOCS.map(o=>[o, FORMA.etapas.map(()=>0)])); // m² lançados por floculador e etapa
-  let m2=0, desm=0;
+  const consObra=new Map(); // obra -> m² lançados com empresa = consórcio (fora dos floculadores)
+  let m2=0, desm=0, eqAguia=0, eqData="";
   for(const r of L){
     const d=r.dados, n=d.n||0, mont=d.mont||0, seg=segSemana(r.data);
     const x=sems.get(seg) || {seg, m2:0, desm:0, pdSem:0, diasSem:0, diaN:new Map(), etapas:new Set(), obras:new Set()};
     x.m2+=mont; x.desm+=d.desm||0; m2+=mont; desm+=d.desm||0; if(d.etapa) x.etapas.add(d.etapa); x.obras.add(fmObra(d));
     porObra.set(fmObra(d), (porObra.get(fmObra(d))||0)+mont);
+    if(ehConsorcio(d.emp)) consObra.set(fmObra(d), (consObra.get(fmObra(d))||0)+mont);
+    else if(n && r.data>=eqData){ eqAguia=n; eqData=r.data; } // equipe da Águia: a do lançamento mais recente
     // pessoas-dia: na semanal, pessoas × dias trabalhados; na diária, as pessoas do dia (só montagem, nos antigos com atividade).
     // A equipe é uma só: duas etapas na mesma semana (ou no mesmo dia) não somam a equipe duas vezes
     if(fmSemanal(d)){ x.pdSem=Math.max(x.pdSem, n*(d.dias||0)); x.diasSem=Math.max(x.diasSem, d.dias||0); }
@@ -9629,15 +9638,19 @@ function fmCalc(){
     sems.set(seg,x);
     const k=FORMA.etapas.indexOf(d.etapa); if(k>=0){ porEt[k].mont+=mont; porEt[k].desm+=d.desm||0; if(porEtObra.has(fmObra(d))) porEtObra.get(fmObra(d))[k]+=mont; }
   }
-  // etapas ULMA por floculador: a área do projeto se a etapa está concluída naquele floculador; senão o lançado nela, sem passar do projeto
-  const etObra=FLOCS.map(o=>{ const lan=porEtObra.get(o), ck=FORMA.etapas.map(e=>conc.includes(o+":"+e));
-    const av=FORMA.etapas.map((e,k)=>ck[k] ? proj[k] : Math.min(proj[k], lan[k]));
-    return {obra:o, lan, ck, av, extra:FORMA.etapas.reduce((s,e,k)=>s+(ck[k] ? Math.max(0, proj[k]-lan[k]) : 0),0)}; });
-  const av=FORMA.etapas.map((e,k)=>etObra.reduce((s,x)=>s+x.av[k],0)), etAv=av.reduce((s,x)=>s+x,0), etTot=totProj*FLOCS.length;
+  // etapas por floculador: a área da etapa naquele floculador (projeto ULMA; na 1ª, a medida) se está concluída; senão o lançado, sem passar dela.
+  // Águia = até a área ULMA da etapa; o que passa disso (laje de fundo da 1ª etapa) é do consórcio
+  const etObra=FLOCS.map(o=>{ const lan=porEtObra.get(o), ck=FORMA.etapas.map(e=>conc.includes(o+":"+e)), pj=fmProjFloc(o);
+    const av=FORMA.etapas.map((e,k)=>ck[k] ? pj[k] : Math.min(pj[k], lan[k])), aguia=av.map((v,k)=>Math.min(v, proj[k]));
+    return {obra:o, proj:pj, lan, ck, av, aguia, cons:av.map((v,k)=>v-aguia[k]), extra:FORMA.etapas.reduce((s,e,k)=>s+(ck[k] ? Math.max(0, pj[k]-lan[k]) : 0),0)}; });
+  const av=FORMA.etapas.map((e,k)=>etObra.reduce((s,x)=>s+x.av[k],0)), etAv=av.reduce((s,x)=>s+x,0);
+  const projEt=FORMA.etapas.map((e,k)=>etObra.reduce((s,x)=>s+x.proj[k],0)), etTot=projEt.reduce((s,x)=>s+x,0); // as 3 formas
   // obras: meta = comparativo maior; concluída conta inteira; senão o lançado (+ etapas ULMA concluídas sem lançamento), sem passar da meta
-  const ok=fmObrasOk(), obras=FORMA_OBRAS.map(o=>{ const mont=porObra.get(o.nome)||0, fim=ok.includes(o.nome), ex=etObra.find(x=>x.obra===o.nome)?.extra||0;
-    return {...o, mont, semLanc:ex, ok:fim, av: fim ? o.maior : Math.min(o.maior, mont+ex)}; });
+  const ok=fmObrasOk(), obras=FORMA_OBRAS.map(o=>{ const mont=porObra.get(o.nome)||0, fim=ok.includes(o.nome), eo=etObra.find(x=>x.obra===o.nome), ex=eo?.extra||0;
+    const av=fim ? o.maior : Math.min(o.maior, mont+ex), cons=Math.min(av, eo ? eo.cons.reduce((s,v)=>s+v,0) : consObra.get(o.nome)||0);
+    return {...o, mont, semLanc:ex, ok:fim, av, cons, aguia:av-cons}; });
   const totObras=obras.reduce((s,o)=>s+o.maior,0), avanco=obras.reduce((s,o)=>s+o.av,0);
+  const aguia=obras.reduce((s,o)=>s+o.aguia,0), cons=avanco-aguia;
   const semLanc=obras.reduce((s,o)=>s+(o.ok ? Math.max(0, o.maior-o.mont) : Math.min(o.semLanc, Math.max(0,o.maior-o.mont))),0);
   let ac=semLanc;
   const serie=[...sems.values()].sort((a,b)=>a.seg.localeCompare(b.seg)).map(x=>{ const pd=x.pdSem+[...x.diaN.values()].reduce((s,v)=>s+v,0); ac+=x.m2;
@@ -9646,7 +9659,7 @@ function fmCalc(){
   // ritmo: média das últimas 4 semanas com montagem (a semana de agora só entra depois de lançada)
   const ult4=comMont.slice(-4), porSem=ult4.length ? ult4.reduce((s,x)=>s+x.m2,0)/ult4.length : 0;
   const falta=Math.max(0,totObras-avanco), semFalta=porSem ? Math.ceil(falta/porSem) : 0, ultSeg=comMont.at(-1)?.seg || segSemana(hojeISO());
-  return {L, par, proj, etTot, etAv, etObra, conc, porEt, av, obras, totProj:totObras, avanco, semLanc, serie, m2, desm, pd:pdMont, semanas:comMont.length,
+  return {L, par, proj, projEt, etTot, etAv, etObra, conc, porEt, av, obras, totProj:totObras, avanco, aguia, cons, eqAguia, semLanc, serie, m2, desm, pd:pdMont, semanas:comMont.length,
     prod:pdMont?m2Prod/pdMont:0, porSem, falta, semFalta,
     fim: porSem && falta ? somaDias(ultSeg, 7*semFalta+4) : ""}; // sexta-feira da semana em que termina
 }
@@ -9661,11 +9674,11 @@ function campoMontagem(v, ctx){
   const jaObra=()=>regs2De("forma","apont").filter(r=>r.id!==ctx.id && fmObra(r.dados)===obra()?.nome).reduce((s,r)=>s+(r.dados.mont||0),0);
   // painéis, cantos e compensadores (têm área); com etapa escolhida, só os que ela usa
   const pecasEt=()=>{ const k=etapaK(); return FORMA.itens.filter(i=>i[2]>0 && (k<0 || i[7][k]>0)); };
-  const jaLancado=()=>{ const e=ctx.valor?.("etapa"); return regs2De("forma","apont").filter(r=>r.id!==ctx.id && r.dados.etapa===e).reduce((s,r)=>s+(r.dados.mont||0),0); };
+  const jaLancado=()=>{ const e=ctx.valor?.("etapa"); return regs2De("forma","apont").filter(r=>r.id!==ctx.id && r.dados.etapa===e && fmObra(r.dados)===obra()?.nome).reduce((s,r)=>s+(r.dados.mont||0),0); };
   const calc=()=>{
     if(st.modo==="pecas") return Object.entries(st.pecas).reduce((s,[cod,q])=>s+q*(FORMA.itens.find(i=>i[0]===cod)?.[2]||0),0);
     if(st.modo==="pct"){ const k=etapaK(), f=Math.min(100,num(st.pct)||0)/100;
-      return k>=0 ? Math.max(0, f*fmM2Etapa()[k] - jaLancado()) : obra() ? Math.max(0, f*obra().maior - jaObra()) : 0; }
+      return k>=0 ? Math.max(0, f*fmProjFloc(obra().nome)[k] - jaLancado()) : obra() ? Math.max(0, f*obra().maior - jaObra()) : 0; }
     return Math.max(0, num(st.m2)||0); };
   const quando=()=>ctx.valor?.("per")==="Dia" ? "no dia" : "na semana";
   const mostrar=()=>{ res.hidden=st.modo==="area"; res.textContent=`Montado ${quando()}: ${nf1.format(calc())} m²`; };
@@ -9685,11 +9698,11 @@ function campoMontagem(v, ctx){
           inp.oninput=()=>{ const q=Math.max(0,Math.round(num(inp.value)||0)); if(q) st.pecas[i[0]]=q; else delete st.pecas[i[0]]; mostrar(); };
           return el("label",{class:"fm-peca"}, el("span",{}, i[1].replace("Painel COMAIN ","Painel "), el("small",{text:`${nf1.format(i[2]).replace(/,0$/,"")} m²`+(k>=0?` · projeto ${i[7][k]}`:"")})), inp); }));
     } else {
-      const o=obra(), porEtapa=k>=0, proj=porEtapa?fmM2Etapa()[k]:o?.maior||0, ja=porEtapa?jaLancado():jaObra();
+      const o=obra(), porEtapa=k>=0, proj=porEtapa?fmProjFloc(o.nome)[k]:o?.maior||0, ja=porEtapa?jaLancado():jaObra();
       const i=el("input",{type:"text",inputMode:"decimal",value:st.pct!==""?String(st.pct).replace(".",","):"",placeholder:"Ex.: 50"}); i.oninput=()=>{ st.pct=i.value; mostrar(); };
       corpo=el("div",{}, campoEf(porEtapa?"Etapa concluída até hoje (%)":"Obra concluída até hoje (%)",i),
         el("p",{class:"info",text: floc() && !porEtapa ? `Escolha a etapa acima, ou deixe sem etapa para usar o % do ${o.nome} (${nf1.format(proj)} m²).`
-          : `${porEtapa?FORMA.etapas[k]:o?.nome||"Obra"}: ${nf1.format(proj)} m² ${porEtapa?"no projeto ULMA":"(comparativo maior)"} · já lançado ${nf1.format(ja)} m² (${pct(proj?ja/proj:0)}). O app lança só a diferença.`}));
+          : `${porEtapa?FORMA.etapas[k]:o?.nome||"Obra"}: ${porEtapa?nf2(proj):nf1.format(proj)} m² ${porEtapa?(proj>fmM2Etapa()[k]+0.005?`medidos no ${o.nome} (${nf2(fmM2Etapa()[k])} m² ULMA da ${FORMA_MONTADORA} + laje de fundo do consórcio)`:"no projeto ULMA"):"(comparativo maior)"} · já lançado ${nf1.format(ja)} m² (${pct(proj?ja/proj:0)}). O app lança só a diferença.`}));
     }
     repor(box, modos, corpo, res); mostrar(); };
   ctx.mudouEtapa=desenhar;
@@ -9745,6 +9758,7 @@ function painelForma(){
     el("div",{class:"kpis"},
       kpi("Forma montada", `${nf1.format(c.avanco)} m²`, `de ${nf1.format(c.totProj)} m² (comparativo maior, ETA) · ${pct(c.totProj?c.avanco/c.totProj:0)} · contrato do cliente (CODAU) ${nf1.format(totCodau)} m²`),
       kpi("Ritmo", c.porSem ? `${nf1.format(c.porSem)} m²` : "–", c.porSem ? (c.semanas===1 ? "por semana · só 1 semana com montagem" : `por semana · média das últimas ${Math.min(4,c.semanas)} com montagem`) : "lance a montagem"),
+      kpi(`Equipe ${FORMA_MONTADORA}`, `${nf1.format(c.aguia)} m²`, `montados com os painéis ULMA${c.eqAguia?` · ${c.eqAguia} montadores no último lançamento`:""} · consórcio (laje de fundo): ${nf1.format(c.cons)} m²`),
       kpi("Produtividade", c.prod ? `${nf1.format(c.prod)} m²` : "–", c.prod ? "por pessoa/dia trabalhado" : "informe pessoas e dias"),
       kpi("Término previsto", c.fim ? ddmm(c.fim) : c.m2 && !c.falta ? "concluída" : "–", c.fim ? `faltam ${nf1.format(c.falta)} m² · ~${c.semFalta} semana${c.semFalta===1?"":"s"}` : "depende do ritmo")),
     barra(c.totProj?c.avanco/c.totProj:0),
@@ -9764,13 +9778,16 @@ function painelForma(){
         : el("p",{class:"vazio",text:"Nada lançado ainda. Toque em + Lançar (semana ou dia)."}),
       el("p",{class:"info",text:"Pessoas-dia = pessoas na equipe × dias trabalhados (no lançamento semanal) ou as pessoas de cada dia (no diário). Duas etapas no mesmo período contam a equipe uma vez só."})),
     secao("etapas", `Etapas ULMA por floculador · ${pct(c.etTot?c.etAv/c.etTot:0)} das 3 formas`,
-      tab(["Etapa","Projeto (m², por floc.)",...FLOCS.map(o=>o.replace("Floculador ","Floc. ")),"Total"], [...FORMA.etapas.map((e,k)=>[e, nf1.format(c.proj[k]),
-        ...c.etObra.map(x=>{ const f=c.proj[k]?x.av[k]/c.proj[k]:0, ck=el("input",{type:"checkbox",checked:x.ck[k],disabled:!ed,"aria-label":`${x.obra}: ${e} concluída sem lançamento`});
+      tab(["Etapa","Projeto ULMA (m², por floc.)",...FLOCS.map(o=>o.replace("Floculador ","Floc. ")),"Total"], [...FORMA.etapas.map((e,k)=>[e, nf1.format(c.proj[k]),
+        ...c.etObra.map(x=>{ const f=x.proj[k]?x.av[k]/x.proj[k]:0, ck=el("input",{type:"checkbox",checked:x.ck[k],disabled:!ed,"aria-label":`${x.obra}: ${e} concluída sem lançamento`});
           ck.onchange=()=>setConcluida(x.obra, e, ck.checked);
-          return el("div",{class:"fm-etc"}, el("b",{class:f>=0.999?"pl-mais":"",text:pct(f)}), el("label",{class:"info"}, ck, x.ck[k]?" concluída":" concl.")); }),
-        pct(c.proj[k]?c.av[k]/(c.proj[k]*FLOCS.length):0)]),
-        ["Total", nf1.format(c.etTot/FLOCS.length), ...c.etObra.map(x=>pct(c.etTot?x.av.reduce((s,v)=>s+v,0)/(c.etTot/FLOCS.length):0)), pct(c.etTot?c.etAv/c.etTot:0)]], "fm-etapas"),
-      el("p",{class:"info",text:"Projeto ULMA B291468: a forma das paredes de UM floculador, em 4 etapas (1ª = fundo + arranque, 2ª = lance 1, 3ª = lance 2, 4ª = lance 3), usada no A, no B e no C. % = montado naquele floculador ÷ projeto da etapa. Marque “concl.” no floculador em que a etapa foi montada sem lançamento: conta no avanço, não na produtividade."+(c.desm?` Desmontado até agora: ${nf1.format(c.desm)} m².`:"")})),
+          return el("div",{class:"fm-etc"}, el("b",{class:f>=0.999?"pl-mais":"",text:pct(f)}),
+            x.proj[k]>c.proj[k]+0.005 ? el("small",{class:"info",text:`${nf2(x.proj[k])} m² medidos`}) : null,
+            el("label",{class:"info"}, ck, x.ck[k]?" concluída":" concl.")); }),
+        pct(c.projEt[k]?c.av[k]/c.projEt[k]:0)]),
+        ["Total", nf1.format(c.proj.reduce((s,v)=>s+v,0)), ...c.etObra.map(x=>{ const t=x.proj.reduce((s,v)=>s+v,0); return pct(t?x.av.reduce((s,v)=>s+v,0)/t:0); }), pct(c.etTot?c.etAv/c.etTot:0)],
+        [`${FORMA_MONTADORA} / consórcio (m²)`, "", ...c.etObra.map(x=>`${nf1.format(x.aguia.reduce((s,v)=>s+v,0))} / ${nf1.format(x.cons.reduce((s,v)=>s+v,0))}`), `${nf1.format(c.etObra.reduce((s,x)=>s+x.aguia.reduce((a,v)=>a+v,0),0))} / ${nf1.format(c.etObra.reduce((s,x)=>s+x.cons.reduce((a,v)=>a+v,0),0))}`]], "fm-etapas"),
+      el("p",{class:"info",text:`Projeto ULMA B291468: a forma das paredes de UM floculador, em 4 etapas (1ª = fundo + arranque, 2ª = lance 1, 3ª = lance 2, 4ª = lance 3), usada no A, no B e no C e montada pela ${FORMA_MONTADORA}. A 1ª etapa foi medida na obra: ${Object.entries(FORMA_ET1_FLOC).map(([o,v])=>`${o} ${nf2(v)} m²`).join(" e ")}, dos quais ${nf2(c.proj[0])} m² são os painéis ULMA da ${FORMA_MONTADORA} e o resto é a forma da laje de fundo, feita pelo consórcio. % = montado naquele floculador ÷ área da etapa. Marque “concl.” no floculador em que a etapa foi montada sem lançamento: conta no avanço, não na produtividade.`+(c.desm?` Desmontado até agora: ${nf1.format(c.desm)} m².`:"")})),
     docs,
     kit,
     secao("crono", "Linha do tempo",
@@ -9800,8 +9817,10 @@ function renderPainelForma(box=$("#fpainel")){
       ...(c.obras.some(o=>o.mont||o.ok) ? c.obras.filter(o=>o.mont||o.ok) : c.obras.slice(0,6)).map(o=>el("div",{class:"fm-et"}, el("b",{text:o.nome}), barra(o.maior?o.av/o.maior:0),
         el("span",{class:"info",text:`${pct(o.maior?o.av/o.maior:0)} de ${nf0.format(o.maior)} m² · contrato CODAU ${nf0.format(o.codau)} m²`+(o.ok?" ✓":"")})))),
     el("div",{class:"card"}, el("h3",{text:"Etapas ULMA (floculadores)"}),
-      ...FORMA.etapas.map((e,k)=>el("div",{class:"fm-et"}, el("b",{text:e}), barra(c.proj[k]?c.av[k]/(c.proj[k]*FLOCS.length):0),
-        el("span",{class:"info",text:`${c.etObra.map(x=>`${x.obra.slice(-1)} ${pct(c.proj[k]?x.av[k]/c.proj[k]:0)}${x.ck[k]?" ✓":""}`).join(" · ")} · ${nf0.format(c.proj[k])} m² cada`})))),
+      ...FORMA.etapas.map((e,k)=>el("div",{class:"fm-et"}, el("b",{text:e}), barra(c.projEt[k]?c.av[k]/c.projEt[k]:0),
+        el("span",{class:"info",text:`${c.etObra.map(x=>`${x.obra.slice(-1)} ${pct(x.proj[k]?x.av[k]/x.proj[k]:0)}${x.ck[k]?" ✓":""}`).join(" · ")} · `
+          +(c.etObra.some(x=>x.proj[k]>c.proj[k]+0.005) ? c.etObra.map(x=>`${x.obra.slice(-1)} ${nf1.format(x.proj[k])}`).join(" · ")+" m² (ULMA + laje de fundo)" : `${nf0.format(c.proj[k])} m² cada`)}))),
+      el("p",{class:"info",text:`Equipe ${FORMA_MONTADORA}: ${nf1.format(c.aguia)} m² montados${c.eqAguia?` (${c.eqAguia} montadores no último lançamento)`:""} · consórcio: ${nf1.format(c.cons)} m² (laje de fundo).`})),
     el("div",{class:"row"}, el("button",{class:"btn pri",type:"button",text:"Ir para os lançamentos",onclick:()=>abrirModulo("forma")}),
       el("button",{class:"btn",type:"button",text:"📊 Planilha (Excel)",onclick:e=>excelForma(e.currentTarget)})));
 }
@@ -9918,16 +9937,17 @@ async function planilhaForma(){
   titulo(we,"m² de forma por etapa: projeto x montado",sub);
   cab(we,4,["Etapa","m² no projeto (por floculador)","m² montado (avanço, 3 floculadores)","% das 3 formas","m² desmontado","Concluída sem lançamento em"]);
   const cols={0:"I",1:"J",2:"K",3:"L"};
-  FORMA.etapas.forEach((e,k)=>{ const r=5+k;
+  FORMA.etapas.forEach((e,k)=>{ const r=5+k, ex=Math.round((c.projEt[k]-3*c.proj[k])*100)/100; // ex = laje de fundo do consórcio (1ª etapa medida)
     // concluída sem lançamento: conta a etapa inteira; senão o lançado no Diário, sem passar do projeto
     we.getRow(r).values=[e, F(`SUMPRODUCT(Material!$D$${m0}:$D$${m1},Material!$${cols[k]}$${m0}:$${cols[k]}$${m1})`,c.proj[k]),
-      Math.round(c.av[k]*100)/100, F(`IFERROR(C${r}/(3*B${r}),0)`,c.proj[k]?c.av[k]/(3*c.proj[k]):0),
+      Math.round(c.av[k]*100)/100, F(`IFERROR(C${r}/(3*B${r}${ex>0?"+"+ex:""}),0)`,c.projEt[k]?c.av[k]/c.projEt[k]:0),
       F(`SUMIFS(${D("G")},${D("B")},A${r})`,c.porEt[k].desm), c.etObra.filter(x=>x.ck[k]).map(x=>x.obra).join(", ")||"—"];
     borda(we,r,6); we.getCell(r,2).numFmt=we.getCell(r,3).numFmt=we.getCell(r,5).numFmt=M2; we.getCell(r,4).numFmt="0.0%";
     we.getCell(r,6).alignment={horizontal:"center"}; });
-  we.getRow(9).values=["Total",F("SUM(B5:B8)",c.etTot/3),F("SUM(C5:C8)",c.etAv),F("IFERROR(C9/(3*B9),0)",c.etTot?c.etAv/c.etTot:0),F("SUM(E5:E8)",undefined),""];
+  const exTot=Math.round((c.etTot-3*c.proj.reduce((s,v)=>s+v,0))*100)/100;
+  we.getRow(9).values=["Total",F("SUM(B5:B8)",c.proj.reduce((s,v)=>s+v,0)),F("SUM(C5:C8)",c.etAv),F(`IFERROR(C9/(3*B9${exTot>0?"+"+exTot:""}),0)`,c.etTot?c.etAv/c.etTot:0),F("SUM(E5:E8)",undefined),""];
   borda(we,9,6,{total:true}); we.getCell(9,2).numFmt=we.getCell(9,3).numFmt=we.getCell(9,5).numFmt=M2; we.getCell(9,4).numFmt="0.0%";
-  we.getCell(11,1).value="m² no projeto = forma de UM floculador (área de cada painel, canto interno e compensador × quantidade da etapa); a mesma forma é usada no A, no B e no C. Montado = por floculador, o lançado na etapa (sem passar do projeto) ou o projeto inteiro onde a etapa foi concluída sem lançamento."; we.getCell(11,1).font=A({italic:true,size:9});
+  we.getCell(11,1).value="m² no projeto = forma de UM floculador (área de cada painel, canto interno e compensador × quantidade da etapa); a mesma forma é usada no A, no B e no C. 1ª etapa medida na obra: "+Object.entries(FORMA_ET1_FLOC).map(([o,v])=>`${o} ${nf2(v)} m²`).join(" e ")+` (painéis ULMA da ${FORMA_MONTADORA} + laje de fundo do consórcio); o % usa a área medida. Montado ${FORMA_MONTADORA}: ${nf1.format(c.aguia)} m² · consórcio: ${nf1.format(c.cons)} m². Montado = por floculador, o lançado na etapa (sem passar do projeto) ou o projeto inteiro onde a etapa foi concluída sem lançamento.`; we.getCell(11,1).font=A({italic:true,size:9});
   [14,14,16,12,14,16].forEach((w,k)=>we.getColumn(k+1).width=w);
 
   // ===== Resumo =====

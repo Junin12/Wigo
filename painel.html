@@ -223,7 +223,7 @@ details.lote-cp{border-top:1px solid var(--line);padding:8px 0}details.lote-cp s
       <div class="card"><h3>Avanço acumulado (m²)</h3><div class="chart" id="f-ch-ac"></div><p class="info nota" id="f-nota-ac"></p></div>
     </div>
     <div class="card"><div class="card-top"><h3>Por obra</h3><span class="info">meta = comparativo maior · contrato = planilha CODAU (cliente)</span></div><div class="tbl" id="f-obras"></div></div>
-    <div class="card" id="f-ulma-card"><h3>Etapas da forma ULMA por floculador</h3><div class="tbl" id="f-ulma"></div><p class="info nota">A forma ULMA é de um floculador e é usada no A, no B e no C (1ª = fundo + arranque, 2ª = lance 1, 3ª = lance 2, 4ª = lance 3). ✓ = concluída sem lançamento.</p></div>
+    <div class="card" id="f-ulma-card"><h3>Etapas da forma ULMA por floculador</h3><div class="tbl" id="f-ulma"></div><p class="info nota">A forma ULMA é de um floculador e é usada no A, no B e no C (1ª = fundo + arranque, 2ª = lance 1, 3ª = lance 2, 4ª = lance 3), montada pela Águia. A 1ª etapa foi medida na obra (Floculador A 55,99 m², C 55,64 m²): 17,36 m² são os painéis ULMA da Águia e o resto é a forma da laje de fundo, feita pelo consórcio. ✓ = concluída sem lançamento.</p></div>
   </section>
 
   <!-- CONCRETO -->
@@ -252,7 +252,7 @@ details.lote-cp{border-top:1px solid var(--line);padding:8px 0}details.lote-cp s
 <script>
 "use strict";
 const $=s=>document.querySelector(s);
-const nf0=new Intl.NumberFormat("pt-BR",{maximumFractionDigits:0}), nf1=new Intl.NumberFormat("pt-BR",{minimumFractionDigits:1,maximumFractionDigits:1});
+const nf0=new Intl.NumberFormat("pt-BR",{maximumFractionDigits:0}), nf1=new Intl.NumberFormat("pt-BR",{minimumFractionDigits:1,maximumFractionDigits:1}), nf2=v=>(+v||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
 const pct=v=>nf1.format((v||0)*100)+"%", t=kg=>nf1.format((kg||0)/1000), num=v=>{ const n=typeof v==="number"?v:parseFloat(String(v??"").replace(",",".")); return isFinite(n)?n:0; };
 const el=(tag,props={},...kids)=>{ const e=document.createElement(tag); for(const [k,v] of Object.entries(props)){ if(k==="class") e.className=v; else if(k==="text") e.textContent=v; else if(k.startsWith("aria-")||k==="role"||k==="tabindex") e.setAttribute(k,v); else e[k]=v; } e.append(...kids.filter(x=>x!=null&&x!==false)); return e; };
 const ddmm=iso=>iso?String(iso).slice(8,10)+"/"+String(iso).slice(5,7):"";
@@ -497,13 +497,17 @@ function calcForma(E){
     if(x.semanal) s.pdSem=Math.max(s.pdSem,x.pessoas*x.dias); else if(x.ativ==="Montagem") s.dia.set(x.data,Math.max(s.dia.get(x.data)||0,x.pessoas));
     sem.set(k,s); porObra.set(obraDe(x.obra),(porObra.get(obraDe(x.obra))||0)+x.mont); }
   const serie=[...sem].sort((a,b)=>a[0].localeCompare(b[0])).map(([k,s])=>({seg:k, m2:s.m2, pd:s.pdSem+[...s.dia.values()].reduce((a,v)=>a+v,0)}));
-  // etapas ULMA concluídas sem lançamento (por floculador) também contam no avanço da obra
-  const extra=new Map(); for(const e of D.forma?.etapas||[]) for(const f of e.porFloc||[]) if(f.concluida) extra.set(f.obra,(extra.get(f.obra)||0)+Math.max(0,e.projetoFloc-f.lancado));
-  const obras=E.obras.map(o=>{ const mont=porObra.get(o.nome)||0, av=Math.min(o.meta,mont+(extra.get(o.nome)||0)); return {...o, mont, av}; });
+  // etapas ULMA concluídas sem lançamento (por floculador) também contam no avanço da obra. Script 42+: f.projeto = área da etapa
+  // naquele floculador (1ª etapa medida: ULMA da Águia + laje de fundo do consórcio) e f.consorcio = a parte do consórcio
+  const extra=new Map(), consF=new Map();
+  for(const e of D.forma?.etapas||[]) for(const f of e.porFloc||[]){ if(f.concluida) extra.set(f.obra,(extra.get(f.obra)||0)+Math.max(0,(f.projeto??e.projetoFloc)-f.lancado));
+    consF.set(f.obra,(consF.get(f.obra)||0)+(f.consorcio||0)); }
+  const obras=E.obras.map(o=>{ const mont=porObra.get(o.nome)||0, av=Math.min(o.meta,mont+(extra.get(o.nome)||0)), cons=Math.min(av,consF.get(o.nome)||0); return {...o, mont, av, cons}; });
   const meta=obras.reduce((a,o)=>a+o.meta,0), codau=obras.reduce((a,o)=>a+o.codau,0), av=obras.reduce((a,o)=>a+o.av,0), m2=serie.reduce((a,s)=>a+s.m2,0);
+  const cons=obras.reduce((a,o)=>a+o.cons,0), aguia=av-cons;
   const comM=serie.filter(s=>s.m2>0), ult=comM.slice(-4), ritmo=ult.length?ult.reduce((a,s)=>a+s.m2,0)/ult.length:0;
   const pd=comM.reduce((a,s)=>a+s.pd,0), prod=pd?comM.filter(s=>s.pd).reduce((a,s)=>a+s.m2,0)/pd:0, falta=Math.max(0,meta-av);
-  return {serie, obras, meta, codau, av, m2, ritmo, ult, prod, falta, fim: ritmo>0&&falta>0?somaDias(h,Math.ceil(falta/ritmo*7)):""};
+  return {serie, obras, meta, codau, av, aguia, cons, m2, ritmo, ult, prod, falta, fim: ritmo>0&&falta>0?somaDias(h,Math.ceil(falta/ritmo*7)):""};
 }
 
 // ---------- concreto: etapas por estrutura e concretagens ----------
@@ -863,6 +867,7 @@ function renderForma(E,F,h){
   if(!F.meta){ $("#f-kpis").replaceChildren(el("div",{class:"card"},vazio("Esta estrutura não tem quantitativo de forma (só a ETA tem, pelo comparativo).")));
     for(const id of ["#f-ch","#f-ch-ac","#f-obras"]) $(id).replaceChildren(); $("#f-nota").textContent=$("#f-nota-ac").textContent=""; $("#f-ulma-card").hidden=true; return; }
   $("#f-kpis").replaceChildren(kpi("Montado",`${nf0.format(F.av)} m²`,`${pct(F.av/F.meta)} da meta de ${nf0.format(F.meta)} m²`,"forma"),
+    kpi("Equipe Águia",`${nf0.format(F.aguia)} m²`,`montados com os painéis ULMA${F.cons?` · consórcio (laje de fundo): ${nf0.format(F.cons)} m²`:""}`,"forma"),
     kpi("Contrato (CODAU)",`${nf0.format(F.codau)} m²`,`meta ${F.meta>=F.codau?"+":""}${nf0.format(F.meta-F.codau)} m² em relação ao contrato`,"forma"),
     kpi("Ritmo",F.ritmo?`${nf0.format(F.ritmo)} m²`:"–",`por semana · média das últimas ${F.ult.length} com montagem`,"forma"),
     kpi("Produtividade",F.prod?`${nf1.format(F.prod)} m²`:"–","por pessoa/dia trabalhado","forma"),
@@ -878,10 +883,15 @@ function renderForma(E,F,h){
     el("tr",{},el("td",{text:"Total"}),el("td",{text:nf0.format(F.codau)}),el("td",{text:nf0.format(F.meta)}),el("td",{text:nf0.format(F.av)}),el("td",{text:pct(F.av/F.meta)}))));
   const et=D.forma?.etapas||[], comFloc=E.obras.some(o=>/^Floculador/.test(o.nome));
   $("#f-ulma-card").hidden=!et.length||!comFloc||!et[0].porFloc;
-  if(!$("#f-ulma-card").hidden) $("#f-ulma").replaceChildren(tabela(["Etapa","m² por floculador","Floc. A","Floc. B","Floc. C","Total"],et.map(e=>el("tr",{},
+  const soma=(f,k)=>et.reduce((a,e)=>a+(e.porFloc.find(x=>x.obra===f)?.[k]||0),0);
+  if(!$("#f-ulma-card").hidden) $("#f-ulma").replaceChildren(tabela(["Etapa","m² ULMA por floculador","Floc. A","Floc. B","Floc. C","Total"],[...et.map(e=>el("tr",{},
     el("td",{},el("b",{text:e.etapa})),el("td",{text:nf1.format(e.projetoFloc)}),
-    ...e.porFloc.map(f=>{ const v=e.projetoFloc?f.avanco/e.projetoFloc:0; return el("td",{},el("b",{text:pct(v)+(f.concluida?" ✓":"")}),barraTd(v,"f")); }),
-    el("td",{text:pct(e.pct)})))));
+    ...e.porFloc.map(f=>{ const pj=f.projeto??e.projetoFloc, v=pj?f.avanco/pj:0; return el("td",{},el("b",{text:pct(v)+(f.concluida?" ✓":"")}),barraTd(v,"f"),
+      pj>e.projetoFloc+0.005?el("small",{class:"info",text:` ${nf2(pj)} m² medidos`}):null); }),
+    el("td",{text:pct(e.pct)}))),
+    ...(et[0].porFloc[0].aguia!=null ? [el("tr",{},el("td",{text:"Águia / consórcio (m²)"}),el("td",{text:""}),
+      ...et[0].porFloc.map(f=>el("td",{text:`${nf1.format(soma(f.obra,"aguia"))} / ${nf1.format(soma(f.obra,"consorcio"))}`})),
+      el("td",{text:`${nf1.format(et[0].porFloc.reduce((a,f)=>a+soma(f.obra,"aguia"),0))} / ${nf1.format(et[0].porFloc.reduce((a,f)=>a+soma(f.obra,"consorcio"),0))}`}))] : [])]));
 }
 // frentes: mesmas regras do app (concreto magro no FUNDO; paredes arranque → lance 1 → 2 → 3; cobertura/passarela só lance 3)
 const SIT=[["AGUARDANDO","var(--idle-bg)"],["LIBERADO P/ ARMAR","#9CC1E8"],["ARMADO","#2563A8"],["EM ETAPAS","#F0B35A"],["CONCRETAGEM LIBERADA","#5BC98B"],["CONCRETADO","#1D7A48"]];

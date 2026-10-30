@@ -1,0 +1,81 @@
+# Testes do prompt do RDO por voz (promptfoo). Rode antes de mudar o pedidoRdo_ do Code.gs:
+#   set ANTHROPIC_API_KEY=...   (PowerShell: $env:ANTHROPIC_API_KEY="...")
+#   npx promptfoo@0.125.1 eval -c tests/ia/promptfooconfig.yaml
+#   npx promptfoo@0.125.1 view          (abre o resultado no navegador)
+# Cada caso é um relato ditado; o "prompt" é o próprio relato e o provedor monta o resto igual ao Apps Script.
+# Para acrescentar um caso, copie um bloco de "tests" com um relato real (sem nomes de pessoas, se for público).
+description: Wigo - RDO por voz
+
+prompts:
+  - '{{relato}}'
+
+providers:
+  - file://provider.cjs
+
+defaultTest:
+  vars:
+    contexto: >-
+      {"estruturas":["Floculador A","Floculador C","Decantador"],
+       "equipamentos":["Retroescavadeira","Caminhão munck","Betoneira","Vibrador de imersão"],
+       "atividades":[{"id":"a1","atividade":"Armação da laje de fundo","onde":"Floculador A"},
+                     {"id":"a2","atividade":"Forma das paredes - 1º lance","onde":"Floculador C"},
+                     {"id":"a3","atividade":"Concretagem do lastro","onde":"Decantador"}]}
+  assert:
+    - type: is-json
+    # método do langextract: todo item precisa vir com um trecho que existe no relato (senão a IA inventou)
+    - type: javascript
+      value: |
+        const r = JSON.parse(output), norm = s => String(s).toLowerCase().replace(/[^a-z0-9à-ú]+/g, ' ').trim();
+        const rel = norm(vars.relato);
+        const itens = [...r.atividades, ...r.equipamentos];
+        const ruins = itens.filter(i => !i.trecho || !rel.includes(norm(i.trecho)));
+        return ruins.length === 0 || { pass: false, score: 0, reason: 'Trecho que não está no relato: ' + ruins.map(i => i.trecho).join(' | ') };
+    # só ids da lista do dia
+    - type: javascript
+      value: JSON.parse(output).atividades.every(a => ['a1', 'a2', 'a3'].includes(a.id))
+
+tests:
+  - description: dia comum com clima, atividades e máquinas
+    vars:
+      relato: >-
+        manhã de sol, à tarde fechou o tempo mas não choveu. começamos sete horas e paramos às cinco.
+        a equipe terminou a armação da laje de fundo do floculador A, e no C montaram metade da forma das paredes.
+        a retroescavadeira trabalhou umas seis horas e o munck ficou a tarde toda, umas quatro horas.
+    assert:
+      - type: javascript
+        value: |
+          const r = JSON.parse(output);
+          return r.clima.manha === 'Bom' && r.clima.tarde === 'Nublado' && r.inicio === '07:00' && r.fim === '17:00'
+            && r.atividades.some(a => a.id === 'a1') && r.atividades.some(a => a.id === 'a2')
+            && r.equipamentos.some(e => /retro/i.test(e.nome) && e.horas === 6);
+
+  - description: chuva que parou o serviço vira ocorrência e dia impraticável
+    vars:
+      relato: >-
+        choveu forte o dia inteiro, não deu pra fazer nada, a obra ficou parada. o fiscal da prefeitura passou às dez.
+    assert:
+      - type: javascript
+        value: |
+          const r = JSON.parse(output);
+          return r.condicao === 'Impraticável' && r.clima.manha === 'Impraticável' && r.atividades.length === 0
+            && r.ocorrencias.length > 0 && r.visitas.some(v => /fiscal/i.test(v));
+
+  - description: serviço fora da lista vai em outros serviços, sem inventar atividade
+    vars:
+      relato: >-
+        hoje a turma limpou o canteiro e descarregou o aço que chegou de manhã. nada na produção.
+    assert:
+      - type: javascript
+        value: |
+          const r = JSON.parse(output);
+          return r.atividades.length === 0 && r.outrosServicos.length > 0;
+
+  - description: erro de transcrição de voz ainda liga à atividade certa
+    vars:
+      relato: >-
+        o pessoal concreto o lastro do decantado, foram uns oito metros, betoneira e vibrador a manhã toda
+    assert:
+      - type: javascript
+        value: |
+          const r = JSON.parse(output);
+          return r.atividades.some(a => a.id === 'a3') && r.equipamentos.length >= 1;

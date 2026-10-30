@@ -611,19 +611,44 @@ const RDO_VOZ_SCHEMA = {
     condicao: { type: 'string', enum: ['', 'Praticável', 'Impraticável'] },
     inicio: { type: 'string', description: 'Início do expediente HH:MM, ou "" se não foi dito' },
     fim: { type: 'string', description: 'Fim do expediente HH:MM, ou "" se não foi dito' },
-    atividades: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['id', 'observacao'], properties: {
+    atividades: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['id', 'observacao', 'trecho'], properties: {
       id: { type: 'string', description: 'id de uma atividade da lista do dia' },
-      observacao: { type: 'string', description: 'o que foi dito sobre essa atividade, em uma frase' } } } },
+      observacao: { type: 'string', description: 'o que foi dito sobre essa atividade, em uma frase' },
+      trecho: { type: 'string', description: 'trecho copiado palavra por palavra do relato de onde isso saiu' } } } },
     outrosServicos: { type: 'array', items: { type: 'string' }, description: 'serviços ditos que não correspondem a nenhuma atividade da lista' },
-    equipamentos: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['nome', 'quantidade', 'horas'], properties: {
-      nome: { type: 'string' }, quantidade: { type: 'integer' }, horas: { type: 'number', description: '0 se não foi dito' } } } },
+    equipamentos: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['nome', 'quantidade', 'horas', 'trecho'], properties: {
+      nome: { type: 'string' }, quantidade: { type: 'integer' }, horas: { type: 'number', description: '0 se não foi dito' },
+      trecho: { type: 'string', description: 'trecho copiado palavra por palavra do relato de onde isso saiu' } } } },
     ocorrencias: { type: 'array', items: { type: 'string' } },
     visitas: { type: 'array', items: { type: 'string' } },
   },
 };
+// Exemplo resolvido que vai junto com as instruções: mostra o formato e, principalmente, que cada item traz o trecho
+// do relato de onde saiu (método do langextract, Google). Item sem trecho no relato é sinal de invenção.
+const RDO_VOZ_EXEMPLO = 'Exemplo. Atividades do dia: "- id a1: Armação da laje (Floculador A)". '
+  + 'Relato: "choveu de manhã mas deu pra trabalhar, a turma do João terminou a armação da laje do floculador, '
+  + 'a retro ficou o dia todo, umas oito horas". Resposta: clima.manha "Chuva"; atividades [{id "a1", observacao '
+  + '"Armação da laje concluída pela equipe do João.", trecho "a turma do João terminou a armação da laje do floculador"}]; '
+  + 'equipamentos [{nome "Retroescavadeira", quantidade 1, horas 8, trecho "a retro ficou o dia todo, umas oito horas"}].';
 function organizarRdo(corpo) {
   const chave = PropertiesService.getScriptProperties().getProperty('ANTHROPIC_API_KEY');
   if (!chave) return { semChave: true };
+  const resp = UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', {
+    method: 'post', contentType: 'application/json', muteHttpExceptions: true,
+    headers: { 'x-api-key': chave, 'anthropic-version': '2023-06-01', 'anthropic-beta': 'server-side-fallback-2026-07-01' },
+    payload: JSON.stringify(pedidoRdo_(corpo)),
+  });
+  const cod = resp.getResponseCode();
+  let j; try { j = JSON.parse(resp.getContentText()); } catch (e) { throw new Error('Resposta inválida da IA (HTTP ' + cod + ').'); }
+  if (cod !== 200) throw new Error('IA indisponível (HTTP ' + cod + '): ' + ((j.error && j.error.message) || '').slice(0, 200));
+  if (j.stop_reason === 'refusal') throw new Error('A IA não processou este relato. Preencha o RDO manualmente.');
+  if (j.stop_reason === 'max_tokens') throw new Error('Relato longo demais para organizar de uma vez: divida em partes.');
+  const bloco = (j.content || []).find(b => b.type === 'text');
+  if (!bloco) throw new Error('A IA não devolveu o RDO organizado.');
+  return { rdo: JSON.parse(bloco.text), modelo: j.model };
+}
+// Monta o pedido à API (instruções, relato e formato). Separado para os testes de prompt (tests/ia) usarem o mesmo texto.
+function pedidoRdo_(corpo) {
   const texto = String(corpo.texto || '').trim().slice(0, 12000);
   if (!texto) throw new Error('Nada foi ditado.');
   const ctx = corpo.contexto || {};
@@ -637,28 +662,18 @@ function organizarRdo(corpo) {
     + 'Atividades: ligue cada serviço dito a uma atividade da lista do dia pelo id; o que não estiver na lista vai em outrosServicos.\n'
     + 'Equipamentos: use de preferência estes nomes quando forem o mesmo equipamento: ' + (ctx.equipamentos || []).join(', ') + '.\n'
     + 'Ocorrências: paralisações, acidentes, falta de material, problemas de projeto, chuva que parou serviço, entregas importantes. '
-    + 'Visitas: fiscalização, cliente, fornecedores, segurança do trabalho.';
+    + 'Visitas: fiscalização, cliente, fornecedores, segurança do trabalho.\n'
+    + 'Em cada atividade e equipamento, "trecho" é a parte do relato copiada exatamente como está (mesmas palavras, sem corrigir); '
+    + 'se não achar um trecho que sustente o item, não inclua o item.\n' + RDO_VOZ_EXEMPLO;
   const usuario = 'Data do RDO: ' + String(corpo.data || '') + '\nEstruturas da obra: ' + (ctx.estruturas || []).join(', ')
     + '\nAtividades do dia na Produção:\n' + lista + '\n\nRelato ditado:\n"""\n' + texto + '\n"""';
-  const resp = UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', {
-    method: 'post', contentType: 'application/json', muteHttpExceptions: true,
-    headers: { 'x-api-key': chave, 'anthropic-version': '2023-06-01', 'anthropic-beta': 'server-side-fallback-2026-07-01' },
-    payload: JSON.stringify({
-      model: CLAUDE_MODELO, max_tokens: 8000,
-      fallbacks: 'default', // se o modelo recusar, o servidor tenta outro modelo sozinho
-      output_config: { effort: 'low', format: { type: 'json_schema', schema: RDO_VOZ_SCHEMA } }, // extração simples: esforço baixo responde rápido
-      system: sistema,
-      messages: [{ role: 'user', content: usuario }],
-    }),
-  });
-  const cod = resp.getResponseCode();
-  let j; try { j = JSON.parse(resp.getContentText()); } catch (e) { throw new Error('Resposta inválida da IA (HTTP ' + cod + ').'); }
-  if (cod !== 200) throw new Error('IA indisponível (HTTP ' + cod + '): ' + ((j.error && j.error.message) || '').slice(0, 200));
-  if (j.stop_reason === 'refusal') throw new Error('A IA não processou este relato. Preencha o RDO manualmente.');
-  if (j.stop_reason === 'max_tokens') throw new Error('Relato longo demais para organizar de uma vez: divida em partes.');
-  const bloco = (j.content || []).find(b => b.type === 'text');
-  if (!bloco) throw new Error('A IA não devolveu o RDO organizado.');
-  return { rdo: JSON.parse(bloco.text), modelo: j.model };
+  return {
+    model: CLAUDE_MODELO, max_tokens: 8000,
+    fallbacks: 'default', // se o modelo recusar, o servidor tenta outro modelo sozinho
+    output_config: { effort: 'low', format: { type: 'json_schema', schema: RDO_VOZ_SCHEMA } }, // extração simples: esforço baixo responde rápido
+    system: sistema,
+    messages: [{ role: 'user', content: usuario }],
+  };
 }
 
 // ---------- corpos de prova para o painel: resultados por caminhão, sem nomes ----------
@@ -916,7 +931,7 @@ function linhas(nome) {
 // 39: liberação com prazo (VALIDADE), PIN pessoal por cargo (PIN, Propriedade PIN_CARGOS) e aceite do termo de uso (LGPD) no Histórico.
 // 40: a lista de projetos traz também as plantas DWG/DXF das pastas Projetos e Formas (o app abre no leitor das Ferramentas).
 // 41: arquivos enviados pelo app (acao 'arqEnviar', pasta Arquivos): do computador da obra para o celular, sem WhatsApp.
-const VERSAO_SCRIPT = 42;
+const VERSAO_SCRIPT = 43;
 
 // Colunas de código que precisam ficar como TEXTO. Sem isso o Planilhas converte
 // "DEC-0001" em data (dez/2001) e o código se perde.

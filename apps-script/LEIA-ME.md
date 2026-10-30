@@ -7,6 +7,10 @@ Cópia do script publicado no Apps Script (sem senhas: a senha do app, TOKEN, e 
 ficam nas Propriedades do script). Quando mudar o script aqui, cole no Apps Script e publique:
 **Implantar → Gerenciar implantações → lápis ✏️ → Versão: Nova versão → Implantar** (o endereço /exec não muda).
 
+Versão 43: RDO por voz mais confiável. Cada atividade e equipamento que a IA tira do relato vem com o "trecho" (as palavras
+exatas do relato de onde saiu) e as instruções levam um exemplo resolvido; item sem trecho fica de fora. O pedido à API é
+montado em `pedidoRdo_`, usado também pelos testes de prompt em `tests/ia` (promptfoo). Com o script 42 o app funciona igual.
+
 Versão 42: formas dos floculadores. A 1ª etapa usa a área medida na obra (Floculador A 55,99 m², C 55,64 m²: painéis ULMA
 da Águia + laje de fundo do consórcio) e a tabela forma_etapas traz, por floculador, projeto, Águia e consórcio. Com o script 41
 o app funciona igual; só o Power BI segue com 17,36 m² na 1ª etapa.

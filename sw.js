@@ -1,13 +1,13 @@
 // Guarda o app no aparelho para abrir sem internet.
 // Ao alterar index.html, suba o número da versão para os celulares receberem a atualização.
 // Os PDFs dos projetos ficam num cache à parte ("armacao-pdfs"), que não é apagado nas atualizações.
-const VERSAO = "armacao-v177";
+const VERSAO = "armacao-v178";
 // bibliotecas de outros sites (versão fixa no endereço): cache próprio, que sobrevive às atualizações do app.
 // Antes ficavam no cache da versão e cada atualização baixava de novo ~4 MB no celular.
 const LIBS_CACHE = "armacao-libs-1";
 // imagens de satélite (Esri) dos mapas de campo: guardadas ao serem vistas, para o mapa abrir sem internet
 const MAPA_CACHE = "armacao-mapa-1";
-const APP = ["./", "index.html", "painel.html", "manifest.webmanifest", "icon-wigo-192.png", "icon-wigo-512.png", "icon-wigo-maskable-512.png", "logo-relatorio.jpg", "marcas.json", "romaneios-os.json", "checklists-maquinas.json"];
+const APP = ["./", "index.html", "painel.html", "manifest.webmanifest", "icon-wigo-192.png", "icon-wigo-512.png", "icon-wigo-maskable-512.png", "logo-topo.jpg", "logo-relatorio.jpg", "marcas.json", "romaneios-os.json", "checklists-maquinas.json"];
 const LIBS = [
   "https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js",
   "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js",

@@ -419,7 +419,12 @@ canvas.qr{display:block;width:min(260px,100%);height:auto;image-rendering:pixela
 .g-leg{display:flex;flex-wrap:wrap;gap:8px;font-size:.78rem;color:var(--muted)}.g-leg i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
 details.lote{border-top:1px solid var(--line);padding:6px 0}details.lote summary{cursor:pointer}
 /* Qualidade: categorias (concreto, aço, solo…) acima dos tipos; dashboards com gráficos */
-#reg2 .modo.cats{padding-bottom:8px;border-bottom:1px solid var(--line);margin-bottom:6px}#reg2 .modo.cats .chipbtn{font-weight:700}
+/* categorias (Qualidade: Concreto, Aço, Solo…) como abas com sublinhado, numa linha que rola de lado; os tipos abaixo continuam como chips,
+   para ficar claro que são dois níveis */
+#reg2 .modo.cats{flex-wrap:nowrap;overflow-x:auto;gap:0;border-bottom:1px solid var(--line);margin-bottom:10px;scrollbar-width:none}
+#reg2 .modo.cats::-webkit-scrollbar{display:none}
+#reg2 .modo.cats .chipbtn{font-weight:700;font-size:.95rem;border:0;border-radius:0;background:none;color:var(--muted);min-height:44px;padding:8px 14px;border-bottom:3px solid transparent;margin-bottom:-1px;white-space:nowrap}
+#reg2 .modo.cats .chipbtn.on{color:var(--accent);border-bottom-color:var(--accent);background:none}
 .graf-box{margin-top:4px}.kpi.ok b{color:var(--good)}.dq-atencao .tbl+.tbl{margin-top:10px}.dq-atencao td{text-align:left;vertical-align:top}.dq-atencao td:first-child,.dq-atencao th:first-child{white-space:nowrap}.kpi.bad b{color:var(--bad)}.dq-tipo{display:grid;grid-template-columns:1fr 1fr;gap:0;margin:10px 0 8px;padding:3px;border:1px solid var(--line);border-radius:999px;background:var(--surface)}.dq-tipo .chipbtn{border:0;border-radius:999px;text-align:center;justify-content:center;width:100%}.dq-filtros{display:grid;grid-template-columns:1fr 1fr;gap:8px}.dq-filtros select{width:100%}.ct-ficha{display:grid;grid-template-columns:minmax(110px,40%) 1fr;gap:4px 10px;margin:10px 0;font-size:.9rem}.ct-ficha dt{color:var(--muted)}.ct-ficha dd{margin:0;font-weight:600;overflow-wrap:anywhere}#reg2 .card select{width:100%}.graf-box .g-tit{display:block;font-size:.85rem;margin-bottom:4px}#reg2 .card select{max-width:100%}
 .ver-pdf{display:grid;gap:10px}.ver-pdf canvas{width:100%;height:auto;display:block;background:#fff;border:1px solid var(--line);border-radius:6px}
 .tela-logo{height:40px;width:auto;max-width:62vw;object-fit:contain;display:block;background:#fff;border-radius:10px;padding:4px 6px;box-shadow:0 4px 14px -6px rgba(0,0,0,.45)}
@@ -575,6 +580,7 @@ html[data-campo][data-ajuda] .ajuda-btn{background:var(--accent);color:var(--on-
 .ps-cont .ok b{color:var(--good)} .ps-cont .bad b{color:var(--bad)}
 .ps-cont button.on{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent) inset}
 .ps-novo{min-height:56px;font-size:1.1rem;width:100%}
+.rd-pdf>summary{cursor:pointer;min-height:44px;display:flex;align-items:center;font-weight:600;color:var(--accent)} .rd-pdf[open]{display:grid;gap:8px}
 .ps-acoes{display:grid;grid-template-columns:1fr 1fr;gap:8px} .ps-acoes .ps-novo{min-height:48px;font-size:.95rem} /* cadastrar e PDF: secundários, lado a lado */
 .ps-grupo{display:grid;gap:8px}
 .ps-linha{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 10px;align-items:center;background:var(--surface);border:2px solid var(--line);border-radius:14px;padding:10px 10px 10px 14px}
@@ -2276,7 +2282,7 @@ function setCampo(on){ LS.set("campo",!!on); if(on) document.documentElement.dat
 $("#campo-modo").addEventListener("click", e=>{ const b=e.target.closest("button[data-c]"); if(b) setCampo(b.dataset.c==="1"); });
 setCampo(!!LS.get("campo"));
 
-const VERSAO_APP = "v178"; // igual ao número em sw.js (armacao-v178)
+const VERSAO_APP = "v179"; // igual ao número em sw.js (armacao-v179)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -3156,7 +3162,7 @@ function renderEquipes(){
       setEquipe(e.nome,{frentes:[...frentes,f]}); toast(`Frente adicionada à ${e.nome}`); };
     return el("div",{class:"eqcard"+(e.ativa?"":" inativa")},
       el("div",{class:"topo"}, el("b",{text:e.nome}), el("label",{class:"chk",htmlFor:"eqat-"+id}, ativa, " ativa"),
-        podeLanc() ? el("button",{class:"linkbtn",type:"button",text:"Renomear",onclick:()=>{
+        pode("lanc-edit") ? el("button",{class:"linkbtn",type:"button",text:"Renomear",onclick:()=>{ // só decide se mostra: podeLanc() avisaria a cada desenho da tela
           const novo=(prompt(`Novo nome da ${e.nome}:`, "")||"").trim().replace(/[|;]/g,"-").slice(0,60); if(!novo) return;
           if(eqList().some(x=>x.nome.toUpperCase()===novo.toUpperCase())) return toast("Já existe uma equipe com esse nome.");
           if(!confirm(`Renomear "${e.nome}" para "${novo}"? Os lançamentos de aço e as ocorrências dela passam para o nome novo (a "${e.nome}" fica inativa, sem lançamentos).`)) return;
@@ -3656,7 +3662,7 @@ function aeTabela(its, acum){
   // módulos em armação (quem lança muda; vale para o app e o painel)
   const salvarMods=(est,ativos)=>{ let c={}; try{ c=JSON.parse(cfgv("ACO_MODULOS","")||"{}")||{}; }catch{ c={}; }
     const md=aeMod(est); c[est]={n:md.n, ativos}; S.pendCfg.ACO_MODULOS=JSON.stringify(c); savePendExtra(); scheduleSync(); renderPainel(); };
-  const editor = comMod.length && podeLanc() ? el("div",{class:"campo"}, "Módulos em armação (juntas de dilatação): toque para marcar ou desmarcar",
+  const editor = comMod.length && pode("lanc-edit") ? el("div",{class:"campo"}, "Módulos em armação (juntas de dilatação): toque para marcar ou desmarcar",
     ...comMod.map(([est,md])=>el("div",{class:"pr-bts",role:"group","aria-label":`Módulos em armação: ${est}`}, el("span",{class:"info",text:est}),
       ...[...Array(md.n).keys()].map(k=>k+1).map(m=>{ const on=md.ativos.includes(m);
         return el("button",{type:"button",class:"chipbtn"+(on?" on":""),"aria-pressed":String(on),text:`Módulo ${m}`,
@@ -5034,15 +5040,15 @@ function remessaBloco(R){
     R.roms?.length ? el("div",{class:"lista"}, ...R.roms.map(x=>romaneioItem(x, R))) : null];
 }
 // filtro da tela: "" = nenhuma estrutura escolhida (não lista os romaneios), "*" = todas
-const SUPACO={est:""};
+const SUPACO={est:"*"}; // abre já com todas as estruturas (antes pedia para escolher e mostrava a tela vazia)
 function renderSupAco(){
   const T=remessas(), ests=[...new Set(T.map(R=>R.est))];
-  if(SUPACO.est && SUPACO.est!=="*" && !ests.includes(SUPACO.est)) SUPACO.est="";
+  if(SUPACO.est!=="*" && !ests.includes(SUPACO.est)) SUPACO.est="*";
   // os números do topo seguem o filtro; sem filtro, valem para a obra toda
   const L=SUPACO.est && SUPACO.est!=="*" ? T.filter(R=>R.est===SUPACO.est) : T, tot=somaKg(L), rec=somaRec(L), pend=L.filter(R=>!R.rec);
   const prox=pend.filter(R=>R.ini).sort((a,b)=>a.ini<b.ini?-1:1)[0];
   const selEst=el("select",{"aria-label":"Estrutura dos romaneios"},
-    el("option",{value:"",text:"Escolha a estrutura…"}), el("option",{value:"*",text:"Todas as estruturas"}),
+    el("option",{value:"*",text:"Todas as estruturas"}),
     ...ests.map(e=>el("option",{value:e,text:e})));
   selEst.value=SUPACO.est; selEst.onchange=()=>{ SUPACO.est=selEst.value; renderSupAco(); };
 
@@ -7405,22 +7411,26 @@ function vozCard(d){
   const ta=el("textarea",{maxLength:12000,rows:5,value:V.texto,"aria-label":"Relato do dia",
     placeholder: SR ? "Toque em Gravar e fale do dia: clima, o que cada equipe fez e onde, equipamentos, ocorrências e visitas."
       : "Toque aqui e use o microfone do teclado para ditar o relato do dia."});
-  ta.oninput=()=>{ V.texto=ta.value; }; V.ta=ta;
+  // um botão principal por vez: Gravar enquanto não há relato; com texto, Organizar
+  const org=el("button",{class:"btn"+(V.texto.trim()?" pri":""),type:"button",text:"✨ Organizar no RDO",onclick:e=>organizarVoz(d,e.currentTarget)});
+  const grav=SR ? el("button",{class:"btn "+(V.gravando?"rd-rec":V.texto.trim()?"":"pri"),type:"button",text:V.gravando?"⏹ Parar":"🎤 Gravar",onclick:()=>V.gravando?pararVoz():iniciarVoz()}) : null;
+  ta.oninput=()=>{ V.texto=ta.value; const t=!!ta.value.trim(); org.classList.toggle("pri",t); if(grav && !V.gravando) grav.classList.toggle("pri",!t); }; V.ta=ta;
   const arq=el("input",{type:"file",accept:"application/pdf,.pdf",hidden:true,"aria-label":"PDF do RDO"});
   arq.onchange=()=>{ const f=arq.files[0]; arq.value=""; importarRdoPdf(f); };
   return el("div",{class:"card rd-voz"},
     el("h3",{text:"🎤 Ditar o RDO"}),
     el("p",{class:"info",text:"Fale sobre o dia, confira o texto e toque em Organizar."}),
     el("div",{class:"row"},
-      SR ? el("button",{class:"btn "+(V.gravando?"rd-rec":"pri"),type:"button",text:V.gravando?"⏹ Parar":"🎤 Gravar",onclick:()=>V.gravando?pararVoz():iniciarVoz()}) : null,
+      grav,
       V.gravando ? el("span",{class:"rd-ouvindo",text:"Ouvindo…"}) : null),
     ta,
     el("div",{class:"row"},
-      el("button",{class:"btn pri",type:"button",text:"✨ Organizar no RDO",onclick:e=>organizarVoz(d,e.currentTarget)}),
+      org,
       V.texto ? el("button",{class:"btn",type:"button",text:"Limpar",onclick:()=>{ if(V.gravando) pararVoz(); V.texto=""; renderRdo(); }}) : null),
-    el("div",{class:"row"},
-      el("button",{class:"btn",type:"button",text:"📄 Importar RDO em PDF",onclick:()=>escolherArquivoDe("RDO em PDF", ["pdf"], fs=>importarRdoPdf(fs[0]), arq)}), arq,
-      el("small",{class:"i-sub",text:"PDF do RDO de outro sistema (ex.: Consulte GEO): clima, atividades, mão de obra e equipamentos."})));
+    // importar de outro sistema é raro: fica recolhido, a um toque
+    el("details",{class:"rd-pdf"}, el("summary",{text:"📄 Tem o RDO em PDF de outro sistema?"}),
+      el("small",{class:"i-sub",text:"PDF do RDO de outro sistema (ex.: Consulte GEO): clima, atividades, mão de obra e equipamentos."}),
+      el("div",{class:"row"}, el("button",{class:"btn",type:"button",text:"Importar RDO em PDF",onclick:()=>escolherArquivoDe("RDO em PDF", ["pdf"], fs=>importarRdoPdf(fs[0]), arq)}), arq)));
 }
 function previaVoz(d){
   const V=RD.voz, {res, aviso, marcas, ctx}=V.prev, nomeAt=new Map(ctx.atividades.map(a=>[a.id,a.atividade]));
@@ -14164,8 +14174,9 @@ function boot(){
   const cached=LS.get("base"); if(cached?.itens) setBase(cached.meta, cached.itens);
   lerLinkCfg();
   afterData(); renderData(); show(LS.get("aba")||"coleta");
-  // OS dos romaneios: "Em obra" e "já pedido" vêm da ligação de cada OS às posições da base
-  carregarOsRom().then(()=>{ if(S.items.length) renderLista(); }).catch(()=>{});
+  // OS dos romaneios: "Em obra" e "já pedido" vêm da ligação de cada OS às posições da base.
+  // Baixa depois que o app abriu (quando o celular está ocioso), para não disputar a internet com a abertura
+  (window.requestIdleCallback || (f=>setTimeout(f,1500)))(()=>carregarOsRom().then(()=>{ if(S.items.length) renderLista(); }).catch(()=>{}), {timeout:3000});
   if(S.cfg?.url){ sync(); carregarProjetos().catch(()=>{}); }
   if("serviceWorker" in navigator){
     // quando chega uma versão nova do app, recarrega uma vez para já usá-la

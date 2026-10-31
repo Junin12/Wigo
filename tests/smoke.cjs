@@ -250,12 +250,12 @@ const confere = (ok, msg) => { console.log(`${ok ? "ok  " : "FALHA"} ${msg}`); i
       const box = document.querySelector("#sup-aco"), tit = () => [...box.querySelectorAll("h3")].map(h => h.textContent);
       const kgBit = L => L.reduce((s, R) => s + Object.values(R.b).reduce((a, b) => a + b, 0), 0) / 1000;
       const totBit = () => [...[...box.querySelectorAll("tbody")].at(-1).rows].reduce((s, tr) => s + numBR(tr.lastChild.textContent), 0);
-      SUPACO.est = ""; renderSupAco(); const nada = !tit().some(h => /bitola/.test(h)) && !!box.querySelector(".vazio");
+      // sem escolha (ou estrutura que sumiu), abre com todas as estruturas e o total por bitola
+      SUPACO.est = ""; renderSupAco(); const nada = SUPACO.est === "*" && tit().some(h => /bitola.*todas as estruturas/.test(h)) && !box.querySelector(".vazio");
       const est = remessas()[0].est; SUPACO.est = est; renderSupAco();
       const so = tit().filter(h => !/bitola/.test(h)).every(h => h === est) && tit().some(h => h.includes("bitola") && h.includes(est));
       const okKg = Math.abs(totBit() - kgBit(remessas().filter(R => R.est === est))) < 0.2;
       SUPACO.est = "*"; renderSupAco(); const todas = Math.abs(totBit() - kgBit(remessas())) < 0.5;
-      SUPACO.est = "";
       return nada && so && okKg && todas ? "ok" : `nada:${nada} só ${est}:${so} kg:${okKg} todas:${todas}`;
     } catch (e) { return "erro: " + e.message; }
   });
@@ -382,6 +382,13 @@ const confere = (ok, msg) => { console.log(`${ok ? "ok  " : "FALHA"} ${msg}`); i
   const paresReg2 = [...new Set([...fs.readFileSync(path.join(RAIZ, "index.html"), "utf8").matchAll(/modulo:"([a-z0-9_]+)", *tipo:"([a-z0-9_]+)"/g)].map(m => `${m[1]}/${m[2]}`))];
   const semCadastro = await p.evaluate(ps => ps.filter(k => { const [m, t] = k.split("/"); return !MOD2[m]?.tipos.some(x => x.id === t) && !REG2_INTERNOS.has(k); }), paresReg2);
   confere(!semCadastro.length, "todo registro gravado pelo app tem módulo ou é interno (Diagnóstico sem falso alerta)" + (semCadastro.length ? `: ${semCadastro.join(", ")}` : ""));
+  // quem só visualiza não recebe o aviso "Só visualização" ao abrir as telas (só ao tentar alterar)
+  const semAviso = await p.evaluate(() => {
+    const U0 = U, t0 = toast, avisos = []; let soVe = false; U = { nome: "Teste", cargo: "Gerente de obra" }; toast = m => avisos.push(m);
+    try { MEMO_EF.clear(); soVe = !pode("lanc-edit"); renderSemanas(); renderFrentes(); } finally { U = U0; toast = t0; MEMO_EF.clear(); }
+    return soVe && !avisos.some(m => /Só visualização/.test(m));
+  });
+  confere(semAviso, "Semanas e Frentes abrem sem o aviso de só visualização para quem não edita");
   // ambiente de teste (Painel Dev › Teste): quem não é Desenvolvedor nunca manda amb:"teste", e a aba abre sem erro
   const amb = await p.evaluate(async () => {
     LS.set("ambTeste", true); const naoDev = !souDev() && !ambTeste(); LS.set("ambTeste", null);

@@ -89,9 +89,10 @@ button{cursor:pointer}
 .top .wrap{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center}
 .brand{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-weight:700;font-size:1.25rem;letter-spacing:.02em;margin-right:auto;line-height:1.1}
 .brand small{display:block;font-family:"Barlow",sans-serif;font-weight:500;font-size:.72rem;color:var(--muted);letter-spacing:.08em;text-transform:uppercase}
-.sem{display:flex;align-items:center;gap:6px}
+.sem{display:flex;align-items:center;gap:6px;min-width:0;max-width:100%} .sem select{min-width:0;flex:0 1 auto} /* nome comprido da semana encolhe em vez de alargar a tela */
 .sem label{font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
 select,input[type=search],input[type=number],input[type=text],input[type=url],input[type=password]{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:9px 10px;min-height:44px;max-width:100%}
+@media (pointer:coarse){ input:not([type=checkbox]):not([type=radio]):not([type=range]),select,textarea{font-size:16px} } /* abaixo de 16px o iPhone dá zoom sozinho ao tocar no campo e a tela fica ampliada */
 .pill{display:inline-flex;align-items:center;gap:6px;font-size:.8rem;font-weight:600;padding:5px 10px;border-radius:999px;background:var(--idle-bg);color:var(--idle);white-space:nowrap;border:0}
 .pill::before{content:"";width:8px;height:8px;border-radius:50%;background:currentColor}
 .pill.ok{background:var(--good-bg);color:var(--good)}
@@ -248,7 +249,7 @@ tr.cur td{background:var(--surface2)}
 @media (prefers-reduced-motion:no-preference){.bar i{transition:width .25s}}
 
 /* equipe, elemento, registros */
-.eqsel{grid-template-columns:auto 1fr;align-items:center;gap:10px;font-size:.85rem;color:var(--muted)}
+.eqsel{grid-template-columns:auto minmax(0,1fr);align-items:center;gap:10px;font-size:.85rem;color:var(--muted)}
 .eqsel select{font-weight:700;color:var(--ink);border-color:var(--accent)}
 .elem{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;justify-content:space-between;background:var(--surface);border:1px solid var(--accent);border-radius:var(--r);padding:10px 12px;font-size:.9rem}
 .oc-link{color:var(--warn);font-weight:600}
@@ -2271,7 +2272,7 @@ function setCampo(on){ LS.set("campo",!!on); if(on) document.documentElement.dat
 $("#campo-modo").addEventListener("click", e=>{ const b=e.target.closest("button[data-c]"); if(b) setCampo(b.dataset.c==="1"); });
 setCampo(!!LS.get("campo"));
 
-const VERSAO_APP = "v176"; // igual ao número em sw.js (armacao-v176)
+const VERSAO_APP = "v177"; // igual ao número em sw.js (armacao-v177)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");

@@ -7,6 +7,12 @@ Cópia do script publicado no Apps Script (sem senhas: a senha do app, TOKEN, e 
 ficam nas Propriedades do script). Quando mudar o script aqui, cole no Apps Script e publique:
 **Implantar → Gerenciar implantações → lápis ✏️ → Versão: Nova versão → Implantar** (o endereço /exec não muda).
 
+Versão 44: ambiente de teste pelo Painel Dev, sem implantação nova. Painel Dev › Teste › "Criar cópia" copia a planilha da
+obra para a pasta "WIGO - Teste" (Propriedade TESTE_ID; a cópia anterior vai para a lixeira). O aparelho do Desenvolvedor
+que liga "Usar o ambiente de teste" manda `amb: "teste"` em cada pedido e passa a ler e gravar na cópia (faixa vermelha no app);
+Acessos, Aparelhos e Erros continuam na planilha da obra, e fotos/projetos/arquivos usam as pastas da obra. Só o Desenvolvedor
+pode usar. Com o script 43 o app funciona igual, só sem a aba Teste.
+
 Versão 43: RDO por voz mais confiável. Cada atividade e equipamento que a IA tira do relato vem com o "trecho" (as palavras
 exatas do relato de onde saiu) e as instruções levam um exemplo resolvido; item sem trecho fica de fora. O pedido à API é
 montado em `pedidoRdo_`, usado também pelos testes de prompt em `tests/ia` (promptfoo). Com o script 42 o app funciona igual.

@@ -382,6 +382,13 @@ const confere = (ok, msg) => { console.log(`${ok ? "ok  " : "FALHA"} ${msg}`); i
   const paresReg2 = [...new Set([...fs.readFileSync(path.join(RAIZ, "index.html"), "utf8").matchAll(/modulo:"([a-z0-9_]+)", *tipo:"([a-z0-9_]+)"/g)].map(m => `${m[1]}/${m[2]}`))];
   const semCadastro = await p.evaluate(ps => ps.filter(k => { const [m, t] = k.split("/"); return !MOD2[m]?.tipos.some(x => x.id === t) && !REG2_INTERNOS.has(k); }), paresReg2);
   confere(!semCadastro.length, "todo registro gravado pelo app tem módulo ou é interno (Diagnóstico sem falso alerta)" + (semCadastro.length ? `: ${semCadastro.join(", ")}` : ""));
+  // ambiente de teste (Painel Dev › Teste): quem não é Desenvolvedor nunca manda amb:"teste", e a aba abre sem erro
+  const amb = await p.evaluate(async () => {
+    LS.set("ambTeste", true); const naoDev = !souDev() && !ambTeste(); LS.set("ambTeste", null);
+    const box = document.createElement("div"); devTeste(box); await new Promise(r => setTimeout(r, 300));
+    return naoDev && ABAS_DEV.some(a => a[0] === "teste") && /Usar o ambiente de teste/.test(box.textContent) && !box.textContent.includes("Consultando");
+  });
+  confere(amb, "ambiente de teste: só o Dev liga, aba Teste abre e mostra a situação da cópia");
   confere(!erros.length, "nenhum erro durante os testes" + (erros.length ? `: ${erros[0]}` : ""));
 
   // ---- painel ----

@@ -1364,6 +1364,8 @@ let AC = LS.get("acesso");
 const MSG_RECUSA = "Você precisa entrar na sua função específica na obra.";
 const liberado = () => !!U && AC?.status==="liberado" && AC.nome===U.nome && AC.cargo===U.cargo;
 const souDev = () => liberado() && !!CARGOS[U.cargo]?.dev;
+// ambiente de teste ligado neste aparelho (Painel Dev › Teste); só vale enquanto quem usa é o Desenvolvedor
+const ambTeste = () => !!LS.get("ambTeste") && souDev();
 function setAcesso(a){ AC=a; LS.set("acesso",a); }
 
 const K = (cod, eq) => cod+"|"+eq;
@@ -1450,7 +1452,7 @@ async function post1(body, prazo, ctl){
   try{
     // text/plain evita a checagem CORS extra que o Apps Script não responde
     r = await fetch(S.cfg.url, {method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, signal:ctl.signal,
-      body: JSON.stringify({token:S.cfg.token, aparelho:APARELHO, usuario:U?{nome:U.nome, cargo:U.cargo}:null, gz:GZ?1:0, sessao:LS.get("pinSessao")||"", ...body})});
+      body: JSON.stringify({token:S.cfg.token, aparelho:APARELHO, usuario:U?{nome:U.nome, cargo:U.cargo}:null, gz:GZ?1:0, sessao:LS.get("pinSessao")||"", ...(ambTeste()?{amb:"teste"}:{}), ...body})});
     txt = await r.text();
   }catch{ throw new Error(estourou ? "Sem conexão com o Google (demorou demais)." : ctl.signal.aborted ? "Pedido cancelado." : "Sem conexão com o Google."); }
   finally{ clearTimeout(tm); }
@@ -2269,7 +2271,7 @@ function setCampo(on){ LS.set("campo",!!on); if(on) document.documentElement.dat
 $("#campo-modo").addEventListener("click", e=>{ const b=e.target.closest("button[data-c]"); if(b) setCampo(b.dataset.c==="1"); });
 setCampo(!!LS.get("campo"));
 
-const VERSAO_APP = "v175"; // igual ao número em sw.js (armacao-v175)
+const VERSAO_APP = "v176"; // igual ao número em sw.js (armacao-v176)
 $("#versao-app").textContent = VERSAO_APP;
 $("#buscar-versao").addEventListener("click", async ()=>{
   const m=$("#versao-msg");
@@ -12062,7 +12064,7 @@ function avisarIndevido(){
 
 // ---------- o módulo Painel Dev ----------
 const DV={aba:LS.get("devAba")||"saude", cargo:"", rascunho:null, abertos:new Set(), quem:"", dia:"", de:"", ate:"", hist:null, diag:null};
-const ABAS_DEV=[["saude","Saúde"],["perm","Permissões"],["lanc","Lançamentos"],["aparelhos","Aparelhos"],["avisos","Avisos"],["senhas","Senhas"],["diag","Diagnóstico"],["mud","Mudanças"],["claude","Claude"]];
+const ABAS_DEV=[["saude","Saúde"],["perm","Permissões"],["lanc","Lançamentos"],["aparelhos","Aparelhos"],["avisos","Avisos"],["senhas","Senhas"],["diag","Diagnóstico"],["teste","Teste"],["mud","Mudanças"],["claude","Claude"]];
 const dataHoraBR = iso => { if(!iso) return ""; const d=new Date(iso); return isNaN(d) ? String(iso) : d.toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",year:"2-digit",hour:"2-digit",minute:"2-digit"}); };
 function renderDev(box){
   if(!souDev()) return repor(box, el("p",{class:"info",text:"Só o Desenvolvedor acessa o Painel Dev."}));
@@ -12070,10 +12072,46 @@ function renderDev(box){
     onclick:()=>{ DV.aba=id; LS.set("devAba",id); renderReg2(); }})));
   const corpo=el("div",{class:"lista full"});
   repor(box, el("p",{class:"saud"}, "Painel Dev", el("small",{text:"Controle do app: permissões, saúde das funções, lançamentos, diagnóstico e o que foi mudado por aqui."})), abas, corpo);
-  ({saude:devSaude, perm:devPerm, lanc:devLanc, aparelhos:devAparelhos, avisos:devAvisos, senhas:devSenhas, diag:devDiag, mud:devMud, claude:devClaude}[DV.aba]||devSaude)(corpo);
+  ({saude:devSaude, perm:devPerm, lanc:devLanc, aparelhos:devAparelhos, avisos:devAvisos, senhas:devSenhas, diag:devDiag, teste:devTeste, mud:devMud, claude:devClaude}[DV.aba]||devSaude)(corpo);
 }
 const linhaInfo = t => el("p",{class:"info",text:t});
 const cartaoDev = (...k) => el("div",{class:"card"}, ...k);
+
+// --- Teste (script 44+): cópia da planilha da obra para testar e gravar tutoriais. Liga só neste aparelho, só para o Dev;
+// a mesma implantação e a mesma senha servem aos dois (o pedido leva amb:"teste"). A faixa vermelha vem do nome da cópia. ---
+function devTeste(box){
+  const ligado=!!LS.get("ambTeste"), info=el("p",{class:"info",text:"Consultando a cópia de teste…"});
+  const mostrar=j=>{ const t=j.teste;
+    info.textContent = t ? `Cópia atual: “${t.nome}”, criada em ${dataHoraBR(t.criadoEm)}. Os dados dela são os da obra naquele momento.`
+      : "Ainda não há cópia de teste. Toque em “Criar cópia nova”."; };
+  const trocar=async on=>{
+    // lançamentos na fila iriam para o ambiente errado
+    if(pendCount()) return toast(`Há ${pendCount()} lançamento(s) esperando envio: sincronize antes de trocar de ambiente.`);
+    LS.set("ambTeste", on||null); if(S.meta) S.meta.v=""; // a base vem inteira do outro ambiente
+    await cancelarSync(); S.err=""; await sync();
+    // não ligou (sem cópia, script antigo, sem internet): volta para a obra e mostra o motivo
+    if(S.err && on){ const erro=S.err; LS.set("ambTeste", null); if(S.meta) S.meta.v=""; S.err=""; await sync(); toast("Não deu para ligar o teste: "+erro); }
+    else toast(on ? "Ambiente de teste ligado neste aparelho." : "De volta à planilha da obra.");
+    renderReg2();
+  };
+  const criar=async b=>{
+    if(!confirm("Criar uma cópia nova da planilha da obra para testes?\n\nA cópia anterior vai para a lixeira do Drive e o que foi lançado nela se perde.")) return;
+    b.disabled=true; b.textContent="Copiando… (até 1 min)";
+    try{ mostrar(await post({acao:"devTeste", criar:1}, 180000)); toast("Cópia de teste criada."); if(ligado){ if(S.meta) S.meta.v=""; sync(); } }
+    catch(e){ toast(e.message||"Não foi possível criar a cópia."); }
+    finally{ b.disabled=false; b.textContent="Criar cópia nova"; }
+  };
+  repor(box,
+    cartaoDev(el("h3",{text:ligado ? "Este aparelho está no ambiente de teste" : "Ambiente de teste"}),
+      linhaInfo("Uma cópia da planilha da obra para testar versões novas e gravar tutoriais sem mexer nos dados reais. Só este aparelho passa a usar a cópia; os outros celulares continuam na obra."),
+      linhaInfo("Continuam os da obra: acessos, aparelhos e erros. Fotos, projetos e arquivos enviados no teste vão para as pastas da obra."),
+      info,
+      el("div",{class:"row"},
+        el("button",{class:"btn"+(ligado?"":" pri"),type:"button",text:ligado ? "Voltar para a obra" : "Usar o ambiente de teste",onclick:e=>{ e.target.disabled=true; trocar(!ligado); }}),
+        el("button",{class:"btn",type:"button",text:"Criar cópia nova",onclick:e=>criar(e.target)}))));
+  if(S.scriptVer && S.scriptVer<44){ info.textContent=`O script da planilha é a versão ${S.scriptVer}: o ambiente de teste precisa da versão 44.`; return; }
+  post({acao:"devTeste"}, 60000).then(mostrar).catch(e=>{ info.textContent=e.message||"Não foi possível consultar a cópia de teste."; });
+}
 
 // --- Senhas: a do Desenvolvedor e a do app, com código no WhatsApp do Dev (os usuários não têm senha: o celular é liberado em Aparelhos) ---
 function devSenhas(box){

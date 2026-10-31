@@ -319,7 +319,7 @@ function devDados_(corpo) {
   const n = Math.max(50, Math.min(Number(corpo.n) || 800, 3000));
   return {
     historico: ultimasLinhas_('Historico', n).map(r => ({ em: iso(r[0]), usuario: String(r[1] || ''), cargo: String(r[2] || ''), acao: String(r[3] || ''), det: String(r[4] || '') })),
-    abas: SpreadsheetApp.getActive().getSheets().map(sh => ({ nome: sh.getName(), linhas: sh.getLastRow(), colunas: sh.getLastColumn() })),
+    abas: planilha_().getSheets().map(sh => ({ nome: sh.getName(), linhas: sh.getLastRow(), colunas: sh.getLastColumn() })),
     erros: ultimasLinhas_('Erros', 300).map(r => ({ em: iso(r[0]), aparelho: String(r[1] || ''), usuario: String(r[2] || ''), versao: String(r[3] || ''), msg: String(r[4] || ''), onde: String(r[5] || '') })),
   };
 }
@@ -390,7 +390,7 @@ function listaAcessos_() {
 }
 // abas criadas depois da instalação (Erros, Aparelhos): aparecem sozinhas na primeira vez, sem rodar configurar()
 function abaOuCria_(nome) {
-  const ss = SpreadsheetApp.getActive();
+  const ss = planilha_(nome);
   let sh = ss.getSheetByName(nome);
   if (!sh) { sh = ss.insertSheet(nome); sh.getRange(1, 1, 1, ABAS[nome].length).setValues([ABAS[nome]]).setFontWeight('bold'); sh.setFrozenRows(1); }
   return sh;
@@ -532,6 +532,11 @@ function doPost(e) {
     // erros e estado do celular vêm junto com qualquer pedido; uma falha aqui não atrapalha o resto
     try { if (Array.isArray(corpo.erros) && corpo.erros.length) gravarErros_(eu, corpo.erros); } catch (e) { /* segue */ }
     try { if (corpo.estado) gravarEstado_(eu, corpo.estado); } catch (e) { /* segue */ }
+    if (corpo.acao === 'devTeste') {
+      if (!dev) throw new Error('Só o desenvolvedor cria o ambiente de teste.');
+      return devTeste_(corpo);
+    }
+    if (corpo.amb === 'teste') usarTeste_(dev); // daqui para baixo, os dados vêm da cópia de teste
     if (corpo.acao === 'pinCargos' || corpo.acao === 'pinZerar') {
       if (!dev) throw new Error('Só o desenvolvedor muda o PIN.');
       return comLock_(() => pinDev_(corpo, eu));
@@ -903,9 +908,39 @@ function lixeiraArquivo_(dadosTxt) {
   } catch (e) { /* já apagado */ }
 }
 
+// ---------- ambiente de teste (script 44): mesma implantação, outra planilha ----------
+// O aparelho do Desenvolvedor pode pedir "amb: teste" (Painel Dev › Teste). Aí os dados da obra (semanas, registros, RDO…)
+// são lidos e gravados numa cópia da planilha (Propriedade TESTE_ID); acessos, aparelhos e erros continuam na planilha da obra.
+// Fotos, projetos e arquivos usam as pastas da obra. Sem pedido de teste, nada muda.
+let PLANILHA_ = null; // null = planilha da obra (a ligada ao script)
+const ABAS_SEMPRE_OBRA_ = new Set(['Acessos', 'Aparelhos', 'Erros']);
+function planilha_(nome) { return PLANILHA_ && !ABAS_SEMPRE_OBRA_.has(nome) ? PLANILHA_ : SpreadsheetApp.getActive(); }
+function usarTeste_(dev) {
+  if (!dev) throw new Error('Só o desenvolvedor usa o ambiente de teste.');
+  const id = PropertiesService.getScriptProperties().getProperty('TESTE_ID');
+  if (!id) throw new Error('O ambiente de teste ainda não foi criado: Painel Dev › Teste › Criar cópia.');
+  try { PLANILHA_ = SpreadsheetApp.openById(id); } catch (e) { throw new Error('A cópia de teste não abriu (foi apagada?): Painel Dev › Teste › Criar cópia.'); }
+}
+// Painel Dev › Teste: situação da cópia e, com corpo.criar, cópia nova da planilha da obra (a anterior vai para a lixeira)
+function devTeste_(corpo) {
+  const props = PropertiesService.getScriptProperties();
+  if (corpo.criar) comLock_(() => {
+    const ss = SpreadsheetApp.getActive(), it = DriveApp.getFoldersByName('WIGO - Teste');
+    const pastaT = it.hasNext() ? it.next() : DriveApp.createFolder('WIGO - Teste');
+    const nome = ss.getName() + ' · TESTE ' + Utilities.formatDate(new Date(), ss.getSpreadsheetTimeZone(), 'yyyy-MM-dd HH:mm');
+    const copia = DriveApp.getFileById(ss.getId()).makeCopy(nome, pastaT), antiga = props.getProperty('TESTE_ID');
+    props.setProperty('TESTE_ID', copia.getId());
+    if (antiga) try { DriveApp.getFileById(antiga).setTrashed(true); } catch (e) { /* já não existe */ }
+  });
+  const id = props.getProperty('TESTE_ID');
+  if (!id) return { teste: null };
+  try { const f = DriveApp.getFileById(id); return { teste: f.isTrashed() ? null : { nome: f.getName(), criadoEm: f.getDateCreated().toISOString(), url: f.getUrl() } }; }
+  catch (e) { return { teste: null }; }
+}
+
 // ---------- leitura ----------
 function aba(nome) {
-  const sh = SpreadsheetApp.getActive().getSheetByName(nome);
+  const sh = planilha_(nome).getSheetByName(nome);
   if (!sh) throw new Error('Aba "' + nome + '" não encontrada. Rode configurar().');
   return sh;
 }
@@ -931,7 +966,7 @@ function linhas(nome) {
 // 39: liberação com prazo (VALIDADE), PIN pessoal por cargo (PIN, Propriedade PIN_CARGOS) e aceite do termo de uso (LGPD) no Histórico.
 // 40: a lista de projetos traz também as plantas DWG/DXF das pastas Projetos e Formas (o app abre no leitor das Ferramentas).
 // 41: arquivos enviados pelo app (acao 'arqEnviar', pasta Arquivos): do computador da obra para o celular, sem WhatsApp.
-const VERSAO_SCRIPT = 43;
+const VERSAO_SCRIPT = 44;
 
 // Colunas de código que precisam ficar como TEXTO. Sem isso o Planilhas converte
 // "DEC-0001" em data (dez/2001) e o código se perde.
@@ -1024,7 +1059,7 @@ function carregar(versaoCliente) {
     criadoEm: r[8] instanceof Date ? r[8].toISOString() : String(r[8] || ''), criadoPor: String(r[9] || ''),
     atualizadoEm: r[10] instanceof Date ? r[10].toISOString() : String(r[10] || ''), atualizadoPor: String(r[11] || ''), hist: lerJsonA(r[12], '[]'),
   }));
-  const out = { script: VERSAO_SCRIPT, teste: /\bTESTE\b/i.test(SpreadsheetApp.getActive().getName()), versao: versao, semanas: semanas, lanc: lanc, equipes: equipes, registros: registros,
+  const out = { script: VERSAO_SCRIPT, teste: /\bTESTE\b/i.test(planilha_().getName()), versao: versao, semanas: semanas, lanc: lanc, equipes: equipes, registros: registros,
     elementos: elementos, config: config, efetivo: efetivo, efDia: efDia, pessoas: pessoas, presencas: presencas,
     presPor: presPor, atividades: atividades, rdo: lerRdos(), concretagens: lerConcretagens(), registros2: lerRegistros2(), leitura: chaveLeitura(), agora: new Date().toISOString() };
   if (versaoCliente !== versao) out.itens = itens; // só manda a base quando mudou
